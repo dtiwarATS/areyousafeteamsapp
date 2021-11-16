@@ -1,0 +1,56 @@
+{
+    "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.11/MicrosoftTeams.schema.json",
+    "manifestVersion": "1.11",
+    "version": "1.0.0",
+    "id": "e2d0b3a0-6a5b-4a9e-9a34-3db006e9ba12",
+    "packageName": "com.teams.microsoft.safetybot",
+    "developer": {
+        "name": "Avista Information System",
+        "websiteUrl": "https://www.avistais.com",
+        "privacyUrl": "https://www.avistais.com/privacy",
+        "termsOfUseUrl": "https://www.avistais.com/termofuse"
+    },
+    "icons": {
+        "color": "color.png",
+        "outline": "outline.png"
+    },
+    "name": {
+        "short": "SafetyBot",
+        "full": "Safety Bot"
+    },
+    "description": {
+        "short": "safety bot",
+        "full": "safety bot"
+    },
+    "accentColor": "#FFFFFF",
+    "staticTabs": [
+        {
+            "entityId": "conversations",
+            "scopes": [
+                "personal"
+            ]
+        },
+        {
+            "entityId": "about",
+            "scopes": [
+                "personal"
+            ]
+        }
+    ],
+    "bots": [
+        {
+            "botId": "e2d0b3a0-6a5b-4a9e-9a34-3db006e9ba12",
+            "scopes": [
+                "team",
+                "personal"
+            ],
+            "supportsFiles": false,
+            "isNotificationOnly": false
+        }
+    ],
+    "permissions": [
+        "identity",
+        "messageTeamMembers"
+    ],
+    "validDomains": []
+}
