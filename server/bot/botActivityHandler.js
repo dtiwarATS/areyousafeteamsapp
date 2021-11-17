@@ -213,7 +213,13 @@ class BotActivityHandler extends TeamsActivityHandler {
         console.log("Verb: ", action.verb);
         const card = await bot.selectResponseCard(context, user);
         if (card && card["$schema"]) {
-          return bot.invokeResponse(card);
+          await context.sendActivity({
+            attachments: [CardFactory.adaptiveCard(card)],
+          });
+          return {
+            status: StatusCodes.OK,
+            body: {},
+          };
         } else {
           return {
             status: StatusCodes.OK,
