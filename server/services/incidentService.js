@@ -3,7 +3,7 @@ const Member = require("../models/Member");
 const Incident = require("../models/Incident");
 
 const poolPromise = require("../db/dbConn");
-const db = require("../db/db");
+const db = require("../db");
 
 const parseEventData = async (result) => {
   let parsedDataArr = [];
@@ -89,12 +89,17 @@ const saveInc = async (actionData, companyData) => {
 
 const deleteInc = async (incId) => {
   try {
+    let incName;
     pool = await poolPromise;
-    let query = `DELETE FROM MSTeamsIncidents WHERE id = ${incId}; DELETE FROM MSTeamsMemberResponses WHERE inc_id = ${incId};`;
+    let query = `DELETE FROM MSTeamsMemberResponses WHERE inc_id = ${incId};
+    DELETE FROM MSTeamsIncidents OUTPUT Deleted.inc_name WHERE id = ${incId}`;
 
     // console.log("delete query => ", query);
     const res = await pool.request().query(query);
-    return Promise.resolve(res);
+    if (res.recordset.length > 0) {
+      incName = res.recordset[0].inc_name;
+    }
+    return Promise.resolve(incName);
   } catch (err) {
     console.log(err);
   }
@@ -110,8 +115,7 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
     let member = allMembers[i];
     if (requesterId != member.id) {
       let query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
-        values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)
-        SELECT * from MSTeamsIncidents where id = SCOPE_IDENTITY()`;
+        values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
 
       console.log("insert query => ", query);
       await pool.request().query(query);

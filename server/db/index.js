@@ -108,8 +108,10 @@ const updateDataIntoDB = async (query) => {
   }
 };
 
-module.exports = {
+const db = {
   insertDataIntoDB,
   getDataFromDB,
   updateDataIntoDB,
 };
+
+module.exports = db;

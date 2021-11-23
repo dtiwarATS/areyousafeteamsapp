@@ -1,5 +1,5 @@
 const poolPromise = require("./dbConn");
-const db = require("./db");
+const db = require("../db");
 const Company = require("../models/Company");
 const Incident = require("../models/Incident");
 // const Member = require("../models/Member");
@@ -37,9 +37,10 @@ const getCompaniesData = async (userObjId, teamId = null) => {
     }
     let res = await db.getDataFromDB(selectQuery);
 
+    // check if the user is super user or not
     if (res.length == 0) {
       res = await db.getDataFromDB(
-        `SELECT * FROM MSTeamsInstallationDetails where super_users like '${userObjId}'`
+        `SELECT * FROM MSTeamsInstallationDetails where super_users like '%${userObjId}%'`
       );
     }
     companyData = await parseCompanyData(res);

@@ -35,67 +35,21 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   await sendEmail(userEmailId, subject, emailBody);
 };
 
-const incidentManagementCard = (profileName) => ({
-  version: "1.0.0",
-  type: "AdaptiveCard",
-  body: [
-    {
-      type: "TextBlock",
-      text: `Hello ${profileName}`,
-    },
-    {
-      type: "TextBlock",
-      text: "Starting Incident Management Workflow",
-    },
-  ],
-});
-
 const invokeResponse = (card) => {
-  const cardRes = {
-    statusCode: StatusCodes.OK,
-    type: "application/vnd.microsoft.card.adaptive",
-    value: card,
-  };
-  const res = {
-    status: StatusCodes.OK,
-    body: cardRes,
-  };
-  return res;
-};
-
-// Adaptive Card to show in task module
-const adaptiveCardTaskModule = {
-  $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-  body: [
-    {
-      type: "TextBlock",
-      size: "Medium",
-      weight: "Bolder",
-      text: "Sample task module flow for tab",
-    },
-    {
-      type: "Image",
-      height: "50px",
-      width: "50px",
-      url: "https://cdn.vox-cdn.com/thumbor/Ndb49Uk3hjiquS041NDD0tPDPAs=/0x169:1423x914/fit-in/1200x630/cdn.vox-cdn.com/uploads/chorus_asset/file/7342855/microsoftteams.0.jpg",
-    },
-    {
-      type: "ActionSet",
-      actions: [
-        {
-          type: "Action.Submit",
-          title: "Close",
-          data: {
-            msteams: {
-              type: "task/submit",
-            },
-          },
-        },
-      ],
-    },
-  ],
-  type: "AdaptiveCard",
-  version: "1.4",
+  try {
+    const cardRes = {
+      statusCode: StatusCodes.OK,
+      type: "application/vnd.microsoft.card.adaptive",
+      value: card,
+    };
+    const res = {
+      status: StatusCodes.OK,
+      body: cardRes,
+    };
+    return res;
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 const selectResponseCard = async (context, user) => {
@@ -123,42 +77,42 @@ const selectResponseCard = async (context, user) => {
       // TODO: Need to change this approach
       // work-around to prevent non-admin user from performing activity on adaptive cards
       console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
-      return;
+      return Promise.resolve(true);
     }
 
     if (verb === "create_onetimeincident" && isAdminOrSuperuser) {
-      return await createInc(context, user, companyData);
+      await createInc(context, user, companyData);
     } else if (verb === "save_new_inc" && isAdminOrSuperuser) {
-      return await saveInc(context, action, companyData);
+      await saveInc(context, action, companyData);
     } else if (verb === "list_delete_inc" && isAdminOrSuperuser) {
-      return await sendDeleteIncCard(user, companyData);
+      await sendDeleteIncCard(context, user, companyData);
     } else if (verb === "delete_inc" && isAdminOrSuperuser) {
-      return await deleteInc(action, companyData);
+      await deleteInc(context, action);
     } else if (verb === "list_inc" && isAdminOrSuperuser) {
-      return await viewAllInc(companyData);
+      await viewAllInc(context, companyData);
     } else if (verb && verb === "send_approval" && isAdminOrSuperuser) {
-      return await sendApproval(context);
+      await sendApproval(context);
     } else if (verb && verb === "cancel_send_approval" && isAdminOrSuperuser) {
-      return await cancelSendApproval(action, companyData);
+      await cancelSendApproval(context, user);
     } else if (verb && verb === "send_response") {
-      return await sendApprovalResponse(user, context);
+      await sendApprovalResponse(user, context);
     } else if (verb && verb === "submit_comment") {
-      return await submitComment(context, user, companyData);
+      await submitComment(context, user, companyData);
     } else if (verb && verb === "view_inc_result" && isAdminOrSuperuser) {
-      return await viewIncResult(action, context, companyData);
+      const incidentId = action.data.incidentSelectedVal;
+      await viewIncResult(incidentId, context, companyData);
     } else if (verb && verb === "contact_us" && isAdminOrSuperuser) {
-      return await sendContactUsForm(companyData);
+      await sendContactUsForm(context, companyData);
     } else if (verb && verb === "submit_contact_us" && isAdminOrSuperuser) {
-      return await submitContactUsForm(context, companyData);
+      await submitContactUsForm(context, companyData);
     } else if (verb && verb === "view_settings" && isAdminOrSuperuser) {
-      return viewSettings(context, companyData);
+      await viewSettings(context, companyData);
     } else if (verb && verb === "submit_settings" && isAdminOrSuperuser) {
-      return await submitSettings(context, companyData);
-    } else if (isAdminOrSuperuser) {
-      return invokeMainActivityBoard(companyData);
+      await submitSettings(context, companyData);
     }
+    return Promise.resolve(true);
   } catch (error) {
-    console.log(error);
+    console.log("ERROR: ", error);
   }
 };
 
@@ -167,20 +121,13 @@ const invokeMainActivityBoard = (companyData) => ({
   appId: process.env.MicrosoftAppId,
   body: [
     {
-      type: "TextBlock",
-      size: "Medium",
-      weight: "Bolder",
-      text: "Hello!",
-    },
-    {
       type: "RichTextBlock",
       inlines: [
         {
           type: "TextRun",
-          text: `I'm here to help you create new incident or view previous incident results.\nWould you like to?`,
+          text: `👋 Hello! I'm here to help you create new incident or view previous incident results.\nWould you like to?`,
         },
       ],
-      separator: true,
     },
     {
       type: "ActionSet",
@@ -196,10 +143,11 @@ const invokeMainActivityBoard = (companyData) => ({
         },
         {
           type: "Action.Execute",
+          isEnabled: false,
           verb: "list_inc",
-          title: "View Incidents",
+          title: "View Incident Dashboard",
           data: {
-            option: "View Incidents",
+            option: "View Incident Dashboard",
             companyData: companyData,
           },
         },
@@ -226,7 +174,8 @@ const invokeMainActivityBoard = (companyData) => ({
     {
       type: "TextBlock",
       wrap: true,
-      text: "If you have any questions or feedback for us, please click on the Contact Us button to get in touch.",
+      separator: true,
+      text: "If you have any questions or feedback for us, please click on the **Contact Us** button to get in touch.",
     },
   ],
   actions: [
@@ -245,73 +194,98 @@ const invokeMainActivityBoard = (companyData) => ({
 });
 
 const createInc = async (context, user, companyData) => {
-  let allMembers = await getAllTeamMembers(context, companyData.teamId);
+  try {
+    let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
-  // remove incident creator
-  allMembers = allMembers.filter((m) => m.id != user.id);
-  // console.log("allMembers in createInc >> ", allMembers);
+    // remove incident creator
+    allMembers = allMembers.filter((m) => m.id != user.id);
+    // console.log("allMembers in createInc >> ", allMembers);
 
-  const memberChoises = allMembers.map((m) => ({
-    title: m.name,
-    value: m.aadObjectId,
-  }));
-  // console.log("memberChoises >> ", memberChoises);
+    const memberChoises = allMembers.map((m) => ({
+      title: m.name,
+      value: m.aadObjectId,
+    }));
+    // console.log("memberChoises >> ", memberChoises);
 
-  const card = {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    appId: process.env.MicrosoftAppId,
-    body: [
-      {
-        type: "TextBlock",
-        size: "Medium",
-        weight: "Bolder",
-        text: "Create New Incident",
-      },
-      {
-        type: "Input.Text",
-        label: "Incident Title:",
-        isRequired: true,
-        errorMessage: "Incident Title is a required input",
-        placeholder: "Enter Incident Title",
-        id: "inc_title",
-        separator: true,
-      },
-      {
-        type: "Input.ChoiceSet",
-        label: "Select Users: (Optional)",
-        id: "selected_members",
-        style: "filtered",
-        isMultiSelect: true,
-        placeholder: "Please select users",
-        choices: memberChoises,
-      },
-    ],
-    actions: [
-      {
-        type: "Action.Execute",
-        verb: "save_new_inc",
-        title: "Save",
-        data: {
-          info: "save",
-          inc_created_by: user,
-          companyData: companyData,
+    const card = {
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      appId: process.env.MicrosoftAppId,
+      body: [
+        {
+          type: "TextBlock",
+          size: "Large",
+          weight: "Bolder",
+          text: "Create Incident",
         },
-      },
-      {
-        type: "Action.Execute",
-        verb: "main_activity_board",
-        title: "Back",
-        data: {
-          info: "Back",
-          companyData: companyData,
+        {
+          type: "TextBlock",
+          text: "Name of Incident",
+          weight: "bolder",
+          separator: true,
         },
-        associatedInputs: "none",
-      },
-    ],
-    type: "AdaptiveCard",
-    version: "1.4",
-  };
-  return card;
+        {
+          type: "Input.Text",
+          // label: "Name of Incident",
+          isRequired: true,
+          errorMessage: "Please complete this required field.",
+          placeholder: "Enter the Incident Name",
+          id: "inc_title",
+        },
+        {
+          type: "TextBlock",
+          text: "Send the incident notification to these members (optional)",
+          weight: "bolder",
+          separator: true,
+        },
+        {
+          type: "Input.ChoiceSet",
+          // label: "Send the incident notification to these members (optional)",
+          weight: "bolder",
+          id: "selected_members",
+          style: "filtered",
+          isMultiSelect: true,
+          placeholder: "Select users",
+          choices: memberChoises,
+        },
+        {
+          type: "TextBlock",
+          size: "small",
+          isSubtle: true,
+          text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
+        },
+      ],
+      actions: [
+        {
+          type: "Action.Execute",
+          verb: "save_new_inc",
+          title: "Submit",
+          data: {
+            info: "save",
+            inc_created_by: user,
+            companyData: companyData,
+          },
+        },
+        // {
+        //   type: "Action.Execute",
+        //   verb: "main_activity_board",
+        //   title: "Back",
+        //   data: {
+        //     info: "Back",
+        //     companyData: companyData,
+        //   },
+        //   associatedInputs: "none",
+        // },
+      ],
+      type: "AdaptiveCard",
+      version: "1.4",
+    };
+
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(card)],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 };
 
 const saveInc = async (context, action, companyData) => {
@@ -347,38 +321,16 @@ const saveInc = async (context, action, companyData) => {
     body: [
       {
         type: "TextBlock",
-        size: "Medium",
+        size: "Large",
         weight: "Bolder",
         text: `Incident "${incTitle}" created successfully!`,
         wrap: true,
       },
       {
-        type: "RichTextBlock",
+        type: "TextBlock",
         separator: true,
-        inlines: [
-          {
-            type: "TextRun",
-            text: `Incident Message:\nThis is a safety check from `,
-          },
-          {
-            type: "TextRun",
-            text: `${inc_created_by.name}.`,
-            weight: "bolder",
-          },
-          {
-            type: "TextRun",
-            text: `We think you may be affected by `,
-          },
-          {
-            type: "TextRun",
-            text: `${incTitle}. `,
-            weight: "bolder",
-          },
-          {
-            type: "TextRun",
-            text: `Mark yourself as safe, or ask for assistance for this incident.`,
-          },
-        ],
+        wrap: true,
+        text: `Incident Message:\nThis is a safety check from <at>${inc_created_by.name}</at>. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance for this incident.`,
       },
       {
         type: "RichTextBlock",
@@ -416,13 +368,28 @@ const saveInc = async (context, action, companyData) => {
         ],
       },
     ],
+    msteams: {
+      entities: [
+        {
+          type: "mention",
+          text: `<at>${inc_created_by.name}</at>`,
+          mentioned: {
+            id: inc_created_by.id,
+            name: inc_created_by.name,
+          },
+        },
+      ],
+    },
     type: "AdaptiveCard",
     version: "1.4",
   };
-  return card;
+
+  await context.sendActivity({
+    attachments: [CardFactory.adaptiveCard(card)],
+  });
 };
 
-const sendDeleteIncCard = async (user, companyData) => {
+const sendDeleteIncCard = async (context, user, companyData) => {
   // console.log("delete incident called", companyData, user);
   try {
     const allIncidentData = await incidentService.getAllInc(companyData.teamId);
@@ -443,13 +410,15 @@ const sendDeleteIncCard = async (user, companyData) => {
         {
           type: "TextBlock",
           text: "Delete Incident",
-          size: "Medium",
+          size: "Large",
           weight: "Bolder",
         },
         {
           type: "TextBlock",
-          text: "Select the incident to delete",
+          text: "Incident List",
           wrap: true,
+          separator: true,
+          weight: "bolder",
         },
         {
           type: "Input.ChoiceSet",
@@ -468,172 +437,144 @@ const sendDeleteIncCard = async (user, companyData) => {
             companyData: companyData,
           },
         },
-        {
-          type: "Action.Execute",
-          verb: "main_activity_board",
-          title: "Back",
-          data: {
-            info: "Back",
-            companyData: companyData,
-          },
-        },
+        // {
+        //   type: "Action.Execute",
+        //   verb: "main_activity_board",
+        //   title: "Back",
+        //   data: {
+        //     info: "Back",
+        //     companyData: companyData,
+        //   },
+        // },
       ],
     };
-    return card;
+
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(card)],
+    });
   } catch (error) {
     console.log(error);
   }
 };
 
-const deleteInc = async (action, companyData) => {
-  console.log({ action, companyData });
+const deleteInc = async (context, action) => {
+  // console.log({ action, companyData });
   const incidentSelectedVal = action.data.incidentSelectedVal;
-  await incidentService.deleteInc(incidentSelectedVal);
+  const IncidentName = await incidentService.deleteInc(incidentSelectedVal);
 
-  const card = {
-    type: "AdaptiveCard",
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    version: "1.4",
-    body: [
-      {
-        type: "TextBlock",
-        size: "Medium",
-        weight: "Bolder",
-        text: "Delete Incident",
-      },
-      {
-        type: "TextBlock",
-        size: "Medium",
-        text: "Incident deleted successfully",
-        separator: true,
-        color: "good",
-      },
-    ],
-    actions: [
-      {
-        type: "Action.Execute",
-        verb: "main_activity_board",
-        title: "Back",
-        data: {
-          info: "Back",
-          companyData: companyData,
-        },
-      },
-    ],
-  };
-
-  return card;
+  let msgText;
+  if (IncidentName) {
+    msgText = `✔️ The Incident **'${IncidentName}'** has been deleted successfully.`;
+    await context.sendActivity(MessageFactory.text(msgText));
+  }
 };
 
-const viewAllInc = async (companyData) => {
+const viewAllInc = async (context, companyData) => {
   try {
     const allIncidentData = await incidentService.getAllInc(companyData.teamId);
 
     let incList = [];
-    if (!allIncidentData.length) {
-      incList = [
-        {
-          type: "RichTextBlock",
-          inlines: [
-            {
-              type: "TextRun",
-              text: "No Incidents Available",
-              size: "medium",
-              color: "Attention",
-              separator: true,
-            },
-          ],
-        },
-      ];
-    } else {
+    if (allIncidentData.length > 0) {
       incList = allIncidentData.map((inc, index) => ({
-        type: "ColumnSet",
-        spacing: "medium",
-        separator: true,
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                text: `${index + 1}. ${inc.incTitle}`,
-                size: "medium",
-                color: "Good",
-              },
-            ],
-          },
-        ],
-        selectAction: {
-          type: "Action.Execute",
-          verb: "view_inc_result",
-          data: {
-            incidentId: inc.incId,
-            companyData: companyData,
-          },
-        },
+        title: inc.incTitle,
+        value: inc.incId,
       }));
-
-      incList = [
-        {
-          type: "TextBlock",
-          text: "Incident List",
-          size: "Medium",
-          weight: "Bolder",
-        },
-        ...incList,
-      ];
     }
 
     const card = {
       type: "AdaptiveCard",
       $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
       version: "1.4",
-      body: incList,
+      body: [
+        {
+          type: "TextBlock",
+          text: "View Incident Dashboard",
+          size: "Large",
+          weight: "Bolder",
+        },
+        {
+          type: "TextBlock",
+          text: "Incident List",
+          wrap: true,
+          separator: true,
+          weight: "bolder",
+        },
+        {
+          type: "Input.ChoiceSet",
+          id: "incidentSelectedVal",
+          placeholder: "Select an Incident",
+          value: incList.length > 0 && incList[0].value,
+          choices: incList,
+        },
+      ],
       actions: [
         {
           type: "Action.Execute",
-          verb: "main_activity_board",
-          title: "Back",
+          verb: "view_inc_result",
+          title: "Submit",
           data: {
-            info: "Back",
             companyData: companyData,
           },
         },
+        // {
+        //   type: "Action.Execute",
+        //   verb: "main_activity_board",
+        //   title: "Back",
+        //   data: {
+        //     info: "Back",
+        //     companyData: companyData,
+        //   },
+        // },
       ],
     };
-    return card;
+
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(card)],
+    });
   } catch (error) {
     console.log(error);
   }
 };
 
-const viewIncResult = async (action, context, companyData) => {
+const viewIncResult = async (incidentId, context, companyData) => {
   // console.log("viewIncResult called", action);
-  const inc = await incidentService.getInc(action.data.incidentId);
-  console.log("inc in viewIncResult =>", inc);
+  const inc = await incidentService.getInc(incidentId);
+  //console.log("inc in viewIncResult =>", inc);
 
-  var result = {
+  let result = {
     eventName: inc.incTitle,
     membersSafe: [],
     membersUnsafe: [],
     membersNotResponded: [],
   };
 
+  const mentionUserEntities = [];
+
   // process result for event dashboard
   inc.members.forEach((m) => {
-    const { userName, response, responseValue } = m;
+    const { userId, userName, response, responseValue } = m;
 
     if (response == "na" || response == false) {
-      result.membersNotResponded.push(userName);
+      result.membersNotResponded.push(`<at>${userName}</at>`);
     }
     if (response == true) {
       if (responseValue == true) {
-        result.membersSafe.push(userName);
+        result.membersSafe.push(`<at>${userName}</at>`);
       } else if (responseValue == false || responseValue == null) {
-        result.membersUnsafe.push(userName);
+        result.membersUnsafe.push(`<at>${userName}</at>`);
       }
     }
+
+    const mention = {
+      type: "mention",
+      text: `<at>${userName}</at>`,
+      mentioned: {
+        id: userId,
+        name: userName,
+      },
+    };
+
+    mentionUserEntities.push(mention);
   });
 
   let membersUnsafeStr = result.membersUnsafe.join(", ");
@@ -644,14 +585,13 @@ const viewIncResult = async (action, context, companyData) => {
 
   const card = {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    version: "1.4",
     type: "AdaptiveCard",
-    version: "1.0",
+    version: "1.4",
     body: [
       {
         type: "TextBlock",
-        text: `Incident: ${inc.incTitle}`,
-        size: "Medium",
+        text: `👋 Incident Name: ${inc.incTitle}`,
+        size: "Large",
         weight: "Bolder",
         wrap: true,
       },
@@ -724,20 +664,50 @@ const viewIncResult = async (action, context, companyData) => {
         ],
       },
     ],
-    actions: [
-      {
-        type: "Action.Execute",
-        verb: "list_inc",
-        title: "Back",
-        data: {
-          info: "Back",
-          companyData: companyData,
-        },
-      },
-    ],
+    msteams: {
+      entities: mentionUserEntities,
+    },
+    // actions: [
+    //   {
+    //     type: "Action.Execute",
+    //     verb: "list_inc",
+    //     title: "Back",
+    //     data: {
+    //       info: "Back",
+    //       companyData: companyData,
+    //     },
+    //   },
+    // ],
   };
 
-  return card;
+  // const card = {
+  //   $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+  //   appId: process.env.MicrosoftAppId,
+  //   type: "AdaptiveCard",
+  //   version: "1.0",
+  //   body: [
+  //     {
+  //       type: "TextBlock",
+  //       text: `Hi <at>David James</at>`,
+  //     },
+  //   ],
+  //   msteams: {
+  //     entities: [
+  //       {
+  //         type: "mention",
+  //         text: `<at>David James</at>`,
+  //         mentioned: {
+  //           id: "29:1rW2p2zC_SrnCSDXpjZ4mO45eaBpsQ-dUcUsGUl3Yh2a6Y7L3BcLE5JDkNr4Tlg2w9hxxbCnjX8b7yGlDddLnUQ",
+  //           name: "David James",
+  //         },
+  //       },
+  //     ],
+  //   },
+  // };
+
+  await context.sendActivity({
+    attachments: [CardFactory.adaptiveCard(card)],
+  });
 };
 
 const sendApproval = async (context) => {
@@ -749,6 +719,7 @@ const sendApproval = async (context) => {
   let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
   const incCreatedByUserObj = allMembers.find((m) => m.id === incCreatedBy);
+  // console.log("incCreatedByUserObj >> ", incCreatedByUserObj);
 
   allMembers = allMembers.map(
     (tm) =>
@@ -785,33 +756,15 @@ const sendApproval = async (context) => {
       body: [
         {
           type: "TextBlock",
-          size: "Medium",
+          size: "Large",
           weight: "Bolder",
           text: "Hello!",
         },
         {
-          type: "RichTextBlock",
+          type: "TextBlock",
           separator: true,
-          inlines: [
-            {
-              type: "TextRun",
-              text: `This is a safety check from `,
-            },
-            {
-              type: "TextRun",
-              text: `${incCreatedByUserObj.name}. `,
-              weight: "bolder",
-            },
-            {
-              type: "TextRun",
-              text: `We think you may be affected by `,
-            },
-            {
-              type: "TextRun",
-              text: `${incTitle}.`,
-              weight: "bolder",
-            },
-          ],
+          wrap: true,
+          text: `This is a safety check from <at>${incCreatedByUserObj.name}</at>. We think you may be affected by **${incTitle}**.`,
         },
         {
           type: "RichTextBlock",
@@ -857,6 +810,18 @@ const sendApproval = async (context) => {
           ],
         },
       ],
+      msteams: {
+        entities: [
+          {
+            type: "mention",
+            text: `<at>${incCreatedByUserObj.name}</at>`,
+            mentioned: {
+              id: incCreatedByUserObj.id,
+              name: incCreatedByUserObj.name,
+            },
+          },
+        ],
+      },
       type: "AdaptiveCard",
       version: "1.4",
     };
@@ -875,221 +840,25 @@ const sendApproval = async (context) => {
     });
   });
 
-  var result = {
-    eventName: incWithAddedMembers.incTitle,
-    membersSafe: [],
-    membersUnsafe: [],
-    membersNotResponded: [],
-  };
+  const msgText =
+    "Thanks! Your safety check message has been sent to all the users";
 
-  // process result for event dashboard
-  incWithAddedMembers.members.forEach((m) => {
-    const { userName, response, responseValue } = m;
+  await sendDirectMessage(context, incCreatedByUserObj, msgText);
 
-    if (response == "na" || response == false) {
-      result.membersNotResponded.push(userName);
-    }
-    if (response == true) {
-      if (responseValue == true) {
-        result.membersSafe.push(userName);
-      } else if (responseValue == false || responseValue == null) {
-        result.membersUnsafe.push(userName);
-      }
-    }
+  const resultCard = await viewIncResult(incId, context, companyData);
+
+  await context.sendActivity({
+    attachments: [CardFactory.adaptiveCard(resultCard)],
   });
-
-  let membersUnsafeStr = result.membersUnsafe.join(", ");
-  let membersNotRespondedStr = result.membersNotResponded.join(", ");
-  let membersSafeStr = result.membersSafe.join(", ");
-
-  const card = {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    appId: process.env.MicrosoftAppId,
-    body: [
-      {
-        type: "TextBlock",
-        size: "Medium",
-        weight: "Bolder",
-        text: `Incident "${incTitle}" created successfully!`,
-        wrap: true,
-      },
-      {
-        type: "RichTextBlock",
-        separator: true,
-        inlines: [
-          {
-            type: "TextRun",
-            text: `This is a safety check from `,
-          },
-          {
-            type: "TextRun",
-            text: `${incCreatedByUserObj.name}. `,
-            weight: "bolder",
-          },
-          {
-            type: "TextRun",
-            text: `We think you may be affected by `,
-          },
-          {
-            type: "TextRun",
-            text: `${incTitle}.`,
-            weight: "bolder",
-          },
-        ],
-      },
-      {
-        type: "RichTextBlock",
-        separator: true,
-        inlines: [
-          {
-            type: "TextRun",
-            text: `Thanks! Your safety check message has been sent to all the users`,
-          },
-        ],
-      },
-      {
-        type: "ColumnSet",
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                text: `**Need Assistance: ${result.membersUnsafe.length}**`,
-                color: "attention",
-              },
-              {
-                type: "TextBlock",
-                text: membersUnsafeStr,
-                isSubtle: true,
-                spacing: "none",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: "ColumnSet",
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                text: `**Not Responded: ${result.membersNotResponded.length}**`,
-                color: "default",
-              },
-              {
-                type: "TextBlock",
-                text: membersNotRespondedStr,
-                isSubtle: true,
-                spacing: "none",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: "ColumnSet",
-        spacing: "medium",
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                text: `**Safe: ${result.membersSafe.length}**`,
-                color: "good",
-              },
-              {
-                type: "TextBlock",
-                text: membersSafeStr,
-                isSubtle: true,
-                spacing: "none",
-              },
-            ],
-          },
-        ],
-      },
-    ],
-    actions: [
-      {
-        type: "Action.Execute",
-        verb: "list_inc",
-        title: "Back",
-        data: {
-          info: "Back",
-          companyData: companyData,
-        },
-      },
-    ],
-    type: "AdaptiveCard",
-    version: "1.4",
-  };
-  return card;
 };
 
-const cancelSendApproval = async (action, companyData) => {
+const cancelSendApproval = async (context, user) => {
+  const action = context.activity.value.action;
   const { incTitle, incId } = action.data.incident;
   await incidentService.deleteInc(incId);
 
-  const card = {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    appId: process.env.MicrosoftAppId,
-    body: [
-      {
-        type: "TextBlock",
-        size: "Medium",
-        weight: "Bolder",
-        text: `Incident "${incTitle}" created successfully!`,
-        wrap: true,
-      },
-      {
-        type: "RichTextBlock",
-        separator: true,
-        inlines: [
-          {
-            type: "TextRun",
-            text: `Incident Message:\nThis is a safety check from `,
-          },
-          {
-            type: "TextRun",
-            text: `${companyData.userName}. `,
-            weight: "bolder",
-          },
-          {
-            type: "TextRun",
-            text: `We think you may be affected by `,
-          },
-          {
-            type: "TextRun",
-            text: `${incTitle}. `,
-            weight: "bolder",
-          },
-          {
-            type: "TextRun",
-            text: `Mark yourself as safe, or ask for assistance for this incident.`,
-          },
-        ],
-      },
-      {
-        type: "RichTextBlock",
-        separator: true,
-        inlines: [
-          {
-            type: "TextRun",
-            text: `Your incident has been cancelled.`,
-          },
-        ],
-      },
-    ],
-    type: "AdaptiveCard",
-    version: "1.4",
-  };
-  return card;
+  const msgText = "Your incident has been cancelled.";
+  await sendDirectMessage(context, user, msgText);
 };
 
 const sendApprovalResponse = async (user, context) => {
@@ -1101,12 +870,17 @@ const sendApprovalResponse = async (user, context) => {
 
     if (response === "i_am_safe") {
       await incidentService.updateIncResponseData(incId, user.id, 1);
-      responseText = `Glad you're safe! We have informed **${incCreatedBy.name}** of your situation.`;
+      responseText = `Glad you're safe! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
     } else {
       await incidentService.updateIncResponseData(incId, user.id, 0);
-      msgText = `The user **${user.name}** needs assistance for Incident: **${incTitle}**`;
-      await sendDirectMessage(context, incCreatedBy, msgText);
-      responseText = `Sorry for your situation! We have informed **${incCreatedBy.name}** of your situation.`;
+      const mentionedUser = {
+        type: "mention",
+        mentioned: user,
+        text: `<at>${user.name}</at>`,
+      };
+      msgText = `The user <at>${user.name}</at> needs assistance for Incident: **${incTitle}**`;
+      await sendDirectMessage(context, incCreatedBy, msgText, mentionedUser);
+      responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
     }
     // await context.sendActivity(MessageFactory.text(responseText));
 
@@ -1127,6 +901,18 @@ const sendApprovalResponse = async (user, context) => {
           isMultiline: true,
         },
       ],
+      msteams: {
+        entities: [
+          {
+            type: "mention",
+            text: `<at>${incCreatedBy.name}</at>`,
+            mentioned: {
+              id: incCreatedBy.id,
+              name: incCreatedBy.name,
+            },
+          },
+        ],
+      },
       actions: [
         {
           type: "Action.Execute",
@@ -1145,7 +931,17 @@ const sendApprovalResponse = async (user, context) => {
       type: "AdaptiveCard",
       version: "1.4",
     };
-    return approvalCard;
+
+    //TODO: new to change this approach (i.e deleting current msg and sending new msg)
+    //delete the current msg
+    await context.deleteActivity(context.activity.replyToId);
+
+    //send new msg just to emulate msg is being updated
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(approvalCard)],
+    });
+
+    // return approvalCard;
   } catch (error) {
     console.log(error);
   }
@@ -1161,14 +957,19 @@ const submitComment = async (context, user, companyData) => {
     await incidentService.updateIncResponseComment(incId, userId, commentVal);
 
     if (commentVal != "") {
-      msgText = `The user **${user.name}** has commented for incident **${incTitle}**:\n${commentVal}`;
-      await sendDirectMessage(context, incCreatedBy, msgText);
+      const mentionedUser = {
+        type: "mention",
+        mentioned: user,
+        text: `<at>${user.name}</at>`,
+      };
+      msgText = `The user <at>${user.name}</at> has commented for incident **${incTitle}**:\n${commentVal}`;
+      await sendDirectMessage(context, incCreatedBy, msgText, mentionedUser);
     }
 
     let responseText =
       commentVal === ""
-        ? `Your safety status has been sent to the ${incCreatedBy.name}. Someone will be in touch with you as soon as possible.`
-        : `Your message has been sent to ${incCreatedBy.name}. Someone will be in touch with you as soon as possible.`;
+        ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
+        : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
 
     const card = {
       type: "AdaptiveCard",
@@ -1177,20 +978,40 @@ const submitComment = async (context, user, companyData) => {
       body: [
         {
           type: "TextBlock",
-          size: "Medium",
           text: responseText,
           wrap: true,
         },
       ],
+      msteams: {
+        entities: [
+          {
+            type: "mention",
+            text: `<at>${incCreatedBy.name}</at>`,
+            mentioned: {
+              id: incCreatedBy.id,
+              name: incCreatedBy.name,
+            },
+          },
+        ],
+      },
     };
 
-    return card;
+    //TODO: new to change this approach (i.e deleting current msg and sending new msg)
+    //delete the current msg
+    await context.deleteActivity(context.activity.replyToId);
+
+    //send new msg just to emulate msg is being updated
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(card)],
+    });
+
+    // return card;
   } catch (error) {
     console.log(error);
   }
 };
 
-const sendContactUsForm = async (companyData) => {
+const sendContactUsForm = async (context, companyData) => {
   try {
     const card = {
       $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -1199,28 +1020,42 @@ const sendContactUsForm = async (companyData) => {
       body: [
         {
           type: "TextBlock",
-          size: "Medium",
+          size: "Large",
           weight: "Bolder",
           text: "Contact Us",
         },
         {
+          type: "TextBlock",
+          text: "Email Address",
+          wrap: true,
+          separator: true,
+          weight: "bolder",
+        },
+        {
           type: "Input.Text",
-          label: "Email",
+          // label: "Email Address",
+          placeholder: "Enter your Email",
           style: "email",
           id: "emailVal",
           isRequired: true,
           errorMessage: "Email field is required with valid email-id",
           regex: "^[\\w-\\.]+@([\\w-]+\\.)+[\\w-]{2,4}$",
+        },
+        {
+          type: "TextBlock",
+          text: "Comment/Question",
+          wrap: true,
           separator: true,
+          weight: "bolder",
         },
         {
           type: "Input.Text",
-          label: "Comments/Feeback",
-          style: "text",
+          // label: "Comment/Question",
+          placeholder: "Enter your comment or question",
           id: "feedbackVal",
           isMultiline: true,
           isRequired: true,
-          errorMessage: "Comment/Feedback is required",
+          errorMessage: "Comment/Question is required",
         },
       ],
       actions: [
@@ -1232,20 +1067,22 @@ const sendContactUsForm = async (companyData) => {
             companyData: companyData,
           },
         },
-        {
-          type: "Action.Execute",
-          verb: "main_activity_board",
-          title: "Back",
-          data: {
-            info: "Back",
-            companyData: companyData,
-          },
-          associatedInputs: "none",
-        },
+        // {
+        //   type: "Action.Execute",
+        //   verb: "main_activity_board",
+        //   title: "Back",
+        //   data: {
+        //     info: "Back",
+        //     companyData: companyData,
+        //   },
+        //   associatedInputs: "none",
+        // },
       ],
     };
 
-    return card;
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(card)],
+    });
   } catch (error) {
     console.log(error);
   }
@@ -1255,20 +1092,11 @@ const submitContactUsForm = async (context, companyData) => {
   try {
     const { emailVal, feedbackVal } = context.activity.value.action.data;
 
-    let responseObj = {};
-
     if (emailVal && feedbackVal) {
       // save feedback data into DB
       // then send the response
-      responseObj = {
-        type: "TextBlock",
-        size: "Medium",
-        text: "Feedback submitted successfully",
-        separator: true,
-        color: "good",
-      };
 
-      feedbackDataObj = {
+      const feedbackDataObj = {
         userId: companyData.userId,
         teamId: companyData.teamId,
         userEmail: emailVal,
@@ -1296,45 +1124,10 @@ const submitContactUsForm = async (context, companyData) => {
       const subject = "AreYouSafe | Feedback";
 
       await sendEmail(emailVal, subject, emailBody);
-    } else {
-      responseObj = {
-        type: "TextBlock",
-        size: "Medium",
-        text: "Feedback submission failed",
-        separator: true,
-        color: "attention",
-      };
+
+      const msgText = `✔️ Your feedback has been submitted successfully.`;
+      await context.sendActivity(MessageFactory.text(msgText));
     }
-
-    // console.log("responseObj >> ", emailVal, feedbackVal);
-
-    const card = {
-      type: "AdaptiveCard",
-      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-      version: "1.4",
-      body: [
-        {
-          type: "TextBlock",
-          size: "Medium",
-          weight: "Bolder",
-          text: "Contact Us",
-        },
-        responseObj,
-      ],
-      actions: [
-        {
-          type: "Action.Execute",
-          verb: "main_activity_board",
-          title: "Back",
-          data: {
-            info: "Back",
-            companyData: companyData,
-          },
-        },
-      ],
-    };
-
-    return card;
   } catch (error) {
     console.log(error);
   }
@@ -1367,17 +1160,23 @@ const viewSettings = async (context, companyData) => {
     body: [
       {
         type: "TextBlock",
-        size: "Medium",
+        size: "Large",
         weight: "Bolder",
         text: "Settings",
       },
       {
+        type: "TextBlock",
+        text: "Select the users who should have the ability to create an incident (optional)",
+        wrap: true,
+        separator: true,
+        weight: "bolder",
+      },
+      {
         type: "Input.ChoiceSet",
-        label:
-          "Select the users who should have the ability to create an incident (optional):",
+        // label:
+        //   "Select the users who should have the ability to create an incident (optional)",
         placeholder: "Select users",
         id: "selected_superusers",
-        separator: true,
         style: "filtered",
         isMultiSelect: true,
         value:
@@ -1390,76 +1189,48 @@ const viewSettings = async (context, companyData) => {
       {
         type: "Action.Execute",
         verb: "submit_settings",
-        title: "Save",
+        title: "Submit",
         data: {
           info: "submit",
           companyData: companyData,
         },
       },
-      {
-        type: "Action.Execute",
-        verb: "main_activity_board",
-        title: "Back",
-        data: {
-          info: "Back",
-          companyData: companyData,
-        },
-        associatedInputs: "none",
-      },
+      // {
+      //   type: "Action.Execute",
+      //   verb: "main_activity_board",
+      //   title: "Back",
+      //   data: {
+      //     info: "Back",
+      //     companyData: companyData,
+      //   },
+      //   associatedInputs: "none",
+      // },
     ],
     type: "AdaptiveCard",
     version: "1.4",
   };
-  return card;
+
+  await context.sendActivity({
+    attachments: [CardFactory.adaptiveCard(card)],
+  });
 };
 
 const submitSettings = async (context, companyData) => {
   const selected_superusers =
     context.activity.value.action?.data?.selected_superusers;
-  console.log("selected_superusers >> ", selected_superusers);
+  // console.log("selected_superusers >> ", selected_superusers);
+
   await updateSuperUserData(
     companyData.userId,
     companyData.teamId,
     selected_superusers
   );
 
-  const card = {
-    type: "AdaptiveCard",
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    version: "1.4",
-    body: [
-      {
-        type: "TextBlock",
-        size: "Medium",
-        weight: "Bolder",
-        text: "Settings",
-      },
-      {
-        type: "TextBlock",
-        size: "Medium",
-        text: "Settings saved successfully",
-        separator: true,
-        color: "good",
-      },
-    ],
-    actions: [
-      {
-        type: "Action.Execute",
-        verb: "main_activity_board",
-        title: "Back",
-        data: {
-          info: "Back",
-          companyData: companyData,
-        },
-      },
-    ],
-  };
-
-  return card;
+  const msgText = `✔️ Your App Settings have been saved successfully.`;
+  await context.sendActivity(MessageFactory.text(msgText));
 };
 
 module.exports = {
-  incidentManagementCard,
   invokeResponse,
   sendInstallationEmail,
   selectResponseCard,

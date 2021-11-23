@@ -67,34 +67,9 @@ class BotActivityHandler extends TeamsActivityHandler {
           isAdminOrSuperuser = true;
           console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
 
-          let txt = context.activity.text;
-          const removedMentionText = TurnContext.removeRecipientMention(
-            context.activity
-          );
-          if (removedMentionText) {
-            // Remove the line break
-            txt = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim();
-          }
-
-          // Trigger command by IM text
-          switch (txt) {
-            case "hi":
-              console.log("Running on Message Activity.");
-              await context.sendActivity({
-                attachments: [
-                  CardFactory.adaptiveCard(
-                    bot.invokeMainActivityBoard(companyData)
-                  ),
-                ],
-              });
-              break;
-          }
+          await this.hanldeAdminOrSuperUserMsg(context, companyData);
         } else {
-          await context.sendActivity(
-            MessageFactory.text(
-              `Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
-            )
-          );
+          await this.hanldeNonAdminUserMsg(context);
         }
       } else if (acvtivityData.conversation.conversationType === "personal") {
         console.log("Recieved message from personal ");
@@ -102,6 +77,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         const companyData = await getCompaniesData(
           acvtivityData.from.aadObjectId
         );
+        // console.log("companyData >> ", companyData);
         isSuperUser =
           companyData.superUsers &&
           companyData.superUsers.some(
@@ -114,21 +90,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         if (acvtivityData.from.id === companyData.userId || isSuperUser) {
           isAdminOrSuperuser = true;
           console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
-          console.log("Running on Message Activity.");
-
-          await context.sendActivity({
-            attachments: [
-              CardFactory.adaptiveCard(
-                bot.invokeMainActivityBoard(companyData)
-              ),
-            ],
-          });
+          await this.hanldeAdminOrSuperUserMsg(context, companyData);
         } else {
-          await context.sendActivity(
-            MessageFactory.text(
-              `Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
-            )
-          );
+          await this.hanldeNonAdminUserMsg(context);
         }
       }
 
@@ -213,13 +177,14 @@ class BotActivityHandler extends TeamsActivityHandler {
         console.log("Verb: ", action.verb);
         const card = await bot.selectResponseCard(context, user);
         if (card && card["$schema"]) {
-          await context.sendActivity({
-            attachments: [CardFactory.adaptiveCard(card)],
-          });
-          return {
-            status: StatusCodes.OK,
-            body: {},
-          };
+          return bot.invokeResponse(card);
+          // await context.sendActivity({
+          //   attachments: [CardFactory.adaptiveCard(card)],
+          // });
+          // return {
+          //   status: StatusCodes.OK,
+          //   body: {},
+          // };
         } else {
           return {
             status: StatusCodes.OK,
@@ -232,11 +197,54 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
-  async startIncManagement(context) {
+  async hanldeAdminOrSuperUserMsg(context, companyData) {
     try {
-      await context.sendActivity({
-        attachments: [CardFactory.adaptiveCard(bot.invokeMainActivityBoard())],
-      });
+      const acvtivityData = context.activity;
+      let txt = acvtivityData.text;
+      // console.log("txt >> ", txt);
+      const removedMentionText =
+        TurnContext.removeRecipientMention(acvtivityData);
+      if (removedMentionText) {
+        // Remove the line break
+        txt = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim();
+      }
+
+      // Trigger command by IM text
+      switch (txt) {
+        case "hi":
+          console.log("Running on Message Activity.");
+          await context.sendActivity({
+            attachments: [
+              CardFactory.adaptiveCard(
+                bot.invokeMainActivityBoard(companyData)
+              ),
+            ],
+          });
+          break;
+        case "hello":
+          console.log("{acvtivityData.from >> ", acvtivityData.from);
+          const mention = {
+            type: "mention",
+            mentioned: acvtivityData.from,
+            text: `<at>${acvtivityData.from.name}</at>`,
+          };
+          const topLevelMessage = MessageFactory.text(`Hello! ${mention.text}`);
+          topLevelMessage.entities = [mention];
+          await context.sendActivity(topLevelMessage);
+          break;
+      }
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async hanldeNonAdminUserMsg(context) {
+    try {
+      await context.sendActivity(
+        MessageFactory.text(
+          `👋 Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
+        )
+      );
     } catch (error) {
       console.log(error);
     }
