@@ -16,6 +16,8 @@ const { sendEmail } = require("../utils");
 const { addFeedbackData, updateSuperUserData } = require("../db/dbOperations");
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
+const ALL_USERS = "allusers";
+const SELECTED_USERS = "selectedusers";
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   const emailBody =
@@ -309,10 +311,13 @@ const saveInc = async (context, action, companyData) => {
   const { inc_title: incTitle, inc_created_by } = action.data;
   const newInc = await incidentService.saveInc(action.data, companyData);
 
+  let sentApprovalTo = "";
   if (action.data.selected_members) {
     preTextMsg = `Should I send this message to the selected user(s)?`;
+    sentApprovalTo = SELECTED_USERS;
   } else {
     preTextMsg = `Should I send this message to everyone?`;
+    sentApprovalTo = ALL_USERS;
   }
 
   const card = {
@@ -353,6 +358,7 @@ const saveInc = async (context, action, companyData) => {
               option: "Yes",
               incident: newInc,
               companyData: companyData,
+              sentApprovalTo: sentApprovalTo,
             },
           },
           {
@@ -712,9 +718,8 @@ const viewIncResult = async (incidentId, context, companyData) => {
 
 const sendApproval = async (context) => {
   const action = context.activity.value.action;
-  const inc = action.data.incident;
-  const companyData = action.data.companyData;
-  const { incId, incTitle, selectedMembers, incCreatedBy } = inc;
+  const { incident, companyData, sentApprovalTo } = action.data;
+  const { incId, incTitle, selectedMembers, incCreatedBy } = incident;
 
   let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
@@ -841,7 +846,9 @@ const sendApproval = async (context) => {
   });
 
   const msgText =
-    "Thanks! Your safety check message has been sent to all the users";
+    sentApprovalTo === ALL_USERS
+      ? "Thanks! Your safety check message has been sent to all the users"
+      : "Thanks! Your safety check message has been sent to all the selected user(s)";
 
   await sendDirectMessage(context, incCreatedByUserObj, msgText);
 
@@ -954,9 +961,7 @@ const submitComment = async (context, user, companyData) => {
       action.data;
     // console.log({ userId, incId, incCreatedBy, eventResponse, commentVal });
 
-    await incidentService.updateIncResponseComment(incId, userId, commentVal);
-
-    if (commentVal != "") {
+    if (commentVal) {
       const mentionedUser = {
         type: "mention",
         mentioned: user,
@@ -964,12 +969,12 @@ const submitComment = async (context, user, companyData) => {
       };
       msgText = `The user <at>${user.name}</at> has commented for incident **${incTitle}**:\n${commentVal}`;
       await sendDirectMessage(context, incCreatedBy, msgText, mentionedUser);
+      await incidentService.updateIncResponseComment(incId, userId, commentVal);
     }
 
-    let responseText =
-      commentVal === ""
-        ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
-        : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
+    let responseText = commentVal
+      ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
+      : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
 
     const card = {
       type: "AdaptiveCard",
