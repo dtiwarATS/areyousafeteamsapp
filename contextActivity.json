@@ -1,0 +1,169 @@
+
+// if bot added
+{
+  membersAdded: [ { id: '28:e2d0b3a0-6a5b-4a9e-9a34-3db006e9ba12' } ],
+  type: 'conversationUpdate',
+  timestamp: 2021-11-09T13:22:44.789Z,
+  id: 'f:f060a14d-462c-6ab5-62d9-feba167b57ce',
+  channelId: 'msteams',
+  serviceUrl: 'https://smba.trafficmanager.net/in/',
+  from: {
+    id: '29:1IGzF4e50O-CYLJgJw09GLsA_F3kwNcsBk5fBkOpJcFUVBpQN3Z-gVBM_knoDN_YcgE4KwZvyy-Q4oHkX5DpjPA',
+    aadObjectId: '2bff8b30-b868-46ae-ba55-711d04a84e79'
+  },
+  conversation: {
+    isGroup: true,
+    conversationType: 'channel',
+    tenantId: 'b9328432-f501-493e-b7f4-3105520a1cd4',
+    id: '19:hEW7vC34_7orgGlgD8KV8fJO_n8okCS8WK6Ep1u1rFg1@thread.tacv2'
+  },
+  recipient: {
+    id: '28:e2d0b3a0-6a5b-4a9e-9a34-3db006e9ba12',
+    name: 'SafetyBotTeams_test'
+  },
+  channelData: {
+    team: {
+      aadGroupId: '535d3364-cb76-4f27-a41f-00f784445b48',
+      name: 'safetybot_test',
+      id: '19:hEW7vC34_7orgGlgD8KV8fJO_n8okCS8WK6Ep1u1rFg1@thread.tacv2'
+    },
+    eventType: 'teamMemberAdded',
+    tenant: { id: 'b9328432-f501-493e-b7f4-3105520a1cd4' }
+  }
+}
+
+// if members added
+{
+  membersAdded: [
+    {
+      id: '29:12qwA3CUUXz4jHhHlhVsEBhFxoSOOQ9vpBiMTzBzmKISQ8mf56QXp9Ld30np8MhEDbq9oqbf2t23fASaqwxWi-g',
+      aadObjectId: '7ef1aea4-a68c-4c48-88d2-b06964afd86d'
+    }
+  ],
+  type: 'conversationUpdate',
+  timestamp: 2021-11-09T13:41:12.128Z,
+  id: 'f:457ea1e6-d603-a5fc-eef2-e826fb6f5f64',
+  channelId: 'msteams',
+  serviceUrl: 'https://smba.trafficmanager.net/in/',
+  from: {
+    id: '29:1IGzF4e50O-CYLJgJw09GLsA_F3kwNcsBk5fBkOpJcFUVBpQN3Z-gVBM_knoDN_YcgE4KwZvyy-Q4oHkX5DpjPA',
+    aadObjectId: '2bff8b30-b868-46ae-ba55-711d04a84e79'
+  },
+  conversation: {
+    isGroup: true,
+    conversationType: 'channel',
+    tenantId: 'b9328432-f501-493e-b7f4-3105520a1cd4',
+    id: '19:hEW7vC34_7orgGlgD8KV8fJO_n8okCS8WK6Ep1u1rFg1@thread.tacv2'
+  },
+  recipient: {
+    id: '28:e2d0b3a0-6a5b-4a9e-9a34-3db006e9ba12',
+    name: 'SafetyBotTeams_test'
+  },
+  channelData: {
+    team: {
+      aadGroupId: '535d3364-cb76-4f27-a41f-00f784445b48',
+      name: 'safetybot_test',
+      id: '19:hEW7vC34_7orgGlgD8KV8fJO_n8okCS8WK6Ep1u1rFg1@thread.tacv2'
+    },
+    eventType: 'teamMemberAdded',
+    tenant: { id: 'b9328432-f501-493e-b7f4-3105520a1cd4' }
+  }
+}
+
+// personal 1:1 message
+{
+  text: 'hi',
+  textFormat: 'plain',
+  attachments: [ { contentType: 'text/html', content: '<div>hi</div>' } ],
+  type: 'message',
+  timestamp: 2021-11-09T14:49:12.355Z,
+  localTimestamp: 2021-11-09T14:49:12.355Z,
+  id: '1636469352320',
+  channelId: 'msteams',
+  serviceUrl: 'https://smba.trafficmanager.net/in/',
+  from: {
+    id: '29:1IGzF4e50O-CYLJgJw09GLsA_F3kwNcsBk5fBkOpJcFUVBpQN3Z-gVBM_knoDN_YcgE4KwZvyy-Q4oHkX5DpjPA',
+    name: 'Shashikant Sharma',
+    aadObjectId: '2bff8b30-b868-46ae-ba55-711d04a84e79'
+  },
+  conversation: {
+    conversationType: 'personal',
+    tenantId: 'b9328432-f501-493e-b7f4-3105520a1cd4',
+    id: 'a:1uO3TLMopwYpAyizNO6-vDASUCRlk5mI3UMz2cXNTdMD2BjJ_YBRs19Dpv7KfPghePziC7VqouX6h8eHFwpZYeeANRsTA9qg0EXnpdaHzzNkP21jCdlPRa6xxwDtsiX0J'
+  },
+  recipient: {
+    id: '28:e2d0b3a0-6a5b-4a9e-9a34-3db006e9ba12',
+    name: 'SafetyBotTeams_test'
+  },
+  entities: [
+    {
+      locale: 'en-US',
+      country: 'US',
+      platform: 'Windows',
+      timezone: 'Asia/Calcutta',
+      type: 'clientInfo'
+    }
+  ],
+  channelData: { tenant: { id: 'b9328432-f501-493e-b7f4-3105520a1cd4' } },
+  locale: 'en-US',
+  localTimezone: 'Asia/Calcutta'
+}
+
+// channel msg
+{
+  text: '<at>SafetyBot</at> hi\n',
+  textFormat: 'plain',
+  attachments: [
+    {
+      contentType: 'text/html',
+      content: '<div><div><span itemscope="" itemtype="http://schema.skype.com/Mention" itemid="0">SafetyBot</span> hi</div>\n' +
+        '</div>'
+    }
+  ],
+  type: 'message',
+  timestamp: 2021-11-09T14:50:40.158Z,
+  localTimestamp: 2021-11-09T14:50:40.158Z,
+  id: '1636469440133',
+  channelId: 'msteams',
+  serviceUrl: 'https://smba.trafficmanager.net/in/',
+  from: {
+    id: '29:1IGzF4e50O-CYLJgJw09GLsA_F3kwNcsBk5fBkOpJcFUVBpQN3Z-gVBM_knoDN_YcgE4KwZvyy-Q4oHkX5DpjPA',
+    name: 'Shashikant Sharma',
+    aadObjectId: '2bff8b30-b868-46ae-ba55-711d04a84e79'
+  },
+  conversation: {
+    isGroup: true,
+    conversationType: 'channel',
+    tenantId: 'b9328432-f501-493e-b7f4-3105520a1cd4',
+    id: '19:56cb6d33c2c14903ac6db662a0682c02@thread.tacv2;messageid=1636469440133'
+  },
+  recipient: {
+    id: '28:e2d0b3a0-6a5b-4a9e-9a34-3db006e9ba12',
+    name: 'SafetyBotTeams_test'
+  },
+  entities: [
+    {
+      mentioned: [Object],
+      text: '<at>SafetyBot</at>',
+      type: 'mention'
+    },
+    {
+      locale: 'en-US',
+      country: 'US',
+      platform: 'Windows',
+      timezone: 'Asia/Calcutta',
+      type: 'clientInfo'
+    }
+  ],
+  channelData: {
+    teamsChannelId: '19:56cb6d33c2c14903ac6db662a0682c02@thread.tacv2',
+    teamsTeamId: '19:hEW7vC34_7orgGlgD8KV8fJO_n8okCS8WK6Ep1u1rFg1@thread.tacv2',
+    channel: { id: '19:56cb6d33c2c14903ac6db662a0682c02@thread.tacv2' },
+    team: {
+      id: '19:hEW7vC34_7orgGlgD8KV8fJO_n8okCS8WK6Ep1u1rFg1@thread.tacv2'
+    },
+    tenant: { id: 'b9328432-f501-493e-b7f4-3105520a1cd4' }
+  },
+  locale: 'en-US',
+  localTimezone: 'Asia/Calcutta'
+}
