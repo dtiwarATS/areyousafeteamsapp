@@ -14,7 +14,7 @@ const sendEmail = async (fromEmail, subject, body) => {
     },
   });
   const mailOptions = {
-    from: fromEmail,
+    from: process.env.ADMIN_EMAIL,
     to: process.env.ADMIN_EMAIL,
     subject: subject,
     html: body,

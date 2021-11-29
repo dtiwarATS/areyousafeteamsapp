@@ -26,6 +26,9 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
     "<b>User Name: </b>" +
     userName +
     "<br />" +
+    "<b>User Email: </b>" +
+    userEmailId +
+    "<br />" +
     "<b>Team Name: </b>" +
     teamName +
     "<br /><br />" +
