@@ -32,7 +32,7 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
     "Thank you, <br />" +
     "AreYouSafe Support";
 
-  const subject = "AreYouSafe | New Installation Details";
+  const subject = "AreYouSafe Teams Bot| New Installation Details";
 
   await sendEmail(userEmailId, subject, emailBody);
 };
@@ -1126,7 +1126,7 @@ const submitContactUsForm = async (context, companyData) => {
         "Thank you, <br />" +
         "AreYouSafe Support";
 
-      const subject = "AreYouSafe | Feedback";
+      const subject = "AreYouSafe Teams Bot | Feedback";
 
       await sendEmail(emailVal, subject, emailBody);
 

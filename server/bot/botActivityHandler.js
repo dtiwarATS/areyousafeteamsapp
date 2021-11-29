@@ -39,7 +39,8 @@ class BotActivityHandler extends TeamsActivityHandler {
       // console.log("acvtivityData", acvtivityData);
 
       if (acvtivityData.conversation.conversationType === "channel") {
-        const channelId = acvtivityData.channelData.teamsChannelId;
+        await this.hanldeChannelUserMsg(context);
+        /* const channelId = acvtivityData.channelData.teamsChannelId;
         const genChannelId = acvtivityData.channelData.teamsTeamId;
         console.log("Recieved message from channel ", channelId);
 
@@ -70,7 +71,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           await this.hanldeAdminOrSuperUserMsg(context, companyData);
         } else {
           await this.hanldeNonAdminUserMsg(context);
-        }
+        } */
       } else if (acvtivityData.conversation.conversationType === "personal") {
         console.log("Recieved message from personal ");
         // fetch  general channel id from db (ie same as team Id)
@@ -243,6 +244,17 @@ class BotActivityHandler extends TeamsActivityHandler {
       await context.sendActivity(
         MessageFactory.text(
           `👋 Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
+        )
+      );
+    } catch (error) {
+      console.log(error);
+    }
+  }
+  async hanldeChannelUserMsg(context) {
+    try {
+      await context.sendActivity(
+        MessageFactory.text(
+          `👋 Hello!! I can surely help with this via direct message. Please send me a "Hi" in a direct message.`
         )
       );
     } catch (error) {
