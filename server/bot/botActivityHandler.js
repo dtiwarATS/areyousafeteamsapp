@@ -36,7 +36,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       let isSuperUser = false;
       let isAdminOrSuperuser = false;
       const acvtivityData = context.activity;
-      // console.log("acvtivityData", acvtivityData);
+      console.log("acvtivityData - onMessage", acvtivityData);
 
       if (acvtivityData.conversation.conversationType === "channel") {
         await this.hanldeChannelUserMsg(context);
@@ -78,22 +78,29 @@ class BotActivityHandler extends TeamsActivityHandler {
         const companyData = await getCompaniesData(
           acvtivityData.from.aadObjectId
         );
-        // console.log("companyData >> ", companyData);
-        isSuperUser =
-          companyData.superUsers &&
-          companyData.superUsers.some(
-            (su) => su === acvtivityData.from.aadObjectId
-          )
-            ? true
-            : false;
+        if (companyData.userId != undefined) {
+          console.log("companyData >> ", companyData);
 
-        // check if from.id matches user id stored in DB then proceed
-        if (acvtivityData.from.id === companyData.userId || isSuperUser) {
-          isAdminOrSuperuser = true;
-          console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
-          await this.hanldeAdminOrSuperUserMsg(context, companyData);
+          isSuperUser =
+            companyData.superUsers &&
+            companyData.superUsers.some(
+              (su) => su === acvtivityData.from.aadObjectId
+            )
+              ? true
+              : false;
+
+          // check if from.id matches user id stored in DB then proceed
+          if (acvtivityData.from.id === companyData.userId || isSuperUser) {
+            isAdminOrSuperuser = true;
+            console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
+            await this.hanldeAdminOrSuperUserMsg(context, companyData);
+          } else {
+            await this.hanldeNonAdminUserMsg(context);
+          }
         } else {
-          await this.hanldeNonAdminUserMsg(context);
+          const welcomeMsg2 = `👋 Hello! Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
+
+          await sendDirectMessage(context, acvtivityData.from, welcomeMsg2);
         }
       }
 
@@ -103,13 +110,14 @@ class BotActivityHandler extends TeamsActivityHandler {
     this.onConversationUpdate(async (context, next) => {
       let addedBot = false;
       const acvtivityData = context.activity;
-      // console.log("acvtivityData >> ", acvtivityData);
+      console.log("acvtivityData - onConversationUpdate>> ", acvtivityData);
 
       // if bot/member is installed/added
       if (
         acvtivityData &&
         acvtivityData?.channelData?.eventType === "teamMemberAdded"
       ) {
+        console.log("inside teamMemberAdded");
         const { membersAdded } = acvtivityData;
         for (let i = 0; i < membersAdded.length; i++) {
           // See if the member added was our bot
@@ -148,8 +156,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               // \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`)
               // );
 
-              const welcomeMsg = `Hello!
-              \r\nAre you safe allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+              const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
               \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`;
 
               await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
@@ -165,6 +172,15 @@ class BotActivityHandler extends TeamsActivityHandler {
 
           console.log("bot added >> ", addedBot);
         }
+      } else {
+        const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+              \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`;
+
+        await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
+
+        const welcomeMsg2 = `👋 Hello! Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
+
+        await sendDirectMessage(context, acvtivityData.from, welcomeMsg2);
       }
     });
   }
