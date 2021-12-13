@@ -65,6 +65,16 @@ const insertCompanyData = async (companyDataObj) => {
   }
 };
 
+const deleteCompanyData = async (userObjId, teamId) => {
+  try {
+    pool = await poolPromise;
+    let query = `DELETE FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}';`;
+    console.log("delete query => ", query);
+    await pool.request().query(query);
+  } catch (err) {
+    console.log(err);
+  }
+};
 const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
   try {
     pool = await poolPromise;
@@ -97,5 +107,6 @@ module.exports = {
   getCompaniesData,
   addFeedbackData,
   insertCompanyData,
+  deleteCompanyData,
   updateSuperUserData,
 };

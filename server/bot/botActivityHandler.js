@@ -13,7 +13,11 @@ const {
   TurnContext,
 } = require("botbuilder");
 const bot = require("../bot/bot");
-const { getCompaniesData, insertCompanyData } = require("../db/dbOperations");
+const {
+  getCompaniesData,
+  insertCompanyData,
+  deleteCompanyData,
+} = require("../db/dbOperations");
 const { sendDirectMessage } = require("../api/apiMethods");
 
 class BotActivityHandler extends TeamsActivityHandler {
@@ -37,7 +41,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       let isAdminOrSuperuser = false;
       const acvtivityData = context.activity;
       console.log("acvtivityData - onMessage", acvtivityData);
-
+      await context.sendActivities([{ type: "typing" }]);
       if (acvtivityData.conversation.conversationType === "channel") {
         await this.hanldeChannelUserMsg(context);
         /* const channelId = acvtivityData.channelData.teamsChannelId;
@@ -112,6 +116,19 @@ class BotActivityHandler extends TeamsActivityHandler {
       const acvtivityData = context.activity;
       console.log("acvtivityData - onConversationUpdate>> ", acvtivityData);
 
+      // fetch companyData and check if channelId matches team_id stored in DB then proceed
+      const companyData = await getCompaniesData(
+        acvtivityData?.from?.aadObjectId,
+        acvtivityData?.channelData?.teamsTeamId
+      );
+
+      //console.log("companyData >> ", companyData);
+      if (
+        companyData.userId !== undefined &&
+        acvtivityData?.channelData?.eventType === "teamMemberAdded"
+      ) {
+        return;
+      }
       // if bot/member is installed/added
       if (
         acvtivityData &&
@@ -172,21 +189,43 @@ class BotActivityHandler extends TeamsActivityHandler {
 
           console.log("bot added >> ", addedBot);
         }
-      } else {
-        const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-              \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`;
-
-        await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
-
-        const welcomeMsg2 = `👋 Hello! Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
-
-        await sendDirectMessage(context, acvtivityData.from, welcomeMsg2);
       }
+      if (
+        (acvtivityData &&
+          acvtivityData?.channelData?.eventType === "teamDeleted") ||
+        acvtivityData?.channelData?.eventType === "teamMemberRemoved"
+      ) {
+        console.log("inside teamDeleted", process.env.MicrosoftAppId);
+        const { membersRemoved } = acvtivityData;
+        console.log("membersRemoved", {
+          membersRemoved,
+          isBotRemvoed: membersRemoved[0].id.includes(
+            process.env.MicrosoftAppId
+          ),
+        });
+        if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
+          await deleteCompanyData(
+            acvtivityData?.from?.aadObjectId,
+            acvtivityData?.channelData?.team.id
+          );
+        }
+      }
+      //  else {
+      //   const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+      //         \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`;
+
+      //   await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
+
+      //   const welcomeMsg2 = `👋 Hello! Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
+
+      //   await sendDirectMessage(context, acvtivityData.from, welcomeMsg2);
+      // }
     });
   }
 
   async onInvokeActivity(context) {
     try {
+      await context.sendActivities([{ type: "typing" }]);
       console.log("Activity: ", context.activity.name);
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
@@ -225,9 +264,14 @@ class BotActivityHandler extends TeamsActivityHandler {
         // Remove the line break
         txt = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim();
       }
+      await context.sendActivity({
+        attachments: [
+          CardFactory.adaptiveCard(bot.invokeMainActivityBoard(companyData)),
+        ],
+      });
 
       // Trigger command by IM text
-      switch (txt) {
+      /* switch (txt) {
         case "hi":
           console.log("Running on Message Activity.");
           await context.sendActivity({
@@ -249,7 +293,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           topLevelMessage.entities = [mention];
           await context.sendActivity(topLevelMessage);
           break;
-      }
+      } */
     } catch (error) {
       console.log(error);
     }
