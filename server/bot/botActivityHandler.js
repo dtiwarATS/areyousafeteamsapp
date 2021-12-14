@@ -82,9 +82,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         const companyData = await getCompaniesData(
           acvtivityData.from.aadObjectId
         );
-        if (companyData.userId != undefined) {
-          console.log("companyData >> ", companyData);
 
+        console.log("companyData >> ", companyData);
+        if (companyData.userId != undefined) {
           isSuperUser =
             companyData.superUsers &&
             companyData.superUsers.some(
@@ -102,9 +102,20 @@ class BotActivityHandler extends TeamsActivityHandler {
             await this.hanldeNonAdminUserMsg(context);
           }
         } else {
-          const welcomeMsg2 = `👋 Hello! Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
+          // fetch  general channel id from db (ie same as team Id)
+          const companyData = await getCompaniesData(
+            acvtivityData.from.aadObjectId,
+            acvtivityData?.channelData?.tenant.id,
+            true
+          );
+          console.log("companyData not admin>> ", companyData);
+          if (companyData.userId != undefined) {
+            await this.hanldeNonAdminUserMsg(context);
+          } else {
+            const welcomeMsg2 = `👋 Hello! Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
 
-          await sendDirectMessage(context, acvtivityData.from, welcomeMsg2);
+            await sendDirectMessage(context, acvtivityData.from, welcomeMsg2);
+          }
         }
       }
 
@@ -119,7 +130,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       // fetch companyData and check if channelId matches team_id stored in DB then proceed
       const companyData = await getCompaniesData(
         acvtivityData?.from?.aadObjectId,
-        acvtivityData?.channelData?.teamsTeamId
+        acvtivityData?.channelData?.team.id
       );
 
       //console.log("companyData >> ", companyData);

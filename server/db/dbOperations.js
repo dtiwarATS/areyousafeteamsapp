@@ -25,13 +25,21 @@ const parseCompanyData = async (result) => {
   return Promise.resolve(parsedCompanyObj);
 };
 
-const getCompaniesData = async (userObjId, teamId = null) => {
+const getCompaniesData = async (
+  userObjId,
+  teamId = null,
+  filterByTeamID = false
+) => {
   try {
     selectQuery = "";
     let companyData = {};
-
+    console.log({ teamId, filterByTeamID });
     if (teamId) {
-      selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}'`;
+      if (filterByTeamID) {
+        selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_tenant_id = '${teamId}'`;
+      } else {
+        selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}'`;
+      }
     } else {
       selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}'`;
     }
