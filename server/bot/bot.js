@@ -854,11 +854,26 @@ const sendApproval = async (context) => {
 
   const msgText =
     sentApprovalTo === ALL_USERS
-      ? "Thanks! Your safety check message has been sent to all the users"
-      : "Thanks! Your safety check message has been sent to all the selected user(s)";
-
-  await sendDirectMessage(context, incCreatedByUserObj, msgText);
-
+      ? "✔️ Thanks! Your safety check message has been sent to all the users"
+      : "✔️ Thanks! Your safety check message has been sent to all the selected user(s)";
+  const approvalCardResponse = {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    appId: process.env.MicrosoftAppId,
+    body: [
+      {
+        type: "TextBlock",
+        text: msgText,
+        wrap: true,
+      },
+    ],
+    type: "AdaptiveCard",
+    version: "1.4",
+  };
+  await sendDirectMessageCard(
+    context,
+    incCreatedByUserObj,
+    approvalCardResponse
+  );
   const resultCard = await viewIncResult(incId, context, companyData);
 
   await context.sendActivity({
