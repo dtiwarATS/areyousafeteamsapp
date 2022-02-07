@@ -11,7 +11,11 @@ const {
 } = require("botframework-connector");
 const incidentService = require("../services/incidentService");
 const path = require("path");
-const { getAllTeamMembers, sendDirectMessage } = require("../api/apiMethods");
+const {
+  getAllTeamMembers,
+  sendDirectMessage,
+  sendDirectMessageCard,
+} = require("../api/apiMethods");
 const { sendEmail } = require("../utils");
 const { addFeedbackData, updateSuperUserData } = require("../db/dbOperations");
 const ENV_FILE = path.join(__dirname, "../../.env");
@@ -883,13 +887,30 @@ const sendApprovalResponse = async (user, context) => {
       responseText = `Glad you're safe! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
     } else {
       await incidentService.updateIncResponseData(incId, user.id, 0);
-      const mentionedUser = {
-        type: "mention",
-        mentioned: user,
-        text: `<at>${user.name}</at>`,
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `The user <at>${user.name}</at> needs assistance for Incident: **${incTitle}**`,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
+            {
+              type: "mention",
+              text: `<at>${user.name}</at>`,
+              mentioned: user,
+            },
+          ],
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
       };
-      msgText = `The user <at>${user.name}</at> needs assistance for Incident: **${incTitle}**`;
-      await sendDirectMessage(context, incCreatedBy, msgText, mentionedUser);
+      //send new msg just to emulate msg is being updated
+      await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
     }
     // await context.sendActivity(MessageFactory.text(responseText));
@@ -971,7 +992,30 @@ const submitComment = async (context, user, companyData) => {
         text: `<at>${user.name}</at>`,
       };
       msgText = `The user <at>${user.name}</at> has commented for incident **${incTitle}**:\n${commentVal}`;
-      await sendDirectMessage(context, incCreatedBy, msgText, mentionedUser);
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `The user <at>${user.name}</at> has commented for incident **${incTitle}**:\n${commentVal}`,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
+            {
+              type: "mention",
+              text: `<at>${user.name}</at>`,
+              mentioned: user,
+            },
+          ],
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      //send new msg just to emulate msg is being updated
+      await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       await incidentService.updateIncResponseComment(incId, userId, commentVal);
     }
 
