@@ -21,6 +21,7 @@ const parseCompanyData = async (result) => {
     };
 
     parsedCompanyObj = new Company(resultObj);
+    console.log({ parseCompanyData: parsedCompanyObj });
   }
   return Promise.resolve(parsedCompanyObj);
 };
@@ -52,7 +53,7 @@ const getCompaniesData = async (
       );
     }
     companyData = await parseCompanyData(res);
-    // console.log("companyData in dbOperations >> ", companyData);
+    console.log("companyData in dbOperations >> ", companyData);
     return Promise.resolve(companyData);
   } catch (err) {
     console.log(err);
@@ -95,6 +96,18 @@ const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
     console.log(err);
   }
 };
+const updateCompanyData = async (userId, teamId, teamName = "") => {
+  try {
+    pool = await poolPromise;
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}',team_name='${teamName}' WHERE user_id = '${userId}' `;
+    console.log("update query Company>> ", updateQuery);
+    await pool.request().query(updateQuery);
+
+    // return Promise.resolve();
+  } catch (err) {
+    console.log(err);
+  }
+};
 
 const addFeedbackData = async (feedbackDataObj) => {
   try {
@@ -117,4 +130,5 @@ module.exports = {
   insertCompanyData,
   deleteCompanyData,
   updateSuperUserData,
+  updateCompanyData,
 };

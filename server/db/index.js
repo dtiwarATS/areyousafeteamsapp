@@ -16,6 +16,7 @@ const getColumns = (tableName) => {
         "team_name",
         "super_users",
         "created_date",
+        "welcomeMessageSent",
       ];
       break;
 

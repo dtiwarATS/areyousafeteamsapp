@@ -10,6 +10,7 @@ class Company {
     team_name,
     created_date,
     super_users,
+    welcomeMessageSent,
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -21,6 +22,7 @@ class Company {
     this.teamName = team_name;
     this.superUsers = super_users || [];
     this.createdDate = created_date || new Date(Date.now()).toISOString();
+    this.welcomeMessageSent = welcomeMessageSent || false;
   }
 }
 
