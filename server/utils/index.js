@@ -4,7 +4,6 @@ const ENV_FILE = path.join(__dirname, "../.env");
 require("dotenv").config({ path: ENV_FILE });
 
 const sendEmail = async (fromEmail, subject, body) => {
-  return;
   const transporter = nodemailer.createTransport({
     host: process.env.HOST_NAME,
     port: process.env.PORTS,

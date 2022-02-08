@@ -32,14 +32,10 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
     "<br />" +
     "<b>User Email: </b>" +
     userEmailId +
-    "<br />" +
-    "<b>Team Name: </b>" +
-    teamName +
-    "<br /><br />" +
-    "Thank you, <br />" +
-    "AreYouSafe Support";
+    "<br />";
+  +"<br /><br />" + "Thank you, <br />" + "AreYouSafe Support";
 
-  const subject = "AreYouSafe Teams Bot| New Installation Details";
+  const subject = "AreYouSafe? Teams Bot | New Installation Details";
 
   await sendEmail(userEmailId, subject, emailBody);
 };
