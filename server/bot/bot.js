@@ -36,8 +36,10 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
     "<br />" +
     "<b>User Email: </b>" +
     userEmailId +
-    "<br />";
-  +"<br /><br />" + "Thank you, <br />" + "AreYouSafe Support";
+    "<br />" +
+    +"<br /><br />" +
+    "Thank you, <br />" +
+    "AreYouSafe Support";
 
   const subject = "AreYouSafe? Teams Bot | New Installation Details";
 
@@ -545,6 +547,7 @@ const viewAllInc = async (context, companyData) => {
           placeholder: "Select an Incident",
           value: incList.length > 0 && incList[0].value,
           choices: incList,
+          isRequired: true,
         },
       ],
       actions: [
