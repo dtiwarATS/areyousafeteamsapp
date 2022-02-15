@@ -580,7 +580,13 @@ const viewAllInc = async (context, companyData) => {
 };
 
 const viewIncResult = async (incidentId, context, companyData) => {
-  // console.log("viewIncResult called", action);
+  //console.log("viewIncResult called", incidentId);
+  if (incidentId === undefined) {
+    await context.sendActivity(
+      MessageFactory.text(`👋 Hello!! Please select an Incident.`)
+    );
+    return Promise.resolve(true);
+  }
   const inc = await incidentService.getInc(incidentId);
   //console.log("inc in viewIncResult =>", inc);
 
