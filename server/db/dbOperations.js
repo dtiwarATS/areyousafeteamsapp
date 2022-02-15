@@ -26,6 +26,26 @@ const parseCompanyData = async (result) => {
   return Promise.resolve(parsedCompanyObj);
 };
 
+const isAdminUser = async (userObjId) => {
+  try {
+    selectQuery = "";
+    let adminUserLogin = false;
+    selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where user_obj_id='${userObjId}' or super_users like '%${userObjId}%'`;
+
+    let res = await db.getDataFromDB(selectQuery);
+
+    // check if the user is super user or not
+    if (res.length == 0) {
+      adminUserLogin = false;
+    } else {
+      adminUserLogin = true;
+    }
+    return Promise.resolve(adminUserLogin);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 const getCompaniesData = async (
   userObjId,
   teamId = null,
@@ -131,4 +151,5 @@ module.exports = {
   deleteCompanyData,
   updateSuperUserData,
   updateCompanyData,
+  isAdminUser,
 };

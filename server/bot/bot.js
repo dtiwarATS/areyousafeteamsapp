@@ -17,7 +17,11 @@ const {
   sendDirectMessageCard,
 } = require("../api/apiMethods");
 const { sendEmail } = require("../utils");
-const { addFeedbackData, updateSuperUserData } = require("../db/dbOperations");
+const {
+  addFeedbackData,
+  updateSuperUserData,
+  isAdminUser,
+} = require("../db/dbOperations");
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
 const ALL_USERS = "allusers";
@@ -75,16 +79,43 @@ const selectResponseCard = async (context, user) => {
         ? true
         : false;
 
-    if (context.activity.from?.id == companyData.userId || isSuperUser) {
+    const isAdmin = await isAdminUser(context.activity.from.aadObjectId);
+    console.log("isAdmin >> ", isAdmin);
+    if (
+      (context.activity.from?.id == companyData.userId || isSuperUser) &&
+      isAdmin
+    ) {
       isAdminOrSuperuser = true;
       console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
     } else if (verb && verb !== "send_response" && verb !== "submit_comment") {
       // TODO: Need to change this approach
       // work-around to prevent non-admin user from performing activity on adaptive cards
       console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
+      try {
+        await context.sendActivity(
+          MessageFactory.text(
+            `👋 Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
+          )
+        );
+      } catch (error) {
+        console.log(error);
+      }
       return Promise.resolve(true);
     }
-
+    console.log("going inside if now", isAdmin, typeof isAdmin);
+    if (!isAdmin) {
+      console.log("isAdminOrSuperuser false>> ", isAdminOrSuperuser);
+      try {
+        await context.sendActivity(
+          MessageFactory.text(
+            `👋 Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
+          )
+        );
+      } catch (error) {
+        console.log(error);
+      }
+      return Promise.resolve(true);
+    }
     if (verb === "create_onetimeincident" && isAdminOrSuperuser) {
       await createInc(context, user, companyData);
     } else if (verb === "save_new_inc" && isAdminOrSuperuser) {
