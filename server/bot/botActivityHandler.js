@@ -146,7 +146,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 },
                 {
                   type: "Image",
-                  url: "https://announcebot.in/img/InstallationDetails.png",
+                  url: "https://announcebot.in/img/InstallDetails.png",
                 },
               ],
             };
