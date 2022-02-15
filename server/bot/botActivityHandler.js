@@ -136,12 +136,12 @@ class BotActivityHandler extends TeamsActivityHandler {
                 },
                 {
                   type: "TextBlock",
-                  text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? Bot card\r3. Click on the top arrow button and select the **“ Add to a team “** option",
+                  text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? Bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
                   wrap: true,
                 },
                 {
                   type: "TextBlock",
-                  text: "If you need any help or want to share feedback, feel free to reach out to my makers at **help@safetybot.in**",
+                  text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
                   wrap: true,
                 },
                 {
@@ -222,7 +222,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                     {
                       type: "TextBlock",
                       text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-                      \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations. Enter 'Hi' to start a conversation with the bot.`,
+                      \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
                       wrap: true,
                     },
                     {
@@ -233,10 +233,9 @@ class BotActivityHandler extends TeamsActivityHandler {
                       type: "TextBlock",
                       text: "Enter 'Hi' to start a conversation with the bot.",
                     },
-
                     {
                       type: "TextBlock",
-                      text: "If you need any help or want to share feedback, feel free to reach out to my makers at **help@safetybot.in**",
+                      text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
                       wrap: true,
                     },
                   ],
