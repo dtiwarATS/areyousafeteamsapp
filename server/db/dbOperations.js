@@ -26,13 +26,19 @@ const parseCompanyData = async (result) => {
   return Promise.resolve(parsedCompanyObj);
 };
 
-const isAdminUser = async (userObjId) => {
+const isAdminUser = async (userObjId, teamId) => {
   try {
     selectQuery = "";
     let adminUserLogin = false;
-    selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where user_obj_id='${userObjId}' or super_users like '%${userObjId}%'`;
+    selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}'`;
 
     let res = await db.getDataFromDB(selectQuery);
+    // check if the user is super user or not
+    if (res.length == 0) {
+      res = await db.getDataFromDB(
+        `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%'`
+      );
+    }
 
     // check if the user is super user or not
     if (res.length == 0) {
@@ -41,6 +47,21 @@ const isAdminUser = async (userObjId) => {
       adminUserLogin = true;
     }
     return Promise.resolve(adminUserLogin);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const getCompaniesDataBySuperUserId = async (superUserId) => {
+  try {
+    selectQuery = "";
+    let companyData = {};
+    selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${superUserId}%'`;
+
+    let res = await db.getDataFromDB(selectQuery);
+    companyData = await parseCompanyData(res);
+    console.log("companyData in dbOperations >> ", companyData);
+    return Promise.resolve(companyData);
   } catch (err) {
     console.log(err);
   }
@@ -152,4 +173,5 @@ module.exports = {
   updateSuperUserData,
   updateCompanyData,
   isAdminUser,
+  getCompaniesDataBySuperUserId,
 };

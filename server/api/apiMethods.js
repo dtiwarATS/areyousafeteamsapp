@@ -6,6 +6,7 @@ const {
 } = require("botbuilder");
 
 const getAllTeamMembers = async (context, teamId) => {
+  console.log({ teamId });
   let allMembers = await (
     await TeamsInfo.getTeamMembers(context, teamId)
   ).filter((tm) => tm.aadObjectId);

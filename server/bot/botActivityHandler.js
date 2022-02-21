@@ -17,6 +17,8 @@ const {
   getCompaniesData,
   insertCompanyData,
   deleteCompanyData,
+  isAdminUser,
+  getCompaniesDataBySuperUserId,
   updateCompanyData,
 } = require("../db/dbOperations");
 const {
@@ -83,17 +85,36 @@ class BotActivityHandler extends TeamsActivityHandler {
       } else if (acvtivityData.conversation.conversationType === "personal") {
         console.log("Recieved message from personal ");
         // fetch  general channel id from db (ie same as team Id)
-        const companyData = await getCompaniesData(
+        let companyData = await getCompaniesData(
           acvtivityData.from.aadObjectId
         );
-
+        console.log({
+          companyData,
+          isValud:
+            companyData.userId != undefined && companyData.teamId?.length > 0,
+        });
+        if (companyData.userId == undefined || !companyData.teamId?.length) {
+          console.log("insdie getCompaniesDataBySuperUserId");
+          companyData = await getCompaniesDataBySuperUserId(
+            acvtivityData.from.aadObjectId
+          );
+        }
         console.log("companyData >> ", companyData);
-        if (companyData.userId != undefined && companyData.teamId?.length > 0) {
+        const isAdmin = await isAdminUser(
+          acvtivityData.from.aadObjectId,
+          companyData?.teamId
+        );
+        console.log("isAdmin", { isAdmin });
+        if (
+          (companyData.userId != undefined && companyData.teamId?.length > 0) ||
+          isAdmin
+        ) {
           isSuperUser =
-            companyData.superUsers &&
-            companyData.superUsers.some(
-              (su) => su === acvtivityData.from.aadObjectId
-            )
+            (companyData.superUsers &&
+              companyData.superUsers.some(
+                (su) => su === acvtivityData.from.aadObjectId
+              )) ||
+            isAdmin
               ? true
               : false;
 
@@ -101,6 +122,9 @@ class BotActivityHandler extends TeamsActivityHandler {
           if (acvtivityData.from.id === companyData.userId || isSuperUser) {
             isAdminOrSuperuser = true;
             console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
+            console.log("companyData in  hanldeAdminOrSuperUserMsg>> ", {
+              companyData,
+            });
             await this.hanldeAdminOrSuperUserMsg(context, companyData);
           } else {
             await this.hanldeNonAdminUserMsg(context);
@@ -146,7 +170,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 },
                 {
                   type: "Image",
-                  url: "https://announcebot.in/img/InstallDetails.png",
+                  url: "https://announcebot.in/img/InstallDetails.png?id=0",
                 },
               ],
             };
@@ -330,7 +354,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                   {
                     type: "TextBlock",
                     text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-                    \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations. Enter 'Hi' to start a conversation with the bot.`,
+                    \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
                     wrap: true,
                   },
                   {
@@ -343,7 +367,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                   },
                   {
                     type: "TextBlock",
-                    text: "If you need any help or want to share feedback, feel free to reach out to my makers at **help@safetybot.in**",
+                    text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
                     wrap: true,
                   },
                 ],
@@ -414,6 +438,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         // Remove the line break
         txt = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim();
       }
+      console.log("companyData inside hanldeAdminOrSuperUserMsg", {
+        companyData,
+      });
       await context.sendActivity({
         attachments: [
           CardFactory.adaptiveCard(bot.invokeMainActivityBoard(companyData)),

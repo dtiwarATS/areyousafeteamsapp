@@ -37,7 +37,7 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
     "<b>User Email: </b>" +
     userEmailId +
     "<br />" +
-    +"<br /><br />" +
+    "<br /><br />" +
     "Thank you, <br />" +
     "AreYouSafe Support";
 
@@ -70,7 +70,7 @@ const selectResponseCard = async (context, user) => {
     const action = context.activity.value.action;
     const verb = action.verb;
 
-    // console.log("context.activity > ", context.activity);
+    console.log("context.activity > ", action);
     let companyData = action.data.companyData ? action.data.companyData : {};
 
     isSuperUser =
@@ -81,15 +81,23 @@ const selectResponseCard = async (context, user) => {
         ? true
         : false;
 
-    const isAdmin = await isAdminUser(context.activity.from.aadObjectId);
+    const isAdmin = await isAdminUser(
+      context.activity.from.aadObjectId,
+      companyData?.teamId
+    );
     console.log("isAdmin >> ", isAdmin);
     if (
       (context.activity.from?.id == companyData.userId || isSuperUser) &&
       isAdmin
     ) {
       isAdminOrSuperuser = true;
-      console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
-    } else if (verb && verb !== "send_response" && verb !== "submit_comment") {
+      console.log("isAdminOrSuperuser >> first if", isAdminOrSuperuser);
+    } else if (
+      verb &&
+      verb !== "send_response" &&
+      verb !== "submit_comment" &&
+      !isAdmin
+    ) {
       // TODO: Need to change this approach
       // work-around to prevent non-admin user from performing activity on adaptive cards
       console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
@@ -104,8 +112,13 @@ const selectResponseCard = async (context, user) => {
       }
       return Promise.resolve(true);
     }
-    console.log("going inside if now", isAdmin, typeof isAdmin);
-    if (!isAdmin) {
+
+    if (
+      !isAdmin &&
+      verb &&
+      verb !== "send_response" &&
+      verb !== "submit_comment"
+    ) {
       console.log("isAdminOrSuperuser false>> ", isAdminOrSuperuser);
       try {
         await context.sendActivity(
@@ -118,6 +131,8 @@ const selectResponseCard = async (context, user) => {
       }
       return Promise.resolve(true);
     }
+    isAdminOrSuperuser = true;
+    console.log("isAdminOrSuperuser >> afyer", { isAdminOrSuperuser });
     if (verb === "create_onetimeincident" && isAdminOrSuperuser) {
       await createInc(context, user, companyData);
     } else if (verb === "save_new_inc" && isAdminOrSuperuser) {
@@ -712,6 +727,30 @@ const viewIncResult = async (incidentId, context, companyData) => {
           },
         ],
       },
+      {
+        type: "ColumnSet",
+        spacing: "medium",
+        columns: [
+          {
+            type: "Column",
+            width: 4,
+            items: [
+              {
+                type: "TextBlock",
+                text: `**Note:**`,
+                color: "default",
+              },
+              {
+                type: "TextBlock",
+                text: "Currently, the dashboard card is not auto-updated. Please check the lastest status from 'View Incident Dashboard' button.",
+                isSubtle: true,
+                wrap: true,
+                spacing: "none",
+              },
+            ],
+          },
+        ],
+      },
     ],
     msteams: {
       entities: mentionUserEntities,
@@ -944,7 +983,7 @@ const sendApprovalResponse = async (user, context) => {
         body: [
           {
             type: "TextBlock",
-            text: `The user <at>${user.name}</at> needs assistance for Incident: **${incTitle}**`,
+            text: `User <at>${user.name}</at> needs assistance for Incident: **${incTitle}**`,
             wrap: true,
           },
         ],
@@ -1049,7 +1088,7 @@ const submitComment = async (context, user, companyData) => {
         body: [
           {
             type: "TextBlock",
-            text: `The user <at>${user.name}</at> has commented for incident **${incTitle}**:\n${commentVal}`,
+            text: `User <at>${user.name}</at> has commented for incident **${incTitle}**:\n${commentVal}`,
             wrap: true,
           },
         ],
