@@ -26,6 +26,16 @@ const {
   sendDirectMessageCard,
 } = require("../api/apiMethods");
 
+const {
+  updateMainCard,
+  updateCreateIncidentCard,
+  updateSendApprovalMessage,
+  updateSubmitCommentCard,
+  updateSafeMessage,
+  updateDeleteCard,
+  updateSesttingsCard,
+} = require("../models/UpdateCards");
+
 class BotActivityHandler extends TeamsActivityHandler {
   constructor() {
     super();
@@ -46,65 +56,23 @@ class BotActivityHandler extends TeamsActivityHandler {
       let isSuperUser = false;
       let isAdminOrSuperuser = false;
       const acvtivityData = context.activity;
-      console.log("acvtivityData - onMessage", acvtivityData);
       await context.sendActivities([{ type: "typing" }]);
       if (acvtivityData.conversation.conversationType === "channel") {
         await this.hanldeChannelUserMsg(context);
-        /* const channelId = acvtivityData.channelData.teamsChannelId;
-        const genChannelId = acvtivityData.channelData.teamsTeamId;
-        console.log("Recieved message from channel ", channelId);
-
-        // fetch companyData and check if channelId matches team_id stored in DB then proceed
-        const companyData = await getCompaniesData(
-          acvtivityData.from.aadObjectId,
-          genChannelId
-        );
-
-        // console.log("companyData >> ", companyData);
-
-        isSuperUser =
-          companyData.superUsers &&
-          companyData.superUsers.some(
-            (su) => su === acvtivityData.from.aadObjectId
-          )
-            ? true
-            : false;
-
-        if (
-          (acvtivityData.from.aadObjectId === companyData.userObjId &&
-            genChannelId === companyData.teamId) ||
-          isSuperUser
-        ) {
-          isAdminOrSuperuser = true;
-          console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
-
-          await this.hanldeAdminOrSuperUserMsg(context, companyData);
-        } else {
-          await this.hanldeNonAdminUserMsg(context);
-        } */
       } else if (acvtivityData.conversation.conversationType === "personal") {
-        console.log("Recieved message from personal ");
         // fetch  general channel id from db (ie same as team Id)
         let companyData = await getCompaniesData(
           acvtivityData.from.aadObjectId
         );
-        console.log({
-          companyData,
-          isValud:
-            companyData.userId != undefined && companyData.teamId?.length > 0,
-        });
         if (companyData.userId == undefined || !companyData.teamId?.length) {
-          console.log("insdie getCompaniesDataBySuperUserId");
           companyData = await getCompaniesDataBySuperUserId(
             acvtivityData.from.aadObjectId
           );
         }
-        console.log("companyData >> ", companyData);
         const isAdmin = await isAdminUser(
           acvtivityData.from.aadObjectId,
           companyData?.teamId
         );
-        console.log("isAdmin", { isAdmin });
         if (
           (companyData.userId != undefined && companyData.teamId?.length > 0) ||
           isAdmin
@@ -121,10 +89,6 @@ class BotActivityHandler extends TeamsActivityHandler {
           // check if from.id matches user id stored in DB then proceed
           if (acvtivityData.from.id === companyData.userId || isSuperUser) {
             isAdminOrSuperuser = true;
-            console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
-            console.log("companyData in  hanldeAdminOrSuperUserMsg>> ", {
-              companyData,
-            });
             await this.hanldeAdminOrSuperUserMsg(context, companyData);
           } else {
             await this.hanldeNonAdminUserMsg(context);
@@ -136,7 +100,6 @@ class BotActivityHandler extends TeamsActivityHandler {
             acvtivityData?.channelData?.tenant.id,
             true
           );
-          console.log("companyData not admin>> ", companyData);
           if (
             companyData.userId != undefined &&
             companyData.teamId?.length > 0
@@ -185,7 +148,6 @@ class BotActivityHandler extends TeamsActivityHandler {
     this.onConversationUpdate(async (context, next) => {
       let addedBot = false;
       const acvtivityData = context.activity;
-      console.log("acvtivityData - onConversationUpdate>> ", acvtivityData);
       const teamId = acvtivityData?.channelData?.team?.id;
       //console.log({ teamId: acvtivityData?.channelData?.team?.id });
       // fetch companyData and check if channelId matches team_id stored in DB then proceed
@@ -271,23 +233,17 @@ class BotActivityHandler extends TeamsActivityHandler {
                   adminUserInfo.name,
                   acvtivityData.channelData.team.name
                 );
-                console.log("Company data inserted into DB >> ", companyData);
               } else {
                 await updateCompanyData(
                   acvtivityData.from.id,
                   teamId,
                   acvtivityData.channelData.team.name
                 );
-                console.log({ companyData });
                 if (!companyData.welcomeMessageSent) {
                   await sendDirectMessageCard(
                     context,
                     acvtivityData.from,
                     bot.invokeMainActivityBoard(companyDataObj)
-                  );
-                  console.log(
-                    "Company data updated into DB >> ",
-                    companyDataObj
                   );
                 }
               }
@@ -303,14 +259,8 @@ class BotActivityHandler extends TeamsActivityHandler {
           acvtivityData?.channelData?.eventType === "teamDeleted") ||
         acvtivityData?.channelData?.eventType === "teamMemberRemoved"
       ) {
-        console.log("inside teamDeleted", process.env.MicrosoftAppId);
         const { membersRemoved } = acvtivityData;
-        console.log("membersRemoved", {
-          membersRemoved,
-          isBotRemvoed: membersRemoved[0].id.includes(
-            process.env.MicrosoftAppId
-          ),
-        });
+
         if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
           await deleteCompanyData(
             acvtivityData?.from?.aadObjectId,
@@ -386,7 +336,6 @@ class BotActivityHandler extends TeamsActivityHandler {
           // console.log("bot added >> ", addedBot);
         }
       } else {
-        console.log("firing last else");
         const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
              \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.
              
@@ -399,22 +348,120 @@ class BotActivityHandler extends TeamsActivityHandler {
 
   async onInvokeActivity(context) {
     try {
-      await context.sendActivities([{ type: "typing" }]);
-      console.log("Activity: ", context.activity.name);
+      const companyData = context.activity?.value?.action?.data?.companyData;
+      const uVerb = context.activity?.value?.action?.verb;
+      if (uVerb === "create_onetimeincident") {
+        await context.sendActivities([{ type: "typing" }]);
+        const cards = CardFactory.adaptiveCard(updateMainCard(companyData));
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "save_new_inc") {
+        await context.sendActivities([{ type: "typing" }]);
+        const user = context.activity.from;
+        const { inc_title: incTitle } = context.activity?.value?.action?.data;
+        let members = context.activity?.value?.action?.data?.selected_members;
+        if (members === undefined) {
+          members = "All Members";
+        }
+        const cards = CardFactory.adaptiveCard(
+          updateCreateIncidentCard(incTitle, members)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "submit_settings") {
+        const cards = CardFactory.adaptiveCard(updateSesttingsCard());
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "delete_inc") {
+        const cards = CardFactory.adaptiveCard(updateDeleteCard());
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "submit_comment") {
+        const action = context.activity.value.action;
+        const {
+          userId,
+          incId,
+          incTitle,
+          incCreatedBy,
+          eventResponse,
+          commentVal,
+        } = action.data;
+        let responseText = commentVal
+          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
+          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
+        const cards = CardFactory.adaptiveCard(
+          updateSubmitCommentCard(responseText, incCreatedBy)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "send_response") {
+        const action = context.activity.value.action;
+        const { info: response, inc, companyData } = action.data;
+        const { incId, incTitle, incCreatedBy } = inc;
+        let responseText = "";
+        if (response === "i_am_safe") {
+          responseText = `Glad you're safe! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
+        } else {
+          responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
+        }
+        const cards = CardFactory.adaptiveCard(
+          updateSafeMessage(
+            incTitle,
+            responseText,
+            incCreatedBy,
+            response,
+            incCreatedBy.id,
+            incId,
+            companyData
+          )
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (
+        uVerb === "send_approval" ||
+        uVerb === "cancel_send_approval"
+      ) {
+        await context.sendActivities([{ type: "typing" }]);
+        const action = context.activity.value.action;
+        const { incTitle: incTitle } = action.data.incident;
+        const { inc_created_by: incCreatedBy } =
+          context.activity?.value?.action?.data;
+        let preTextMsg = "";
+        if (context.activity?.value?.action.data.selected_members) {
+          preTextMsg = `Should I send this message to the selected user(s)?`;
+        } else {
+          preTextMsg = `Should I send this message to everyone?`;
+        }
+        const cards = CardFactory.adaptiveCard(
+          updateSendApprovalMessage(
+            incTitle,
+            incCreatedBy,
+            preTextMsg,
+            uVerb === "send_approval" ? true : false
+          )
+        );
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      }
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
         const action = context.activity.value.action;
-        console.log("Verb: ", action.verb);
         const card = await bot.selectResponseCard(context, user);
         if (card && card["$schema"]) {
           return bot.invokeResponse(card);
-          // await context.sendActivity({
-          //   attachments: [CardFactory.adaptiveCard(card)],
-          // });
-          // return {
-          //   status: StatusCodes.OK,
-          //   body: {},
-          // };
         } else {
           return {
             status: StatusCodes.OK,
@@ -438,39 +485,11 @@ class BotActivityHandler extends TeamsActivityHandler {
         // Remove the line break
         txt = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim();
       }
-      console.log("companyData inside hanldeAdminOrSuperUserMsg", {
-        companyData,
-      });
       await context.sendActivity({
         attachments: [
           CardFactory.adaptiveCard(bot.invokeMainActivityBoard(companyData)),
         ],
       });
-
-      // Trigger command by IM text
-      /* switch (txt) {
-        case "hi":
-          console.log("Running on Message Activity.");
-          await context.sendActivity({
-            attachments: [
-              CardFactory.adaptiveCard(
-                bot.invokeMainActivityBoard(companyData)
-              ),
-            ],
-          });
-          break;
-        case "hello":
-          console.log("{acvtivityData.from >> ", acvtivityData.from);
-          const mention = {
-            type: "mention",
-            mentioned: acvtivityData.from,
-            text: `<at>${acvtivityData.from.name}</at>`,
-          };
-          const topLevelMessage = MessageFactory.text(`Hello! ${mention.text}`);
-          topLevelMessage.entities = [mention];
-          await context.sendActivity(topLevelMessage);
-          break;
-      } */
     } catch (error) {
       console.log(error);
     }

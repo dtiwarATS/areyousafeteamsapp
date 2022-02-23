@@ -22,6 +22,7 @@ const {
   updateSuperUserData,
   isAdminUser,
 } = require("../db/dbOperations");
+
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
 const ALL_USERS = "allusers";
@@ -65,74 +66,11 @@ const invokeResponse = (card) => {
 
 const selectResponseCard = async (context, user) => {
   try {
-    let isSuperUser = false;
-    let isAdminOrSuperuser = false;
-    const action = context.activity.value.action;
-    const verb = action.verb;
-
-    console.log("context.activity > ", action);
+    const action = context.activity?.value?.action;
+    const verb = action?.verb;
     let companyData = action.data.companyData ? action.data.companyData : {};
-
-    isSuperUser =
-      companyData.superUsers &&
-      companyData.superUsers.some(
-        (su) => su === context.activity.from.aadObjectId
-      )
-        ? true
-        : false;
-
-    const isAdmin = await isAdminUser(
-      context.activity.from.aadObjectId,
-      companyData?.teamId
-    );
-    console.log("isAdmin >> ", isAdmin);
-    if (
-      (context.activity.from?.id == companyData.userId || isSuperUser) &&
-      isAdmin
-    ) {
-      isAdminOrSuperuser = true;
-      console.log("isAdminOrSuperuser >> first if", isAdminOrSuperuser);
-    } else if (
-      verb &&
-      verb !== "send_response" &&
-      verb !== "submit_comment" &&
-      !isAdmin
-    ) {
-      // TODO: Need to change this approach
-      // work-around to prevent non-admin user from performing activity on adaptive cards
-      console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
-      try {
-        await context.sendActivity(
-          MessageFactory.text(
-            `👋 Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
-          )
-        );
-      } catch (error) {
-        console.log(error);
-      }
-      return Promise.resolve(true);
-    }
-
-    if (
-      !isAdmin &&
-      verb &&
-      verb !== "send_response" &&
-      verb !== "submit_comment"
-    ) {
-      console.log("isAdminOrSuperuser false>> ", isAdminOrSuperuser);
-      try {
-        await context.sendActivity(
-          MessageFactory.text(
-            `👋 Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
-          )
-        );
-      } catch (error) {
-        console.log(error);
-      }
-      return Promise.resolve(true);
-    }
+    let isAdminOrSuperuser = false;
     isAdminOrSuperuser = true;
-    console.log("isAdminOrSuperuser >> afyer", { isAdminOrSuperuser });
     if (verb === "create_onetimeincident" && isAdminOrSuperuser) {
       await createInc(context, user, companyData);
     } else if (verb === "save_new_inc" && isAdminOrSuperuser) {
@@ -252,13 +190,11 @@ const createInc = async (context, user, companyData) => {
 
     // remove incident creator
     allMembers = allMembers.filter((m) => m.id != user.id);
-    // console.log("allMembers in createInc >> ", allMembers);
 
     const memberChoises = allMembers.map((m) => ({
       title: m.name,
       value: m.aadObjectId,
     }));
-    // console.log("memberChoises >> ", memberChoises);
 
     const card = {
       $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -355,11 +291,8 @@ const saveInc = async (context, action, companyData) => {
           responseValue: "na",
         })
     );
-
-  console.log("allMembers >> ", allMembers);
-
-  console.log("action before save >> ", action);
   const { inc_title: incTitle, inc_created_by } = action.data;
+  console.log({ inc_created_by, action });
   const newInc = await incidentService.saveInc(action.data, companyData);
 
   let sentApprovalTo = "";
@@ -375,13 +308,6 @@ const saveInc = async (context, action, companyData) => {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
     body: [
-      {
-        type: "TextBlock",
-        size: "Large",
-        weight: "Bolder",
-        text: `Incident "${incTitle}" created successfully!`,
-        wrap: true,
-      },
       {
         type: "TextBlock",
         separator: true,
@@ -410,6 +336,7 @@ const saveInc = async (context, action, companyData) => {
               incident: newInc,
               companyData: companyData,
               sentApprovalTo: sentApprovalTo,
+              inc_created_by,
             },
           },
           {
@@ -420,6 +347,7 @@ const saveInc = async (context, action, companyData) => {
               option: "No",
               incident: { incTitle, incId: newInc.incId },
               companyData: companyData,
+              inc_created_by,
             },
           },
         ],
@@ -518,12 +446,6 @@ const deleteInc = async (context, action) => {
   // console.log({ action, companyData });
   const incidentSelectedVal = action.data.incidentSelectedVal;
   const IncidentName = await incidentService.deleteInc(incidentSelectedVal);
-
-  let msgText;
-  if (IncidentName) {
-    msgText = `✔️ The Incident **'${IncidentName}'** has been deleted successfully.`;
-    await context.sendActivity(MessageFactory.text(msgText));
-  }
 };
 
 const viewAllInc = async (context, companyData) => {
@@ -737,12 +659,7 @@ const viewIncResult = async (incidentId, context, companyData) => {
             items: [
               {
                 type: "TextBlock",
-                text: `**Note:**`,
-                color: "default",
-              },
-              {
-                type: "TextBlock",
-                text: "Currently, the dashboard card is not auto-updated. Please check the lastest status from 'View Incident Dashboard' button.",
+                text: "**Note:** Currently, the dashboard card is not auto-updated. Please check the lastest status from 'View Incident Dashboard' button.",
                 isSubtle: true,
                 wrap: true,
                 spacing: "none",
@@ -755,43 +672,7 @@ const viewIncResult = async (incidentId, context, companyData) => {
     msteams: {
       entities: mentionUserEntities,
     },
-    // actions: [
-    //   {
-    //     type: "Action.Execute",
-    //     verb: "list_inc",
-    //     title: "Back",
-    //     data: {
-    //       info: "Back",
-    //       companyData: companyData,
-    //     },
-    //   },
-    // ],
   };
-
-  // const card = {
-  //   $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-  //   appId: process.env.MicrosoftAppId,
-  //   type: "AdaptiveCard",
-  //   version: "1.0",
-  //   body: [
-  //     {
-  //       type: "TextBlock",
-  //       text: `Hi <at>David James</at>`,
-  //     },
-  //   ],
-  //   msteams: {
-  //     entities: [
-  //       {
-  //         type: "mention",
-  //         text: `<at>David James</at>`,
-  //         mentioned: {
-  //           id: "29:1rW2p2zC_SrnCSDXpjZ4mO45eaBpsQ-dUcUsGUl3Yh2a6Y7L3BcLE5JDkNr4Tlg2w9hxxbCnjX8b7yGlDddLnUQ",
-  //           name: "David James",
-  //         },
-  //       },
-  //     ],
-  //   },
-  // };
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -826,8 +707,6 @@ const sendApproval = async (context) => {
       selectedMembers.includes(m.aadObjectId)
     );
   }
-
-  console.log("allMembers >> ", allMembers);
 
   const incWithAddedMembers = await incidentService.addMembersIntoIncData(
     incId,
@@ -944,11 +823,11 @@ const sendApproval = async (context) => {
     type: "AdaptiveCard",
     version: "1.4",
   };
-  await sendDirectMessageCard(
-    context,
-    incCreatedByUserObj,
-    approvalCardResponse
-  );
+  // await sendDirectMessageCard(
+  //   context,
+  //   incCreatedByUserObj,
+  //   approvalCardResponse
+  // );
   const resultCard = await viewIncResult(incId, context, companyData);
 
   await context.sendActivity({
@@ -960,21 +839,16 @@ const cancelSendApproval = async (context, user) => {
   const action = context.activity.value.action;
   const { incTitle, incId } = action.data.incident;
   await incidentService.deleteInc(incId);
-
-  const msgText = "Your incident has been cancelled.";
-  await sendDirectMessage(context, user, msgText);
 };
 
 const sendApprovalResponse = async (user, context) => {
   try {
-    let responseText = "";
     const action = context.activity.value.action;
     const { info: response, inc, companyData } = action.data;
     const { incId, incTitle, incCreatedBy } = inc;
 
     if (response === "i_am_safe") {
       await incidentService.updateIncResponseData(incId, user.id, 1);
-      responseText = `Glad you're safe! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
     } else {
       await incidentService.updateIncResponseData(incId, user.id, 0);
       const approvalCardResponse = {
@@ -1001,68 +875,7 @@ const sendApprovalResponse = async (user, context) => {
       };
       //send new msg just to emulate msg is being updated
       await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-      responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
     }
-    // await context.sendActivity(MessageFactory.text(responseText));
-
-    const approvalCard = {
-      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-      appId: process.env.MicrosoftAppId,
-      body: [
-        {
-          type: "TextBlock",
-          text: `${responseText} If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`,
-          wrap: true,
-        },
-        {
-          type: "Input.Text",
-          placeholder: "Add additional comment",
-          style: "text",
-          id: "commentVal",
-          isMultiline: true,
-        },
-      ],
-      msteams: {
-        entities: [
-          {
-            type: "mention",
-            text: `<at>${incCreatedBy.name}</at>`,
-            mentioned: {
-              id: incCreatedBy.id,
-              name: incCreatedBy.name,
-            },
-          },
-        ],
-      },
-      actions: [
-        {
-          type: "Action.Execute",
-          verb: "submit_comment",
-          title: "Submit Comment",
-          data: {
-            eventResponse: response,
-            userId: user.id,
-            incId: incId,
-            incTitle: incTitle,
-            incCreatedBy: incCreatedBy,
-            companyData: companyData,
-          },
-        },
-      ],
-      type: "AdaptiveCard",
-      version: "1.4",
-    };
-
-    //TODO: new to change this approach (i.e deleting current msg and sending new msg)
-    //delete the current msg
-    await context.deleteActivity(context.activity.replyToId);
-
-    //send new msg just to emulate msg is being updated
-    await context.sendActivity({
-      attachments: [CardFactory.adaptiveCard(approvalCard)],
-    });
-
-    // return approvalCard;
   } catch (error) {
     console.log(error);
   }
@@ -1073,7 +886,6 @@ const submitComment = async (context, user, companyData) => {
     const action = context.activity.value.action;
     const { userId, incId, incTitle, incCreatedBy, eventResponse, commentVal } =
       action.data;
-    // console.log({ userId, incId, incCreatedBy, eventResponse, commentVal });
 
     if (commentVal) {
       const mentionedUser = {
@@ -1108,46 +920,6 @@ const submitComment = async (context, user, companyData) => {
       await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       await incidentService.updateIncResponseComment(incId, userId, commentVal);
     }
-
-    let responseText = commentVal
-      ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
-      : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
-
-    const card = {
-      type: "AdaptiveCard",
-      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-      version: "1.4",
-      body: [
-        {
-          type: "TextBlock",
-          text: responseText,
-          wrap: true,
-        },
-      ],
-      msteams: {
-        entities: [
-          {
-            type: "mention",
-            text: `<at>${incCreatedBy.name}</at>`,
-            mentioned: {
-              id: incCreatedBy.id,
-              name: incCreatedBy.name,
-            },
-          },
-        ],
-      },
-    };
-
-    //TODO: new to change this approach (i.e deleting current msg and sending new msg)
-    //delete the current msg
-    await context.deleteActivity(context.activity.replyToId);
-
-    //send new msg just to emulate msg is being updated
-    await context.sendActivity({
-      attachments: [CardFactory.adaptiveCard(card)],
-    });
-
-    // return card;
   } catch (error) {
     console.log(error);
   }
@@ -1367,9 +1139,6 @@ const submitSettings = async (context, companyData) => {
     companyData.teamId,
     selected_superusers
   );
-
-  const msgText = `✔️ Your App Settings have been saved successfully.`;
-  await context.sendActivity(MessageFactory.text(msgText));
 };
 
 module.exports = {
