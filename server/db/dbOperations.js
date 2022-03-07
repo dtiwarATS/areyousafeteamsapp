@@ -25,6 +25,46 @@ const parseCompanyData = async (result) => {
   return Promise.resolve(parsedCompanyObj);
 };
 
+const isAdminUser = async (userObjId, teamId) => {
+  try {
+    selectQuery = "";
+    let adminUserLogin = false;
+    selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}'`;
+
+    let res = await db.getDataFromDB(selectQuery);
+    // check if the user is super user or not
+    if (res.length == 0) {
+      res = await db.getDataFromDB(
+        `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%'`
+      );
+    }
+
+    // check if the user is super user or not
+    if (res.length == 0) {
+      adminUserLogin = false;
+    } else {
+      adminUserLogin = true;
+    }
+    return Promise.resolve(adminUserLogin);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const getCompaniesDataBySuperUserId = async (superUserId) => {
+  try {
+    selectQuery = "";
+    let companyData = {};
+    selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${superUserId}%'`;
+
+    let res = await db.getDataFromDB(selectQuery);
+    companyData = await parseCompanyData(res);
+    return Promise.resolve(companyData);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 const getCompaniesData = async (
   userObjId,
   teamId = null,
@@ -33,7 +73,6 @@ const getCompaniesData = async (
   try {
     selectQuery = "";
     let companyData = {};
-    console.log({ teamId, filterByTeamID });
     if (teamId) {
       if (filterByTeamID) {
         selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_tenant_id = '${teamId}'`;
@@ -52,7 +91,6 @@ const getCompaniesData = async (
       );
     }
     companyData = await parseCompanyData(res);
-    // console.log("companyData in dbOperations >> ", companyData);
     return Promise.resolve(companyData);
   } catch (err) {
     console.log(err);
@@ -77,7 +115,7 @@ const deleteCompanyData = async (userObjId, teamId) => {
   try {
     pool = await poolPromise;
     let query = `DELETE FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}';`;
-    console.log("delete query => ", query);
+
     await pool.request().query(query);
   } catch (err) {
     console.log(err);
@@ -87,7 +125,19 @@ const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
   try {
     pool = await poolPromise;
     const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}' WHERE user_id = '${userId}' AND team_id = '${teamId}'`;
-    console.log("update query >> ", updateQuery);
+
+    await pool.request().query(updateQuery);
+
+    // return Promise.resolve();
+  } catch (err) {
+    console.log(err);
+  }
+};
+const updateCompanyData = async (userId, teamId, teamName = "") => {
+  try {
+    pool = await poolPromise;
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}',team_name='${teamName}' WHERE user_id = '${userId}' `;
+    console.log("update query Company>> ", updateQuery);
     await pool.request().query(updateQuery);
 
     // return Promise.resolve();
@@ -117,4 +167,7 @@ module.exports = {
   insertCompanyData,
   deleteCompanyData,
   updateSuperUserData,
+  updateCompanyData,
+  isAdminUser,
+  getCompaniesDataBySuperUserId,
 };

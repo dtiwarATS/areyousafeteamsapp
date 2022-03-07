@@ -132,7 +132,6 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
 
   const result = await db.getDataFromDB(selectQuery);
   let parsedResult = await parseEventData(result);
-  console.log("parsedResult >> ", parsedResult);
   if (parsedResult.length > 0) {
     incData = parsedResult[0];
   }

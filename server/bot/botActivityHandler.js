@@ -13,12 +13,31 @@ const {
   TurnContext,
 } = require("botbuilder");
 const bot = require("../bot/bot");
+const incidentService = require("../services/incidentService");
 const {
   getCompaniesData,
   insertCompanyData,
   deleteCompanyData,
+  isAdminUser,
+  getCompaniesDataBySuperUserId,
+  updateCompanyData,
 } = require("../db/dbOperations");
-const { sendDirectMessage } = require("../api/apiMethods");
+const {
+  sendDirectMessage,
+  sendDirectMessageCard,
+} = require("../api/apiMethods");
+
+const {
+  updateMainCard,
+  updateCreateIncidentCard,
+  updateSendApprovalMessage,
+  updateSubmitCommentCard,
+  updateSafeMessage,
+  updateDeleteCard,
+  updateSesttingsCard,
+  updateIncidentListCard,
+  updateContactSubmitCard,
+} = require("../models/UpdateCards");
 
 class BotActivityHandler extends TeamsActivityHandler {
   constructor() {
@@ -40,67 +59,59 @@ class BotActivityHandler extends TeamsActivityHandler {
       let isSuperUser = false;
       let isAdminOrSuperuser = false;
       const acvtivityData = context.activity;
-      console.log("acvtivityData - onMessage", acvtivityData);
       await context.sendActivities([{ type: "typing" }]);
       if (acvtivityData.conversation.conversationType === "channel") {
         await this.hanldeChannelUserMsg(context);
-        /* const channelId = acvtivityData.channelData.teamsChannelId;
-        const genChannelId = acvtivityData.channelData.teamsTeamId;
-        console.log("Recieved message from channel ", channelId);
-
-        // fetch companyData and check if channelId matches team_id stored in DB then proceed
-        const companyData = await getCompaniesData(
-          acvtivityData.from.aadObjectId,
-          genChannelId
-        );
-
-        // console.log("companyData >> ", companyData);
-
-        isSuperUser =
-          companyData.superUsers &&
-          companyData.superUsers.some(
-            (su) => su === acvtivityData.from.aadObjectId
-          )
-            ? true
-            : false;
-
-        if (
-          (acvtivityData.from.aadObjectId === companyData.userObjId &&
-            genChannelId === companyData.teamId) ||
-          isSuperUser
-        ) {
-          isAdminOrSuperuser = true;
-          console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
-
-          await this.hanldeAdminOrSuperUserMsg(context, companyData);
-        } else {
-          await this.hanldeNonAdminUserMsg(context);
-        } */
       } else if (acvtivityData.conversation.conversationType === "personal") {
-        console.log("Recieved message from personal ");
+        let a = false;
+        let b = false;
+        let c = false;
+        let isInstalledInTeam = true;
         // fetch  general channel id from db (ie same as team Id)
-        const companyData = await getCompaniesData(
+        let companyData = await getCompaniesData(
           acvtivityData.from.aadObjectId
         );
-
-        console.log("companyData >> ", companyData);
-        if (companyData.userId != undefined) {
+        if (!companyData.teamId?.length) {
+          isInstalledInTeam = false;
+        }
+        if (companyData.userId == undefined) {
+          a = true;
+          companyData = await getCompaniesDataBySuperUserId(
+            acvtivityData.from.aadObjectId
+          );
+          if (companyData.userId == undefined) {
+            b = true;
+          }
+        }
+        if (!companyData.teamId?.length) {
+          isInstalledInTeam = false;
+        }
+        const isAdmin = await isAdminUser(
+          acvtivityData.from.aadObjectId,
+          companyData?.teamId
+        );
+        if (
+          (companyData.userId != undefined && companyData.teamId?.length > 0) ||
+          (isAdmin && isInstalledInTeam)
+        ) {
           isSuperUser =
-            companyData.superUsers &&
-            companyData.superUsers.some(
-              (su) => su === acvtivityData.from.aadObjectId
-            )
+            (companyData.superUsers &&
+              companyData.superUsers.some(
+                (su) => su === acvtivityData.from.aadObjectId
+              )) ||
+            isAdmin
               ? true
               : false;
 
           // check if from.id matches user id stored in DB then proceed
           if (acvtivityData.from.id === companyData.userId || isSuperUser) {
             isAdminOrSuperuser = true;
-            console.log("isAdminOrSuperuser >> ", isAdminOrSuperuser);
             await this.hanldeAdminOrSuperUserMsg(context, companyData);
           } else {
             await this.hanldeNonAdminUserMsg(context);
           }
+        } else if (a && b && !isAdmin) {
+          await this.hanldeNonAdminUserMsg(context);
         } else {
           // fetch  general channel id from db (ie same as team Id)
           const companyData = await getCompaniesData(
@@ -108,13 +119,44 @@ class BotActivityHandler extends TeamsActivityHandler {
             acvtivityData?.channelData?.tenant.id,
             true
           );
-          console.log("companyData not admin>> ", companyData);
-          if (companyData.userId != undefined) {
+          if (
+            companyData.userId != undefined &&
+            companyData.teamId?.length > 0
+          ) {
             await this.hanldeNonAdminUserMsg(context);
           } else {
-            const welcomeMsg2 = `👋 Hello! Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
-
-            await sendDirectMessage(context, acvtivityData.from, welcomeMsg2);
+            const cards = {
+              $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+              type: "AdaptiveCard",
+              version: "1.0",
+              body: [
+                {
+                  type: "TextBlock",
+                  text: "**I work best when added to a Team.**",
+                  wrap: true,
+                },
+                {
+                  type: "TextBlock",
+                  text: "Please follow these steps: ",
+                  wrap: true,
+                },
+                {
+                  type: "TextBlock",
+                  text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? Bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
+                  wrap: true,
+                },
+                {
+                  type: "TextBlock",
+                  text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+                  wrap: true,
+                },
+                {
+                  type: "Image",
+                  url: "https://announcebot.in/img/InstallDetails.png?id=0",
+                },
+              ],
+            };
+            await sendDirectMessageCard(context, acvtivityData.from, cards);
           }
         }
       }
@@ -125,27 +167,16 @@ class BotActivityHandler extends TeamsActivityHandler {
     this.onConversationUpdate(async (context, next) => {
       let addedBot = false;
       const acvtivityData = context.activity;
-      console.log("acvtivityData - onConversationUpdate>> ", acvtivityData);
-      console.log({ teamId: acvtivityData?.channelData?.team?.id });
+      const teamId = acvtivityData?.channelData?.team?.id;
+      //console.log({ teamId: acvtivityData?.channelData?.team?.id });
       // fetch companyData and check if channelId matches team_id stored in DB then proceed
       const companyData = await getCompaniesData(
-        acvtivityData?.from?.aadObjectId,
-        acvtivityData?.channelData?.team?.id
+        acvtivityData?.from?.aadObjectId
       );
-
-      //console.log("companyData >> ", companyData);
-      if (
-        companyData.userId !== undefined &&
-        acvtivityData?.channelData?.eventType === "teamMemberAdded"
-      ) {
-        return;
-      }
-      // if bot/member is installed/added
       if (
         acvtivityData &&
         acvtivityData?.channelData?.eventType === "teamMemberAdded"
       ) {
-        console.log("inside teamMemberAdded");
         const { membersAdded } = acvtivityData;
         for (let i = 0; i < membersAdded.length; i++) {
           // See if the member added was our bot
@@ -163,7 +194,7 @@ class BotActivityHandler extends TeamsActivityHandler {
             );
 
             if (adminUserInfo) {
-              console.log("adminUserInfo >> ", adminUserInfo);
+              //console.log("adminUserInfo >> ", adminUserInfo);
               // then save from.id as userid and from.aadObjectId as userObjectId
               // and channelData.team.id as teamsId and save the data to database
               const companyDataObj = {
@@ -176,49 +207,152 @@ class BotActivityHandler extends TeamsActivityHandler {
                 teamName: acvtivityData.channelData.team.name,
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
+                welcomeMessageSent: 1,
               };
-              const companyData = await insertCompanyData(companyDataObj);
-              // await context.sendActivity(
-              //   MessageFactory.text(`Hello!
-              // \r\nAre you safe allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-              // \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`)
-              // );
+              if (
+                companyData.userId === undefined &&
+                companyData.teamId?.length <= 0
+              ) {
+                const companyData = await insertCompanyData(companyDataObj);
+                // await context.sendActivity(
+                //   MessageFactory.text(`Hello!
+                // \r\nAre you safe allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+                // \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`)
+                // );
+                const cards = {
+                  $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+                  type: "AdaptiveCard",
+                  version: "1.0",
+                  body: [
+                    {
+                      type: "TextBlock",
+                      text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+                      \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
+                      wrap: true,
+                    },
+                    {
+                      type: "TextBlock",
+                      text: "You do not need any other software or service to use this app.",
+                    },
+                    {
+                      type: "TextBlock",
+                      text: "Enter 'Hi' to start a conversation with the bot.",
+                    },
+                    {
+                      type: "TextBlock",
+                      text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+                      wrap: true,
+                    },
+                  ],
+                };
+                await sendDirectMessageCard(context, acvtivityData.from, cards);
 
-              const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-              \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`;
-
-              await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
-
-              await bot.sendInstallationEmail(
-                adminUserInfo.email,
-                adminUserInfo.name,
-                acvtivityData.channelData.team.name
-              );
-              console.log("Company data inserted into DB >> ", companyData);
+                await bot.sendInstallationEmail(
+                  adminUserInfo.email,
+                  adminUserInfo.name,
+                  acvtivityData.channelData.team.name
+                );
+              } else {
+                await updateCompanyData(
+                  acvtivityData.from.id,
+                  teamId,
+                  acvtivityData.channelData.team.name
+                );
+                if (!companyData.welcomeMessageSent) {
+                  await sendDirectMessageCard(
+                    context,
+                    acvtivityData.from,
+                    bot.invokeMainActivityBoard(companyDataObj)
+                  );
+                }
+              }
             }
           }
 
-          console.log("bot added >> ", addedBot);
+          //console.log("bot added >> ", addedBot);
         }
       }
-      if (
+      // if bot/member is installed/added
+      else if (
         (acvtivityData &&
           acvtivityData?.channelData?.eventType === "teamDeleted") ||
         acvtivityData?.channelData?.eventType === "teamMemberRemoved"
       ) {
-        console.log("inside teamDeleted", process.env.MicrosoftAppId);
         const { membersRemoved } = acvtivityData;
-        console.log("membersRemoved", {
-          membersRemoved,
-          isBotRemvoed: membersRemoved[0].id.includes(
-            process.env.MicrosoftAppId
-          ),
-        });
+
         if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
           await deleteCompanyData(
             acvtivityData?.from?.aadObjectId,
             acvtivityData?.channelData?.team.id
           );
+        }
+      } else if (teamId == null && acvtivityData) {
+        const { membersAdded } = acvtivityData;
+        for (let i = 0; i < membersAdded.length; i++) {
+          // See if the member added was our bot
+          if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
+            addedBot = true;
+            const teamId = null;
+            // retrive user info who installed the app from TeamsInfo.getTeamMembers(context, teamId);
+            const adminUserInfo = await TeamsInfo.getMember(
+              context,
+              acvtivityData.from.id
+            );
+            if (adminUserInfo) {
+              //console.log("adminUserInfo >> ", adminUserInfo);
+              // then save from.id as userid and from.aadObjectId as userObjectId
+              // and channelData.team.id as teamsId and save the data to database
+              const companyDataObj = {
+                userId: adminUserInfo.id,
+                userTenantId: adminUserInfo.tenantId,
+                userObjId: adminUserInfo.aadObjectId,
+                userName: adminUserInfo.name,
+                email: adminUserInfo.email,
+                teamId: "",
+                teamName: "",
+                superUser: [],
+                createdDate: new Date(Date.now()).toISOString(),
+                welcomeMessageSent: 1,
+              };
+              const companyData = await insertCompanyData(companyDataObj);
+              const cards = {
+                $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+                type: "AdaptiveCard",
+                version: "1.0",
+                body: [
+                  {
+                    type: "TextBlock",
+                    text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+                    \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
+                    wrap: true,
+                  },
+                  {
+                    type: "TextBlock",
+                    text: "You do not need any other software or service to use this app.",
+                  },
+                  {
+                    type: "TextBlock",
+                    text: "Enter 'Hi' to start a conversation with the bot.",
+                  },
+                  {
+                    type: "TextBlock",
+                    text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+                    wrap: true,
+                  },
+                ],
+              };
+              await sendDirectMessageCard(context, acvtivityData.from, cards);
+
+              await bot.sendInstallationEmail(
+                adminUserInfo.email,
+                adminUserInfo.name,
+                ""
+              );
+              //console.log("Company data inserted into DB >> ", companyData);
+            }
+          }
+
+          // console.log("bot added >> ", addedBot);
         }
       } else {
         const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
@@ -233,22 +367,174 @@ class BotActivityHandler extends TeamsActivityHandler {
 
   async onInvokeActivity(context) {
     try {
-      await context.sendActivities([{ type: "typing" }]);
-      console.log("Activity: ", context.activity.name);
+      const companyData = context.activity?.value?.action?.data?.companyData;
+      const uVerb = context.activity?.value?.action?.verb;
+      console.log({ uVerb });
+      if (
+        uVerb === "create_onetimeincident" ||
+        uVerb === "contact_us" ||
+        uVerb === "view_settings" ||
+        uVerb === "list_inc" ||
+        uVerb === "list_delete_inc"
+      ) {
+        await context.sendActivities([{ type: "typing" }]);
+        const cards = CardFactory.adaptiveCard(updateMainCard(companyData));
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "save_new_inc") {
+        await context.sendActivities([{ type: "typing" }]);
+        const user = context.activity.from;
+        const { inc_title: incTitle } = context.activity?.value?.action?.data;
+        let members = context.activity?.value?.action?.data?.selected_members;
+        if (members === undefined) {
+          members = "All Members";
+        }
+        const cards = CardFactory.adaptiveCard(
+          updateCreateIncidentCard(incTitle, members)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "submit_settings") {
+        const cards = CardFactory.adaptiveCard(updateSesttingsCard());
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "view_inc_result") {
+        const incidentId =
+          context.activity?.value?.action.data.incidentSelectedVal;
+        const allIncidentData = await incidentService.getAllInc(
+          companyData.teamId
+        );
+
+        let incList = [];
+        if (allIncidentData.length > 0) {
+          incList = allIncidentData.map((inc, index) => ({
+            title: inc.incTitle,
+            value: inc.incId,
+          }));
+        }
+        const cards = CardFactory.adaptiveCard(
+          updateIncidentListCard(companyData, incList, incidentId)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "delete_inc") {
+        const cards = {
+          type: "AdaptiveCard",
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          version: "1.4",
+          body: [
+            {
+              type: "TextBlock",
+              text: `✔️ The Incident has been deleted successfully.`,
+              wrap: true,
+            },
+          ],
+        };
+        const acvtivityData = context.activity;
+        sendDirectMessageCard(context, acvtivityData.from, cards);
+
+        await context.deleteActivity(context.activity.replyToId);
+      } else if (uVerb === "submit_comment") {
+        const action = context.activity.value.action;
+        const {
+          userId,
+          incId,
+          incTitle,
+          incCreatedBy,
+          eventResponse,
+          commentVal,
+        } = action.data;
+        let responseText = commentVal
+          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
+          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
+        const cards = CardFactory.adaptiveCard(
+          updateSubmitCommentCard(responseText, incCreatedBy)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "submit_contact_us") {
+        let responseText = `✔️ Your feedback has been submitted successfully.`;
+        const cards = CardFactory.adaptiveCard(
+          updateContactSubmitCard(responseText)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "send_response") {
+        const action = context.activity.value.action;
+        const { info: response, inc, companyData } = action.data;
+        const { incId, incTitle, incCreatedBy } = inc;
+        let responseText = "";
+        if (response === "i_am_safe") {
+          responseText = `Glad you're safe! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
+        } else {
+          responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
+        }
+        const cards = CardFactory.adaptiveCard(
+          updateSafeMessage(
+            incTitle,
+            responseText,
+            incCreatedBy,
+            response,
+            incCreatedBy.id,
+            incId,
+            companyData
+          )
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (
+        uVerb === "send_approval" ||
+        uVerb === "cancel_send_approval"
+      ) {
+        if (uVerb === "send_approval") {
+          await context.sendActivities([{ type: "typing" }]);
+        }
+        const action = context.activity.value.action;
+        const { incTitle: incTitle } = action.data.incident;
+        const { inc_created_by: incCreatedBy } =
+          context.activity?.value?.action?.data;
+        let preTextMsg = "";
+        let isAllMember = false;
+        if (context.activity?.value?.action.data.selected_members) {
+          preTextMsg = `Should I send this message to the selected user(s)?`;
+        } else {
+          isAllMember = true;
+          preTextMsg = `Should I send this message to everyone?`;
+        }
+        const cards = CardFactory.adaptiveCard(
+          updateSendApprovalMessage(
+            incTitle,
+            incCreatedBy,
+            preTextMsg,
+            uVerb === "send_approval" ? true : false,
+            isAllMember
+          )
+        );
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      }
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
         const action = context.activity.value.action;
-        console.log("Verb: ", action.verb);
         const card = await bot.selectResponseCard(context, user);
+        console.log({ card });
         if (card && card["$schema"]) {
           return bot.invokeResponse(card);
-          // await context.sendActivity({
-          //   attachments: [CardFactory.adaptiveCard(card)],
-          // });
-          // return {
-          //   status: StatusCodes.OK,
-          //   body: {},
-          // };
         } else {
           return {
             status: StatusCodes.OK,
@@ -277,31 +563,6 @@ class BotActivityHandler extends TeamsActivityHandler {
           CardFactory.adaptiveCard(bot.invokeMainActivityBoard(companyData)),
         ],
       });
-
-      // Trigger command by IM text
-      /* switch (txt) {
-        case "hi":
-          console.log("Running on Message Activity.");
-          await context.sendActivity({
-            attachments: [
-              CardFactory.adaptiveCard(
-                bot.invokeMainActivityBoard(companyData)
-              ),
-            ],
-          });
-          break;
-        case "hello":
-          console.log("{acvtivityData.from >> ", acvtivityData.from);
-          const mention = {
-            type: "mention",
-            mentioned: acvtivityData.from,
-            text: `<at>${acvtivityData.from.name}</at>`,
-          };
-          const topLevelMessage = MessageFactory.text(`Hello! ${mention.text}`);
-          topLevelMessage.entities = [mention];
-          await context.sendActivity(topLevelMessage);
-          break;
-      } */
     } catch (error) {
       console.log(error);
     }

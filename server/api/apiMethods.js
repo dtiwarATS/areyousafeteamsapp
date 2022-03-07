@@ -6,6 +6,7 @@ const {
 } = require("botbuilder");
 
 const getAllTeamMembers = async (context, teamId) => {
+  console.log({ teamId });
   let allMembers = await (
     await TeamsInfo.getTeamMembers(context, teamId)
   ).filter((tm) => tm.aadObjectId);
@@ -46,4 +47,26 @@ const sendDirectMessage = async (
   });
 };
 
-module.exports = { getAllTeamMembers, sendDirectMessage };
+const sendDirectMessageCard = async (
+  context,
+  teamMember,
+  approvalCardResponse
+) => {
+  let ref = TurnContext.getConversationReference(context.activity);
+  ref.user = teamMember;
+
+  await context.adapter.createConversation(ref, async (t1) => {
+    const ref2 = TurnContext.getConversationReference(t1.activity);
+    await t1.adapter.continueConversation(ref2, async (t2) => {
+      await t2.sendActivity({
+        attachments: [CardFactory.adaptiveCard(approvalCardResponse)],
+      });
+    });
+  });
+};
+
+module.exports = {
+  getAllTeamMembers,
+  sendDirectMessage,
+  sendDirectMessageCard,
+};
