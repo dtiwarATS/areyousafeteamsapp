@@ -222,6 +222,7 @@ const createInc = async (context, user, companyData) => {
         },
         {
           type: "TextBlock",
+          wrap: true,
           text: "Send the incident notification to these members (optional)",
           weight: "bolder",
           separator: true,
@@ -240,6 +241,7 @@ const createInc = async (context, user, companyData) => {
           type: "TextBlock",
           size: "small",
           isSubtle: true,
+          wrap: true,
           text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
         },
       ],
@@ -659,7 +661,7 @@ const viewIncResult = async (incidentId, context, companyData) => {
             items: [
               {
                 type: "TextBlock",
-                text: "**Note:** Currently, the dashboard card is not auto-updated. Please check the lastest status from 'View Incident Dashboard' button.",
+                text: "**Note:** Currently, the dashboard card is not auto-updated. Please check the latest status from 'View Incident Dashboard' button.",
                 isSubtle: true,
                 wrap: true,
                 spacing: "none",
@@ -1038,9 +1040,6 @@ const submitContactUsForm = async (context, companyData) => {
       const subject = "AreYouSafe Teams Bot | Feedback";
 
       await sendEmail(emailVal, subject, emailBody);
-
-      const msgText = `✔️ Your feedback has been submitted successfully.`;
-      await context.sendActivity(MessageFactory.text(msgText));
     }
   } catch (error) {
     console.log(error);

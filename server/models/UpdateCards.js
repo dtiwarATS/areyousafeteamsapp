@@ -87,7 +87,7 @@ const updateCreateIncidentCard = (incidentTitle, members) => {
         isSubtle: true,
         color: "good",
         wrap: true,
-        size: "large",
+        size: "default",
         text: `✔️ New incident '${incidentTitle}' created successfully.`,
       },
     ],
@@ -97,7 +97,8 @@ const updateSendApprovalMessage = (
   incTitle,
   inc_created_by,
   preTextMsg,
-  approved
+  approved,
+  isAllMember
 ) => {
   return {
     type: "AdaptiveCard",
@@ -133,7 +134,9 @@ const updateSendApprovalMessage = (
         wrap: true,
         color: approved ? "default" : "attention",
         text: approved
-          ? `✔️ Thanks! Your safety check message has been sent to all the selected user(s)`
+          ? isAllMember
+            ? "✔️ Thanks! Your safety check message has been sent to all the users"
+            : `✔️ Thanks! Your safety check message has been sent to all the selected user(s)`
           : "❗ Your incident has been cancelled.",
       },
     ],
@@ -264,6 +267,61 @@ const updateSesttingsCard = () => {
     ],
   };
 };
+
+const updateIncidentListCard = (companyData, incList, incidentID) => {
+  return {
+    type: "AdaptiveCard",
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    version: "1.4",
+    body: [
+      {
+        type: "TextBlock",
+        text: "View Incident Dashboard",
+        size: "Large",
+        weight: "Bolder",
+      },
+      {
+        type: "TextBlock",
+        text: "Incident List",
+        wrap: true,
+        separator: true,
+        weight: "bolder",
+      },
+      {
+        type: "Input.ChoiceSet",
+        id: "incidentSelectedVal",
+        placeholder: "Select an Incident",
+        value: incidentID ? incidentID : incList.length > 0 && incList[0].value,
+        choices: incList,
+        isRequired: true,
+      },
+    ],
+    actions: [
+      {
+        type: "Action.Execute",
+        verb: "view_inc_result",
+        title: "Submit",
+        data: {
+          companyData: companyData,
+        },
+      },
+    ],
+  };
+};
+const updateContactSubmitCard = (responseText, incCreatedBy) => {
+  return {
+    type: "AdaptiveCard",
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    version: "1.4",
+    body: [
+      {
+        type: "TextBlock",
+        text: responseText,
+        wrap: true,
+      },
+    ],
+  };
+};
 module.exports = {
   updateMainCard,
   updateCreateIncidentCard,
@@ -272,4 +330,6 @@ module.exports = {
   updateSesttingsCard,
   updateSubmitCommentCard,
   updateDeleteCard,
+  updateIncidentListCard,
+  updateContactSubmitCard,
 };

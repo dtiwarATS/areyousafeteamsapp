@@ -13,6 +13,7 @@ const {
   TurnContext,
 } = require("botbuilder");
 const bot = require("../bot/bot");
+const incidentService = require("../services/incidentService");
 const {
   getCompaniesData,
   insertCompanyData,
@@ -34,6 +35,8 @@ const {
   updateSafeMessage,
   updateDeleteCard,
   updateSesttingsCard,
+  updateIncidentListCard,
+  updateContactSubmitCard,
 } = require("../models/UpdateCards");
 
 class BotActivityHandler extends TeamsActivityHandler {
@@ -60,14 +63,28 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (acvtivityData.conversation.conversationType === "channel") {
         await this.hanldeChannelUserMsg(context);
       } else if (acvtivityData.conversation.conversationType === "personal") {
+        let a = false;
+        let b = false;
+        let c = false;
+        let isInstalledInTeam = true;
         // fetch  general channel id from db (ie same as team Id)
         let companyData = await getCompaniesData(
           acvtivityData.from.aadObjectId
         );
-        if (companyData.userId == undefined || !companyData.teamId?.length) {
+        if (!companyData.teamId?.length) {
+          isInstalledInTeam = false;
+        }
+        if (companyData.userId == undefined) {
+          a = true;
           companyData = await getCompaniesDataBySuperUserId(
             acvtivityData.from.aadObjectId
           );
+          if (companyData.userId == undefined) {
+            b = true;
+          }
+        }
+        if (!companyData.teamId?.length) {
+          isInstalledInTeam = false;
         }
         const isAdmin = await isAdminUser(
           acvtivityData.from.aadObjectId,
@@ -75,7 +92,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         );
         if (
           (companyData.userId != undefined && companyData.teamId?.length > 0) ||
-          isAdmin
+          (isAdmin && isInstalledInTeam)
         ) {
           isSuperUser =
             (companyData.superUsers &&
@@ -93,6 +110,8 @@ class BotActivityHandler extends TeamsActivityHandler {
           } else {
             await this.hanldeNonAdminUserMsg(context);
           }
+        } else if (a && b && !isAdmin) {
+          await this.hanldeNonAdminUserMsg(context);
         } else {
           // fetch  general channel id from db (ie same as team Id)
           const companyData = await getCompaniesData(
@@ -350,7 +369,14 @@ class BotActivityHandler extends TeamsActivityHandler {
     try {
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;
-      if (uVerb === "create_onetimeincident") {
+      console.log({ uVerb });
+      if (
+        uVerb === "create_onetimeincident" ||
+        uVerb === "contact_us" ||
+        uVerb === "view_settings" ||
+        uVerb === "list_inc" ||
+        uVerb === "list_delete_inc"
+      ) {
         await context.sendActivities([{ type: "typing" }]);
         const cards = CardFactory.adaptiveCard(updateMainCard(companyData));
 
@@ -378,12 +404,44 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
-      } else if (uVerb === "delete_inc") {
-        const cards = CardFactory.adaptiveCard(updateDeleteCard());
+      } else if (uVerb === "view_inc_result") {
+        const incidentId =
+          context.activity?.value?.action.data.incidentSelectedVal;
+        const allIncidentData = await incidentService.getAllInc(
+          companyData.teamId
+        );
+
+        let incList = [];
+        if (allIncidentData.length > 0) {
+          incList = allIncidentData.map((inc, index) => ({
+            title: inc.incTitle,
+            value: inc.incId,
+          }));
+        }
+        const cards = CardFactory.adaptiveCard(
+          updateIncidentListCard(companyData, incList, incidentId)
+        );
 
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+      } else if (uVerb === "delete_inc") {
+        const cards = {
+          type: "AdaptiveCard",
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          version: "1.4",
+          body: [
+            {
+              type: "TextBlock",
+              text: `✔️ The Incident has been deleted successfully.`,
+              wrap: true,
+            },
+          ],
+        };
+        const acvtivityData = context.activity;
+        sendDirectMessageCard(context, acvtivityData.from, cards);
+
+        await context.deleteActivity(context.activity.replyToId);
       } else if (uVerb === "submit_comment") {
         const action = context.activity.value.action;
         const {
@@ -399,6 +457,15 @@ class BotActivityHandler extends TeamsActivityHandler {
           : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "submit_contact_us") {
+        let responseText = `✔️ Your feedback has been submitted successfully.`;
+        const cards = CardFactory.adaptiveCard(
+          updateContactSubmitCard(responseText)
         );
 
         const message = MessageFactory.attachment(cards);
@@ -433,15 +500,19 @@ class BotActivityHandler extends TeamsActivityHandler {
         uVerb === "send_approval" ||
         uVerb === "cancel_send_approval"
       ) {
-        await context.sendActivities([{ type: "typing" }]);
+        if (uVerb === "send_approval") {
+          await context.sendActivities([{ type: "typing" }]);
+        }
         const action = context.activity.value.action;
         const { incTitle: incTitle } = action.data.incident;
         const { inc_created_by: incCreatedBy } =
           context.activity?.value?.action?.data;
         let preTextMsg = "";
+        let isAllMember = false;
         if (context.activity?.value?.action.data.selected_members) {
           preTextMsg = `Should I send this message to the selected user(s)?`;
         } else {
+          isAllMember = true;
           preTextMsg = `Should I send this message to everyone?`;
         }
         const cards = CardFactory.adaptiveCard(
@@ -449,7 +520,8 @@ class BotActivityHandler extends TeamsActivityHandler {
             incTitle,
             incCreatedBy,
             preTextMsg,
-            uVerb === "send_approval" ? true : false
+            uVerb === "send_approval" ? true : false,
+            isAllMember
           )
         );
         const message = MessageFactory.attachment(cards);
@@ -460,6 +532,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (context.activity.name === "adaptiveCard/action") {
         const action = context.activity.value.action;
         const card = await bot.selectResponseCard(context, user);
+        console.log({ card });
         if (card && card["$schema"]) {
           return bot.invokeResponse(card);
         } else {
