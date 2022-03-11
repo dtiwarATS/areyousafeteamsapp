@@ -592,11 +592,13 @@ const viewIncResult = async (incidentId, context, companyData) => {
             items: [
               {
                 type: "TextBlock",
+                wrap: true,
                 text: `**Need Assistance: ${result.membersUnsafe.length}**`,
                 color: "attention",
               },
               {
                 type: "TextBlock",
+                wrap: true,
                 text: membersUnsafeStr,
                 isSubtle: true,
                 spacing: "none",
@@ -615,6 +617,7 @@ const viewIncResult = async (incidentId, context, companyData) => {
             items: [
               {
                 type: "TextBlock",
+                wrap: true,
                 text: `**Not Responded: ${result.membersNotResponded.length}**`,
                 color: "default",
               },
@@ -706,7 +709,7 @@ const sendApproval = async (context) => {
 
   if (selectedMembers.length > 0) {
     allMembers = allMembers.filter((m) =>
-      selectedMembers.includes(m.aadObjectId)
+      selectedMembers?.includes(m.aadObjectId)
     );
   }
 
@@ -1059,7 +1062,7 @@ const viewSettings = async (context, companyData) => {
   }));
 
   const preSelectedSuperUsers = allMembers
-    .filter((m) => companyData.superUsers.includes(m.aadObjectId))
+    .filter((m) => companyData.superUsers?.includes(m.aadObjectId))
     .map((m) => ({
       title: m.name,
       value: m.aadObjectId,

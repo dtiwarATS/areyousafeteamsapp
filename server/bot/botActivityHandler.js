@@ -426,7 +426,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "delete_inc") {
-        const cards = {
+        const cards = CardFactory.adaptiveCard({
           type: "AdaptiveCard",
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           version: "1.4",
@@ -437,11 +437,10 @@ class BotActivityHandler extends TeamsActivityHandler {
               wrap: true,
             },
           ],
-        };
-        const acvtivityData = context.activity;
-        sendDirectMessageCard(context, acvtivityData.from, cards);
-
-        await context.deleteActivity(context.activity.replyToId);
+        });
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
       } else if (uVerb === "submit_comment") {
         const action = context.activity.value.action;
         const {
@@ -530,15 +529,13 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
-        const action = context.activity.value.action;
         const card = await bot.selectResponseCard(context, user);
-        console.log({ card });
         if (card && card["$schema"]) {
+          console.log("insidess");
           return bot.invokeResponse(card);
         } else {
           return {
             status: StatusCodes.OK,
-            body: {},
           };
         }
       }
