@@ -4,6 +4,8 @@ const Incident = require("../models/Incident");
 
 const poolPromise = require("../db/dbConn");
 const db = require("../db");
+const { getCron } = require("../utils");
+const parser = require("cron-parser");
 
 const parseEventData = async (result) => {
   let parsedDataArr = [];
@@ -75,6 +77,11 @@ const saveInc = async (actionData, companyData) => {
     selectedMembers: actionData.selected_members || "",
     incCreatedBy: actionData.inc_created_by.id,
     createdDate: new Date(Date.now()).toISOString(),
+    occursEvery: "",
+    startDate: "",
+    startTime: "",
+    endDate: "",
+    endTime: ""
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
@@ -84,6 +91,64 @@ const saveInc = async (actionData, companyData) => {
   if (res.length > 0) {
     newInc = new Incident(res[0]);
   }
+  return Promise.resolve(newInc);
+};
+
+const saveRecurrInc = async (actionData, companyData) => {
+  let newInc = {};
+
+  let incObj = {
+    incTitle: actionData.inc_title,
+    incDesc: "",
+    incType: "recurringIncident",
+    channelId: companyData.teamId,
+    teamId: companyData.teamId,
+    selectedMembers: actionData.selected_members || "",
+    incCreatedBy: actionData.inc_created_by.id,
+    createdDate: new Date(Date.now()).toISOString(),
+    occursEvery: actionData.eventDays.toString(),
+    startDate: actionData.startDate,
+    startTime: actionData.startTime,
+    endDate: actionData.endDate,
+    endTime: actionData.endTime
+  };
+  // console.log("incObj >> ", incObj);
+  let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
+  // console.log("incidentValues >> ", incidentValues);
+  const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
+
+  if (res.length > 0) {
+    newInc = new Incident(res[0]);
+  }
+  return Promise.resolve(newInc);
+};
+
+const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
+  let newInc = {};
+  try{
+    const incData = actionData.incident;
+    let cron = getCron(incData.startTime, incData.occursEvery);
+    const options = { tz: userTimeZone };
+
+    let interval = parser.parseExpression(cron, options);
+    let nextRunAtUTC = interval.next().toISOString();
+
+    let incSubEventObj = {
+      incId: incData.incId,
+      subEventType: "recurringIncident",
+      cron,
+      nextRunAtUTC,
+      timezone: userTimeZone,
+      completed: false
+    };
+
+    let incidentEventValues = Object.keys(incSubEventObj).map((key) => incSubEventObj[key]);
+    const res = await db.insertDataIntoDB("MSTEAMS_SUB_EVENT", incidentEventValues);    
+  }
+  catch (error) {
+    console.log(error);
+  } 
+  
   return Promise.resolve(newInc);
 };
 
@@ -195,4 +260,6 @@ module.exports = {
   updateIncResponseComment,
   getAllInc,
   getInc,
+  saveRecurrInc,
+  saveRecurrSubEventInc
 };

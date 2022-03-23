@@ -34,4 +34,47 @@ const toTitleCase = (str) => {
   });
 };
 
-module.exports = { sendEmail, toTitleCase };
+const formatedDate = (format, date = null) => {
+  if(date == null){
+    date = new Date();  
+  }
+
+  let d = new Date(date),
+      month = '' + (d.getMonth() + 1),
+      day = '' + d.getDate(),
+      year = d.getFullYear();
+
+  if (month.length < 2){ 
+    month = '0' + month;   
+  }  
+  if (day.length < 2){
+    day = '0' + day;
+  }
+
+  let newDate = format.replace("mm",month).replace("dd",day).replace("yyyy",year);
+  return newDate;
+}
+const getCron = (time12hrStr, weekDaysArr) => {
+  const [time, modifier] = time12hrStr.split(" ");
+
+  let [hours, minutes] = time.split(":");
+
+  if (hours === "12") {
+    hours = "00";
+  }
+
+  if (modifier === "PM") {
+    hours = parseInt(hours, 10) + 12;
+  }
+
+  const weekDayCron = Array.isArray(weekDaysArr) ? weekDaysArr.join(",") : weekDaysArr;
+
+  return `${minutes} ${hours} * * ${weekDayCron}`;
+};
+
+module.exports = { 
+  sendEmail, 
+  toTitleCase, 
+  formatedDate,
+  getCron
+};

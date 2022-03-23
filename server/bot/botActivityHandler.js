@@ -383,7 +383,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
-      } else if (uVerb === "save_new_inc") {
+      } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {
         await context.sendActivities([{ type: "typing" }]);
         const user = context.activity.from;
         const { inc_title: incTitle } = context.activity?.value?.action?.data;
@@ -391,8 +391,10 @@ class BotActivityHandler extends TeamsActivityHandler {
         if (members === undefined) {
           members = "All Members";
         }
+        let recurrInc = (uVerb === "save_new_recurr_inc") ? "recurring " : "";
+        let text = `✔️ New ${recurrInc}incident '${incTitle}' created successfully.`;
         const cards = CardFactory.adaptiveCard(
-          updateCreateIncidentCard(incTitle, members)
+          updateCreateIncidentCard(incTitle, members, text)
         );
 
         const message = MessageFactory.attachment(cards);
@@ -514,13 +516,15 @@ class BotActivityHandler extends TeamsActivityHandler {
           isAllMember = true;
           preTextMsg = `Should I send this message to everyone?`;
         }
+        const isRecurringInc = (action.data.incType === "recurringIncident");
         const cards = CardFactory.adaptiveCard(
           updateSendApprovalMessage(
             incTitle,
             incCreatedBy,
             preTextMsg,
             uVerb === "send_approval" ? true : false,
-            isAllMember
+            isAllMember,
+            isRecurringInc
           )
         );
         const message = MessageFactory.attachment(cards);
