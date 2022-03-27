@@ -252,6 +252,27 @@ const getAllInc = async (teamId) => {
   }
 };
 
+const getCompanyData = async (teamId) => {
+  let companyDataObj = {};
+  let companyDataSql = `SELECT * FROM MSTEAMSINSTALLATIONDETAILS WHERE TEAM_ID = '${teamId}'`;
+  const result = await db.getDataFromDB(companyDataSql);
+  if(result != null && result.length > 0){
+    companyDataObj = {
+      userId: result[0].user_id,
+      userTenantId: result[0].user_tenant_id,
+      userObjId: result[0].user_obj_id,
+      userName: result[0].user_name,
+      email: result[0].email,
+      teamId: result[0].team_id,
+      teamName: result[0].team_name,
+      superUser: [],
+      createdDate: result[0].created_date,
+      welcomeMessageSent: result[0].welcomeMessageSent,
+    };
+  }
+  return companyDataObj;
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -261,5 +282,6 @@ module.exports = {
   getAllInc,
   getInc,
   saveRecurrInc,
-  saveRecurrSubEventInc
+  saveRecurrSubEventInc,
+  getCompanyData
 };

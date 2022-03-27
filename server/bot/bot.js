@@ -4,6 +4,7 @@ const {
   CardFactory,
   TurnContext,
   TeamsInfo,
+  Message
 } = require("botbuilder");
 const {
   MicrosoftAppCredentials,
@@ -15,6 +16,7 @@ const {
   getAllTeamMembers,
   sendDirectMessage,
   sendDirectMessageCard,
+  sendMessageToUser
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate } = require("../utils");
 const {
@@ -741,14 +743,7 @@ const viewAllInc = async (context, companyData) => {
   }
 };
 
-const viewIncResult = async (incidentId, context, companyData) => {
-  //console.log("viewIncResult called", incidentId);
-  if (incidentId === undefined) {
-    await context.sendActivity(
-      MessageFactory.text(`👋 Hello!! Please select an Incident.`)
-    );
-    return Promise.resolve(true);
-  }
+const getOneTimeDashboardCard = async (incidentId) => {
   const inc = await incidentService.getInc(incidentId);
   //console.log("inc in viewIncResult =>", inc);
 
@@ -758,7 +753,7 @@ const viewIncResult = async (incidentId, context, companyData) => {
     membersUnsafe: [],
     membersNotResponded: [],
   };
-
+  
   const mentionUserEntities = [];
 
   // process result for event dashboard
@@ -901,11 +896,94 @@ const viewIncResult = async (incidentId, context, companyData) => {
       entities: mentionUserEntities,
     },
   };
+  return card;
+}
+
+const viewIncResult = async (incidentId, context, companyData) => {
+  //console.log("viewIncResult called", incidentId);
+  if (incidentId === undefined) {
+    await context.sendActivity(
+      MessageFactory.text(`👋 Hello!! Please select an Incident.`)
+    );
+    return Promise.resolve(true);
+  }
+  
+  const dashboardCard = getOneTimeDashboardCard(incidentId);
 
   await context.sendActivity({
-    attachments: [CardFactory.adaptiveCard(card)],
+    attachments: [CardFactory.adaptiveCard(dashboardCard)],
   });
 };
+
+const getSaftyCheckCard = (incTitle, incObj, companyData) => {  
+  return {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    appId: process.env.MicrosoftAppId,
+    body: [
+      {
+        type: "TextBlock",
+        size: "Large",
+        weight: "Bolder",
+        text: "Hello!",
+      },
+      {
+        type: "TextBlock",
+        separator: true,
+        wrap: true,
+        text: `This is a safety check from <at>${incObj.incCreatedBy.name}</at>. We think you may be affected by **${incTitle}**.`,
+      },
+      {
+        type: "RichTextBlock",
+        separator: true,
+        inlines: [
+          {
+            type: "TextRun",
+            text: `Mark yourself as safe, or ask for assistance`,
+          },
+        ],
+      },
+      {
+        type: "ActionSet",
+        actions: [
+          {
+            type: "Action.Execute",
+            verb: "send_response",
+            title: "I am safe",
+            data: {
+              info: "i_am_safe",
+              inc: incObj,
+              companyData: companyData,
+            },
+          },
+          {
+            type: "Action.Execute",
+            verb: "send_response",
+            title: "I need assistance",
+            data: {
+              info: "need_assistance",
+              inc: incObj,
+              companyData: companyData,
+            },
+          },
+        ],
+      },
+    ],
+    msteams: {
+      entities: [
+        {
+          type: "mention",
+          text: `<at>${incObj.incCreatedBy.name}</at>`,
+          mentioned: {
+            id: incObj.incCreatedBy.id,
+            name: incObj.incCreatedBy.name,
+          },
+        },
+      ],
+    },
+    type: "AdaptiveCard",
+    version: "1.4",
+  };  
+}
 
 const sendApproval = async (context) => {
   const action = context.activity.value.action;
@@ -945,81 +1023,12 @@ const sendApproval = async (context) => {
   if(action.data.incType == "onetime"){
     // send approval msg to all users
     allMembers.forEach(async (teamMember) => {
-      const approvalCard = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: [
-          {
-            type: "TextBlock",
-            size: "Large",
-            weight: "Bolder",
-            text: "Hello!",
-          },
-          {
-            type: "TextBlock",
-            separator: true,
-            wrap: true,
-            text: `This is a safety check from <at>${incCreatedByUserObj.name}</at>. We think you may be affected by **${incTitle}**.`,
-          },
-          {
-            type: "RichTextBlock",
-            separator: true,
-            inlines: [
-              {
-                type: "TextRun",
-                text: `Mark yourself as safe, or ask for assistance`,
-              },
-            ],
-          },
-          {
-            type: "ActionSet",
-            actions: [
-              {
-                type: "Action.Execute",
-                verb: "send_response",
-                title: "I am safe",
-                data: {
-                  info: "i_am_safe",
-                  inc: {
-                    incId,
-                    incTitle,
-                    incCreatedBy: incCreatedByUserObj,
-                  },
-                  companyData: companyData,
-                },
-              },
-              {
-                type: "Action.Execute",
-                verb: "send_response",
-                title: "I need assistance",
-                data: {
-                  info: "need_assistance",
-                  inc: {
-                    incId,
-                    incTitle,
-                    incCreatedBy: incCreatedByUserObj,
-                  },
-                  companyData: companyData,
-                },
-              },
-            ],
-          },
-        ],
-        msteams: {
-          entities: [
-            {
-              type: "mention",
-              text: `<at>${incCreatedByUserObj.name}</at>`,
-              mentioned: {
-                id: incCreatedByUserObj.id,
-                name: incCreatedByUserObj.name,
-              },
-            },
-          ],
-        },
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
+      let incObj = {
+        incId,
+        incTitle,
+        incCreatedBy: incCreatedByUserObj,
+      }
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData);
 
       var ref = TurnContext.getConversationReference(context.activity);
 
@@ -1367,6 +1376,50 @@ const submitSettings = async (context, companyData) => {
   );
 };
 
+const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
+  let successflag = false;
+  try{
+    if(subEventObj.incType == "recurringIncident"){
+      const incCreatedByUserObj = {
+        id: subEventObj.createdById,
+        name : ""
+      }
+      let incObj = {
+        incId,
+        incTitle,
+        incCreatedBy: incCreatedByUserObj,
+      }
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData);
+  
+      const resp = await sendMessageToUser(subEventObj.eventMembers, approvalCard);
+
+      const recurrCompletedCard = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.5",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": "Incident Message:",
+                "wrap": true,
+                "weight": "Bolder"
+            },
+            {
+                "type": "TextBlock",
+                "text": `Your safety check message for *${incTitle}* has been sent to all the users`,
+                "wrap": true
+            }
+        ]
+      }
+      await sendMessageToUser(incCreatedByUserObj, recurrCompletedCard);
+      const dashboardCard = getOneTimeDashboardCard(incidentId);
+      await sendMessageToUser(incCreatedByUserObj, dashboardCard);
+    }
+  }catch(err){
+   console.log(err); 
+  }
+}
+
 module.exports = {
   invokeResponse,
   sendInstallationEmail,
@@ -1374,4 +1427,5 @@ module.exports = {
   invokeMainActivityBoard,
   createInc,
   saveInc,
+  sendRecurrEventMsg
 };

@@ -5,6 +5,12 @@ const {
   CardFactory,
 } = require("botbuilder");
 
+const path = require("path");
+const ENV_FILE = path.join(__dirname, "../.env");
+require("dotenv").config({ path: ENV_FILE });
+
+const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
+
 const getAllTeamMembers = async (context, teamId) => {
   console.log({ teamId });
   let allMembers = await (
@@ -65,8 +71,47 @@ const sendDirectMessageCard = async (
   });
 };
 
+const sendMessageToUser = async (members, msgAttachment, msgText) => {
+  let resp = null;
+  try{
+    const conversationParameters = {
+      isGroup: false,      
+      channelData: {
+        tenant: {
+          id: process.env.tenantId
+        }
+      },
+      bot: {
+        id: process.env.MicrosoftAppId,
+        name: process.env.BotName
+      },
+      members: members    
+    };
+  
+    let activity = null;
+    if(msgAttachment != null){
+      activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+    }else if(msgText != null){
+      activity = MessageFactory.text(msgText);
+    }
+    
+    if(activity != null){
+      var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+      var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
+      
+      const response = await connectorClient.conversations.createConversation(conversationParameters);                  
+      resp = await connectorClient.conversations.sendToConversation(response.id, activity);
+    }
+  }
+  catch(err){
+    console.log(err);
+  }  
+  return Promise.resolve(resp);
+}
+
 module.exports = {
   getAllTeamMembers,
   sendDirectMessage,
   sendDirectMessageCard,
+  sendMessageToUser
 };

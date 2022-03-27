@@ -42,7 +42,9 @@ const formatedDate = (format, date = null) => {
   let d = new Date(date),
       month = '' + (d.getMonth() + 1),
       day = '' + d.getDate(),
-      year = d.getFullYear();
+      year = d.getFullYear(),
+      hours = d.getHours(),
+      minutes = d.getMinutes();
 
   if (month.length < 2){ 
     month = '0' + month;   
@@ -50,10 +52,17 @@ const formatedDate = (format, date = null) => {
   if (day.length < 2){
     day = '0' + day;
   }
+  if (hours.length < 2){
+    hours = '0' + hours;
+  }
+  if (minutes.length < 2){
+    minutes = '0' + minutes;
+  }
 
-  let newDate = format.replace("mm",month).replace("dd",day).replace("yyyy",year);
+  let newDate = format.replace("mm",month).replace("dd",day).replace("yyyy",year).replace("hh",hours).replace("mm",minutes);
   return newDate;
 }
+
 const getCron = (time12hrStr, weekDaysArr) => {
   const [time, modifier] = time12hrStr.split(" ");
 
@@ -70,7 +79,7 @@ const getCron = (time12hrStr, weekDaysArr) => {
   const weekDayCron = Array.isArray(weekDaysArr) ? weekDaysArr.join(",") : weekDaysArr;
 
   return `${minutes} ${hours} * * ${weekDayCron}`;
-};
+}
 
 module.exports = { 
   sendEmail, 
