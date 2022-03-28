@@ -19,7 +19,7 @@ function initJob(){
       {
         name: "recurr-job",
         path: path.join(__dirname, 'jobs', 'recurr-job.js'),
-        cron: "*/1 * * * *",
+        cron: "*/5 * * * *",
       },
     ],
   });
