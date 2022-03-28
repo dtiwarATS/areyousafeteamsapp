@@ -29,7 +29,7 @@ function initJob(){
  
   bree.start();
 } 
-//initJob();
+initJob();
 //======================= BREE JS END ========================
 
 const closeConnectionPool = async () => {
@@ -74,51 +74,3 @@ function shutDown() {
     });
   });
 }
-
-const {
-  TeamsInfo,
-  TurnContext,
-  MessageFactory,
-  CardFactory,
-} = require("botbuilder");
-const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
-const sendProactiveMessaage = async () => { 
-
-  let resp = null;
-  try{
-    const conversationParameters = {
-      isGroup: false,      
-      channelData: {
-        tenant: {
-          id: process.env.tenantId
-        }
-      },
-      bot: {
-        id: process.env.MicrosoftAppId,
-        name: process.env.BotName
-      },
-      members: [
-        {
-          id: "29:1_L-WaxLz0UJP3xkgQyCFQKX9xSgGD41LnC6qNG-GcvDx7JmSoB6g5SQN5U-rRXqy9jc2XKrLQ9rYUOxNw7GJXw"         
-        }        
-      ]    
-    };
-  
-    let activity = MessageFactory.text("test sandesh");;
-    
-    
-    if(activity != null){
-      var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-      var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
-      
-      const response = await connectorClient.conversations.createConversation(conversationParameters);                  
-      const resp = await connectorClient.conversations.sendToConversation(response.id, activity);
-      var a = 10;
-    }    
-  }
-  catch(err)
-  {
-    console.log(err);
-  }  
-}
-sendProactiveMessaage();

@@ -81,9 +81,17 @@ const getCron = (time12hrStr, weekDaysArr) => {
   return `${minutes} ${hours} * * ${weekDayCron}`;
 }
 
+const convertToAMPM = (time) =>{
+  const hour = time.split(":")[0];
+  const minutes = time.split(":")[1] | "00";
+  const suffix = hour >= 12 ? "PM":"AM";
+  return (hour % 12)  + ":" + minutes + " " + suffix;
+}
+
 module.exports = { 
   sendEmail, 
   toTitleCase, 
   formatedDate,
-  getCron
+  getCron,
+  convertToAMPM
 };

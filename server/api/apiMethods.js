@@ -71,7 +71,7 @@ const sendDirectMessageCard = async (
   });
 };
 
-const sendMessageToUser = async (members, msgAttachment, msgText) => {
+const sendProactiveMessaageToUser = async (members, msgAttachment, msgText) => {
   let resp = null;
   try{
     const conversationParameters = {
@@ -113,5 +113,5 @@ module.exports = {
   getAllTeamMembers,
   sendDirectMessage,
   sendDirectMessageCard,
-  sendMessageToUser
+  sendProactiveMessaageToUser
 };

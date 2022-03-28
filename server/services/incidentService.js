@@ -81,7 +81,8 @@ const saveInc = async (actionData, companyData) => {
     startDate: "",
     startTime: "",
     endDate: "",
-    endTime: ""
+    endTime: "",
+    incCreatedByName: actionData.inc_created_by.name,
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
@@ -104,13 +105,14 @@ const saveRecurrInc = async (actionData, companyData) => {
     channelId: companyData.teamId,
     teamId: companyData.teamId,
     selectedMembers: actionData.selected_members || "",
-    incCreatedBy: actionData.inc_created_by.id,
+    incCreatedBy: actionData.inc_created_by.id,    
     createdDate: new Date(Date.now()).toISOString(),
     occursEvery: actionData.eventDays.toString(),
     startDate: actionData.startDate,
     startTime: actionData.startTime,
     endDate: actionData.endDate,
-    endTime: actionData.endTime
+    endTime: actionData.endTime,
+    incCreatedByName: actionData.inc_created_by.name,
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
@@ -232,7 +234,7 @@ const updateIncResponseComment = async (
 const getAllInc = async (teamId) => {
   try {
     let eventData = [];
-    const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by,
+    const selectQuery = `SELECT inc.id, case inc.inc_type when 'recurringIncident' then inc.inc_name + ' (Recurring Incident)' else  inc.inc_name end inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by,
     m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
     m.comment, m.timestamp FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m

@@ -34,7 +34,8 @@ const getColumns = (tableName) => {
         "EVENT_START_DATE",
         "EVENT_START_TIME",
         "EVENT_END_DATE",
-        "EVENT_END_TIME"
+        "EVENT_END_TIME",
+        "CREATED_BY_NAME"
       ];
       break;
 

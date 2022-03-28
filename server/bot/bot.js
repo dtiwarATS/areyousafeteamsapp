@@ -16,9 +16,9 @@ const {
   getAllTeamMembers,
   sendDirectMessage,
   sendDirectMessageCard,
-  sendMessageToUser
+  sendProactiveMessaageToUser
 } = require("../api/apiMethods");
-const { sendEmail, formatedDate } = require("../utils");
+const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
   addFeedbackData,
   updateSuperUserData,
@@ -216,6 +216,9 @@ const createRecurrInc = async (context, user, companyData) => {
       {title : "Thur", value: "4"}, {title : "Fri", value: "5"}, {title : "Sat", value: "6"}
     ];
 
+    var nextWeekDate = new Date();
+    nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+
     const card = {
       $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
       appId: process.env.MicrosoftAppId,
@@ -306,7 +309,7 @@ const createRecurrInc = async (context, user, companyData) => {
                     "items": [
                         {
                             "type": "Input.Date",
-                            "value": formatedDate("yyyy-mm-dd", (new Date())),
+                            "value": formatedDate("yyyy-mm-dd", nextWeekDate),
                             "id": "endDate"
                         }
                     ]
@@ -333,7 +336,7 @@ const createRecurrInc = async (context, user, companyData) => {
         {
           type: "Input.ChoiceSet",
           weight: "bolder",
-          id: "selectedMembers",
+          id: "selected_members",
           style: "filtered",
           isMultiSelect: true,
           placeholder: "Select users",
@@ -586,13 +589,15 @@ const saveRecurrInc = async (context, action, companyData) => {
   const newInc = await incidentService.saveRecurrInc(action.data, companyData);
 
   let sentApprovalTo = "";
-  if (action.data.selectedMembers) {
-    preTextMsg = `Should I send this message to the selected user(s)?`;
+  if (action.data.selected_members) {
+    preTextMsg = `Should I send this message to the selected user(s) `;
     sentApprovalTo = SELECTED_USERS;
   } else {
-    preTextMsg = `Should I send this message to everyone?`;
+    preTextMsg = `Should I send this message to everyone `;
     sentApprovalTo = ALL_USERS;
   }
+
+  preTextMsg += `starting from ${action.data.startDate} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
 
   const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident");  
 
@@ -908,7 +913,7 @@ const viewIncResult = async (incidentId, context, companyData) => {
     return Promise.resolve(true);
   }
   
-  const dashboardCard = getOneTimeDashboardCard(incidentId);
+  const dashboardCard = await getOneTimeDashboardCard(incidentId);
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(dashboardCard)],
@@ -1382,7 +1387,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
     if(subEventObj.incType == "recurringIncident"){
       const incCreatedByUserObj = {
         id: subEventObj.createdById,
-        name : ""
+        name : subEventObj.createdByName
       }
       let incObj = {
         incId,
@@ -1391,7 +1396,15 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
       }
       const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData);
   
-      const resp = await sendMessageToUser(subEventObj.eventMembers, approvalCard);
+      if(subEventObj.eventMembers.length > 0) {
+        for(let i = 0; i < subEventObj.eventMembers.length; i++){
+          let member = [{
+            id : subEventObj.eventMembers[i].user_id,
+            name : subEventObj.eventMembers[i].user_name
+          }];
+          await sendProactiveMessaageToUser(member, approvalCard);
+        }
+      }
 
       const recurrCompletedCard = {
         "type": "AdaptiveCard",
@@ -1399,25 +1412,33 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
         "version": "1.5",
         "body": [
             {
-                "type": "TextBlock",
-                "text": "Incident Message:",
-                "wrap": true,
-                "weight": "Bolder"
+              "type": "TextBlock",
+              "text": "Incident Message:",
+              "wrap": true,
+              "weight": "Bolder"
             },
             {
-                "type": "TextBlock",
-                "text": `Your safety check message for *${incTitle}* has been sent to all the users`,
-                "wrap": true
+              "type": "TextBlock",
+              "text": `Your safety check message for **${incTitle}** has been sent to all the users`,
+              "wrap": true
             }
         ]
       }
-      await sendMessageToUser(incCreatedByUserObj, recurrCompletedCard);
-      const dashboardCard = getOneTimeDashboardCard(incidentId);
-      await sendMessageToUser(incCreatedByUserObj, dashboardCard);
+      const incCreatedByUserArr = [];
+
+      incCreatedByUserArr.push(incCreatedByUserObj);
+      await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard);
+
+      const dashboardCard = await getOneTimeDashboardCard(incId);
+      await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard);
+
+      successflag = true;
     }
   }catch(err){
+    successflag = false;
    console.log(err); 
   }
+  return successflag;
 }
 
 module.exports = {
