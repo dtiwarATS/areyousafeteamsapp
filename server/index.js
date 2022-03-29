@@ -13,13 +13,14 @@ const app = express();
 //======================= BREE JS START ======================
 //running the job every 5 minutes
 function initJob(){
+  console.log("init Job");
   const bree = new Bree({
     root: false,
     jobs: [      
       {
         name: "recurr-job",
         path: path.join(__dirname, 'jobs', 'recurr-job.js'),
-        cron: "*/5 * * * *",
+        cron: "*/1 * * * *",
       },
     ],
   });

@@ -83,8 +83,13 @@ const getCron = (time12hrStr, weekDaysArr) => {
 
 const convertToAMPM = (time) =>{
   const hour = time.split(":")[0];
-  const minutes = time.split(":")[1] | "00";
+  let minutes = time.split(":")[1] | "00";
   const suffix = hour >= 12 ? "PM":"AM";
+
+  if (minutes.toString().length < 2){
+    minutes = '0' + minutes;
+  }
+
   return (hour % 12)  + ":" + minutes + " " + suffix;
 }
 

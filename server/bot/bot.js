@@ -597,7 +597,8 @@ const saveRecurrInc = async (context, action, companyData) => {
     sentApprovalTo = ALL_USERS;
   }
 
-  preTextMsg += `starting from ${action.data.startDate} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
+  const startDate = new Date(action.data.startDate);
+  preTextMsg += `starting from ${formatedDate("mm/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
 
   const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident");  
 
