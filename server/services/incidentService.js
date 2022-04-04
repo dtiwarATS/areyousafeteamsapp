@@ -4,6 +4,8 @@ const Incident = require("../models/Incident");
 
 const poolPromise = require("../db/dbConn");
 const db = require("../db");
+const { getCron } = require("../utils");
+const parser = require("cron-parser");
 
 const parseEventData = async (result) => {
   let parsedDataArr = [];
@@ -75,6 +77,12 @@ const saveInc = async (actionData, companyData) => {
     selectedMembers: actionData.selected_members || "",
     incCreatedBy: actionData.inc_created_by.id,
     createdDate: new Date(Date.now()).toISOString(),
+    occursEvery: "",
+    startDate: "",
+    startTime: "",
+    endDate: "",
+    endTime: "",
+    incCreatedByName: actionData.inc_created_by.name,
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
@@ -84,6 +92,65 @@ const saveInc = async (actionData, companyData) => {
   if (res.length > 0) {
     newInc = new Incident(res[0]);
   }
+  return Promise.resolve(newInc);
+};
+
+const saveRecurrInc = async (actionData, companyData) => {
+  let newInc = {};
+
+  let incObj = {
+    incTitle: actionData.inc_title,
+    incDesc: "",
+    incType: "recurringIncident",
+    channelId: companyData.teamId,
+    teamId: companyData.teamId,
+    selectedMembers: actionData.selected_members || "",
+    incCreatedBy: actionData.inc_created_by.id,    
+    createdDate: new Date(Date.now()).toISOString(),
+    occursEvery: actionData.eventDays.toString(),
+    startDate: actionData.startDate,
+    startTime: actionData.startTime,
+    endDate: actionData.endDate,
+    endTime: actionData.endTime,
+    incCreatedByName: actionData.inc_created_by.name,
+  };
+  // console.log("incObj >> ", incObj);
+  let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
+  // console.log("incidentValues >> ", incidentValues);
+  const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
+
+  if (res.length > 0) {
+    newInc = new Incident(res[0]);
+  }
+  return Promise.resolve(newInc);
+};
+
+const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
+  let newInc = {};
+  try{
+    const incData = actionData.incident;
+    let cron = getCron(incData.startTime, incData.occursEvery);
+    const options = { tz: userTimeZone };
+
+    let interval = parser.parseExpression(cron, options);
+    let nextRunAtUTC = interval.next().toISOString();
+
+    let incSubEventObj = {
+      incId: incData.incId,
+      subEventType: "recurringIncident",
+      cron,
+      nextRunAtUTC,
+      timezone: userTimeZone,
+      completed: false
+    };
+
+    let incidentEventValues = Object.keys(incSubEventObj).map((key) => incSubEventObj[key]);
+    const res = await db.insertDataIntoDB("MSTEAMS_SUB_EVENT", incidentEventValues);    
+  }
+  catch (error) {
+    console.log(error);
+  } 
+  
   return Promise.resolve(newInc);
 };
 
@@ -167,7 +234,7 @@ const updateIncResponseComment = async (
 const getAllInc = async (teamId) => {
   try {
     let eventData = [];
-    const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by,
+    const selectQuery = `SELECT inc.id, case inc.inc_type when 'recurringIncident' then inc.inc_name + ' (Recurring Incident)' else  inc.inc_name end inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by,
     m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
     m.comment, m.timestamp FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m
@@ -187,6 +254,27 @@ const getAllInc = async (teamId) => {
   }
 };
 
+const getCompanyData = async (teamId) => {
+  let companyDataObj = {};
+  let companyDataSql = `SELECT * FROM MSTEAMSINSTALLATIONDETAILS WHERE TEAM_ID = '${teamId}'`;
+  const result = await db.getDataFromDB(companyDataSql);
+  if(result != null && result.length > 0){
+    companyDataObj = {
+      userId: result[0].user_id,
+      userTenantId: result[0].user_tenant_id,
+      userObjId: result[0].user_obj_id,
+      userName: result[0].user_name,
+      email: result[0].email,
+      teamId: result[0].team_id,
+      teamName: result[0].team_name,
+      superUser: [],
+      createdDate: result[0].created_date,
+      welcomeMessageSent: result[0].welcomeMessageSent,
+    };
+  }
+  return companyDataObj;
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -195,4 +283,7 @@ module.exports = {
   updateIncResponseComment,
   getAllInc,
   getInc,
+  saveRecurrInc,
+  saveRecurrSubEventInc,
+  getCompanyData
 };

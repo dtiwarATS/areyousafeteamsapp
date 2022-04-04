@@ -34,4 +34,69 @@ const toTitleCase = (str) => {
   });
 };
 
-module.exports = { sendEmail, toTitleCase };
+const formatedDate = (format, date = null) => {
+  if(date == null){
+    date = new Date();  
+  }
+
+  let d = new Date(date),
+      month = '' + (d.getMonth() + 1),
+      day = '' + d.getDate(),
+      year = d.getFullYear(),
+      hours = d.getHours(),
+      minutes = d.getMinutes();
+
+  if (month.length < 2){ 
+    month = '0' + month;   
+  }  
+  if (day.length < 2){
+    day = '0' + day;
+  }
+  if (hours.length < 2){
+    hours = '0' + hours;
+  }
+  if (minutes.length < 2){
+    minutes = '0' + minutes;
+  }
+
+  let newDate = format.replace("mm",month).replace("dd",day).replace("yyyy",year).replace("hh",hours).replace("mm",minutes);
+  return newDate;
+}
+
+const getCron = (time12hrStr, weekDaysArr) => {
+  const [time, modifier] = time12hrStr.split(" ");
+
+  let [hours, minutes] = time.split(":");
+
+  if (hours === "12") {
+    hours = "00";
+  }
+
+  if (modifier === "PM") {
+    hours = parseInt(hours, 10) + 12;
+  }
+
+  const weekDayCron = Array.isArray(weekDaysArr) ? weekDaysArr.join(",") : weekDaysArr;
+
+  return `${minutes} ${hours} * * ${weekDayCron}`;
+}
+
+const convertToAMPM = (time) =>{
+  const hour = time.split(":")[0];
+  let minutes = time.split(":")[1] | "00";
+  const suffix = hour >= 12 ? "PM":"AM";
+
+  if (minutes.toString().length < 2){
+    minutes = '0' + minutes;
+  }
+
+  return (hour % 12)  + ":" + minutes + " " + suffix;
+}
+
+module.exports = { 
+  sendEmail, 
+  toTitleCase, 
+  formatedDate,
+  getCron,
+  convertToAMPM
+};

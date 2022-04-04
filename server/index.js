@@ -1,5 +1,7 @@
 const path = require("path");
 const express = require("express");
+const Bree = require("bree");
+const Graceful = require("@ladjs/graceful");
 const cors = require("cors");
 const poolPromise = require("./db/dbConn");
 const ENV_FILE = path.join(__dirname, "../.env");
@@ -7,6 +9,29 @@ require("dotenv").config({ path: ENV_FILE });
 
 const PORT = process.env.PORT || 3978;
 const app = express();
+
+//======================= BREE JS START ======================
+//running the job every 5 minutes
+function initJob(){
+  console.log("init Job");
+  const bree = new Bree({
+    root: false,
+    jobs: [      
+      {
+        name: "recurr-job",
+        path: path.join(__dirname, 'jobs', 'recurr-job.js'),
+        cron: "*/1 * * * *",
+      },
+    ],
+  });
+ 
+  const graceful = new Graceful({ brees: [bree] });
+  graceful.listen();
+ 
+  bree.start();
+} 
+initJob();
+//======================= BREE JS END ========================
 
 const closeConnectionPool = async () => {
   const pool = await poolPromise;

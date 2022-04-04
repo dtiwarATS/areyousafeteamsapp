@@ -10,6 +10,11 @@ class Incident {
     created_by,
     created_date,
     m,
+    OCCURS_EVERY,
+    EVENT_START_DATE,
+    EVENT_START_TIME,
+    EVENT_END_DATE,
+    EVENT_END_TIME
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -21,6 +26,11 @@ class Incident {
     this.incCreatedBy = created_by;
     this.incCreatedDate = created_date || new Date(Date.now()).toISOString();
     this.members = m;
+    this.occursEvery = OCCURS_EVERY;
+    this.startDate = EVENT_START_DATE;
+    this.startTime = EVENT_START_TIME;
+    this.endDate = EVENT_END_DATE;
+    this.endTime = EVENT_END_TIME;
   }
 }
 

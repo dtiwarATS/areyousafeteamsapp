@@ -27,6 +27,15 @@ const updateMainCard = (companyData) => {
           },
           {
             type: "Action.Execute",
+            verb: "create_recurringincident",
+            title: "Create Recurring Incident",
+            data: {
+              option: "Create Recurring Incident",
+              companyData: companyData,
+            },
+          },
+          {
+            type: "Action.Execute",
             isEnabled: false,
             verb: "list_inc",
             title: "View Incident Dashboard",
@@ -75,7 +84,7 @@ const updateMainCard = (companyData) => {
     ],
   };
 };
-const updateCreateIncidentCard = (incidentTitle, members) => {
+const updateCreateIncidentCard = (incidentTitle, members, text) => {
   console.log({ incidentTitle, members });
   return {
     type: "AdaptiveCard",
@@ -88,7 +97,7 @@ const updateCreateIncidentCard = (incidentTitle, members) => {
         color: "good",
         wrap: true,
         size: "default",
-        text: `✔️ New incident '${incidentTitle}' created successfully.`,
+        text: text,
       },
     ],
   };
@@ -98,8 +107,10 @@ const updateSendApprovalMessage = (
   inc_created_by,
   preTextMsg,
   approved,
-  isAllMember
+  isAllMember,
+  isRecurringInc
 ) => {
+  let msg = isRecurringInc ? "will be" : "has been";
   return {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -135,8 +146,8 @@ const updateSendApprovalMessage = (
         color: approved ? "default" : "attention",
         text: approved
           ? isAllMember
-            ? "✔️ Thanks! Your safety check message has been sent to all the users"
-            : `✔️ Thanks! Your safety check message has been sent to all the selected user(s)`
+            ? `✔️ Thanks! Your safety check message ${msg} sent to all the users`
+            : `✔️ Thanks! Your safety check message ${msg} sent to all the selected user(s)`
           : "❗ Your incident has been cancelled.",
       },
     ],
