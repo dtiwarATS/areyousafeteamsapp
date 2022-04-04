@@ -16,7 +16,8 @@ const {
   getAllTeamMembers,
   sendDirectMessage,
   sendDirectMessageCard,
-  sendProactiveMessaageToUser
+  sendProactiveMessaageToUser,
+  updateMessage
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
@@ -24,6 +25,7 @@ const {
   updateSuperUserData,
   isAdminUser,
 } = require("../db/dbOperations");
+const { Console } = require("console");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
@@ -905,7 +907,7 @@ const getOneTimeDashboardCard = async (incidentId) => {
   return card;
 }
 
-const viewIncResult = async (incidentId, context, companyData) => {
+const viewIncResult = async (incidentId, context, companyData, incData) => {
   //console.log("viewIncResult called", incidentId);
   if (incidentId === undefined) {
     await context.sendActivity(
@@ -916,9 +918,26 @@ const viewIncResult = async (incidentId, context, companyData) => {
   
   const dashboardCard = await getOneTimeDashboardCard(incidentId);
 
-  await context.sendActivity({
-    attachments: [CardFactory.adaptiveCard(dashboardCard)],
-  });
+  let activityId = null;
+  if(incData != null && incData.activityId != null && incData.conversationId != null){
+    activityId = incData.activityId;
+    const conversationId = incData.conversationId;
+    const dashboardAdaptiveCard = CardFactory.adaptiveCard(dashboardCard);
+    dashboardAdaptiveCard.id = activityId;
+
+    const activity = MessageFactory.attachment(dashboardAdaptiveCard);
+    activity.id = activityId;
+
+    updateMessage(activityId, activity, conversationId);
+  } 
+  else {
+    const activity = await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(dashboardCard)],
+    });
+    activityId = activity.id;    
+  }  
+  return Promise.resolve(activityId);
+  //console.log(activity.id);
 };
 
 const getSaftyCheckCard = (incTitle, incObj, companyData) => {  
@@ -1027,12 +1046,17 @@ const sendApproval = async (context) => {
   );
 
   if(action.data.incType == "onetime"){
+
+    const activityId = await viewIncResult(incId, context, companyData, incident);
+    const conversationId = context.activity.conversation.id;
     // send approval msg to all users
     allMembers.forEach(async (teamMember) => {
       let incObj = {
         incId,
         incTitle,
         incCreatedBy: incCreatedByUserObj,
+        activityId,
+        conversationId
       }
       const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData);
 
@@ -1048,30 +1072,8 @@ const sendApproval = async (context) => {
           });
         });
       });
-    });
-
-    const msgText =
-      sentApprovalTo === ALL_USERS
-        ? "✔️ Thanks! Your safety check message has been sent to all the users"
-        : "✔️ Thanks! Your safety check message has been sent to all the selected user(s)";
-    const approvalCardResponse = {
-      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-      appId: process.env.MicrosoftAppId,
-      body: [
-        {
-          type: "TextBlock",
-          text: msgText,
-          wrap: true,
-        },
-      ],
-      type: "AdaptiveCard",
-      version: "1.4",
-    };
-    const resultCard = await viewIncResult(incId, context, companyData);
-
-    await context.sendActivity({
-      attachments: [CardFactory.adaptiveCard(resultCard)],
-    });
+    });    
+    //const resultCard = await viewIncResult(incId, context, companyData);
   }
   else if(action.data.incType == "recurringIncident"){
     const userTimeZone = context.activity.entities[0].timezone;
@@ -1120,6 +1122,8 @@ const sendApprovalResponse = async (user, context) => {
       //send new msg just to emulate msg is being updated
       await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
     }
+
+    const activityId = await viewIncResult(incId, context, companyData, inc);
   } catch (error) {
     console.log(error);
   }
@@ -1386,25 +1390,35 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
   let successflag = false;
   try{
     if(subEventObj.incType == "recurringIncident"){
+      if(subEventObj.eventMembers.length == 0) {
+        return;
+      }
+
+      const incCreatedByUserArr = [];
       const incCreatedByUserObj = {
         id: subEventObj.createdById,
         name : subEventObj.createdByName
       }
+      incCreatedByUserArr.push(incCreatedByUserObj);
+
+      const dashboardCard = await getOneTimeDashboardCard(incId);
+      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard);
+      
       let incObj = {
         incId,
         incTitle,
         incCreatedBy: incCreatedByUserObj,
+        conversationId: dashboardResponse.conversationId,
+        activityId: dashboardResponse.activityId
       }
-      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData);
-  
-      if(subEventObj.eventMembers.length > 0) {
-        for(let i = 0; i < subEventObj.eventMembers.length; i++){
-          let member = [{
-            id : subEventObj.eventMembers[i].user_id,
-            name : subEventObj.eventMembers[i].user_name
-          }];
-          await sendProactiveMessaageToUser(member, approvalCard);
-        }
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData);  
+      
+      for(let i = 0; i < subEventObj.eventMembers.length; i++){
+        let member = [{
+          id : subEventObj.eventMembers[i].user_id,
+          name : subEventObj.eventMembers[i].user_name
+        }];
+        await sendProactiveMessaageToUser(member, approvalCard);
       }
 
       const recurrCompletedCard = {
@@ -1425,13 +1439,8 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
             }
         ]
       }
-      const incCreatedByUserArr = [];
-
-      incCreatedByUserArr.push(incCreatedByUserObj);
+      
       await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard);
-
-      const dashboardCard = await getOneTimeDashboardCard(incId);
-      await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard);
 
       successflag = true;
     }

@@ -72,7 +72,10 @@ const sendDirectMessageCard = async (
 };
 
 const sendProactiveMessaageToUser = async (members, msgAttachment, msgText) => {
-  let resp = null;
+  let resp = {
+    "conversationId" : null,
+    "activityId" : null
+  };
   try{
     const conversationParameters = {
       isGroup: false,      
@@ -100,7 +103,10 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText) => {
       var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
       
       const response = await connectorClient.conversations.createConversation(conversationParameters);                  
-      resp = await connectorClient.conversations.sendToConversation(response.id, activity);
+      const activityId = await connectorClient.conversations.sendToConversation(response.id, activity);
+
+      resp.conversationId = response.id;
+      resp.activityId = activityId.id;
     }
   }
   catch(err){
@@ -109,9 +115,21 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText) => {
   return Promise.resolve(resp);
 }
 
+const updateMessage = async (activityId, activity, conversationId) => { //Update dashboard 
+  try{
+    var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+    var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
+    await connectorClient.conversations.updateActivity(conversationId, activityId, activity);
+  }
+  catch(err){
+    console.log(err);
+  }  
+}
+
 module.exports = {
   getAllTeamMembers,
   sendDirectMessage,
   sendDirectMessageCard,
-  sendProactiveMessaageToUser
+  sendProactiveMessaageToUser,
+  updateMessage
 };
