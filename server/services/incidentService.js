@@ -180,13 +180,11 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
   // TODO: use bulk insert instead inseting data one by one
   for (let i = 0; i < allMembers.length; i++) {
     let member = allMembers[i];
-    if (requesterId != member.id) {
-      let query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
+    let query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
         values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
 
       console.log("insert query => ", query);
       await pool.request().query(query);
-    }
   }
 
   const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by, 

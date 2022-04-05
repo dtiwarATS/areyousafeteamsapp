@@ -203,10 +203,7 @@ const invokeMainActivityBoard = (companyData) => ({
 
 const createRecurrInc = async (context, user, companyData) => {
   try {
-    let allMembers = await getAllTeamMembers(context, companyData.teamId);
-
-    // remove incident creator
-    allMembers = allMembers.filter((m) => m.id != user.id);
+    let allMembers = await getAllTeamMembers(context, companyData.teamId);    
 
     const memberChoises = allMembers.map((m) => ({
       title: m.name,
@@ -378,10 +375,7 @@ const createRecurrInc = async (context, user, companyData) => {
 
 const createInc = async (context, user, companyData) => {
   try {
-    let allMembers = await getAllTeamMembers(context, companyData.teamId);
-
-    // remove incident creator
-    allMembers = allMembers.filter((m) => m.id != user.id);
+    let allMembers = await getAllTeamMembers(context, companyData.teamId);    
 
     const memberChoises = allMembers.map((m) => ({
       title: m.name,
@@ -1029,9 +1023,6 @@ const sendApproval = async (context) => {
         responseValue: "na",
       })
   );
-
-  // remove inc created by user from allmembers
-  allMembers = allMembers.filter((m) => m.id !== incCreatedBy);
 
   if (selectedMembers.length > 0) {
     allMembers = allMembers.filter((m) =>
