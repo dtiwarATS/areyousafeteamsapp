@@ -30,7 +30,7 @@ const moment = require("moment-timezone");
 
           const endDateTime = new Date(eventEndDate + " " + eventEndTime);
           
-          const usrTZCurrentTime = new Date(moment.tz(new Date().toUTCString(), 'Asia/Kolkata').format());
+          const usrTZCurrentTime = new Date(moment.tz(new Date().toUTCString(), timeZone).format('MM-DD-YYYY HH:mm'));
 
           if(usrTZCurrentTime > endDateTime){
             return true;

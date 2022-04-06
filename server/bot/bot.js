@@ -873,26 +873,7 @@ const getOneTimeDashboardCard = async (incidentId) => {
             ],
           },
         ],
-      },
-      {
-        type: "ColumnSet",
-        spacing: "medium",
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                text: "**Note:** Currently, the dashboard card is not auto-updated. Please check the latest status from 'View Incident Dashboard' button.",
-                isSubtle: true,
-                wrap: true,
-                spacing: "none",
-              },
-            ],
-          },
-        ],
-      },
+      }      
     ],
     msteams: {
       entities: mentionUserEntities,
