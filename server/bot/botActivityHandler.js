@@ -246,7 +246,6 @@ class BotActivityHandler extends TeamsActivityHandler {
                   ],
                 };
                 await sendDirectMessageCard(context, acvtivityData.from, cards);
-
                 await bot.sendInstallationEmail(
                   adminUserInfo.email,
                   adminUserInfo.name,
@@ -257,6 +256,11 @@ class BotActivityHandler extends TeamsActivityHandler {
                   acvtivityData.from.id,
                   teamId,
                   acvtivityData.channelData.team.name
+                );
+                await sendDirectMessageCard(
+                  context,
+                  acvtivityData.from,
+                  bot.invokeSubMainActivityBoard(companyDataObj)
                 );
                 if (!companyData.welcomeMessageSent) {
                   await sendDirectMessageCard(
@@ -391,7 +395,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         if (members === undefined) {
           members = "All Members";
         }
-        let recurrInc = (uVerb === "save_new_recurr_inc") ? "recurring " : "";
+        let recurrInc = uVerb === "save_new_recurr_inc" ? "recurring " : "";
         let text = `✔️ New ${recurrInc}incident '${incTitle}' created successfully.`;
         const cards = CardFactory.adaptiveCard(
           updateCreateIncidentCard(incTitle, members, text)
@@ -516,7 +520,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           isAllMember = true;
           preTextMsg = `Should I send this message to everyone?`;
         }
-        const isRecurringInc = (action.data.incType === "recurringIncident");
+        const isRecurringInc = action.data.incType === "recurringIncident";
         const cards = CardFactory.adaptiveCard(
           updateSendApprovalMessage(
             incTitle,
