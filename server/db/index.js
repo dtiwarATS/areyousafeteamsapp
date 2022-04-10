@@ -37,8 +37,8 @@ const getColumns = (tableName) => {
         "EVENT_END_TIME",
         "CREATED_BY_NAME"
       ];
-      break;
-
+      break;    
+      
     case "MSTeamsFeedback":
       columns = ["user_id", "team_id", "email", "content"];
       break;

@@ -31,6 +31,7 @@ const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
 const ALL_USERS = "allusers";
 const SELECTED_USERS = "selectedusers";
+const db = require("../db");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   const emailBody =
@@ -99,7 +100,7 @@ const selectResponseCard = async (context, user) => {
       await submitComment(context, user, companyData);
     } else if (verb && verb === "view_inc_result" && isAdminOrSuperuser) {
       const incidentId = action.data.incidentSelectedVal;
-      await viewIncResult(incidentId, context, companyData);
+      await viewSelectedIncResult(incidentId, context, companyData);
     } else if (verb && verb === "contact_us" && isAdminOrSuperuser) {
       await sendContactUsForm(context, companyData);
     } else if (verb && verb === "submit_contact_us" && isAdminOrSuperuser) {
@@ -745,8 +746,8 @@ const viewAllInc = async (context, companyData) => {
   }
 };
 
-const getOneTimeDashboardCard = async (incidentId) => {
-  const inc = await incidentService.getInc(incidentId);
+const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
+  const inc = await incidentService.getInc(incidentId, runAt);
   //console.log("inc in viewIncResult =>", inc);
 
   let result = {
@@ -882,7 +883,13 @@ const getOneTimeDashboardCard = async (incidentId) => {
   return card;
 }
 
-const viewIncResult = async (incidentId, context, companyData, incData) => {
+const viewSelectedIncResult = async (incidentId, context, companyData) => {
+  const lastRunAt = await incidentService.getLastRunAt(incidentId);
+  const activityId = await viewIncResult(incidentId, context, companyData, null, lastRunAt);
+  return Promise.resolve(activityId);
+}
+
+const viewIncResult = async (incidentId, context, companyData, incData, runAt = null) => {
   //console.log("viewIncResult called", incidentId);
   if (incidentId === undefined) {
     await context.sendActivity(
@@ -891,7 +898,7 @@ const viewIncResult = async (incidentId, context, companyData, incData) => {
     return Promise.resolve(true);
   }
   
-  const dashboardCard = await getOneTimeDashboardCard(incidentId);
+  const dashboardCard = await getOneTimeDashboardCard(incidentId, runAt);
 
   let activityId = null;
   if(incData != null && incData.activityId != null && incData.conversationId != null){
@@ -1065,10 +1072,12 @@ const sendApprovalResponse = async (user, context) => {
     const { info: response, inc, companyData } = action.data;
     const { incId, incTitle, incCreatedBy } = inc;
 
+    const runAt = (inc.runAt != null) ? inc.runAt : null;
+
     if (response === "i_am_safe") {
-      await incidentService.updateIncResponseData(incId, user.id, 1);
+      await incidentService.updateIncResponseData(incId, user.id, 1, inc);
     } else {
-      await incidentService.updateIncResponseData(incId, user.id, 0);
+      await incidentService.updateIncResponseData(incId, user.id, 0, inc);
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
@@ -1095,7 +1104,7 @@ const sendApprovalResponse = async (user, context) => {
       await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
     }
 
-    const activityId = await viewIncResult(incId, context, companyData, inc);
+    const activityId = await viewIncResult(incId, context, companyData, inc, runAt);
   } catch (error) {
     console.log(error);
   }
@@ -1104,8 +1113,7 @@ const sendApprovalResponse = async (user, context) => {
 const submitComment = async (context, user, companyData) => {
   try {
     const action = context.activity.value.action;
-    const { userId, incId, incTitle, incCreatedBy, eventResponse, commentVal } =
-      action.data;
+    const { userId, incId, incTitle, incCreatedBy, eventResponse, commentVal, inc } = action.data;
 
     if (commentVal) {
       const mentionedUser = {
@@ -1138,7 +1146,7 @@ const submitComment = async (context, user, companyData) => {
       };
       //send new msg just to emulate msg is being updated
       await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-      await incidentService.updateIncResponseComment(incId, userId, commentVal);
+      await incidentService.updateIncResponseComment(incId, userId, commentVal, inc);
     }
   } catch (error) {
     console.log(error);
@@ -1359,7 +1367,7 @@ const submitSettings = async (context, companyData) => {
 };
 
 const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
-  let successflag = false;
+  let successflag = true;
   try{
     if(subEventObj.incType == "recurringIncident"){
       if(subEventObj.eventMembers.length == 0) {
@@ -1379,6 +1387,8 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
       let incObj = {
         incId,
         incTitle,
+        incType : subEventObj.incType,
+        runAt : subEventObj.runAt,
         incCreatedBy: incCreatedByUserObj,
         conversationId: dashboardResponse.conversationId,
         activityId: dashboardResponse.activityId
@@ -1391,6 +1401,14 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
           name : subEventObj.eventMembers[i].user_name
         }];
         await sendProactiveMessaageToUser(member, approvalCard);
+
+        const respDetailsObj = {
+          memberResponsesId: subEventObj.eventMembers[i].id,
+          runAt: subEventObj.runAt,
+          conversationId: dashboardResponse.conversationId,
+          activityId: dashboardResponse.activityId
+        }
+        await incidentService.addMemberResponseDetails(respDetailsObj);
       }
 
       const recurrCompletedCard = {
@@ -1417,7 +1435,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
       successflag = true;
     }
   }catch(err){
-    successflag = false;
+    //successflag = false;
    console.log(err); 
   }
   return successflag;
