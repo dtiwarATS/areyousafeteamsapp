@@ -9,7 +9,7 @@ const updateMainCard = (companyData) => {
         inlines: [
           {
             type: "TextRun",
-            text: `👋 Hello! I'm here to help you create new incident or view previous incident results.\nWould you like to?`,
+            text: `Would you like to?`,
           },
         ],
       },

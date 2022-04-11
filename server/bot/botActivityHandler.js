@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
+const db = require("../db");
 const path = require("path");
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
@@ -99,7 +100,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               companyData.superUsers.some(
                 (su) => su === acvtivityData.from.aadObjectId
               )) ||
-            isAdmin
+              isAdmin
               ? true
               : false;
 
@@ -226,26 +227,23 @@ class BotActivityHandler extends TeamsActivityHandler {
                   body: [
                     {
                       type: "TextBlock",
-                      text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-                      \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
+                      text: `👋 Hello, I am your AreYouSafe? bot. Thank you for installing me!
+                      \r\nI will help you trigger safety checks during a crisis. All users will get a direct message asking them to mark themselves safe. I will also show you a real-time employee response dashboard.`,
                       wrap: true,
                     },
                     {
                       type: "TextBlock",
-                      text: "You do not need any other software or service to use this app.",
-                    },
-                    {
-                      type: "TextBlock",
-                      text: "Enter 'Hi' to start a conversation with the bot.",
-                    },
-                    {
-                      type: "TextBlock",
-                      text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+                      text: "What would you like to do first? (You can always **type Hi** to start a conversation with me)",
                       wrap: true,
                     },
                   ],
                 };
                 await sendDirectMessageCard(context, acvtivityData.from, cards);
+                await sendDirectMessageCard(
+                  context,
+                  acvtivityData.from,
+                  bot.invokeSubMainActivityBoard(companyData)
+                );
                 await bot.sendInstallationEmail(
                   adminUserInfo.email,
                   adminUserInfo.name,
@@ -326,27 +324,23 @@ class BotActivityHandler extends TeamsActivityHandler {
                 body: [
                   {
                     type: "TextBlock",
-                    text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-                    \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
+                    text: `👋 Hello, I am your AreYouSafe? bot. Thank you for installing me!
+                    \r\nI will help you trigger safety checks during a crisis. All users will get a direct message asking them to mark themselves safe. I will also show you a real-time employee response dashboard.`,
                     wrap: true,
                   },
                   {
                     type: "TextBlock",
-                    text: "You do not need any other software or service to use this app.",
-                  },
-                  {
-                    type: "TextBlock",
-                    text: "Enter 'Hi' to start a conversation with the bot.",
-                  },
-                  {
-                    type: "TextBlock",
-                    text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+                    text: "What would you like to do first? (You can always **type Hi** to start a conversation with me)",
                     wrap: true,
                   },
                 ],
               };
               await sendDirectMessageCard(context, acvtivityData.from, cards);
-
+              await sendDirectMessageCard(
+                context,
+                acvtivityData.from,
+                bot.invokeSubMainActivityBoard(companyData)
+              );
               await bot.sendInstallationEmail(
                 adminUserInfo.email,
                 adminUserInfo.name,
@@ -432,6 +426,10 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "delete_inc") {
+        let eventId = context.activity?.value?.action?.data?.incidentSelectedVal;
+        let res = await db.getDataFromDB(
+          `select * from [dbo].[MSTeamsIncidents] where id =${eventId}`
+        );
         const cards = CardFactory.adaptiveCard({
           type: "AdaptiveCard",
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -439,7 +437,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           body: [
             {
               type: "TextBlock",
-              text: `✔️ The Incident has been deleted successfully.`,
+              text: `✔️ The Incident '${res[0].inc_name}' has been deleted successfully.`,
               wrap: true,
             },
           ],

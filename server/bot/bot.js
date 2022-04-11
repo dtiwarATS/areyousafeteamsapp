@@ -86,6 +86,11 @@ const selectResponseCard = async (context, user) => {
       await sendDeleteIncCard(context, user, companyData);
     } else if (verb === "delete_inc" && isAdminOrSuperuser) {
       await deleteInc(context, action);
+      await sendDirectMessageCard(
+        context,
+        acvtivityData.from,
+        invokeSubMainActivityBoard(companyData)
+      );
     } else if (verb === "list_inc" && isAdminOrSuperuser) {
       await viewAllInc(context, companyData);
     } else if (verb && verb === "send_approval" && isAdminOrSuperuser) {
@@ -113,10 +118,20 @@ const selectResponseCard = async (context, user) => {
       await sendContactUsForm(context, companyData);
     } else if (verb && verb === "submit_contact_us" && isAdminOrSuperuser) {
       await submitContactUsForm(context, companyData);
+      await sendDirectMessageCard(
+        context,
+        acvtivityData.from,
+        invokeSubMainActivityBoard(companyData)
+      );
     } else if (verb && verb === "view_settings" && isAdminOrSuperuser) {
       await viewSettings(context, companyData);
     } else if (verb && verb === "submit_settings" && isAdminOrSuperuser) {
       await submitSettings(context, companyData);
+      await sendDirectMessageCard(
+        context,
+        acvtivityData.from,
+        invokeSubMainActivityBoard(companyData)
+      );
     }
     return Promise.resolve(true);
   } catch (error) {
@@ -133,7 +148,7 @@ const invokeMainActivityBoard = (companyData) => ({
       inlines: [
         {
           type: "TextRun",
-          text: `👋 Hello! I'm here to help you create new incident or view previous incident results.\nWould you like to?`,
+          text: `Would you like to?`,
         },
       ],
     },
@@ -642,12 +657,12 @@ const saveInc = async (context, action, companyData) => {
     .filter((tm) => tm.aadObjectId)
     .map(
       (tm) =>
-        (tm = {
-          ...tm,
-          messageDelivered: "na",
-          response: "na",
-          responseValue: "na",
-        })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
     );
   const { inc_title: incTitle, inc_created_by } = action.data;
   console.log({ inc_created_by, action });
@@ -685,12 +700,12 @@ const saveRecurrInc = async (context, action, companyData) => {
     .filter((tm) => tm.aadObjectId)
     .map(
       (tm) =>
-        (tm = {
-          ...tm,
-          messageDelivered: "na",
-          response: "na",
-          responseValue: "na",
-        })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
     );
   const { inc_title: incTitle, inc_created_by } = action.data;
   console.log({ inc_created_by, action });
@@ -806,66 +821,91 @@ const deleteInc = async (context, action) => {
 const viewAllInc = async (context, companyData) => {
   try {
     const allIncidentData = await incidentService.getAllInc(companyData.teamId);
+    let card = {};
+    if (allIncidentData.length != 0) {
+      let incList = [];
+      if (allIncidentData.length > 0) {
+        incList = allIncidentData.map((inc, index) => ({
+          title: inc.incTitle,
+          value: inc.incId,
+        }));
+      }
 
-    let incList = [];
-    if (allIncidentData.length > 0) {
-      incList = allIncidentData.map((inc, index) => ({
-        title: inc.incTitle,
-        value: inc.incId,
-      }));
-    }
-
-    const card = {
-      type: "AdaptiveCard",
-      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-      version: "1.4",
-      body: [
-        {
-          type: "TextBlock",
-          text: "View Incident Dashboard",
-          size: "Large",
-          weight: "Bolder",
-        },
-        {
-          type: "TextBlock",
-          text: "Incident List",
-          wrap: true,
-          separator: true,
-          weight: "bolder",
-        },
-        {
-          type: "Input.ChoiceSet",
-          id: "incidentSelectedVal",
-          placeholder: "Select an Incident",
-          value: incList.length > 0 && incList[0].value,
-          choices: incList,
-          isRequired: true,
-        },
-      ],
-      actions: [
-        {
-          type: "Action.Execute",
-          verb: "view_inc_result",
-          title: "Submit",
-          data: {
-            companyData: companyData,
+      card = {
+        type: "AdaptiveCard",
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        version: "1.4",
+        body: [
+          {
+            type: "TextBlock",
+            text: "View Incident Dashboard",
+            size: "Large",
+            weight: "Bolder",
           },
-        },
-        // {
-        //   type: "Action.Execute",
-        //   verb: "main_activity_board",
-        //   title: "Back",
-        //   data: {
-        //     info: "Back",
-        //     companyData: companyData,
-        //   },
-        // },
-      ],
-    };
+          {
+            type: "TextBlock",
+            text: "Incident List",
+            wrap: true,
+            separator: true,
+            weight: "bolder",
+          },
+          {
+            type: "Input.ChoiceSet",
+            id: "incidentSelectedVal",
+            placeholder: "Select an Incident",
+            value: incList.length > 0 && incList[0].value,
+            choices: incList,
+            isRequired: true,
+          },
+        ],
+        actions: [
+          {
+            type: "Action.Execute",
+            verb: "view_inc_result",
+            title: "Submit",
+            data: {
+              companyData: companyData,
+            },
+          },
+          // {
+          //   type: "Action.Execute",
+          //   verb: "main_activity_board",
+          //   title: "Back",
+          //   data: {
+          //     info: "Back",
+          //     companyData: companyData,
+          //   },
+          // },
+        ],
+      };
+
+    }
+    else {
+      card = {
+        type: "AdaptiveCard",
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        version: "1.4",
+        body: [
+          {
+            type: "TextBlock",
+            text: `❌ Do not have any incidents in the system.`,
+            wrap: true,
+          },
+        ],
+      };
+    }
 
     await context.sendActivity({
       attachments: [CardFactory.adaptiveCard(card)],
     });
+    if (allIncidentData.length == 0) {
+      const acvtivityData = context.activity;
+      await sendDirectMessageCard(
+        context,
+        acvtivityData.from,
+        invokeSubMainActivityBoard(companyData)
+      );
+    }
   } catch (error) {
     console.log(error);
   }
@@ -1000,25 +1040,7 @@ const getOneTimeDashboardCard = async (incidentId) => {
           },
         ],
       },
-      {
-        type: "ColumnSet",
-        spacing: "medium",
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                text: "**Note:** Currently, the dashboard card is not auto-updated. Please check the latest status from 'View Incident Dashboard' button.",
-                isSubtle: true,
-                wrap: true,
-                spacing: "none",
-              },
-            ],
-          },
-        ],
-      },
+
     ],
     msteams: {
       entities: mentionUserEntities,
@@ -1125,12 +1147,12 @@ const sendApproval = async (context) => {
 
   allMembers = allMembers.map(
     (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
+    (tm = {
+      ...tm,
+      messageDelivered: "na",
+      response: "na",
+      responseValue: "na",
+    })
   );
 
   // remove inc created by user from allmembers
@@ -1309,7 +1331,7 @@ const sendContactUsForm = async (context, companyData) => {
         },
         {
           type: "TextBlock",
-          text: "Email Address",
+          text: "Your Email Address",
           wrap: true,
           separator: true,
           weight: "bolder",
