@@ -844,6 +844,7 @@ const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
               },
               {
                 type: "TextBlock",
+                wrap: true,
                 text: membersNotRespondedStr,
                 isSubtle: true,
                 spacing: "none",
@@ -867,6 +868,7 @@ const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
               },
               {
                 type: "TextBlock",
+                wrap: true,
                 text: membersSafeStr,
                 isSubtle: true,
                 spacing: "none",
