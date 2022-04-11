@@ -119,4 +119,35 @@ BEGIN
 ALTER TABLE MSTeamsIncidents ADD CREATED_BY_NAME NVARCHAR(50) NULL
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='LAST_RUN_AT' AND TABLE_NAME='MSTEAMS_SUB_EVENT')
+BEGIN
+ALTER TABLE MSTEAMS_SUB_EVENT ADD LAST_RUN_AT NVARCHAR(512) NULL
+END
+GO
 ----- End Task 140 ----- 
+----- Start Task 113-----
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsMemberResponsesRecurr')
+BEGIN
+	CREATE TABLE [dbo].[MSTeamsMemberResponsesRecurr](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[memberResponsesId] [int] NOT NULL,
+	[runAt] [varchar](100) NULL,
+	[is_message_delivered] [bit] NULL,
+	[response] [bit] NULL,
+	[response_value] [bit] NULL,
+	[comment] [varchar](max) NULL,
+	[conversationId] [varchar](512) NULL,
+	[activityId] [varchar](512) NULL,
+	PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+	) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+
+	ALTER TABLE DBO.MSTeamsMemberResponsesRecurr  WITH CHECK ADD  CONSTRAINT FK_MSTeamsMemberResponsesRecurr_memberResponsesId FOREIGN KEY([memberResponsesId])
+	REFERENCES DBO.MSTeamsMemberResponses (ID)
+	ALTER TABLE DBO.MSTeamsMemberResponsesRecurr CHECK CONSTRAINT FK_MSTeamsMemberResponsesRecurr_memberResponsesId
+END
+GO
+----- End Task 113-----
