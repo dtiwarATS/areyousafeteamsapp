@@ -25,6 +25,11 @@ const {
   updateSuperUserData,
   isAdminUser,
 } = require("../db/dbOperations");
+
+const {
+  updateMainCard  
+} = require("../models/UpdateCards");
+
 const { Console } = require("console");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
@@ -116,91 +121,7 @@ const selectResponseCard = async (context, user) => {
   }
 };
 
-const invokeMainActivityBoard = (companyData) => ({
-  $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-  appId: process.env.MicrosoftAppId,
-  body: [
-    {
-      type: "RichTextBlock",
-      inlines: [
-        {
-          type: "TextRun",
-          text: `👋 Hello! I'm here to help you create new incident or view previous incident results.\nWould you like to?`,
-        },
-      ],
-    },
-    {
-      type: "ActionSet",
-      actions: [
-        {
-          type: "Action.Execute",
-          verb: "create_onetimeincident",
-          title: "Create Incident",
-          data: {
-            option: "Create Incident",
-            companyData: companyData,
-          },
-        },
-        {
-          type: "Action.Execute",
-          verb: "create_recurringincident",
-          title: "Create Recurring Incident",
-          data: {
-            option: "Create Recurring Incident",
-            companyData: companyData,
-          },
-        },
-        {
-          type: "Action.Execute",
-          isEnabled: false,
-          verb: "list_inc",
-          title: "View Incident Dashboard",
-          data: {
-            option: "View Incident Dashboard",
-            companyData: companyData,
-          },
-        },
-        {
-          type: "Action.Execute",
-          verb: "list_delete_inc",
-          title: "Delete Incident",
-          data: {
-            option: "Delete Incident",
-            companyData: companyData,
-          },
-        },
-        {
-          type: "Action.Execute",
-          verb: "view_settings",
-          title: "Settings",
-          data: {
-            option: "settings",
-            companyData: companyData,
-          },
-        },
-      ],
-    },
-    {
-      type: "TextBlock",
-      wrap: true,
-      separator: true,
-      text: "If you have any questions or feedback for us, please click on the **Contact Us** button to get in touch.",
-    },
-  ],
-  actions: [
-    {
-      type: "Action.Execute",
-      verb: "contact_us",
-      title: "Contact Us",
-      data: {
-        option: "Contact Us",
-        companyData: companyData,
-      },
-    },
-  ],
-  type: "AdaptiveCard",
-  version: "1.4",
-});
+const invokeMainActivityBoard = (companyData) => (updateMainCard(companyData));
 
 const createRecurrInc = async (context, user, companyData) => {
   try {
