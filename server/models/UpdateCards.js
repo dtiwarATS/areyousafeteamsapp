@@ -172,7 +172,8 @@ const updateSafeMessage = (
   response,
   userId,
   incId,
-  companyData
+  companyData,
+  inc
 ) => {
   return {
     type: "AdaptiveCard",
@@ -216,6 +217,7 @@ const updateSafeMessage = (
           incTitle: incTitle,
           incCreatedBy: incCreatedBy,
           companyData: companyData,
+          inc
         },
       },
     ],

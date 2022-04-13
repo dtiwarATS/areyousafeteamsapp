@@ -68,7 +68,7 @@ const getCron = (time12hrStr, weekDaysArr) => {
 
   let [hours, minutes] = time.split(":");
 
-  if (hours === "12") {
+  if (hours === "12" && modifier != null) {
     hours = "00";
   }
 

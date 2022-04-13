@@ -488,9 +488,10 @@ class BotActivityHandler extends TeamsActivityHandler {
             responseText,
             incCreatedBy,
             response,
-            incCreatedBy.id,
+            context.activity.from.id,
             incId,
-            companyData
+            companyData,
+            inc            
           )
         );
 

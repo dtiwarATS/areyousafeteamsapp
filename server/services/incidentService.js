@@ -24,7 +24,15 @@ const parseEventData = async (result) => {
           .filter((word) => /\w/.test(word));
 
         let memberResponseData = parsedData.m.map(
-          (member) => new Member(member)
+          (member) => {
+            if(member.mRecurr != null && member.mRecurr.length == 1){
+              member = {
+                ...member,
+                ...member.mRecurr[0]
+              }
+            }
+            return new Member(member);
+          }
         );
 
         parsedData = {
@@ -42,16 +50,29 @@ const parseEventData = async (result) => {
   return Promise.resolve(parsedDataArr);
 };
 
-const getInc = async (incId) => {
+const getInc = async (incId, runAt = null) => {
   try {
     let eventData = {};
-    const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, 
-    inc.created_by, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-    m.comment, m.timestamp FROM MSTeamsIncidents inc
-    LEFT JOIN MSTeamsMemberResponses m
-    ON inc.id = m.inc_id
-    where inc.id = ${incId}
-    FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+    let selectQuery = "";
+    if(runAt != null){
+      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
+      inc.selected_members, inc.created_by, m.user_id, m.user_name, mRecurr.is_message_delivered, 
+      mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp 
+      FROM MSTeamsIncidents inc
+      LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+      LEFT JOIN MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id
+      where inc.id = ${incId} and convert(datetime, runAt) = convert(datetime, '${runAt}')
+      FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+    }
+    else{
+      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, 
+      inc.created_by, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+      m.comment, m.timestamp FROM MSTeamsIncidents inc
+      LEFT JOIN MSTeamsMemberResponses m
+      ON inc.id = m.inc_id
+      where inc.id = ${incId}
+      FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+    }    
 
     const result = await db.getDataFromDB(selectQuery);
     let parsedResult = await parseEventData(result);
@@ -173,6 +194,19 @@ const deleteInc = async (incId) => {
   return newInc;
 };
 
+const addMemberResponseDetails = async (respDetailsObj) => {
+  try{
+    let query = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId) 
+          values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', 1, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}')`;
+
+    console.log("insert query => ", query);
+    await pool.request().query(query);
+  }
+  catch(err){
+    console.log();
+  }  
+}
+
 const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
   let incData = {};
   pool = await poolPromise;
@@ -180,13 +214,11 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
   // TODO: use bulk insert instead inseting data one by one
   for (let i = 0; i < allMembers.length; i++) {
     let member = allMembers[i];
-    if (requesterId != member.id) {
-      let query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
+    let query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
         values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
 
       console.log("insert query => ", query);
       await pool.request().query(query);
-    }
   }
 
   const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by, 
@@ -205,13 +237,23 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
   return Promise.resolve(incData);
 };
 
-const updateIncResponseData = async (incidentId, userId, responseValue) => {
+const updateIncResponseData = async (incidentId, userId, responseValue, incData) => {
   pool = await poolPromise;
 
-  const query = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue} WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  let query = null;
+  if(incData != null && incData.incType == "recurringIncident" && incData.runAt != null){
+    query = `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue} WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
+            `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
+            `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
+  }
+  else{
+    query = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue} WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  }
 
-  console.log("update query >> ", query);
-  await pool.request().query(query);
+  if(query != null){
+    console.log("update query >> ", query);
+    await pool.request().query(query);
+  }
 
   return Promise.resolve();
 };
@@ -219,11 +261,21 @@ const updateIncResponseData = async (incidentId, userId, responseValue) => {
 const updateIncResponseComment = async (
   incidentId,
   userId,
-  commentText = ""
+  commentText = "",
+  incData
 ) => {
   pool = await poolPromise;
 
-  const query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+
+  let query = null;
+  if(incData != null && incData.incType == "recurringIncident" && incData.runAt != null){
+    query = `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' ) ` +
+            `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
+            `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
+  }
+  else{
+    query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  }
 
   console.log("update query >> ", query);
   await pool.request().query(query);
@@ -275,6 +327,16 @@ const getCompanyData = async (teamId) => {
   return companyDataObj;
 }
 
+const getLastRunAt = async (incId) => {
+  const sqlLastRunAt = `SELECT LAST_RUN_AT lastRunAt FROM MSTEAMS_SUB_EVENT WHERE INC_ID = ${incId}`;
+  const result = await db.getDataFromDB(sqlLastRunAt);
+  let lastRunAt = null;
+  if(result != null && result.length > 0){
+    lastRunAt = result[0].lastRunAt;
+  }
+  return Promise.resolve(lastRunAt);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -285,5 +347,7 @@ module.exports = {
   getInc,
   saveRecurrInc,
   saveRecurrSubEventInc,
-  getCompanyData
+  getCompanyData,
+  addMemberResponseDetails,
+  getLastRunAt
 };
