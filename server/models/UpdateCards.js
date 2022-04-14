@@ -74,7 +74,7 @@ const updateMainCard = (companyData) => {
     actions: [
       {
         "type": "Action.OpenUrl",
-        "url": "https://safetybot.in/Safetybot-Slack_User_Guide.pdf",
+        "url": "https://safetybot.in/Safetybot-Teams_User_Guide.pdf",
         "title": "User Guide"
       },
       {
