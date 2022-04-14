@@ -66,12 +66,17 @@ const updateMainCard = (companyData) => {
       },
       {
         type: "TextBlock",
-        wrap: true,
-        separator: true,
-        text: "If you have any questions or feedback for us, please click on the **Contact Us** button to get in touch.",
+        wrap: true,        
+        text: "Helpful Links",
+        separator: true
       },
     ],
     actions: [
+      {
+        "type": "Action.OpenUrl",
+        "url": "https://safetybot.in/Safetybot-Teams_User_Guide.pdf",
+        "title": "User Guide"
+      },
       {
         type: "Action.Execute",
         verb: "contact_us",
@@ -80,7 +85,7 @@ const updateMainCard = (companyData) => {
           option: "Contact Us",
           companyData: companyData,
         },
-      },
+      }
     ],
   };
 };
