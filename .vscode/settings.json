@@ -2,5 +2,6 @@
 {
   // Set the default
   "editor.formatOnSave": true,
-  "appService.defaultWebAppToDeploy": "None"
+  "appService.defaultWebAppToDeploy": "None",
+  "appService.showBuildDuringDeployPrompt": false
 }

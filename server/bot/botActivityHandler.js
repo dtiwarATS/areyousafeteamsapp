@@ -99,7 +99,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               companyData.superUsers.some(
                 (su) => su === acvtivityData.from.aadObjectId
               )) ||
-            isAdmin
+              isAdmin
               ? true
               : false;
 
@@ -400,6 +400,21 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+      } else if (uVerb === "Cancel_button") {
+        const { inc_title: incTitle } = context.activity?.value?.action?.data;
+        let members = context.activity?.value?.action?.data?.selected_members;
+        if (members === undefined) {
+          members = "All Members";
+        }
+        let recurrInc = (uVerb === "save_new_recurr_inc") ? "recurring " : "";
+        let text = `Ok.. No Problem... We can do this later. Thank you for your time.`;
+        const cards = CardFactory.adaptiveCard(
+          updateCreateIncidentCard(incTitle, members, text)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
       } else if (uVerb === "submit_settings") {
         const cards = CardFactory.adaptiveCard(updateSesttingsCard());
 
@@ -491,7 +506,7 @@ class BotActivityHandler extends TeamsActivityHandler {
             context.activity.from.id,
             incId,
             companyData,
-            inc            
+            inc
           )
         );
 

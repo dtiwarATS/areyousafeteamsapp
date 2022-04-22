@@ -27,7 +27,7 @@ const {
 } = require("../db/dbOperations");
 
 const {
-  updateMainCard  
+  updateMainCard
 } = require("../models/UpdateCards");
 
 const { Console } = require("console");
@@ -125,7 +125,7 @@ const invokeMainActivityBoard = (companyData) => (updateMainCard(companyData));
 
 const createRecurrInc = async (context, user, companyData) => {
   try {
-    let allMembers = await getAllTeamMembers(context, companyData.teamId);    
+    let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
     const memberChoises = allMembers.map((m) => ({
       title: m.name,
@@ -133,8 +133,8 @@ const createRecurrInc = async (context, user, companyData) => {
     }));
 
     const eventDays = [
-      {title : "Sun", value: "0"}, {title : "Mon", value: "1"}, {title : "Tue", value: "2"}, {title : "Wed", value: "3"},
-      {title : "Thur", value: "4"}, {title : "Fri", value: "5"}, {title : "Sat", value: "6"}
+      { title: "Sun", value: "0" }, { title: "Mon", value: "1" }, { title: "Tue", value: "2" }, { title: "Wed", value: "3" },
+      { title: "Thur", value: "4" }, { title: "Fri", value: "5" }, { title: "Sat", value: "6" }
     ];
 
     var nextWeekDate = new Date();
@@ -190,31 +190,31 @@ const createRecurrInc = async (context, user, companyData) => {
           text: "Start Date and Time",
         },
         {
-            "type": "ColumnSet",
-            "columns": [
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
                 {
-                    "type": "Column",
-                    "width": "stretch",
-                    "items": [
-                        {
-                            "type": "Input.Date",
-                            "value": formatedDate("yyyy-mm-dd", (new Date())),
-                            "id": "startDate"
-                        }
-                    ]
-                },
-                {
-                    "type": "Column",
-                    "width": "stretch",
-                    "items": [
-                        {
-                            "type": "Input.Time",
-                            "value": "10:00",
-                            "id": "startTime"
-                        }
-                    ]
+                  "type": "Input.Date",
+                  "value": formatedDate("yyyy-mm-dd", (new Date())),
+                  "id": "startDate"
                 }
-            ]
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "Input.Time",
+                  "value": "10:00",
+                  "id": "startTime"
+                }
+              ]
+            }
+          ]
         },
         {
           type: "TextBlock",
@@ -222,31 +222,31 @@ const createRecurrInc = async (context, user, companyData) => {
           text: "End Date and Time",
         },
         {
-            "type": "ColumnSet",
-            "columns": [
+          "type": "ColumnSet",
+          "columns": [
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
                 {
-                    "type": "Column",
-                    "width": "stretch",
-                    "items": [
-                        {
-                            "type": "Input.Date",
-                            "value": formatedDate("yyyy-mm-dd", nextWeekDate),
-                            "id": "endDate"
-                        }
-                    ]
-                },
-                {
-                    "type": "Column",
-                    "width": "stretch",
-                    "items": [
-                        {
-                            "type": "Input.Time",
-                            "value": "10:00",
-                            "id": "endTime"
-                        }
-                    ]
+                  "type": "Input.Date",
+                  "value": formatedDate("yyyy-mm-dd", nextWeekDate),
+                  "id": "endDate"
                 }
-            ]
+              ]
+            },
+            {
+              "type": "Column",
+              "width": "stretch",
+              "items": [
+                {
+                  "type": "Input.Time",
+                  "value": "10:00",
+                  "id": "endTime"
+                }
+              ]
+            }
+          ]
         },
         {
           type: "TextBlock",
@@ -274,6 +274,16 @@ const createRecurrInc = async (context, user, companyData) => {
       actions: [
         {
           type: "Action.Execute",
+          verb: "Cancel_button",
+          title: "Cancel",
+          data: {
+            info: "Back",
+            companyData: companyData,
+          },
+          associatedInputs: "none",
+        },
+        {
+          type: "Action.Execute",
           verb: "save_new_recurr_inc",
           title: "Submit",
           data: {
@@ -297,7 +307,7 @@ const createRecurrInc = async (context, user, companyData) => {
 
 const createInc = async (context, user, companyData) => {
   try {
-    let allMembers = await getAllTeamMembers(context, companyData.teamId);    
+    let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
     const memberChoises = allMembers.map((m) => ({
       title: m.name,
@@ -356,6 +366,16 @@ const createInc = async (context, user, companyData) => {
       actions: [
         {
           type: "Action.Execute",
+          verb: "Cancel_button",
+          title: "Cancel",
+          data: {
+            info: "Back",
+            companyData: companyData,
+          },
+          associatedInputs: "none",
+        },
+        {
+          type: "Action.Execute",
           verb: "save_new_inc",
           title: "Submit",
           data: {
@@ -364,16 +384,7 @@ const createInc = async (context, user, companyData) => {
             companyData: companyData,
           },
         },
-        // {
-        //   type: "Action.Execute",
-        //   verb: "main_activity_board",
-        //   title: "Back",
-        //   data: {
-        //     info: "Back",
-        //     companyData: companyData,
-        //   },
-        //   associatedInputs: "none",
-        // },
+
       ],
       type: "AdaptiveCard",
       version: "1.4",
@@ -386,7 +397,7 @@ const createInc = async (context, user, companyData) => {
     console.log(error);
   }
 };
-const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, incType) => {  
+const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, incType) => {
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
@@ -420,7 +431,7 @@ const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, co
               companyData: companyData,
               sentApprovalTo: sentApprovalTo,
               inc_created_by,
-              recurrIncData:action.data,
+              recurrIncData: action.data,
               incType
             },
           },
@@ -461,12 +472,12 @@ const saveInc = async (context, action, companyData) => {
     .filter((tm) => tm.aadObjectId)
     .map(
       (tm) =>
-        (tm = {
-          ...tm,
-          messageDelivered: "na",
-          response: "na",
-          responseValue: "na",
-        })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
     );
   const { inc_title: incTitle, inc_created_by } = action.data;
   console.log({ inc_created_by, action });
@@ -481,7 +492,7 @@ const saveInc = async (context, action, companyData) => {
     sentApprovalTo = ALL_USERS;
   }
 
-  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime");  
+  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime");
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -495,12 +506,12 @@ const saveRecurrInc = async (context, action, companyData) => {
     .filter((tm) => tm.aadObjectId)
     .map(
       (tm) =>
-        (tm = {
-          ...tm,
-          messageDelivered: "na",
-          response: "na",
-          responseValue: "na",
-        })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
     );
   const { inc_title: incTitle, inc_created_by } = action.data;
   console.log({ inc_created_by, action });
@@ -518,7 +529,7 @@ const saveRecurrInc = async (context, action, companyData) => {
   const startDate = new Date(action.data.startDate);
   preTextMsg += `starting from ${formatedDate("mm/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
 
-  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident");  
+  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident");
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -566,6 +577,15 @@ const sendDeleteIncCard = async (context, user, companyData) => {
       actions: [
         {
           type: "Action.Execute",
+          verb: "Cancel_button",
+          title: "Cancel",
+          data: {
+            info: "Back",
+            companyData: companyData,
+          },
+        },
+        {
+          type: "Action.Execute",
           verb: "delete_inc",
           title: "Delete",
           data: {
@@ -573,15 +593,7 @@ const sendDeleteIncCard = async (context, user, companyData) => {
             companyData: companyData,
           },
         },
-        // {
-        //   type: "Action.Execute",
-        //   verb: "main_activity_board",
-        //   title: "Back",
-        //   data: {
-        //     info: "Back",
-        //     companyData: companyData,
-        //   },
-        // },
+
       ],
     };
 
@@ -641,21 +653,22 @@ const viewAllInc = async (context, companyData) => {
       actions: [
         {
           type: "Action.Execute",
+          verb: "Cancel_button",
+          title: "Cancel",
+          data: {
+            info: "Back",
+            companyData: companyData,
+          },
+        },
+        {
+          type: "Action.Execute",
           verb: "view_inc_result",
           title: "Submit",
           data: {
             companyData: companyData,
           },
         },
-        // {
-        //   type: "Action.Execute",
-        //   verb: "main_activity_board",
-        //   title: "Back",
-        //   data: {
-        //     info: "Back",
-        //     companyData: companyData,
-        //   },
-        // },
+
       ],
     };
 
@@ -677,7 +690,7 @@ const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
     membersUnsafe: [],
     membersNotResponded: [],
   };
-  
+
   const mentionUserEntities = [];
 
   // process result for event dashboard
@@ -797,7 +810,7 @@ const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
             ],
           },
         ],
-      }      
+      }
     ],
     msteams: {
       entities: mentionUserEntities,
@@ -820,11 +833,11 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
     );
     return Promise.resolve(true);
   }
-  
+
   const dashboardCard = await getOneTimeDashboardCard(incidentId, runAt);
 
   let activityId = null;
-  if(incData != null && incData.activityId != null && incData.conversationId != null){
+  if (incData != null && incData.activityId != null && incData.conversationId != null) {
     activityId = incData.activityId;
     const conversationId = incData.conversationId;
     const dashboardAdaptiveCard = CardFactory.adaptiveCard(dashboardCard);
@@ -834,18 +847,18 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
     activity.id = activityId;
 
     updateMessage(activityId, activity, conversationId);
-  } 
+  }
   else {
     const activity = await context.sendActivity({
       attachments: [CardFactory.adaptiveCard(dashboardCard)],
     });
-    activityId = activity.id;    
-  }  
+    activityId = activity.id;
+  }
   return Promise.resolve(activityId);
   //console.log(activity.id);
 };
 
-const getSaftyCheckCard = (incTitle, incObj, companyData) => {  
+const getSaftyCheckCard = (incTitle, incObj, companyData) => {
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
@@ -912,7 +925,7 @@ const getSaftyCheckCard = (incTitle, incObj, companyData) => {
     },
     type: "AdaptiveCard",
     version: "1.4",
-  };  
+  };
 }
 
 const sendApproval = async (context) => {
@@ -927,12 +940,12 @@ const sendApproval = async (context) => {
 
   allMembers = allMembers.map(
     (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
+    (tm = {
+      ...tm,
+      messageDelivered: "na",
+      response: "na",
+      responseValue: "na",
+    })
   );
 
   if (selectedMembers.length > 0) {
@@ -947,7 +960,7 @@ const sendApproval = async (context) => {
     incCreatedBy
   );
 
-  if(action.data.incType == "onetime"){
+  if (action.data.incType == "onetime") {
 
     const activityId = await viewIncResult(incId, context, companyData, incident);
     const conversationId = context.activity.conversation.id;
@@ -974,13 +987,13 @@ const sendApproval = async (context) => {
           });
         });
       });
-    });    
+    });
     //const resultCard = await viewIncResult(incId, context, companyData);
   }
-  else if(action.data.incType == "recurringIncident"){
+  else if (action.data.incType == "recurringIncident") {
     const userTimeZone = context.activity.entities[0].timezone;
     await incidentService.saveRecurrSubEventInc(action.data, companyData, userTimeZone);
-  }  
+  }
 };
 
 const cancelSendApproval = async (context, user) => {
@@ -1126,22 +1139,23 @@ const sendContactUsForm = async (context, companyData) => {
       actions: [
         {
           type: "Action.Execute",
+          verb: "Cancel_button",
+          title: "Cancel",
+          data: {
+            info: "Back",
+            companyData: companyData,
+          },
+          associatedInputs: "none",
+        },
+        {
+          type: "Action.Execute",
           verb: "submit_contact_us",
           title: "Submit",
           data: {
             companyData: companyData,
           },
         },
-        // {
-        //   type: "Action.Execute",
-        //   verb: "main_activity_board",
-        //   title: "Back",
-        //   data: {
-        //     info: "Back",
-        //     companyData: companyData,
-        //   },
-        //   associatedInputs: "none",
-        // },
+
       ],
     };
 
@@ -1250,6 +1264,16 @@ const viewSettings = async (context, companyData) => {
     actions: [
       {
         type: "Action.Execute",
+        verb: "Cancel_button",
+        title: "Cancel",
+        data: {
+          info: "Back",
+          companyData: companyData,
+        },
+        associatedInputs: "none",
+      },
+      {
+        type: "Action.Execute",
         verb: "submit_settings",
         title: "Submit",
         data: {
@@ -1257,16 +1281,7 @@ const viewSettings = async (context, companyData) => {
           companyData: companyData,
         },
       },
-      // {
-      //   type: "Action.Execute",
-      //   verb: "main_activity_board",
-      //   title: "Back",
-      //   data: {
-      //     info: "Back",
-      //     companyData: companyData,
-      //   },
-      //   associatedInputs: "none",
-      // },
+
     ],
     type: "AdaptiveCard",
     version: "1.4",
@@ -1291,37 +1306,37 @@ const submitSettings = async (context, companyData) => {
 
 const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
   let successflag = true;
-  try{
-    if(subEventObj.incType == "recurringIncident"){
-      if(subEventObj.eventMembers.length == 0) {
+  try {
+    if (subEventObj.incType == "recurringIncident") {
+      if (subEventObj.eventMembers.length == 0) {
         return;
       }
 
       const incCreatedByUserArr = [];
       const incCreatedByUserObj = {
         id: subEventObj.createdById,
-        name : subEventObj.createdByName
+        name: subEventObj.createdByName
       }
       incCreatedByUserArr.push(incCreatedByUserObj);
 
       const dashboardCard = await getOneTimeDashboardCard(incId);
       const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard);
-      
+
       let incObj = {
         incId,
         incTitle,
-        incType : subEventObj.incType,
-        runAt : subEventObj.runAt,
+        incType: subEventObj.incType,
+        runAt: subEventObj.runAt,
         incCreatedBy: incCreatedByUserObj,
         conversationId: dashboardResponse.conversationId,
         activityId: dashboardResponse.activityId
       }
-      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData);  
-      
-      for(let i = 0; i < subEventObj.eventMembers.length; i++){
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData);
+
+      for (let i = 0; i < subEventObj.eventMembers.length; i++) {
         let member = [{
-          id : subEventObj.eventMembers[i].user_id,
-          name : subEventObj.eventMembers[i].user_name
+          id: subEventObj.eventMembers[i].user_id,
+          name: subEventObj.eventMembers[i].user_name
         }];
         await sendProactiveMessaageToUser(member, approvalCard);
 
@@ -1339,27 +1354,27 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.5",
         "body": [
-            {
-              "type": "TextBlock",
-              "text": "Incident Message:",
-              "wrap": true,
-              "weight": "Bolder"
-            },
-            {
-              "type": "TextBlock",
-              "text": `Your safety check message for **${incTitle}** has been sent to all the users`,
-              "wrap": true
-            }
+          {
+            "type": "TextBlock",
+            "text": "Incident Message:",
+            "wrap": true,
+            "weight": "Bolder"
+          },
+          {
+            "type": "TextBlock",
+            "text": `Your safety check message for **${incTitle}** has been sent to all the users`,
+            "wrap": true
+          }
         ]
       }
-      
+
       await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard);
 
       successflag = true;
     }
-  }catch(err){
+  } catch (err) {
     //successflag = false;
-   console.log(err); 
+    console.log(err);
   }
   return successflag;
 }
