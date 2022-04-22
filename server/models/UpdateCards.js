@@ -66,7 +66,7 @@ const updateMainCard = (companyData) => {
       },
       {
         type: "TextBlock",
-        wrap: true,        
+        wrap: true,
         text: "Helpful Links",
         separator: true
       },
@@ -315,6 +315,15 @@ const updateIncidentListCard = (companyData, incList, incidentID) => {
       },
     ],
     actions: [
+      {
+        type: "Action.Execute",
+        verb: "Cancel_button",
+        title: "Cancel",
+        data: {
+          info: "Back",
+          companyData: companyData,
+        },
+      },
       {
         type: "Action.Execute",
         verb: "view_inc_result",
