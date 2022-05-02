@@ -211,7 +211,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               };
               if (
                 companyData.userId === undefined &&
-                companyData.teamId?.length <= 0
+                ( companyData.teamId === undefined || companyData.teamId?.length <= 0 )
               ) {
                 const companyData = await insertCompanyData(companyDataObj);
                 // await context.sendActivity(
