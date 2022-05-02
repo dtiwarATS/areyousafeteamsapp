@@ -114,7 +114,8 @@ const insertCompanyData = async (companyDataObj) => {
 const deleteCompanyData = async (userObjId, teamId) => {
   try {
     pool = await poolPromise;
-    let query = `DELETE FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}';`;
+    let query = `DELETE FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}';` +
+                  ` UPDATE MSTeamsIncidents SET IS_DELETED = 1 WHERE team_id = '${teamId}';`;
 
     await pool.request().query(query);
   } catch (err) {
