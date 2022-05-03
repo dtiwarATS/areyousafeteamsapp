@@ -29,7 +29,8 @@ const isAdminUser = async (userObjId, teamId) => {
   try {
     selectQuery = "";
     let adminUserLogin = false;
-    selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}'`;
+    //selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}'`;
+    selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}'`; //If bot is added using 'Add Me', team Id is always blank. Hence removed 'team-id' from where condition
 
     let res = await db.getDataFromDB(selectQuery);
     // check if the user is super user or not
@@ -51,11 +52,12 @@ const isAdminUser = async (userObjId, teamId) => {
   }
 };
 
-const getCompaniesDataBySuperUserId = async (superUserId) => {
+const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false) => {
   try {
     selectQuery = "";
     let companyData = {};
-    selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${superUserId}%'`;
+    const filter = (filterByTeamId) ? ' and team_id is not null' : ' ';
+    selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${superUserId}%'  ${filter}`;
 
     let res = await db.getDataFromDB(selectQuery);
     companyData = await parseCompanyData(res);
