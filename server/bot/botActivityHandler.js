@@ -63,6 +63,55 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (acvtivityData.conversation.conversationType === "channel") {
         await this.hanldeChannelUserMsg(context);
       } else if (acvtivityData.conversation.conversationType === "personal") {
+        let isInstalledInTeam = true;
+        let companyData = await getCompaniesData(
+          acvtivityData.from.aadObjectId
+        );
+
+        if (!companyData.teamId?.length) {
+          isInstalledInTeam = false;
+        }
+
+        const isAdmin = await isAdminUser(
+          acvtivityData.from.aadObjectId,
+          companyData?.teamId
+        );
+
+        if(isAdmin && isInstalledInTeam){
+          await this.hanldeAdminOrSuperUserMsg(context, companyData);
+          await next();
+          return;
+        }        
+
+        if(!isInstalledInTeam){
+          companyData = await getCompaniesDataBySuperUserId(
+            acvtivityData.from.aadObjectId, true
+          );
+          if (companyData != null && companyData !== undefined && companyData.teamId?.length > 0) {
+            isSuperUser = true;
+            isInstalledInTeam = true;
+          }
+        }       
+
+        if((isAdmin || isSuperUser) && isInstalledInTeam){
+          await this.hanldeAdminOrSuperUserMsg(context, companyData);
+          await next();
+          return;
+        }
+        
+        if((isAdmin || isSuperUser) && !isInstalledInTeam){
+          bot.sendIntroductionMessage(context, acvtivityData.from);
+          await next();
+          return;
+        } else {
+          await this.hanldeNonAdminUserMsg(context);
+        }
+        
+        
+
+
+
+        /*
         let a = false;
         let b = false;
         let c = false;
@@ -121,44 +170,14 @@ class BotActivityHandler extends TeamsActivityHandler {
           );
           if (
             companyData.userId != undefined &&
-            companyData.teamId?.length > 0
+            companyData.teamId?.length > 0 && companyData.superUsers.includes(acvtivityData.from.aadObjectId)
           ) {
             await this.hanldeNonAdminUserMsg(context);
           } else {
-            const cards = {
-              $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-              type: "AdaptiveCard",
-              version: "1.0",
-              body: [
-                {
-                  type: "TextBlock",
-                  text: "**I work best when added to a Team.**",
-                  wrap: true,
-                },
-                {
-                  type: "TextBlock",
-                  text: "Please follow these steps: ",
-                  wrap: true,
-                },
-                {
-                  type: "TextBlock",
-                  text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? Bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
-                  wrap: true,
-                },
-                {
-                  type: "TextBlock",
-                  text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
-                  wrap: true,
-                },
-                {
-                  type: "Image",
-                  url: "https://announcebot.in/img/InstallDetails.png?id=0",
-                },
-              ],
-            };
-            await sendDirectMessageCard(context, acvtivityData.from, cards);
+            bot.sendIntroductionMessage(context, acvtivityData.from);
           }
         }
+        */
       }
 
       await next();
