@@ -165,6 +165,18 @@ const createRecurrInc = async (context, user, companyData) => {
         },
         {
           type: "TextBlock",
+          text: "Guidance",
+          weight: "bolder",
+          separator: true,
+        },
+        {
+          type: "Input.Text",
+          isMultiline: true,
+          placeholder: "Enter the Guidance",
+          id: "recGuidance",
+        },
+        {
+          type: "TextBlock",
           wrap: true,
           text: "Occurs Every",
           weight: "bolder"
@@ -337,6 +349,18 @@ const createInc = async (context, user, companyData) => {
           errorMessage: "Please complete this required field.",
           placeholder: "Enter the Incident Name",
           id: "inc_title",
+        },
+        {
+          type: "TextBlock",
+          text: "Guidance",
+          weight: "bolder",
+          separator: true,
+        },
+        {
+          type: "Input.Text",
+          isMultiline: true,
+          placeholder: "Enter the Guidance",
+          id: "guidance",
         },
         {
           type: "TextBlock",
@@ -907,6 +931,14 @@ const getSaftyCheckCard = (incTitle, incObj, companyData) => {
               inc: incObj,
               companyData: companyData,
             },
+          },
+          {
+            block_id: "guidance_block",
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: incObj.guidance
+            }
           },
         ],
       },
