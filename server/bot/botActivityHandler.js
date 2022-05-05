@@ -468,9 +468,10 @@ class BotActivityHandler extends TeamsActivityHandler {
           eventResponse,
           commentVal,
         } = action.data;
+        const incGuidance = await incidentService.getIncGuidance(incId);
         let responseText = commentVal
-          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
-          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
+          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance
+          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy)
         );

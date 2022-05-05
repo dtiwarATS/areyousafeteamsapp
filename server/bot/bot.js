@@ -939,7 +939,7 @@ const getSaftyCheckCard = (incTitle, incObj, companyData, incGuidance) => {
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `**Guidance:**\n` + incGuidance,
+        text: `**Guidance:**\n\n` + incGuidance,
       },
     ],
     msteams: {
@@ -990,12 +990,12 @@ const sendApproval = async (context) => {
     allMembers,
     incCreatedBy
   );
-
+  const incGuidance = await incidentService.getIncGuidance(incId);
   if (action.data.incType == "onetime") {
 
     const activityId = await viewIncResult(incId, context, companyData, incident);
     const conversationId = context.activity.conversation.id;
-    const incGuidance = await incidentService.getIncGuidance(incId);
+
     // send approval msg to all users
     allMembers.forEach(async (teamMember) => {
       let incObj = {
@@ -1364,7 +1364,8 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
         conversationId: dashboardResponse.conversationId,
         activityId: dashboardResponse.activityId
       }
-      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData);
+      const incGuidance = await incidentService.getIncGuidance(incId);
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData, incGuidance);
 
       for (let i = 0; i < subEventObj.eventMembers.length; i++) {
         let member = [{

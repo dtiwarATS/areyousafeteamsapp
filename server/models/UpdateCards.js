@@ -199,10 +199,29 @@ const updateSafeMessage = (
         isMultiline: true,
       },
       {
+        type: "ActionSet",
+        actions: [
+          {
+            type: "Action.Execute",
+            verb: "submit_comment",
+            title: "Submit Comment",
+            data: {
+              eventResponse: response,
+              userId: userId,
+              incId: incId,
+              incTitle: incTitle,
+              incCreatedBy: incCreatedBy,
+              companyData: companyData,
+              inc
+            }
+          }
+        ]
+      },
+      {
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `**Guidance:**\n` + incGuidance,
+        text: `**Guidance:**\n\n` + incGuidance,
       },
     ],
     msteams: {
@@ -217,22 +236,22 @@ const updateSafeMessage = (
         },
       ],
     },
-    actions: [
-      {
-        type: "Action.Execute",
-        verb: "submit_comment",
-        title: "Submit Comment",
-        data: {
-          eventResponse: response,
-          userId: userId,
-          incId: incId,
-          incTitle: incTitle,
-          incCreatedBy: incCreatedBy,
-          companyData: companyData,
-          inc
-        },
-      },
-    ],
+    // actions: [
+    //   {
+    //     type: "Action.Execute",
+    //     verb: "submit_comment",
+    //     title: "Submit Comment",
+    //     data: {
+    //       eventResponse: response,
+    //       userId: userId,
+    //       incId: incId,
+    //       incTitle: incTitle,
+    //       incCreatedBy: incCreatedBy,
+    //       companyData: companyData,
+    //       inc
+    //     },
+    //   },
+    // ],
     type: "AdaptiveCard",
     version: "1.4",
   };
