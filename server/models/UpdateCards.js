@@ -178,7 +178,8 @@ const updateSafeMessage = (
   userId,
   incId,
   companyData,
-  inc
+  inc,
+  incGuidance
 ) => {
   return {
     type: "AdaptiveCard",
@@ -196,6 +197,12 @@ const updateSafeMessage = (
         style: "text",
         id: "commentVal",
         isMultiline: true,
+      },
+      {
+        type: "TextBlock",
+        separator: true,
+        wrap: true,
+        text: `**Guidance:**\n` + incGuidance,
       },
     ],
     msteams: {

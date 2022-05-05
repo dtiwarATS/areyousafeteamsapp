@@ -497,6 +497,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         } else {
           responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
         }
+        const incGuidance = await incidentService.getIncGuidance(incId);
         const cards = CardFactory.adaptiveCard(
           updateSafeMessage(
             incTitle,
@@ -506,7 +507,8 @@ class BotActivityHandler extends TeamsActivityHandler {
             context.activity.from.id,
             incId,
             companyData,
-            inc
+            inc,
+            incGuidance
           )
         );
 

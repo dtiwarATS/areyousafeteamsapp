@@ -85,6 +85,24 @@ const getInc = async (incId, runAt = null) => {
   }
 };
 
+const getIncGuidance = async (incId) => {
+  try {
+    let eventData = {};
+    let selectQuery = `SELECT Guidance  FROM MSTeamsIncidents inc
+      where inc.id = ${incId}`;
+
+    const result = await db.getDataFromDB(selectQuery);
+    // let parsedResult = await parseEventData(result);
+    if (result.length > 0) {
+      eventData = result[0].Guidance;
+    }
+    return Promise.resolve(eventData);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+
 const saveInc = async (actionData, companyData) => {
   // const { inc_title: title, inc_created_by: createdBy } = actionData;
   let newInc = {};
@@ -351,5 +369,6 @@ module.exports = {
   saveRecurrSubEventInc,
   getCompanyData,
   addMemberResponseDetails,
-  getLastRunAt
+  getLastRunAt,
+  getIncGuidance
 };

@@ -882,7 +882,7 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
   //console.log(activity.id);
 };
 
-const getSaftyCheckCard = (incTitle, incObj, companyData) => {
+const getSaftyCheckCard = (incTitle, incObj, companyData, incGuidance) => {
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
@@ -932,15 +932,14 @@ const getSaftyCheckCard = (incTitle, incObj, companyData) => {
               companyData: companyData,
             },
           },
-          {
-            block_id: "guidance_block",
-            type: "section",
-            text: {
-              type: "mrkdwn",
-              text: incObj.guidance
-            }
-          },
+
         ],
+      },
+      {
+        type: "TextBlock",
+        separator: true,
+        wrap: true,
+        text: `**Guidance:**\n` + incGuidance,
       },
     ],
     msteams: {
@@ -996,6 +995,7 @@ const sendApproval = async (context) => {
 
     const activityId = await viewIncResult(incId, context, companyData, incident);
     const conversationId = context.activity.conversation.id;
+    const incGuidance = await incidentService.getIncGuidance(incId);
     // send approval msg to all users
     allMembers.forEach(async (teamMember) => {
       let incObj = {
@@ -1005,7 +1005,8 @@ const sendApproval = async (context) => {
         activityId,
         conversationId
       }
-      const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData);
+
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData, incGuidance);
 
       var ref = TurnContext.getConversationReference(context.activity);
 
