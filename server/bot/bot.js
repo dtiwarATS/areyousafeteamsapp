@@ -1413,6 +1413,41 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
   return successflag;
 }
 
+const sendIntroductionMessage = async (context, from) => {
+  const cards = {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    type: "AdaptiveCard",
+    version: "1.0",
+    body: [
+      {
+        type: "TextBlock",
+        text: "**I work best when added to a Team.**",
+        wrap: true,
+      },
+      {
+        type: "TextBlock",
+        text: "Please follow these steps: ",
+        wrap: true,
+      },
+      {
+        type: "TextBlock",
+        text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? Bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
+        wrap: true,
+      },
+      {
+        type: "TextBlock",
+        text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+        wrap: true,
+      },
+      {
+        type: "Image",
+        url: "https://announcebot.in/img/InstallDetails.png?id=0",
+      },
+    ],
+  };
+  await sendDirectMessageCard(context, from, cards);
+}
+
 module.exports = {
   invokeResponse,
   sendInstallationEmail,
@@ -1420,5 +1455,6 @@ module.exports = {
   invokeMainActivityBoard,
   createInc,
   saveInc,
-  sendRecurrEventMsg
+  sendRecurrEventMsg,
+  sendIntroductionMessage
 };
