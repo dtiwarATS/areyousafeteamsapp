@@ -671,7 +671,7 @@ const viewAllInc = async (context, companyData) => {
           placeholder: "Select an Incident",
           value: incList.length > 0 && incList[0].value,
           choices: incList,
-          isRequired: true,
+          isRequired: incList.length > 0 ? true : false,
         },
       ],
       actions: [
