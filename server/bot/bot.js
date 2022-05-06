@@ -1223,6 +1223,9 @@ const submitContactUsForm = async (context, companyData) => {
         "<b>User Name: </b>" +
         companyData.userName +
         "<br />" +
+        "<b>Email: </b>" +
+        emailVal +
+        "<br />" +
         "<b>Teams Name: </b>" +
         companyData.teamName +
         "<br />" +
