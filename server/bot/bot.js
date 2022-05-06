@@ -53,8 +53,8 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
     "AreYouSafe Support";
 
   const subject = "AreYouSafe? Teams Bot | New Installation Details";
-
-  await sendEmail(userEmailId, subject, emailBody);
+  if (process.env.IS_EMAIL_SEND == 'true')
+    await sendEmail(userEmailId, subject, emailBody);
 };
 
 const invokeResponse = (card) => {
