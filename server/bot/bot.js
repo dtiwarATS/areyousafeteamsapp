@@ -421,16 +421,64 @@ const createInc = async (context, user, companyData) => {
     console.log(error);
   }
 };
-const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, incType) => {
+const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, incType, guidance) => {
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
     body: [
+      // {
+      //   type: "TextBlock",
+      //   size: "Large",
+      //   weight: "Bolder",
+      //   text: "Hello!",
+      // },
       {
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `Incident Message:\nThis is a safety check from <at>${inc_created_by.name}</at>. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance for this incident.`,
+        text: `Here is the preview of the message I will be sending out:\n\nThis is a safety check from <at>${inc_created_by.name}</at>. We think you may be affected by **${incTitle}**.`,
+      },
+      {
+        type: "RichTextBlock",
+        separator: true,
+        inlines: [
+          {
+            type: "TextRun",
+            text: `Mark yourself as safe, or ask for assistance`,
+          },
+        ],
+      },
+      {
+        type: "ActionSet",
+        actions: [
+          {
+            type: "Action.Execute",
+            // verb: "send_response",
+            title: "I am safe",
+            data: {
+              info: "i_am_safe",
+              // inc: incObj,
+              companyData: companyData,
+            },
+          },
+          {
+            type: "Action.Execute",
+            // verb: "send_response",
+            title: "I need assistance",
+            data: {
+              info: "need_assistance",
+              // inc: incObj,
+              companyData: companyData,
+            },
+          },
+
+        ],
+      },
+      {
+        type: "TextBlock",
+        separator: true,
+        wrap: true,
+        text: `**Guidance:**\n` + guidance,
       },
       {
         type: "RichTextBlock",
@@ -515,8 +563,8 @@ const saveInc = async (context, action, companyData) => {
     preTextMsg = `Should I send this message to everyone?`;
     sentApprovalTo = ALL_USERS;
   }
-
-  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime");
+  // var guidance = action.data.guidance.replace(/\n\n/g, "\n");
+  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime", action.data.guidance);
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -553,7 +601,7 @@ const saveRecurrInc = async (context, action, companyData) => {
   const startDate = new Date(action.data.startDate);
   preTextMsg += `starting from ${formatedDate("mm/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
 
-  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident");
+  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident", action.data.recGuidance);
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -686,7 +734,7 @@ const viewAllInc = async (context, companyData) => {
         },
         {
           type: "Action.Execute",
-          verb: "view_inc_result",
+          verb: incList.length > 0 ? "view_inc_result" : "",
           title: "Submit",
           data: {
             companyData: companyData,
