@@ -436,7 +436,7 @@ const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, co
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `Here is the preview of the message I will be sending out:\n\nThis is a safety check from <at>${inc_created_by.name}</at>. We think you may be affected by **${incTitle}**.`,
+        text: `**Here is the preview of the message I will be sending out:**\n\nThis is a safety check from <at>${inc_created_by.name}</at>. We think you may be affected by **${incTitle}**.`,
       },
       {
         type: "RichTextBlock",
@@ -478,7 +478,7 @@ const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, co
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `**Guidance:**\n` + guidance,
+        text: `**Guidance:**\n\n` + guidance,
       },
       {
         type: "RichTextBlock",
@@ -563,8 +563,8 @@ const saveInc = async (context, action, companyData) => {
     preTextMsg = `Should I send this message to everyone?`;
     sentApprovalTo = ALL_USERS;
   }
-  // var guidance = action.data.guidance.replace(/\n\n/g, "\n");
-  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime", action.data.guidance);
+  var guidance = action.data.guidance ? action.data.guidance : "No details available"
+  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime", guidance);
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -600,8 +600,9 @@ const saveRecurrInc = async (context, action, companyData) => {
 
   const startDate = new Date(action.data.startDate);
   preTextMsg += `starting from ${formatedDate("mm/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
+  var guidance = action.data.recGuidance ? action.data.recGuidance : "No details available"
 
-  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident", action.data.recGuidance);
+  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident", guidance);
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -734,7 +735,7 @@ const viewAllInc = async (context, companyData) => {
         },
         {
           type: "Action.Execute",
-          verb: incList.length > 0 ? "view_inc_result" : "",
+          verb: incList.length > 0 ? "view_inc_result" : "view_inc_close",
           title: "Submit",
           data: {
             companyData: companyData,
@@ -1053,8 +1054,8 @@ const sendApproval = async (context) => {
         activityId,
         conversationId
       }
-
-      const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData, incGuidance);
+      var guidance = incGuidance ? incGuidance : "No details available"
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData, guidance);
 
       var ref = TurnContext.getConversationReference(context.activity);
 
@@ -1415,7 +1416,8 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
         conversationId: dashboardResponse.conversationId,
         activityId: dashboardResponse.activityId
       }
-      const incGuidance = await incidentService.getIncGuidance(incId);
+      var incGuidance = await incidentService.getIncGuidance(incId);
+      incGuidance = incGuidance ? incGuidance : "No details available"
       const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData, incGuidance);
 
       for (let i = 0; i < subEventObj.eventMembers.length; i++) {
