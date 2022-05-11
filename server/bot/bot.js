@@ -53,8 +53,8 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
     "AreYouSafe Support";
 
   const subject = "AreYouSafe? Teams Bot | New Installation Details";
-
-  await sendEmail(userEmailId, subject, emailBody);
+  if (process.env.IS_EMAIL_SEND == 'true')
+    await sendEmail(userEmailId, subject, emailBody);
 };
 
 const invokeResponse = (card) => {
@@ -162,6 +162,18 @@ const createRecurrInc = async (context, user, companyData) => {
           errorMessage: "Please complete this required field.",
           placeholder: "Enter the Incident Name",
           id: "inc_title",
+        },
+        {
+          type: "TextBlock",
+          text: "Guidance",
+          weight: "bolder",
+          separator: true,
+        },
+        {
+          type: "Input.Text",
+          isMultiline: true,
+          placeholder: "Enter the Guidance",
+          id: "recGuidance",
         },
         {
           type: "TextBlock",
@@ -340,6 +352,18 @@ const createInc = async (context, user, companyData) => {
         },
         {
           type: "TextBlock",
+          text: "Guidance",
+          weight: "bolder",
+          separator: true,
+        },
+        {
+          type: "Input.Text",
+          isMultiline: true,
+          placeholder: "Enter the Guidance",
+          id: "guidance",
+        },
+        {
+          type: "TextBlock",
           wrap: true,
           text: "Send the incident notification to these members (optional)",
           weight: "bolder",
@@ -397,16 +421,64 @@ const createInc = async (context, user, companyData) => {
     console.log(error);
   }
 };
-const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, incType) => {
+const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, incType, guidance) => {
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
     body: [
+      // {
+      //   type: "TextBlock",
+      //   size: "Large",
+      //   weight: "Bolder",
+      //   text: "Hello!",
+      // },
       {
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `Incident Message:\nThis is a safety check from <at>${inc_created_by.name}</at>. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance for this incident.`,
+        text: `**Here is the preview of the message I will be sending out:**\n\nThis is a safety check from <at>${inc_created_by.name}</at>. We think you may be affected by **${incTitle}**.`,
+      },
+      {
+        type: "RichTextBlock",
+        separator: true,
+        inlines: [
+          {
+            type: "TextRun",
+            text: `Mark yourself as safe, or ask for assistance`,
+          },
+        ],
+      },
+      {
+        type: "ActionSet",
+        actions: [
+          {
+            type: "Action.Execute",
+            // verb: "send_response",
+            title: "I am safe",
+            data: {
+              info: "i_am_safe",
+              // inc: incObj,
+              companyData: companyData,
+            },
+          },
+          {
+            type: "Action.Execute",
+            // verb: "send_response",
+            title: "I need assistance",
+            data: {
+              info: "need_assistance",
+              // inc: incObj,
+              companyData: companyData,
+            },
+          },
+
+        ],
+      },
+      {
+        type: "TextBlock",
+        separator: true,
+        wrap: true,
+        text: `**Guidance:**\n\n` + guidance,
       },
       {
         type: "RichTextBlock",
@@ -491,8 +563,8 @@ const saveInc = async (context, action, companyData) => {
     preTextMsg = `Should I send this message to everyone?`;
     sentApprovalTo = ALL_USERS;
   }
-
-  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime");
+  var guidance = action.data.guidance ? action.data.guidance : "No details available"
+  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime", guidance);
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -528,8 +600,9 @@ const saveRecurrInc = async (context, action, companyData) => {
 
   const startDate = new Date(action.data.startDate);
   preTextMsg += `starting from ${formatedDate("mm/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
+  var guidance = action.data.recGuidance ? action.data.recGuidance : "No details available"
 
-  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident");
+  const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident", guidance);
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -647,7 +720,7 @@ const viewAllInc = async (context, companyData) => {
           placeholder: "Select an Incident",
           value: incList.length > 0 && incList[0].value,
           choices: incList,
-          isRequired: true,
+          isRequired: incList.length > 0 ? true : false,
         },
       ],
       actions: [
@@ -662,7 +735,7 @@ const viewAllInc = async (context, companyData) => {
         },
         {
           type: "Action.Execute",
-          verb: "view_inc_result",
+          verb: incList.length > 0 ? "view_inc_result" : "view_inc_close",
           title: "Submit",
           data: {
             companyData: companyData,
@@ -858,7 +931,7 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
   //console.log(activity.id);
 };
 
-const getSaftyCheckCard = (incTitle, incObj, companyData) => {
+const getSaftyCheckCard = (incTitle, incObj, companyData, incGuidance) => {
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
@@ -908,7 +981,14 @@ const getSaftyCheckCard = (incTitle, incObj, companyData) => {
               companyData: companyData,
             },
           },
+
         ],
+      },
+      {
+        type: "TextBlock",
+        separator: true,
+        wrap: true,
+        text: `**Guidance:**\n\n` + incGuidance,
       },
     ],
     msteams: {
@@ -959,11 +1039,12 @@ const sendApproval = async (context) => {
     allMembers,
     incCreatedBy
   );
-
+  const incGuidance = await incidentService.getIncGuidance(incId);
   if (action.data.incType == "onetime") {
 
     const activityId = await viewIncResult(incId, context, companyData, incident);
     const conversationId = context.activity.conversation.id;
+
     // send approval msg to all users
     allMembers.forEach(async (teamMember) => {
       let incObj = {
@@ -973,7 +1054,8 @@ const sendApproval = async (context) => {
         activityId,
         conversationId
       }
-      const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData);
+      var guidance = incGuidance ? incGuidance : "No details available"
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData, guidance);
 
       var ref = TurnContext.getConversationReference(context.activity);
 
@@ -1190,6 +1272,9 @@ const submitContactUsForm = async (context, companyData) => {
         "<b>User Name: </b>" +
         companyData.userName +
         "<br />" +
+        "<b>Email: </b>" +
+        emailVal +
+        "<br />" +
         "<b>Teams Name: </b>" +
         companyData.teamName +
         "<br />" +
@@ -1331,7 +1416,9 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
         conversationId: dashboardResponse.conversationId,
         activityId: dashboardResponse.activityId
       }
-      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData);
+      var incGuidance = await incidentService.getIncGuidance(incId);
+      incGuidance = incGuidance ? incGuidance : "No details available"
+      const approvalCard = getSaftyCheckCard(incTitle, incObj, subEventObj.companyData, incGuidance);
 
       for (let i = 0; i < subEventObj.eventMembers.length; i++) {
         let member = [{

@@ -77,13 +77,13 @@ class BotActivityHandler extends TeamsActivityHandler {
           companyData?.teamId
         );
 
-        if(isAdmin && isInstalledInTeam){
+        if (isAdmin && isInstalledInTeam) {
           await this.hanldeAdminOrSuperUserMsg(context, companyData);
           await next();
           return;
-        }        
+        }
 
-        if(!isInstalledInTeam){
+        if (!isInstalledInTeam) {
           companyData = await getCompaniesDataBySuperUserId(
             acvtivityData.from.aadObjectId, true
           );
@@ -91,23 +91,23 @@ class BotActivityHandler extends TeamsActivityHandler {
             isSuperUser = true;
             isInstalledInTeam = true;
           }
-        }       
+        }
 
-        if((isAdmin || isSuperUser) && isInstalledInTeam){
+        if ((isAdmin || isSuperUser) && isInstalledInTeam) {
           await this.hanldeAdminOrSuperUserMsg(context, companyData);
           await next();
           return;
         }
-        
-        if((isAdmin || isSuperUser) && !isInstalledInTeam){
+
+        if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
           bot.sendIntroductionMessage(context, acvtivityData.from);
           await next();
           return;
         } else {
           await this.hanldeNonAdminUserMsg(context);
         }
-        
-        
+
+
 
 
 
@@ -230,7 +230,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               };
               if (
                 companyData.userId === undefined &&
-                ( companyData.teamId === undefined || companyData.teamId?.length <= 0 )
+                (companyData.teamId === undefined || companyData.teamId?.length <= 0)
               ) {
                 const companyData = await insertCompanyData(companyDataObj);
                 // await context.sendActivity(
@@ -434,6 +434,21 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+      }
+      else if (uVerb === "view_inc_close") {
+        const { inc_title: incTitle } = context.activity?.value?.action?.data;
+        let members = context.activity?.value?.action?.data?.selected_members;
+        if (members === undefined) {
+          members = "All Members";
+        }
+        let text = `Hello! You do not have any incident running at the moment!!!`;
+        const cards = CardFactory.adaptiveCard(
+          updateCreateIncidentCard(incTitle, members, text)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
       } else if (uVerb === "submit_settings") {
         const cards = CardFactory.adaptiveCard(updateSesttingsCard());
 
@@ -487,9 +502,11 @@ class BotActivityHandler extends TeamsActivityHandler {
           eventResponse,
           commentVal,
         } = action.data;
+        let incGuidance = await incidentService.getIncGuidance(incId);
+        incGuidance = incGuidance ? incGuidance : "No details available"
         let responseText = commentVal
-          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
-          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
+          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance
+          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy)
         );
@@ -516,6 +533,8 @@ class BotActivityHandler extends TeamsActivityHandler {
         } else {
           responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
         }
+        var incGuidance = await incidentService.getIncGuidance(incId);
+        incGuidance = incGuidance ? incGuidance : "No details available";
         const cards = CardFactory.adaptiveCard(
           updateSafeMessage(
             incTitle,
@@ -525,7 +544,8 @@ class BotActivityHandler extends TeamsActivityHandler {
             context.activity.from.id,
             incId,
             companyData,
-            inc
+            inc,
+            incGuidance
           )
         );
 
