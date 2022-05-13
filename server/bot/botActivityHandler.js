@@ -556,9 +556,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         uVerb === "send_approval" ||
         uVerb === "cancel_send_approval"
       ) {
-        if (uVerb === "send_approval") {
-          await context.sendActivities([{ type: "typing" }]);
-        }
+        // if (uVerb === "send_approval") {
+        //   await context.sendActivities([{ type: "typing" }]);
+        // }
         const action = context.activity.value.action;
         const { incTitle: incTitle } = action.data.incident;
         const { inc_created_by: incCreatedBy } =
