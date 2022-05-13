@@ -27,15 +27,6 @@ const updateMainCard = (companyData) => {
           },
           {
             type: "Action.Execute",
-            verb: "create_recurringincident",
-            title: "Create Recurring Incident",
-            data: {
-              option: "Create Recurring Incident",
-              companyData: companyData,
-            },
-          },
-          {
-            type: "Action.Execute",
             isEnabled: false,
             verb: "list_inc",
             title: "View Incident Dashboard",
@@ -236,22 +227,6 @@ const updateSafeMessage = (
         },
       ],
     },
-    // actions: [
-    //   {
-    //     type: "Action.Execute",
-    //     verb: "submit_comment",
-    //     title: "Submit Comment",
-    //     data: {
-    //       eventResponse: response,
-    //       userId: userId,
-    //       incId: incId,
-    //       incTitle: incTitle,
-    //       incCreatedBy: incCreatedBy,
-    //       companyData: companyData,
-    //       inc
-    //     },
-    //   },
-    // ],
     type: "AdaptiveCard",
     version: "1.4",
   };

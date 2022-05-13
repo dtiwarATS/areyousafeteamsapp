@@ -318,9 +318,6 @@ class BotActivityHandler extends TeamsActivityHandler {
               acvtivityData.from.id
             );
             if (adminUserInfo) {
-              //console.log("adminUserInfo >> ", adminUserInfo);
-              // then save from.id as userid and from.aadObjectId as userObjectId
-              // and channelData.team.id as teamsId and save the data to database
               const companyDataObj = {
                 userId: adminUserInfo.id,
                 userTenantId: adminUserInfo.tenantId,
@@ -557,7 +554,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         uVerb === "cancel_send_approval"
       ) {
         if (uVerb === "send_approval") {
-          await context.sendActivities([{ type: "typing" }]);
+          // await context.sendActivities([{ type: "typing" }]);
         }
         const action = context.activity.value.action;
         const { incTitle: incTitle } = action.data.incident;

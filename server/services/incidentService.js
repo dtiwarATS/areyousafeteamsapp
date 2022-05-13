@@ -139,8 +139,8 @@ const saveInc = async (actionData, companyData) => {
 
 const saveRecurrInc = async (actionData, companyData) => {
   let newInc = {};
-  if (actionData.recGuidance != undefined)
-    actionData.recGuidance = actionData.recGuidance.replace(/\n/g, "\n\n");
+  if (actionData.guidance != undefined)
+    actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
   let incObj = {
     incTitle: actionData.inc_title,
     incDesc: "",
@@ -156,7 +156,7 @@ const saveRecurrInc = async (actionData, companyData) => {
     endDate: actionData.endDate,
     endTime: actionData.endTime,
     incCreatedByName: actionData.inc_created_by.name,
-    guidance: actionData.recGuidance ? actionData.recGuidance : '',
+    guidance: actionData.guidance ? actionData.guidance : '',
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
