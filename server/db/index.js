@@ -35,22 +35,23 @@ const getColumns = (tableName) => {
         "EVENT_START_TIME",
         "EVENT_END_DATE",
         "EVENT_END_TIME",
-        "CREATED_BY_NAME"
+        "CREATED_BY_NAME",
+        "GUIDANCE"
       ];
-      break;    
-      
+      break;
+
     case "MSTeamsFeedback":
       columns = ["user_id", "team_id", "email", "content"];
       break;
 
     case "MSTEAMS_SUB_EVENT":
-      columns = [        
+      columns = [
         "INC_ID",
         "SUB_EVENT_TYPE",
         "CRON",
         "RUN_AT",
         "TIMEZONE",
-        "COMPLETED"       
+        "COMPLETED"
       ];
       break;
 

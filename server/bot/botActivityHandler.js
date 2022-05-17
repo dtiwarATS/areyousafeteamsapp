@@ -230,7 +230,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               };
               if (
                 companyData.userId === undefined &&
-                ( companyData.teamId === undefined || companyData.teamId?.length <= 0 )
+                (companyData.teamId === undefined || companyData.teamId?.length <= 0)
               ) {
                 const companyData = await insertCompanyData(companyDataObj);
                 // await context.sendActivity(
@@ -318,9 +318,6 @@ class BotActivityHandler extends TeamsActivityHandler {
               acvtivityData.from.id
             );
             if (adminUserInfo) {
-              //console.log("adminUserInfo >> ", adminUserInfo);
-              // then save from.id as userid and from.aadObjectId as userObjectId
-              // and channelData.team.id as teamsId and save the data to database
               const companyDataObj = {
                 userId: adminUserInfo.id,
                 userTenantId: adminUserInfo.tenantId,
@@ -434,6 +431,21 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+      }
+      else if (uVerb === "view_inc_close") {
+        const { inc_title: incTitle } = context.activity?.value?.action?.data;
+        let members = context.activity?.value?.action?.data?.selected_members;
+        if (members === undefined) {
+          members = "All Members";
+        }
+        let text = `Hello! You do not have any incident running at the moment!!!`;
+        const cards = CardFactory.adaptiveCard(
+          updateCreateIncidentCard(incTitle, members, text)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
       } else if (uVerb === "submit_settings") {
         const cards = CardFactory.adaptiveCard(updateSesttingsCard());
 
@@ -487,9 +499,11 @@ class BotActivityHandler extends TeamsActivityHandler {
           eventResponse,
           commentVal,
         } = action.data;
+        let incGuidance = await incidentService.getIncGuidance(incId);
+        incGuidance = incGuidance ? incGuidance : "No details available"
         let responseText = commentVal
-          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`
-          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
+          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance
+          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy)
         );
@@ -516,6 +530,8 @@ class BotActivityHandler extends TeamsActivityHandler {
         } else {
           responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
         }
+        var incGuidance = await incidentService.getIncGuidance(incId);
+        incGuidance = incGuidance ? incGuidance : "No details available";
         const cards = CardFactory.adaptiveCard(
           updateSafeMessage(
             incTitle,
@@ -525,7 +541,8 @@ class BotActivityHandler extends TeamsActivityHandler {
             context.activity.from.id,
             incId,
             companyData,
-            inc
+            inc,
+            incGuidance
           )
         );
 
@@ -536,9 +553,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         uVerb === "send_approval" ||
         uVerb === "cancel_send_approval"
       ) {
-        if (uVerb === "send_approval") {
-          await context.sendActivities([{ type: "typing" }]);
-        }
+        // if (uVerb === "send_approval") {
+        //   await context.sendActivities([{ type: "typing" }]);
+        // }
         const action = context.activity.value.action;
         const { incTitle: incTitle } = action.data.incident;
         const { inc_created_by: incCreatedBy } =

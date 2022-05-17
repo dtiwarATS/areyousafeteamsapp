@@ -25,7 +25,7 @@ const parseEventData = async (result) => {
 
         let memberResponseData = parsedData.m.map(
           (member) => {
-            if(member.mRecurr != null && member.mRecurr.length == 1){
+            if (member.mRecurr != null && member.mRecurr.length == 1) {
               member = {
                 ...member,
                 ...member.mRecurr[0]
@@ -54,7 +54,7 @@ const getInc = async (incId, runAt = null) => {
   try {
     let eventData = {};
     let selectQuery = "";
-    if(runAt != null){
+    if (runAt != null) {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
       inc.selected_members, inc.created_by, m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp 
@@ -64,7 +64,7 @@ const getInc = async (incId, runAt = null) => {
       where inc.id = ${incId} and convert(datetime, runAt) = convert(datetime, '${runAt}')
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     }
-    else{
+    else {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, 
       inc.created_by, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
       m.comment, m.timestamp FROM MSTeamsIncidents inc
@@ -72,7 +72,7 @@ const getInc = async (incId, runAt = null) => {
       ON inc.id = m.inc_id
       where inc.id = ${incId}
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
-    }    
+    }
 
     const result = await db.getDataFromDB(selectQuery);
     let parsedResult = await parseEventData(result);
@@ -85,9 +85,29 @@ const getInc = async (incId, runAt = null) => {
   }
 };
 
+const getIncGuidance = async (incId) => {
+  try {
+    let eventData = {};
+    let selectQuery = `SELECT Guidance  FROM MSTeamsIncidents inc
+      where inc.id = ${incId}`;
+
+    const result = await db.getDataFromDB(selectQuery);
+    // let parsedResult = await parseEventData(result);
+    if (result.length > 0) {
+      eventData = result[0].Guidance;
+    }
+    return Promise.resolve(eventData);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+
 const saveInc = async (actionData, companyData) => {
   // const { inc_title: title, inc_created_by: createdBy } = actionData;
   let newInc = {};
+  if (actionData.guidance != undefined)
+    actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
 
   let incObj = {
     incTitle: actionData.inc_title,
@@ -104,6 +124,7 @@ const saveInc = async (actionData, companyData) => {
     endDate: "",
     endTime: "",
     incCreatedByName: actionData.inc_created_by.name,
+    guidance: actionData.guidance ? actionData.guidance : '',
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
@@ -118,7 +139,8 @@ const saveInc = async (actionData, companyData) => {
 
 const saveRecurrInc = async (actionData, companyData) => {
   let newInc = {};
-
+  if (actionData.guidance != undefined)
+    actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
   let incObj = {
     incTitle: actionData.inc_title,
     incDesc: "",
@@ -126,7 +148,7 @@ const saveRecurrInc = async (actionData, companyData) => {
     channelId: companyData.teamId,
     teamId: companyData.teamId,
     selectedMembers: actionData.selected_members || "",
-    incCreatedBy: actionData.inc_created_by.id,    
+    incCreatedBy: actionData.inc_created_by.id,
     createdDate: new Date(Date.now()).toISOString(),
     occursEvery: actionData.eventDays.toString(),
     startDate: actionData.startDate,
@@ -134,6 +156,7 @@ const saveRecurrInc = async (actionData, companyData) => {
     endDate: actionData.endDate,
     endTime: actionData.endTime,
     incCreatedByName: actionData.inc_created_by.name,
+    guidance: actionData.guidance ? actionData.guidance : '',
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
@@ -148,7 +171,7 @@ const saveRecurrInc = async (actionData, companyData) => {
 
 const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
   let newInc = {};
-  try{
+  try {
     const incData = actionData.incident;
     let cron = getCron(incData.startTime, incData.occursEvery);
     const options = { tz: userTimeZone };
@@ -166,12 +189,12 @@ const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
     };
 
     let incidentEventValues = Object.keys(incSubEventObj).map((key) => incSubEventObj[key]);
-    const res = await db.insertDataIntoDB("MSTEAMS_SUB_EVENT", incidentEventValues);    
+    const res = await db.insertDataIntoDB("MSTEAMS_SUB_EVENT", incidentEventValues);
   }
   catch (error) {
     console.log(error);
-  } 
-  
+  }
+
   return Promise.resolve(newInc);
 };
 
@@ -195,16 +218,16 @@ const deleteInc = async (incId) => {
 };
 
 const addMemberResponseDetails = async (respDetailsObj) => {
-  try{
+  try {
     let query = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId) 
           values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', 1, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}')`;
 
     console.log("insert query => ", query);
     await pool.request().query(query);
   }
-  catch(err){
+  catch (err) {
     console.log();
-  }  
+  }
 }
 
 const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
@@ -217,8 +240,8 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
     let query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
         values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
 
-      console.log("insert query => ", query);
-      await pool.request().query(query);
+    console.log("insert query => ", query);
+    await pool.request().query(query);
   }
 
   const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by, 
@@ -241,16 +264,16 @@ const updateIncResponseData = async (incidentId, userId, responseValue, incData)
   pool = await poolPromise;
 
   let query = null;
-  if(incData != null && incData.incType == "recurringIncident" && incData.runAt != null){
+  if (incData != null && incData.incType == "recurringIncident" && incData.runAt != null) {
     query = `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue} WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
-            `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
-            `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
+      `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
+      `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   }
-  else{
+  else {
     query = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue} WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
-  if(query != null){
+  if (query != null) {
     console.log("update query >> ", query);
     await pool.request().query(query);
   }
@@ -268,12 +291,12 @@ const updateIncResponseComment = async (
 
 
   let query = null;
-  if(incData != null && incData.incType == "recurringIncident" && incData.runAt != null){
+  if (incData != null && incData.incType == "recurringIncident" && incData.runAt != null) {
     query = `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' ) ` +
-            `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
-            `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
+      `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
+      `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   }
-  else{
+  else {
     query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
@@ -310,7 +333,7 @@ const getCompanyData = async (teamId) => {
   let companyDataObj = {};
   let companyDataSql = `SELECT * FROM MSTEAMSINSTALLATIONDETAILS WHERE TEAM_ID = '${teamId}'`;
   const result = await db.getDataFromDB(companyDataSql);
-  if(result != null && result.length > 0){
+  if (result != null && result.length > 0) {
     companyDataObj = {
       userId: result[0].user_id,
       userTenantId: result[0].user_tenant_id,
@@ -331,7 +354,7 @@ const getLastRunAt = async (incId) => {
   const sqlLastRunAt = `SELECT LAST_RUN_AT lastRunAt FROM MSTEAMS_SUB_EVENT WHERE INC_ID = ${incId}`;
   const result = await db.getDataFromDB(sqlLastRunAt);
   let lastRunAt = null;
-  if(result != null && result.length > 0){
+  if (result != null && result.length > 0) {
     lastRunAt = result[0].lastRunAt;
   }
   return Promise.resolve(lastRunAt);
@@ -349,5 +372,6 @@ module.exports = {
   saveRecurrSubEventInc,
   getCompanyData,
   addMemberResponseDetails,
-  getLastRunAt
+  getLastRunAt,
+  getIncGuidance
 };

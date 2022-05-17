@@ -27,15 +27,6 @@ const updateMainCard = (companyData) => {
           },
           {
             type: "Action.Execute",
-            verb: "create_recurringincident",
-            title: "Create Recurring Incident",
-            data: {
-              option: "Create Recurring Incident",
-              companyData: companyData,
-            },
-          },
-          {
-            type: "Action.Execute",
             isEnabled: false,
             verb: "list_inc",
             title: "View Incident Dashboard",
@@ -178,16 +169,18 @@ const updateSafeMessage = (
   userId,
   incId,
   companyData,
-  inc
+  inc,
+  incGuidance
 ) => {
-  return {
+  var msg = responseText + `\n\n If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`;
+  var card = {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     version: "1.4",
     body: [
       {
         type: "TextBlock",
-        text: `${responseText} If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`,
+        text: `${responseText}\n\n If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`,
         wrap: true,
       },
       {
@@ -196,6 +189,31 @@ const updateSafeMessage = (
         style: "text",
         id: "commentVal",
         isMultiline: true,
+      },
+      {
+        type: "ActionSet",
+        actions: [
+          {
+            type: "Action.Execute",
+            verb: "submit_comment",
+            title: "Submit Comment",
+            data: {
+              eventResponse: response,
+              userId: userId,
+              incId: incId,
+              incTitle: incTitle,
+              incCreatedBy: incCreatedBy,
+              companyData: companyData,
+              inc
+            }
+          }
+        ]
+      },
+      {
+        type: "TextBlock",
+        separator: true,
+        wrap: true,
+        text: `**Guidance:**\n\n` + incGuidance,
       },
     ],
     msteams: {
@@ -210,25 +228,10 @@ const updateSafeMessage = (
         },
       ],
     },
-    actions: [
-      {
-        type: "Action.Execute",
-        verb: "submit_comment",
-        title: "Submit Comment",
-        data: {
-          eventResponse: response,
-          userId: userId,
-          incId: incId,
-          incTitle: incTitle,
-          incCreatedBy: incCreatedBy,
-          companyData: companyData,
-          inc
-        },
-      },
-    ],
     type: "AdaptiveCard",
     version: "1.4",
   };
+  return card;
 };
 const updateSubmitCommentCard = (responseText, incCreatedBy) => {
   return {
