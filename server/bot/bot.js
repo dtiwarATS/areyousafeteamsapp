@@ -176,10 +176,22 @@ const createRecurrInc = async (context, user, companyData) => {
           id: "recGuidance",
         },
         {
+          type: "ActionSet",
+          actions: [
+            {
+              type: "Action.ToggleVisibility",
+              title: "Toggle!",
+              targetElements: ["lblOccursEvery", "eventDays", "lblRangeofRecurrence", "lblStartTime", "lblColumnSet", "lblEndTime", "lblColumnSet2"]
+            },
+
+          ],
+        },
+        {
           type: "TextBlock",
           wrap: true,
           text: "Occurs Every",
-          weight: "bolder"
+          weight: "bolder",
+          id: "lblOccursEvery"
         },
         {
           type: "Input.ChoiceSet",
@@ -195,14 +207,17 @@ const createRecurrInc = async (context, user, companyData) => {
           wrap: true,
           text: "Range of Recurrence",
           weight: "bolder",
+          id: "lblRangeofRecurrence"
         },
         {
           type: "TextBlock",
           wrap: true,
           text: "Start Date and Time",
+          id: "lblStartTime"
         },
         {
           "type": "ColumnSet",
+          "id": "lblColumnSet",
           "columns": [
             {
               "type": "Column",
@@ -232,9 +247,11 @@ const createRecurrInc = async (context, user, companyData) => {
           type: "TextBlock",
           wrap: true,
           text: "End Date and Time",
+          id: "lblEndTime"
         },
         {
           "type": "ColumnSet",
+          "id": "lblColumnSet2",
           "columns": [
             {
               "type": "Column",
@@ -284,6 +301,7 @@ const createRecurrInc = async (context, user, companyData) => {
         },
       ],
       actions: [
+
         {
           type: "Action.Execute",
           verb: "Cancel_button",
@@ -325,7 +343,12 @@ const createInc = async (context, user, companyData) => {
       title: m.name,
       value: m.aadObjectId,
     }));
-
+    const eventDays = [
+      { title: "Sun", value: "0" }, { title: "Mon", value: "1" }, { title: "Tue", value: "2" }, { title: "Wed", value: "3" },
+      { title: "Thur", value: "4" }, { title: "Fri", value: "5" }, { title: "Sat", value: "6" }
+    ];
+    var nextWeekDate = new Date();
+    nextWeekDate.setDate(nextWeekDate.getDate() + 7);
     const card = {
       $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
       appId: process.env.MicrosoftAppId,
@@ -362,52 +385,207 @@ const createInc = async (context, user, companyData) => {
           placeholder: "Enter the Guidance",
           id: "guidance",
         },
-        {
-          type: "TextBlock",
-          wrap: true,
-          text: "Send the incident notification to these members (optional)",
-          weight: "bolder",
-          separator: true,
-        },
-        {
-          type: "Input.ChoiceSet",
-          // label: "Send the incident notification to these members (optional)",
-          weight: "bolder",
-          id: "selected_members",
-          style: "filtered",
-          isMultiSelect: true,
-          placeholder: "Select users",
-          choices: memberChoises,
-        },
-        {
-          type: "TextBlock",
-          size: "small",
-          isSubtle: true,
-          wrap: true,
-          text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
-        },
       ],
       actions: [
         {
-          type: "Action.Execute",
-          verb: "Cancel_button",
-          title: "Cancel",
-          data: {
-            info: "Back",
-            companyData: companyData,
-          },
-          associatedInputs: "none",
+          "type": "Action.ShowCard",
+          "title": "One Time",
+          "card": {
+            "type": "AdaptiveCard",
+            "body": [
+              {
+                type: "TextBlock",
+                wrap: true,
+                text: "Send the incident notification to these members (optional)",
+                weight: "bolder",
+                separator: true,
+              },
+              {
+                type: "Input.ChoiceSet",
+                weight: "bolder",
+                id: "selected_members",
+                style: "filtered",
+                isMultiSelect: true,
+                placeholder: "Select users",
+                choices: memberChoises,
+              },
+              {
+                type: "TextBlock",
+                size: "small",
+                isSubtle: true,
+                wrap: true,
+                text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
+              },
+            ],
+            "actions": [
+              {
+                type: "Action.Execute",
+                verb: "Cancel_button",
+                title: "Cancel",
+                data: {
+                  info: "Back",
+                  companyData: companyData,
+                },
+                associatedInputs: "none",
+              },
+              {
+                type: "Action.Execute",
+                verb: "save_new_inc",
+                title: "Submit",
+                data: {
+                  info: "save",
+                  inc_created_by: user,
+                  companyData: companyData,
+                },
+              },
+            ]
+          }
         },
         {
-          type: "Action.Execute",
-          verb: "save_new_inc",
-          title: "Submit",
-          data: {
-            info: "save",
-            inc_created_by: user,
-            companyData: companyData,
-          },
+          "type": "Action.ShowCard",
+          "title": "Recurring",
+          "card": {
+            "type": "AdaptiveCard",
+            "body": [
+              {
+                type: "TextBlock",
+                wrap: true,
+                text: "Occurs Every",
+                weight: "bolder",
+                id: "lblOccursEvery"
+              },
+              {
+                type: "Input.ChoiceSet",
+                weight: "bolder",
+                id: "eventDays",
+                style: "filtered",
+                isMultiSelect: true,
+                choices: eventDays,
+                value: "1,2,3,4,5"
+              },
+              {
+                type: "TextBlock",
+                wrap: true,
+                text: "Range of Recurrence",
+                weight: "bolder",
+                id: "lblRangeofRecurrence"
+              },
+              {
+                type: "TextBlock",
+                wrap: true,
+                text: "Start Date and Time",
+                id: "lblStartTime"
+              },
+              {
+                "type": "ColumnSet",
+                "id": "lblColumnSet",
+                "columns": [
+                  {
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                      {
+                        "type": "Input.Date",
+                        "value": formatedDate("yyyy-mm-dd", (new Date())),
+                        "id": "startDate"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                      {
+                        "type": "Input.Time",
+                        "value": "10:00",
+                        "id": "startTime"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                type: "TextBlock",
+                wrap: true,
+                text: "End Date and Time",
+                id: "lblEndTime"
+              },
+              {
+                "type": "ColumnSet",
+                "id": "lblColumnSet2",
+                "columns": [
+                  {
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                      {
+                        "type": "Input.Date",
+                        "value": formatedDate("yyyy-mm-dd", nextWeekDate),
+                        "id": "endDate"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                      {
+                        "type": "Input.Time",
+                        "value": "10:00",
+                        "id": "endTime"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                type: "TextBlock",
+                wrap: true,
+                text: "Send the incident notification to these members (optional)",
+                weight: "bolder",
+              },
+              {
+                type: "Input.ChoiceSet",
+                weight: "bolder",
+                id: "selected_members",
+                style: "filtered",
+                isMultiSelect: true,
+                placeholder: "Select users",
+                choices: memberChoises,
+              },
+              {
+                type: "TextBlock",
+                size: "small",
+                isSubtle: true,
+                wrap: true,
+                text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
+              },
+            ],
+            "actions": [
+              {
+                type: "Action.Execute",
+                verb: "Cancel_button",
+                title: "Cancel",
+                data: {
+                  info: "Back",
+                  companyData: companyData,
+                },
+                associatedInputs: "none",
+              },
+              {
+                type: "Action.Execute",
+                verb: "save_new_recurr_inc",
+                title: "Submit",
+                data: {
+                  info: "save",
+                  inc_created_by: user,
+                  companyData: companyData,
+                },
+              },
+            ]
+          }
         },
+
 
       ],
       type: "AdaptiveCard",
@@ -426,12 +604,6 @@ const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, co
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
     body: [
-      // {
-      //   type: "TextBlock",
-      //   size: "Large",
-      //   weight: "Bolder",
-      //   text: "Hello!",
-      // },
       {
         type: "TextBlock",
         separator: true,
@@ -453,21 +625,17 @@ const getIncConfirmationCard = (inc_created_by, incTitle, preTextMsg, newInc, co
         actions: [
           {
             type: "Action.Execute",
-            // verb: "send_response",
             title: "I am safe",
             data: {
               info: "i_am_safe",
-              // inc: incObj,
               companyData: companyData,
             },
           },
           {
             type: "Action.Execute",
-            // verb: "send_response",
             title: "I need assistance",
             data: {
               info: "need_assistance",
-              // inc: incObj,
               companyData: companyData,
             },
           },
@@ -600,7 +768,7 @@ const saveRecurrInc = async (context, action, companyData) => {
 
   const startDate = new Date(action.data.startDate);
   preTextMsg += `starting from ${formatedDate("mm/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
-  var guidance = action.data.recGuidance ? action.data.recGuidance : "No details available"
+  var guidance = action.data.guidance ? action.data.guidance : "No details available"
 
   const card = getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident", guidance);
 
@@ -610,7 +778,7 @@ const saveRecurrInc = async (context, action, companyData) => {
 };
 
 const sendDeleteIncCard = async (context, user, companyData) => {
-  // console.log("delete incident called", companyData, user);
+  console.log("delete incident called", companyData, user);
   try {
     const allIncidentData = await incidentService.getAllInc(companyData.teamId);
 
@@ -679,7 +847,7 @@ const sendDeleteIncCard = async (context, user, companyData) => {
 };
 
 const deleteInc = async (context, action) => {
-  // console.log({ action, companyData });
+  console.log({ action, companyData });
   const incidentSelectedVal = action.data.incidentSelectedVal;
   const IncidentName = await incidentService.deleteInc(incidentSelectedVal);
 };
@@ -755,7 +923,7 @@ const viewAllInc = async (context, companyData) => {
 
 const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
   const inc = await incidentService.getInc(incidentId, runAt);
-  //console.log("inc in viewIncResult =>", inc);
+  console.log("inc in viewIncResult =>", inc);
 
   let result = {
     eventName: inc.incTitle,
@@ -797,7 +965,7 @@ const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
   let membersNotRespondedStr = result.membersNotResponded.join(", ");
   let membersSafeStr = result.membersSafe.join(", ");
 
-  // console.log("membersNotRespondedStr", membersNotRespondedStr);
+  console.log("membersNotRespondedStr", membersNotRespondedStr);
 
   const card = {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -899,7 +1067,7 @@ const viewSelectedIncResult = async (incidentId, context, companyData) => {
 }
 
 const viewIncResult = async (incidentId, context, companyData, incData, runAt = null) => {
-  //console.log("viewIncResult called", incidentId);
+  console.log("viewIncResult called", incidentId);
   if (incidentId === undefined) {
     await context.sendActivity(
       MessageFactory.text(`👋 Hello!! Please select an Incident.`)
@@ -928,7 +1096,6 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
     activityId = activity.id;
   }
   return Promise.resolve(activityId);
-  //console.log(activity.id);
 };
 
 const getSaftyCheckCard = (incTitle, incObj, companyData, incGuidance) => {
@@ -1016,7 +1183,6 @@ const sendApproval = async (context) => {
   let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
   const incCreatedByUserObj = allMembers.find((m) => m.id === incCreatedBy);
-  // console.log("incCreatedByUserObj >> ", incCreatedByUserObj);
 
   allMembers = allMembers.map(
     (tm) =>
@@ -1070,7 +1236,6 @@ const sendApproval = async (context) => {
         });
       });
     });
-    //const resultCard = await viewIncResult(incId, context, companyData);
   }
   else if (action.data.incType == "recurringIncident") {
     const userTimeZone = context.activity.entities[0].timezone;
@@ -1193,7 +1358,6 @@ const sendContactUsForm = async (context, companyData) => {
         },
         {
           type: "Input.Text",
-          // label: "Email Address",
           placeholder: "Enter your Email",
           style: "email",
           id: "emailVal",
@@ -1210,7 +1374,6 @@ const sendContactUsForm = async (context, companyData) => {
         },
         {
           type: "Input.Text",
-          // label: "Comment/Question",
           placeholder: "Enter your comment or question",
           id: "feedbackVal",
           isMultiline: true,
@@ -1334,8 +1497,6 @@ const viewSettings = async (context, companyData) => {
       },
       {
         type: "Input.ChoiceSet",
-        // label:
-        //   "Select the users who should have the ability to create an incident (optional)",
         placeholder: "Select users",
         id: "selected_superusers",
         style: "filtered",

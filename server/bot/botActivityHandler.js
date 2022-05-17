@@ -318,9 +318,6 @@ class BotActivityHandler extends TeamsActivityHandler {
               acvtivityData.from.id
             );
             if (adminUserInfo) {
-              //console.log("adminUserInfo >> ", adminUserInfo);
-              // then save from.id as userid and from.aadObjectId as userObjectId
-              // and channelData.team.id as teamsId and save the data to database
               const companyDataObj = {
                 userId: adminUserInfo.id,
                 userTenantId: adminUserInfo.tenantId,
