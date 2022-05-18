@@ -228,6 +228,9 @@ class BotActivityHandler extends TeamsActivityHandler {
                 createdDate: new Date(Date.now()).toISOString(),
                 welcomeMessageSent: 1,
               };
+              const companyData = await getCompaniesData(
+                acvtivityData?.from?.aadObjectId
+              );
               if (
                 companyData.userId === undefined &&
                 (companyData.teamId === undefined || companyData.teamId?.length <= 0)
