@@ -8,7 +8,21 @@ const parseCompanyData = async (result) => {
   let parsedCompanyObj = {};
   // console.log("result >>", result);
   if (result.length > 0) {
-    let resultObj = result[0];
+    let resultObj;
+    if (result.length > 1) {
+      for (i = 0; i < result.length; i++) {
+        if (result[i].team_id != "") {
+          resultObj = result[i];
+        }
+        else {
+          resultObj = result[i];
+        }
+      }
+    }
+    else {
+      resultObj = result[0];
+    }
+
 
     // return empty array if value of super_users is ''
     let superUsers = resultObj.super_users
@@ -101,9 +115,12 @@ const getCompaniesData = async (
 
 const insertCompanyData = async (companyDataObj) => {
   try {
+    console.log("inside insertCompanyData start");
+
     let values = Object.keys(companyDataObj).map((key) => companyDataObj[key]);
     const res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
 
+    console.log("inside insertCompanyData end");
     if (res.length > 0) {
       let companyData = new Company(res[0]);
       return Promise.resolve(companyData);
@@ -117,7 +134,7 @@ const deleteCompanyData = async (userObjId, teamId) => {
   try {
     pool = await poolPromise;
     let query = `DELETE FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}';` +
-                  ` UPDATE MSTeamsIncidents SET IS_DELETED = 1 WHERE team_id = '${teamId}';`;
+      ` UPDATE MSTeamsIncidents SET IS_DELETED = 1 WHERE team_id = '${teamId}';`;
 
     await pool.request().query(query);
   } catch (err) {
