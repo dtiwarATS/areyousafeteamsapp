@@ -21,6 +21,7 @@ const {
   isAdminUser,
   getCompaniesDataBySuperUserId,
   updateCompanyData,
+  getInstallationData,
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
@@ -59,128 +60,134 @@ class BotActivityHandler extends TeamsActivityHandler {
       let isSuperUser = false;
       let isAdminOrSuperuser = false;
       const acvtivityData = context.activity;
-      await context.sendActivities([{ type: "typing" }]);
-      if (acvtivityData.conversation.conversationType === "channel") {
-        await this.hanldeChannelUserMsg(context);
-      } else if (acvtivityData.conversation.conversationType === "personal") {
-        let isInstalledInTeam = true;
-        let companyData = await getCompaniesData(
-          acvtivityData.from.aadObjectId
-        );
+      if (acvtivityData.text == "sendversionupdate") {
+        await bot.sendMsg(context);
+      }
+      else {
 
-        if (!companyData.teamId?.length) {
-          isInstalledInTeam = false;
-        }
-
-        const isAdmin = await isAdminUser(
-          acvtivityData.from.aadObjectId,
-          companyData?.teamId
-        );
-
-        if (isAdmin && isInstalledInTeam) {
-          await this.hanldeAdminOrSuperUserMsg(context, companyData);
-          await next();
-          return;
-        }
-
-        if (!isInstalledInTeam) {
-          companyData = await getCompaniesDataBySuperUserId(
-            acvtivityData.from.aadObjectId, true
-          );
-          if (companyData != null && companyData !== undefined && companyData.teamId?.length > 0) {
-            isSuperUser = true;
-            isInstalledInTeam = true;
-          }
-        }
-
-        if ((isAdmin || isSuperUser) && isInstalledInTeam) {
-          await this.hanldeAdminOrSuperUserMsg(context, companyData);
-          await next();
-          return;
-        }
-
-        if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
-          bot.sendIntroductionMessage(context, acvtivityData.from);
-          await next();
-          return;
-        } else {
-          await this.hanldeNonAdminUserMsg(context);
-        }
-
-
-
-
-
-        /*
-        let a = false;
-        let b = false;
-        let c = false;
-        let isInstalledInTeam = true;
-        // fetch  general channel id from db (ie same as team Id)
-        let companyData = await getCompaniesData(
-          acvtivityData.from.aadObjectId
-        );
-        if (!companyData.teamId?.length) {
-          isInstalledInTeam = false;
-        }
-        if (companyData.userId == undefined) {
-          a = true;
-          companyData = await getCompaniesDataBySuperUserId(
+        await context.sendActivities([{ type: "typing" }]);
+        if (acvtivityData.conversation.conversationType === "channel") {
+          await this.hanldeChannelUserMsg(context);
+        } else if (acvtivityData.conversation.conversationType === "personal") {
+          let isInstalledInTeam = true;
+          let companyData = await getCompaniesData(
             acvtivityData.from.aadObjectId
           );
-          if (companyData.userId == undefined) {
-            b = true;
-          }
-        }
-        if (!companyData.teamId?.length) {
-          isInstalledInTeam = false;
-        }
-        const isAdmin = await isAdminUser(
-          acvtivityData.from.aadObjectId,
-          companyData?.teamId
-        );
-        if (
-          (companyData.userId != undefined && companyData.teamId?.length > 0) ||
-          (isAdmin && isInstalledInTeam)
-        ) {
-          isSuperUser =
-            (companyData.superUsers &&
-              companyData.superUsers.some(
-                (su) => su === acvtivityData.from.aadObjectId
-              )) ||
-              isAdmin
-              ? true
-              : false;
 
-          // check if from.id matches user id stored in DB then proceed
-          if (acvtivityData.from.id === companyData.userId || isSuperUser) {
-            isAdminOrSuperuser = true;
+          if (!companyData.teamId?.length) {
+            isInstalledInTeam = false;
+          }
+
+          const isAdmin = await isAdminUser(
+            acvtivityData.from.aadObjectId,
+            companyData?.teamId
+          );
+
+          if (isAdmin && isInstalledInTeam) {
             await this.hanldeAdminOrSuperUserMsg(context, companyData);
+            await next();
+            return;
+          }
+
+          if (!isInstalledInTeam) {
+            companyData = await getCompaniesDataBySuperUserId(
+              acvtivityData.from.aadObjectId, true
+            );
+            if (companyData != null && companyData !== undefined && companyData.teamId?.length > 0) {
+              isSuperUser = true;
+              isInstalledInTeam = true;
+            }
+          }
+
+          if ((isAdmin || isSuperUser) && isInstalledInTeam) {
+            await this.hanldeAdminOrSuperUserMsg(context, companyData);
+            await next();
+            return;
+          }
+
+          if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
+            bot.sendIntroductionMessage(context, acvtivityData.from);
+            await next();
+            return;
           } else {
             await this.hanldeNonAdminUserMsg(context);
           }
-        } else if (a && b && !isAdmin) {
-          await this.hanldeNonAdminUserMsg(context);
-        } else {
+
+
+
+
+
+          /*
+          let a = false;
+          let b = false;
+          let c = false;
+          let isInstalledInTeam = true;
           // fetch  general channel id from db (ie same as team Id)
-          const companyData = await getCompaniesData(
+          let companyData = await getCompaniesData(
+            acvtivityData.from.aadObjectId
+          );
+          if (!companyData.teamId?.length) {
+            isInstalledInTeam = false;
+          }
+          if (companyData.userId == undefined) {
+            a = true;
+            companyData = await getCompaniesDataBySuperUserId(
+              acvtivityData.from.aadObjectId
+            );
+            if (companyData.userId == undefined) {
+              b = true;
+            }
+          }
+          if (!companyData.teamId?.length) {
+            isInstalledInTeam = false;
+          }
+          const isAdmin = await isAdminUser(
             acvtivityData.from.aadObjectId,
-            acvtivityData?.channelData?.tenant.id,
-            true
+            companyData?.teamId
           );
           if (
-            companyData.userId != undefined &&
-            companyData.teamId?.length > 0 && companyData.superUsers.includes(acvtivityData.from.aadObjectId)
+            (companyData.userId != undefined && companyData.teamId?.length > 0) ||
+            (isAdmin && isInstalledInTeam)
           ) {
+            isSuperUser =
+              (companyData.superUsers &&
+                companyData.superUsers.some(
+                  (su) => su === acvtivityData.from.aadObjectId
+                )) ||
+                isAdmin
+                ? true
+                : false;
+  
+            // check if from.id matches user id stored in DB then proceed
+            if (acvtivityData.from.id === companyData.userId || isSuperUser) {
+              isAdminOrSuperuser = true;
+              await this.hanldeAdminOrSuperUserMsg(context, companyData);
+            } else {
+              await this.hanldeNonAdminUserMsg(context);
+            }
+          } else if (a && b && !isAdmin) {
             await this.hanldeNonAdminUserMsg(context);
           } else {
-            bot.sendIntroductionMessage(context, acvtivityData.from);
+            // fetch  general channel id from db (ie same as team Id)
+            const companyData = await getCompaniesData(
+              acvtivityData.from.aadObjectId,
+              acvtivityData?.channelData?.tenant.id,
+              true
+            );
+            if (
+              companyData.userId != undefined &&
+              companyData.teamId?.length > 0 && companyData.superUsers.includes(acvtivityData.from.aadObjectId)
+            ) {
+              await this.hanldeNonAdminUserMsg(context);
+            } else {
+              bot.sendIntroductionMessage(context, acvtivityData.from);
+            }
           }
+          */
         }
-        */
-      }
 
-      await next();
+        await next();
+      }
     });
 
     this.onConversationUpdate(async (context, next) => {

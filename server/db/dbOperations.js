@@ -66,6 +66,22 @@ const isAdminUser = async (userObjId, teamId) => {
   }
 };
 
+const getInstallationData = async () => {
+  try {
+    selectQuery = `with distinct_email as( SELECT email, MIN(id) ID
+    FROM  MSTeamsInstallationDetails where email not like '%@M365x%' and  user_name!= 'MOD Administrator'
+    GROUP BY email  )
+    
+    select t.user_id 'id',t.user_name 'name',t.user_obj_id 'objectId',t.user_name 'givenName',t.email 'email',t.email 'userPrincipalName',t.user_tenant_id 'tenantId','user' 'userRole',t.user_obj_id 'aadObjectId' from distinct_email de left join  MSTeamsInstallationDetails t on t.id=de.id`; //If bot is added using 'Add Me', team Id is always blank. Hence removed 'team-id' from where condition
+
+    let res = await db.getDataFromDB(selectQuery);
+
+    return res;
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false) => {
   try {
     selectQuery = "";
@@ -190,4 +206,5 @@ module.exports = {
   updateCompanyData,
   isAdminUser,
   getCompaniesDataBySuperUserId,
+  getInstallationData,
 };

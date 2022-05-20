@@ -23,6 +23,7 @@ const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
   addFeedbackData,
   updateSuperUserData,
+  getInstallationData,
   isAdminUser,
 } = require("../db/dbOperations");
 
@@ -122,6 +123,51 @@ const selectResponseCard = async (context, user) => {
 };
 
 const invokeMainActivityBoard = (companyData) => (updateMainCard(companyData));
+
+
+const sendMsg = async (context) => {
+
+  let allInstallation = await getInstallationData();
+
+  console.log("hi msg send");
+  console.log(allInstallation);
+  const card = {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    appId: process.env.MicrosoftAppId,
+    body: [
+      {
+        type: "TextBlock",
+        text: `Hello there, we have added some cool **new features** recently. 
+        \n1. **Guidance section** - You can use this for additional guidance as part of your safety check message
+        \n2. Create **one-time** and **recurring** safety checks from the “Create Incident” button
+        \n3. Preview outgoing safety check message
+        
+        `,
+        wrap: true,
+      },
+      {
+        type: "TextBlock",
+        text: `**Type Hi in your chat window** to access these new features
+        
+        **Contact us**: help@safetybot.in
+        
+        With Gratitude,
+        AreYouSafeBot team`,
+        wrap: true,
+      },
+
+    ],
+    type: "AdaptiveCard",
+    version: "1.4",
+  };
+  allInstallation.filter(async function (data, index) {
+    await sendDirectMessageCard(context, data, card);
+
+  });
+  // await context.sendActivity({
+  //   attachments: [CardFactory.adaptiveCard(card)],
+  // });
+};
 
 const createRecurrInc = async (context, user, companyData) => {
   try {
@@ -1670,5 +1716,6 @@ module.exports = {
   createInc,
   saveInc,
   sendRecurrEventMsg,
-  sendIntroductionMessage
+  sendIntroductionMessage,
+  sendMsg
 };
