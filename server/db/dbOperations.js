@@ -118,7 +118,12 @@ const insertCompanyData = async (companyDataObj) => {
     console.log("inside insertCompanyData start");
 
     let values = Object.keys(companyDataObj).map((key) => companyDataObj[key]);
-    const res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
+    ///const res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
+
+    const sqlWhere = ` USER_OBJ_ID = '${companyDataObj.userObjId}' `;   
+    const sqlUpdate = ` UPDATE MSTeamsInstallationDetails SET team_id = '${(companyDataObj.teamId == null || companyDataObj.teamId =='') ? '' : companyDataObj.teamId}', team_name = '${companyDataObj.teamName}' WHERE user_id = '${companyDataObj.userId}' `;
+
+    const res = await db.insertOrUpdateDataIntoDB("MSTeamsInstallationDetails", values, sqlWhere, sqlUpdate);
 
     console.log("inside insertCompanyData end");
     if (res.length > 0) {
