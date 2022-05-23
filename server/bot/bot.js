@@ -149,9 +149,9 @@ const sendMsg = async (context) => {
         type: "TextBlock",
         text: `**Type Hi in your chat window** to access these new features
         
-        **Contact us**: help@safetybot.in
+        **Contact us**:  [help@safetybot.in](mailto:help@safetybot.in) 
         
-        With Gratitude,
+        With Gratitude,\n
         AreYouSafeBot team`,
         wrap: true,
       },
