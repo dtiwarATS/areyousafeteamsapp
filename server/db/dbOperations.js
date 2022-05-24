@@ -119,16 +119,22 @@ const insertCompanyData = async (companyDataObj) => {
 
     let values = Object.keys(companyDataObj).map((key) => companyDataObj[key]);
     ///const res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
-
-    const sqlWhere = ` USER_OBJ_ID = '${companyDataObj.userObjId}' `;   
-    const sqlUpdate = ` UPDATE MSTeamsInstallationDetails SET team_id = '${(companyDataObj.teamId == null || companyDataObj.teamId =='') ? '' : companyDataObj.teamId}', team_name = '${companyDataObj.teamName}' WHERE user_id = '${companyDataObj.userId}' `;
-
+    
+    const sqlWhere = ` USER_OBJ_ID = '${companyDataObj.userObjId}'  AND TEAM_ID IS NOT NULL AND TEAM_NAME IS NOT NULL`;   
+    const teamId = (companyDataObj.teamId == null || companyDataObj.teamId =='') ? '' : companyDataObj.teamId;
+    let sqlUpdate = ` UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', ` +
+                      `team_name = '${companyDataObj.teamName}' WHERE user_id = '${companyDataObj.userId}';  SELECT *, 'true' isUpdate FROM MSTeamsInstallationDetails WHERE USER_OBJ_ID = '${companyDataObj.userObjId}'; `;
+    if(companyDataObj.teamId == null || companyDataObj.teamId =='' || companyDataObj.teamName == null || companyDataObj.teamName ==''){
+      sqlUpdate = `SELECT *, 'true' isUpdate FROM MSTeamsInstallationDetails WHERE ${sqlWhere};`;
+    }
     const res = await db.insertOrUpdateDataIntoDB("MSTeamsInstallationDetails", values, sqlWhere, sqlUpdate);
 
     console.log("inside insertCompanyData end");
-    if (res.length > 0) {
+    if (res != null && res.length > 0) {
       let companyData = new Company(res[0]);
       return Promise.resolve(companyData);
+    }else{
+      return Promise.resolve(null);
     }
   } catch (err) {
     console.log(err);

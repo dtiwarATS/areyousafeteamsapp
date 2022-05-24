@@ -104,12 +104,11 @@ const insertOrUpdateDataIntoDB = async (tableName, values, sqlWhere, sqlUpdate) 
     const columns = getColumns(tableName);
     const columnsStr = columns.join(",");
 
-    const valuesStr = processValues(values);
-
+    const valuesStr = processValues(values);     
     let query = `IF ((SELECT COUNT(*) FROM MSTeamsInstallationDetails WHERE ${sqlWhere}) = 1) ` + 
-                ` BEGIN ${sqlUpdate}; SELECT *, 'true' isUpdate FROM ${tableName} WHERE ${sqlWhere}; END ` +
-                ' ELSE ' +
-                ` BEGIN insert into ${tableName}(${columnsStr}) values(${valuesStr}); SELECT * FROM ${tableName} WHERE id = SCOPE_IDENTITY(); END `;    
+    ` BEGIN ${sqlUpdate} END ` +
+    ' ELSE ' +
+    ` BEGIN insert into ${tableName}(${columnsStr}) values(${valuesStr}); SELECT * FROM ${tableName} WHERE id = SCOPE_IDENTITY(); END `; 
 
     console.log("insert or update query => ", query);
     const result = await pool.request().query(query);

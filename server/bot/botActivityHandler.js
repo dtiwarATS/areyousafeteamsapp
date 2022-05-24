@@ -186,12 +186,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     this.onConversationUpdate(async (context, next) => {
       let addedBot = false;
       const acvtivityData = context.activity;
-      const teamId = acvtivityData?.channelData?.team?.id;
-      //console.log({ teamId: acvtivityData?.channelData?.team?.id });
-      // fetch companyData and check if channelId matches team_id stored in DB then proceed
-      const companyData = await getCompaniesData(
-        acvtivityData?.from?.aadObjectId
-      );
+      const teamId = acvtivityData?.channelData?.team?.id;      
       if (
         acvtivityData &&
         acvtivityData?.channelData?.eventType === "teamMemberAdded"
@@ -228,32 +223,35 @@ class BotActivityHandler extends TeamsActivityHandler {
                 createdDate: new Date(Date.now()).toISOString(),
                 welcomeMessageSent: 1,
               };
-              const companyData = await getCompaniesData(
-                acvtivityData?.from?.aadObjectId
-              );
-              if (
-                companyData.userId === undefined &&
-                (companyData.teamId === undefined || companyData.teamId?.length <= 0)
-              ) {
-                const companyData = await insertCompanyData(companyDataObj);
-                this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);                                
-              } else {
-                await updateCompanyData(
-                  acvtivityData.from.id,
-                  teamId,
-                  acvtivityData.channelData.team.name
-                );
-                if (!companyData.welcomeMessageSent) {
-                  await sendDirectMessageCard(
-                    context,
-                    acvtivityData.from,
-                    bot.invokeMainActivityBoard(companyDataObj)
-                  );
-                }
-              }
+
+              const companyData = await insertCompanyData(companyDataObj);
+              this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
+
+              // const companyData = await getCompaniesData(
+              //   acvtivityData?.from?.aadObjectId
+              // );
+              // if (
+              //   companyData.userId === undefined &&
+              //   (companyData.teamId === undefined || companyData.teamId?.length <= 0)
+              // ) {
+              //   const companyData = await insertCompanyData(companyDataObj);
+              //   this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);                          
+              // } else {
+              //   await updateCompanyData(
+              //     acvtivityData.from.id,
+              //     teamId,
+              //     acvtivityData.channelData.team.name
+              //   );
+              //   if (!companyData.welcomeMessageSent) {
+              //     await sendDirectMessageCard(
+              //       context,
+              //       acvtivityData.from,
+              //       bot.invokeMainActivityBoard(companyDataObj)
+              //     );
+              //   }
+              // }
             }
           }
-
           //console.log("bot added >> ", addedBot);
         }
       }
@@ -578,11 +576,13 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
   async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData){    
-    let isUpdate = "false";
-    if(companyData != null && companyData.isUpdate != null){
-      isUpdate = companyData.isUpdate;
+    console.log({ "sendWelcomeMessage" : companyData});
+    if(companyData == null){
+      return;
     }
-    if(isUpdate == "false"){
+    let isUpdate = (companyData.isUpdate == "true");
+    
+    if(!isUpdate){
       const cards = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         type: "AdaptiveCard",
@@ -611,10 +611,15 @@ class BotActivityHandler extends TeamsActivityHandler {
       };
       await sendDirectMessageCard(context, acvtivityData.from, cards);
 
+      let teamName = "";
+      if(acvtivityData.channelData != null && acvtivityData.channelData.team != null && acvtivityData.channelData.team.name != null){
+        teamName = acvtivityData.channelData.team.name;
+      }
+
       await bot.sendInstallationEmail(
         adminUserInfo.email,
         adminUserInfo.name,
-        acvtivityData.channelData.team.name
+        teamName
       );
     }
   }
