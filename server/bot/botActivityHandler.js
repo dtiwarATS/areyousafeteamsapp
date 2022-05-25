@@ -186,12 +186,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     this.onConversationUpdate(async (context, next) => {
       let addedBot = false;
       const acvtivityData = context.activity;
-      const teamId = acvtivityData?.channelData?.team?.id;
-      //console.log({ teamId: acvtivityData?.channelData?.team?.id });
-      // fetch companyData and check if channelId matches team_id stored in DB then proceed
-      const companyData = await getCompaniesData(
-        acvtivityData?.from?.aadObjectId
-      );
+      const teamId = acvtivityData?.channelData?.team?.id;      
       if (
         acvtivityData &&
         acvtivityData?.channelData?.eventType === "teamMemberAdded"
@@ -228,69 +223,35 @@ class BotActivityHandler extends TeamsActivityHandler {
                 createdDate: new Date(Date.now()).toISOString(),
                 welcomeMessageSent: 1,
               };
-              const companyData = await getCompaniesData(
-                acvtivityData?.from?.aadObjectId
-              );
-              if (
-                companyData.userId === undefined &&
-                (companyData.teamId === undefined || companyData.teamId?.length <= 0)
-              ) {
-                const companyData = await insertCompanyData(companyDataObj);
-                // await context.sendActivity(
-                //   MessageFactory.text(`Hello!
-                // \r\nAre you safe allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-                // \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.`)
-                // );
-                const cards = {
-                  $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-                  type: "AdaptiveCard",
-                  version: "1.0",
-                  body: [
-                    {
-                      type: "TextBlock",
-                      text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-                      \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
-                      wrap: true,
-                    },
-                    {
-                      type: "TextBlock",
-                      text: "You do not need any other software or service to use this app.",
-                    },
-                    {
-                      type: "TextBlock",
-                      text: "Enter 'Hi' to start a conversation with the bot.",
-                    },
-                    {
-                      type: "TextBlock",
-                      text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
-                      wrap: true,
-                    },
-                  ],
-                };
-                await sendDirectMessageCard(context, acvtivityData.from, cards);
 
-                await bot.sendInstallationEmail(
-                  adminUserInfo.email,
-                  adminUserInfo.name,
-                  acvtivityData.channelData.team.name
-                );
-              } else {
-                await updateCompanyData(
-                  acvtivityData.from.id,
-                  teamId,
-                  acvtivityData.channelData.team.name
-                );
-                if (!companyData.welcomeMessageSent) {
-                  await sendDirectMessageCard(
-                    context,
-                    acvtivityData.from,
-                    bot.invokeMainActivityBoard(companyDataObj)
-                  );
-                }
-              }
+              const companyData = await insertCompanyData(companyDataObj);
+              this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
+
+              // const companyData = await getCompaniesData(
+              //   acvtivityData?.from?.aadObjectId
+              // );
+              // if (
+              //   companyData.userId === undefined &&
+              //   (companyData.teamId === undefined || companyData.teamId?.length <= 0)
+              // ) {
+              //   const companyData = await insertCompanyData(companyDataObj);
+              //   this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);                          
+              // } else {
+              //   await updateCompanyData(
+              //     acvtivityData.from.id,
+              //     teamId,
+              //     acvtivityData.channelData.team.name
+              //   );
+              //   if (!companyData.welcomeMessageSent) {
+              //     await sendDirectMessageCard(
+              //       context,
+              //       acvtivityData.from,
+              //       bot.invokeMainActivityBoard(companyDataObj)
+              //     );
+              //   }
+              // }
             }
           }
-
           //console.log("bot added >> ", addedBot);
         }
       }
@@ -334,39 +295,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 welcomeMessageSent: 1,
               };
               const companyData = await insertCompanyData(companyDataObj);
-              const cards = {
-                $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-                type: "AdaptiveCard",
-                version: "1.0",
-                body: [
-                  {
-                    type: "TextBlock",
-                    text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-                    \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
-                    wrap: true,
-                  },
-                  {
-                    type: "TextBlock",
-                    text: "You do not need any other software or service to use this app.",
-                  },
-                  {
-                    type: "TextBlock",
-                    text: "Enter 'Hi' to start a conversation with the bot.",
-                  },
-                  {
-                    type: "TextBlock",
-                    text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
-                    wrap: true,
-                  },
-                ],
-              };
-              await sendDirectMessageCard(context, acvtivityData.from, cards);
-
-              await bot.sendInstallationEmail(
-                adminUserInfo.email,
-                adminUserInfo.name,
-                ""
-              );
+              this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
               //console.log("Company data inserted into DB >> ", companyData);
             }
           }
@@ -644,6 +573,54 @@ class BotActivityHandler extends TeamsActivityHandler {
       );
     } catch (error) {
       console.log(error);
+    }
+  }
+  async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData){    
+    console.log({ "sendWelcomeMessage" : companyData});
+    if(companyData == null){
+      return;
+    }
+    let isUpdate = (companyData.isUpdate == "true");
+    
+    if(!isUpdate){
+      const cards = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        type: "AdaptiveCard",
+        version: "1.0",
+        body: [
+          {
+            type: "TextBlock",
+            text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+            \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
+            wrap: true,
+          },
+          {
+            type: "TextBlock",
+            text: "You do not need any other software or service to use this app.",
+          },
+          {
+            type: "TextBlock",
+            text: "Enter 'Hi' to start a conversation with the bot.",
+          },
+          {
+            type: "TextBlock",
+            text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+            wrap: true,
+          },
+        ],
+      };
+      await sendDirectMessageCard(context, acvtivityData.from, cards);
+
+      let teamName = "";
+      if(acvtivityData.channelData != null && acvtivityData.channelData.team != null && acvtivityData.channelData.team.name != null){
+        teamName = acvtivityData.channelData.team.name;
+      }
+
+      await bot.sendInstallationEmail(
+        adminUserInfo.email,
+        adminUserInfo.name,
+        teamName
+      );
     }
   }
 }
