@@ -11,6 +11,7 @@ class Company {
     created_date,
     super_users,
     welcomeMessageSent,
+    isUpdate
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -23,6 +24,7 @@ class Company {
     this.superUsers = super_users || [];
     this.createdDate = created_date || new Date(Date.now()).toISOString();
     this.welcomeMessageSent = welcomeMessageSent || false;
+    this.isUpdate = (isUpdate == null) ? "false" : isUpdate;
   }
 }
 
