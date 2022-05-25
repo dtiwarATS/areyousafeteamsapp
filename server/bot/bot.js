@@ -161,7 +161,12 @@ const sendMsg = async (context) => {
     version: "1.4",
   };
   allInstallation.filter(async function (data, index) {
-    await sendDirectMessageCard(context, data, card);
+    try {
+      await sendDirectMessageCard(context, data, card);
+    }
+    catch (error) {
+      console.log(error);
+    }
 
   });
   // await context.sendActivity({
