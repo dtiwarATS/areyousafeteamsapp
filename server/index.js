@@ -30,7 +30,7 @@ function initJob(){
  
   bree.start();
 } 
-initJob();
+//initJob();
 //======================= BREE JS END ========================
 
 const closeConnectionPool = async () => {

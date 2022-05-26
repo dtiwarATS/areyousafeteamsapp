@@ -338,14 +338,16 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
-      } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {     
-           
+      } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {
+        
         const { inc_title: incTitle } = context.activity?.value?.action?.data;
         const user = context.activity.from;
         const isDuplicateInc = await bot.verifyDuplicateInc(companyData.teamId, incTitle);
         if(isDuplicateInc){
           await bot.showDuplicateIncError(context, user, companyData);
-          return;
+          return {
+            status: StatusCodes.OK,
+          };
         }
 
         await context.sendActivities([{ type: "typing" }]);        
