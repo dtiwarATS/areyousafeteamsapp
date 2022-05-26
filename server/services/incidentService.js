@@ -360,6 +360,15 @@ const getLastRunAt = async (incId) => {
   return Promise.resolve(lastRunAt);
 }
 
+const verifyDuplicateInc = async(teamId, incTitle) => {
+  if(teamId != null && teamId != ''){
+    const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle}' AND TEAM_ID = '${teamId}'`;
+    const result = await db.getDataFromDB(sqlLastRunAt);
+    return (result != null && result.length > 0);
+  }
+  return false;
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -373,5 +382,6 @@ module.exports = {
   getCompanyData,
   addMemberResponseDetails,
   getLastRunAt,
-  getIncGuidance
+  getIncGuidance,
+  verifyDuplicateInc
 };
