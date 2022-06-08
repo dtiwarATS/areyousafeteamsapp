@@ -102,8 +102,7 @@ const getIncGuidance = async (incId) => {
   }
 };
 
-
-const saveInc = async (actionData, companyData) => {
+const saveInc = async (actionData, companyData, memberChoises) => {
   // const { inc_title: title, inc_created_by: createdBy } = actionData;
   let newInc = {};
   if (actionData.guidance != undefined)
@@ -124,7 +123,7 @@ const saveInc = async (actionData, companyData) => {
     endDate: "",
     endTime: "",
     incCreatedByName: actionData.inc_created_by.name,
-    guidance: actionData.guidance ? actionData.guidance : '',
+    guidance: actionData.guidance ? actionData.guidance : ''
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
@@ -133,6 +132,8 @@ const saveInc = async (actionData, companyData) => {
 
   if (res.length > 0) {
     newInc = new Incident(res[0]);
+    await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
+    incObj.responseSelectedUsers = actionData.selected_members_response;
   }
   return Promise.resolve(newInc);
 };
@@ -369,6 +370,48 @@ const verifyDuplicateInc = async(teamId, incTitle) => {
   return false;
 }
 
+const saveIncResponseSelectedUsers = async(incId, userIds, memberChoises) => {
+  try {    
+    if(incId != null && userIds.split(',').length > 0){
+      let query = "";
+      const userIdsArr = userIds.split(',');
+      for(let u = 0; u < userIdsArr.length; u++){
+        const userId = userIdsArr[u];
+        const usrObj = memberChoises.find((m) => m.value == userId);
+        query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${usrObj.title}');`;
+      }
+      console.log("insert query => ", query);
+      await pool.request().query(query);
+    }
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
+const saveIncResponseUserTS = async(query) => {
+  try {
+    if(query != null && query != ""){
+      console.log("insert query => ", query);
+      await pool.request().query(query);
+    }    
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
+const getIncResponseSelectedUsers = async (incId) => {
+  try{
+    const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId};`;
+    const result = await db.getDataFromDB(sql);
+    return Promise.resolve(result);
+  }
+  catch(err){
+    console.log(err);
+  }
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -383,5 +426,8 @@ module.exports = {
   addMemberResponseDetails,
   getLastRunAt,
   getIncGuidance,
-  verifyDuplicateInc
+  verifyDuplicateInc,
+  saveIncResponseSelectedUsers,
+  saveIncResponseUserTS,
+  getIncResponseSelectedUsers
 };

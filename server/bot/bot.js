@@ -124,7 +124,6 @@ const selectResponseCard = async (context, user) => {
 
 const invokeMainActivityBoard = (companyData) => (updateMainCard(companyData));
 
-
 const sendMsg = async (context) => {
 
   let allInstallation = await getInstallationData();
@@ -417,7 +416,6 @@ const getNewIncCard = async (context, user, companyData, errorMessage = "") => {
       },
       {
         type: "Input.Text",
-        // label: "Name of Incident",
         isRequired: true,
         errorMessage: "Please complete this required field.",
         placeholder: "Enter the Incident Name",
@@ -429,7 +427,7 @@ const getNewIncCard = async (context, user, companyData, errorMessage = "") => {
         "wrap": true,
         "isVisible": !(errorMessage == null || errorMessage == ""),
         "color": "Warning"
-    },
+      },
       {
         type: "TextBlock",
         text: "Guidance",
@@ -473,6 +471,29 @@ const getNewIncCard = async (context, user, companyData, errorMessage = "") => {
               wrap: true,
               text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
             },
+            {
+              type: "TextBlock",
+              wrap: true,
+              text: "Select users where the Incident response should be sent (optional)",
+              weight: "bolder",
+              separator: true,
+            },
+            {
+              type: "Input.ChoiceSet",
+              weight: "bolder",
+              id: "selected_members_response",
+              style: "filtered",
+              isMultiSelect: true,
+              placeholder: "Select users",
+              choices: memberChoises,
+            },
+            {
+              type: "TextBlock",
+              size: "small",
+              isSubtle: true,
+              wrap: true,
+              text: `⚠️ Safety check responses will be sent to these members`,
+            }
           ],
           "actions": [
             {
@@ -493,6 +514,7 @@ const getNewIncCard = async (context, user, companyData, errorMessage = "") => {
                 info: "save",
                 inc_created_by: user,
                 companyData: companyData,
+                memberChoises: memberChoises
               },
             },
           ]
@@ -617,6 +639,29 @@ const getNewIncCard = async (context, user, companyData, errorMessage = "") => {
               wrap: true,
               text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
             },
+            {
+              type: "TextBlock",
+              wrap: true,
+              text: "Select users where the Incident response should be sent (optional)",
+              weight: "bolder",
+              separator: true,
+            },
+            {
+              type: "Input.ChoiceSet",
+              weight: "bolder",
+              id: "selected_members_response",
+              style: "filtered",
+              isMultiSelect: true,
+              placeholder: "Select users",
+              choices: memberChoises,
+            },
+            {
+              type: "TextBlock",
+              size: "small",
+              isSubtle: true,
+              wrap: true,
+              text: `⚠️ Safety check responses will be sent to these members`,
+            }
           ],
           "actions": [
             {
@@ -778,7 +823,7 @@ const showDuplicateIncError = async (context,user, companyData) => {
   await context.updateActivity(message);
 };
 const saveInc = async (context, action, companyData, user) => {
-  const { inc_title: incTitle, inc_created_by } = action.data;
+  const { inc_title: incTitle, inc_created_by, memberChoises } = action.data;
   // const isDuplicateInc = await verifyDuplicateInc(companyData.teamId, incTitle);
   // if(isDuplicateInc){
   //   await showDuplicateIncError(context, user, companyData);
@@ -798,7 +843,7 @@ const saveInc = async (context, action, companyData, user) => {
       })
     );
   console.log({ inc_created_by, action });
-  const newInc = await incidentService.saveInc(action.data, companyData);
+  const newInc = await incidentService.saveInc(action.data, companyData, memberChoises);
 
   let sentApprovalTo = "";
   if (action.data.selected_members) {
@@ -1004,7 +1049,6 @@ const viewAllInc = async (context, companyData) => {
 
 const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
   const inc = await incidentService.getInc(incidentId, runAt);
-  console.log("inc in viewIncResult =>", inc);
 
   let result = {
     eventName: inc.incTitle,
@@ -1147,7 +1191,7 @@ const viewSelectedIncResult = async (incidentId, context, companyData) => {
   return Promise.resolve(activityId);
 }
 
-const viewIncResult = async (incidentId, context, companyData, incData, runAt = null) => {
+const viewIncResult = async (incidentId, context, companyData, incData, runAt = null, dashboardCard = null) => {
   console.log("viewIncResult called", incidentId);
   if (incidentId === undefined) {
     await context.sendActivity(
@@ -1156,7 +1200,9 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
     return Promise.resolve(true);
   }
 
-  const dashboardCard = await getOneTimeDashboardCard(incidentId, runAt);
+  if(dashboardCard == null){
+    dashboardCard = await getOneTimeDashboardCard(incidentId, runAt);
+  }  
 
   let activityId = null;
   if (incData != null && incData.activityId != null && incData.conversationId != null) {
@@ -1175,7 +1221,7 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
       attachments: [CardFactory.adaptiveCard(dashboardCard)],
     });
     activityId = activity.id;
-  }
+  }  
   return Promise.resolve(activityId);
 };
 
@@ -1256,10 +1302,54 @@ const getSaftyCheckCard = (incTitle, incObj, companyData, incGuidance) => {
   };
 }
 
+const sendCardToIndividualUser = async(context, userId, approvalCard) => {
+  let activityId = null;
+  let conversationId = null;
+  var ref = TurnContext.getConversationReference(context.activity);
+  ref.user = userId;
+  await context.adapter.createConversation(ref, async (t1) => {
+    const ref2 = TurnContext.getConversationReference(t1.activity);
+    await t1.adapter.continueConversation(ref2, async (t2) => {
+      const activity =  await t2.sendActivity({
+        attachments: [CardFactory.adaptiveCard(approvalCard)],
+      });
+      activityId = activity.id;
+    });
+  });
+  return activityId;
+}
+
+const sendInitialDashboardToSelectedMembers = async(context, incId, dashboardCard, incType) => {
+  try{
+    let sql = "";
+    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsers(incId);
+    if(incRespSelectedUsers != null && incRespSelectedUsers.length > 0){
+      incRespSelectedUsers.map(async (u) => {
+        let member = [{
+          id: u.user_id,
+          name: u.user_name
+        }];
+        const result = await sendProactiveMessaageToUser(member, dashboardCard);
+        if(result.activityId != null){
+          if(incType == "onetime"){
+            sql += `INSERT INTO MSTeamsIncResponseUserTS('incResponseSelectedUserId', 'runAt', 'conversationId', 'activityId') VALUES(${u.id}, '', '${result.conversationId}', '${result.activityId}');`;
+          }
+        }
+      });
+    }
+    if(sql != ""){
+      await incidentService.saveIncResponseUserTS(sql);
+    }
+  }
+  catch(err){
+    console.log(err);
+  }  
+}
+
 const sendApproval = async (context) => {
   const action = context.activity.value.action;
   const { incident, companyData, sentApprovalTo } = action.data;
-  const { incId, incTitle, selectedMembers, incCreatedBy } = incident;
+  const { incId, incTitle, selectedMembers, incCreatedBy, responseSelectedUsers } = incident;
 
   let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
@@ -1288,8 +1378,9 @@ const sendApproval = async (context) => {
   );
   const incGuidance = await incidentService.getIncGuidance(incId);
   if (action.data.incType == "onetime") {
+    let dashboardCard = await getOneTimeDashboardCard(incId, null);
 
-    const activityId = await viewIncResult(incId, context, companyData, incident);
+    const activityId = await viewIncResult(incId, context, companyData, incident, null, dashboardCard);
     const conversationId = context.activity.conversation.id;
 
     // send approval msg to all users
@@ -1304,18 +1395,8 @@ const sendApproval = async (context) => {
       var guidance = incGuidance ? incGuidance : "No details available"
       const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData, guidance);
 
-      var ref = TurnContext.getConversationReference(context.activity);
-
-      ref.user = teamMember;
-
-      await context.adapter.createConversation(ref, async (t1) => {
-        const ref2 = TurnContext.getConversationReference(t1.activity);
-        await t1.adapter.continueConversation(ref2, async (t2) => {
-          await t2.sendActivity({
-            attachments: [CardFactory.adaptiveCard(approvalCard)],
-          });
-        });
-      });
+      await sendCardToIndividualUser(context, teamMember, approvalCard);
+      await sendInitialDashboardToSelectedMembers(context, incId, dashboardCard, "onetime");
     });
   }
   else if (action.data.incType == "recurringIncident") {
