@@ -1320,19 +1320,62 @@ const sendCardToIndividualUser = async(context, userId, approvalCard) => {
   return activityId;
 }
 
-const updateIncResponseOfSelectedMembers = async(incId, dashboardCard, runAt) => {
-  const incResponseUserTSData = await incidentService.getIncResponseUserTS(incId, runAt);
-  if(incResponseUserTSData != null && incResponseUserTSData.length > 0){
-    const activityId = incResponseUserTSData[0].activityId;
-    const conversationId = incResponseUserTSData[0].conversationId;
-    const dashboardAdaptiveCard = CardFactory.adaptiveCard(dashboardCard);
-    dashboardAdaptiveCard.id = activityId;
-
-    const activity = MessageFactory.attachment(dashboardAdaptiveCard);
-    activity.id = activityId;
-
-    updateMessage(activityId, activity, conversationId);
+const sendCommentToSelectedMembers = async (incId, context, approvalCardResponse) => {
+  try{
+    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+    if(incRespSelectedUsers != null && incRespSelectedUsers.length > 0){
+      for(let i = 0; i< incRespSelectedUsers.length; i++){
+        let memberArr = [{
+          id: incRespSelectedUsers[i].user_id,
+          name: incRespSelectedUsers[i].user_name
+        }];
+        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse);
+      }
+    }    
   }
+  catch(err){
+    console.log(err);
+  }
+}
+
+const sendApprovalResponseToSelectedMembers = async (incId, context, approvalCardResponse) => { //If user click on Need assistance, then send message to selected users 
+  try{
+    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+    if(incRespSelectedUsers != null && incRespSelectedUsers.length > 0){
+      for(let i = 0; i< incRespSelectedUsers.length; i++){
+        let memberArr = [{
+          id: incRespSelectedUsers[i].user_id,
+          name: incRespSelectedUsers[i].user_name
+        }];
+        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse);
+      }
+    }    
+  }
+  catch(err){
+    console.log(err);
+  }
+}
+
+const updateIncResponseOfSelectedMembers = async(incId, runAt, dashboardCard) => { 
+  try{
+    const incResponseUserTSData = await incidentService.getIncResponseUserTS(incId, runAt); 
+    if(incResponseUserTSData != null && incResponseUserTSData.length > 0){
+      for(let i = 0; i < incResponseUserTSData.length; i++){
+        const activityId = incResponseUserTSData[i].activityId;
+        const conversationId = incResponseUserTSData[i].conversationId;
+        const dashboardAdaptiveCard = CardFactory.adaptiveCard(dashboardCard);
+        dashboardAdaptiveCard.id = activityId;
+  
+        const activity = MessageFactory.attachment(dashboardAdaptiveCard);
+        activity.id = activityId;
+  
+        updateMessage(activityId, activity, conversationId);
+      }    
+    }
+  }
+  catch(err){
+    console.log(err);
+  }  
 }
 
 const sendIncResponseToSelectedMembers = async(incId, dashboardCard, runAt) => {
@@ -1434,8 +1477,7 @@ const sendApprovalResponse = async (user, context) => {
     const { info: response, inc, companyData } = action.data;
     const { incId, incTitle, incCreatedBy } = inc;
 
-    const runAt = (inc.runAt != null) ? inc.runAt : null;
-
+    const runAt = (inc.runAt != null) ? inc.runAt : null;    
     if (response === "i_am_safe") {
       await incidentService.updateIncResponseData(incId, user.id, 1, inc);
     } else {
@@ -1464,11 +1506,12 @@ const sendApprovalResponse = async (user, context) => {
       };
       //send new msg just to emulate msg is being updated
       await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      await sendApprovalResponseToSelectedMembers(incId, context,approvalCardResponse);
     }
 
     const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
     const activityId = await viewIncResult(incId, context, companyData, inc, runAt, dashboardCard);
-    await updateIncResponseOfSelectedMembers(incId, dashboardCard, runAt);
+    await updateIncResponseOfSelectedMembers(incId, runAt, dashboardCard);
   } catch (error) {
     console.log(error);
   }
@@ -1510,6 +1553,7 @@ const submitComment = async (context, user, companyData) => {
       };
       //send new msg just to emulate msg is being updated
       await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);      
       await incidentService.updateIncResponseComment(incId, userId, commentVal, inc);
     }
   } catch (error) {
