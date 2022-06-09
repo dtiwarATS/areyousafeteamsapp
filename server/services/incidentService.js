@@ -406,7 +406,7 @@ const saveIncResponseUserTS = async(respUserTSquery) => {
 
 const getIncResponseSelectedUsersList = async (incId) => {
   try{    
-    const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId};`;
+    const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});`;
     const result = await db.getDataFromDB(sql);
     return Promise.resolve(result);
   }
