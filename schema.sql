@@ -176,3 +176,48 @@ BEGIN
 ALTER TABLE MSTeamsIncidents ADD IS_DELETED BIT
 END
 GO
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsIncResponseSelectedUsers')
+BEGIN
+	CREATE TABLE [dbo].[MSTeamsIncResponseSelectedUsers](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[inc_id] [int] NOT NULL,
+	[user_id] [varchar](256) NOT NULL,
+	[user_name] [varchar](100) NULL
+	PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+	) ON [PRIMARY] 
+
+	ALTER TABLE DBO.MSTeamsIncResponseSelectedUsers  WITH CHECK ADD  CONSTRAINT FK_IncResponseSelectedUsers_Incidents FOREIGN KEY([inc_id])
+	REFERENCES DBO.MSTeamsIncidents (ID) ON DELETE CASCADE
+	ALTER TABLE DBO.MSTeamsIncResponseSelectedUsers CHECK CONSTRAINT FK_IncResponseSelectedUsers_Incidents
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsIncResponseUserTS')
+BEGIN
+	CREATE TABLE [dbo].[MSTeamsIncResponseUserTS](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[incResponseSelectedUserId] [int] NOT NULL,
+	[runAt] [varchar](100) NULL,
+	[conversationId] [varchar](512) NULL,
+	[activityId] [varchar](512) NULL,
+	PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+	) ON [PRIMARY] 
+
+	ALTER TABLE DBO.MSTeamsIncResponseUserTS  WITH CHECK ADD  CONSTRAINT FK_MSTeamsIncResponseUserTS_MSTeamsIncResponseSelectedUsers FOREIGN KEY([incResponseSelectedUserId])
+	REFERENCES DBO.MSTeamsIncResponseSelectedUsers (ID) ON DELETE CASCADE
+	ALTER TABLE DBO.MSTeamsIncResponseUserTS CHECK CONSTRAINT FK_MSTeamsIncResponseUserTS_MSTeamsIncResponseSelectedUsers
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='response_selected_users' AND TABLE_NAME='MSTeamsIncidents')
+BEGIN
+ALTER TABLE MSTeamsIncidents ADD response_selected_users [varchar](max)
+END
+GO
