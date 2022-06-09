@@ -1369,7 +1369,7 @@ const updateIncResponseOfSelectedMembers = async(incId, runAt, dashboardCard) =>
         const activity = MessageFactory.attachment(dashboardAdaptiveCard);
         activity.id = activityId;
   
-        updateMessage(activityId, activity, conversationId);
+        await updateMessage(activityId, activity, conversationId);
       }    
     }
   }

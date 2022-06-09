@@ -205,7 +205,7 @@ const deleteInc = async (incId) => {
   try {
     let incName;
     pool = await poolPromise;
-    let query = `DELETE FROM MSTeamsMemberResponses WHERE inc_id = ${incId};
+    const query = `DELETE FROM MSTeamsMemberResponses WHERE inc_id = ${incId};
     DELETE FROM MSTeamsIncidents OUTPUT Deleted.inc_name WHERE id = ${incId}`;
 
     // console.log("delete query => ", query);
@@ -222,11 +222,12 @@ const deleteInc = async (incId) => {
 
 const addMemberResponseDetails = async (respDetailsObj) => {
   try {
-    let query = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId) 
+    console.log("test addMemberResponseDetails");
+    const recurrRespQuery = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId) 
           values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', 1, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}')`;
 
-    console.log("insert query => ", query);
-    await pool.request().query(query);
+    console.log("insert query => ", recurrRespQuery);
+    await pool.request().query(recurrRespQuery);
   }
   catch (err) {
     console.log();
@@ -240,7 +241,7 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
   // TODO: use bulk insert instead inseting data one by one
   for (let i = 0; i < allMembers.length; i++) {
     let member = allMembers[i];
-    let query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
+    const query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
         values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
 
     console.log("insert query => ", query);
@@ -265,20 +266,19 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
 
 const updateIncResponseData = async (incidentId, userId, responseValue, incData) => {
   pool = await poolPromise;
-
-  let query = null;
+  let updateRespRecurrQuery = null;
   if (incData != null && incData.incType == "recurringIncident" && incData.runAt != null) {
-    query = `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue} WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue} WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   }
   else {
-    query = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue} WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue} WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
-  if (query != null) {
-    console.log("update query >> ", query);
-    await pool.request().query(query);
+  if (updateRespRecurrQuery != null) {
+    console.log("update query >> ", updateRespRecurrQuery);
+    await pool.request().query(updateRespRecurrQuery);
   }
 
   return Promise.resolve();
@@ -295,6 +295,7 @@ const updateIncResponseComment = async (
 
   let query = null;
   if (incData != null && incData.incType == "recurringIncident" && incData.runAt != null) {
+    console.log("test updateIncResponseComment");
     query = `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' ) ` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
@@ -391,11 +392,11 @@ const saveIncResponseSelectedUsers = async(incId, userIds, memberChoises) => {
   }
 }
 
-const saveIncResponseUserTS = async(query) => {
+const saveIncResponseUserTS = async(respUserTSquery) => {
   try {
-    if(query != null && query != ""){
-      console.log("insert query => ", query);
-      await pool.request().query(query);
+    if(respUserTSquery != null && respUserTSquery != ""){
+      console.log("insert query => ", respUserTSquery);
+      await pool.request().query(respUserTSquery);
     }    
   }
   catch (err) {
