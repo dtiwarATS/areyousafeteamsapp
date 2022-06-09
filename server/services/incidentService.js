@@ -138,7 +138,7 @@ const saveInc = async (actionData, companyData, memberChoises) => {
   return Promise.resolve(newInc);
 };
 
-const saveRecurrInc = async (actionData, companyData) => {
+const saveRecurrInc = async (actionData, companyData, memberChoises) => {
   let newInc = {};
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
@@ -166,6 +166,8 @@ const saveRecurrInc = async (actionData, companyData) => {
 
   if (res.length > 0) {
     newInc = new Incident(res[0]);
+    await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
+    incObj.responseSelectedUsers = actionData.selected_members_response;
   }
   return Promise.resolve(newInc);
 };
@@ -401,9 +403,27 @@ const saveIncResponseUserTS = async(query) => {
   }
 }
 
-const getIncResponseSelectedUsers = async (incId) => {
+const getIncResponseSelectedUsersList = async (incId) => {
   try{
+    
     const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId};`;
+    const result = await db.getDataFromDB(sql);
+    return Promise.resolve(result);
+  }
+  catch(err){
+    console.log(err);
+  }
+}
+
+const getIncResponseUserTS = async(incId, runAt) => {
+  try{
+    let runAtFilter = '';
+    if(runAt != null){
+      runAtFilter = ` and convert(datetime, a.runAt) = convert(datetime, '${runAt}' )`;
+    }
+    const sql = `SELECT A.conversationId, A.activityId FROM MSTEAMSINCRESPONSEUSERTS A` +
+    ` LEFT JOIN MSTEAMSINCRESPONSESELECTEDUSERS B ON A.INCRESPONSESELECTEDUSERID = B.ID` +
+    ` WHERE B.INC_ID = ${incId} ${runAtFilter};`;
     const result = await db.getDataFromDB(sql);
     return Promise.resolve(result);
   }
@@ -429,5 +449,6 @@ module.exports = {
   verifyDuplicateInc,
   saveIncResponseSelectedUsers,
   saveIncResponseUserTS,
-  getIncResponseSelectedUsers
+  getIncResponseSelectedUsersList,
+  getIncResponseUserTS
 };

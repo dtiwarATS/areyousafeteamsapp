@@ -390,7 +390,7 @@ const getNewIncCard = async (context, user, companyData, errorMessage = "") => {
 
   const memberChoises = allMembers.map((m) => ({
     title: m.name,
-    value: m.aadObjectId,
+    value: m.id,
   }));
   const eventDays = [
     { title: "Sun", value: "0" }, { title: "Mon", value: "1" }, { title: "Tue", value: "2" }, { title: "Wed", value: "3" },
@@ -682,6 +682,7 @@ const getNewIncCard = async (context, user, companyData, errorMessage = "") => {
                 info: "save",
                 inc_created_by: user,
                 companyData: companyData,
+                memberChoises: memberChoises
               },
             },
           ]
@@ -829,19 +830,19 @@ const saveInc = async (context, action, companyData, user) => {
   //   await showDuplicateIncError(context, user, companyData);
   //   return;
   // }
-  const allMembers = await (
-    await TeamsInfo.getTeamMembers(context, companyData.teamId)
-  )
-    .filter((tm) => tm.aadObjectId)
-    .map(
-      (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
-    );
+  // const allMembers = await (
+  //   await TeamsInfo.getTeamMembers(context, companyData.teamId)
+  // )
+  //   .filter((tm) => tm.aadObjectId)
+  //   .map(
+  //     (tm) =>
+  //     (tm = {
+  //       ...tm,
+  //       messageDelivered: "na",
+  //       response: "na",
+  //       responseValue: "na",
+  //     })
+  //   );
   console.log({ inc_created_by, action });
   const newInc = await incidentService.saveInc(action.data, companyData, memberChoises);
 
@@ -862,27 +863,27 @@ const saveInc = async (context, action, companyData, user) => {
 };
 
 const saveRecurrInc = async (context, action, companyData) => {
-  const { inc_title: incTitle, inc_created_by } = action.data;
+  const { inc_title: incTitle, inc_created_by, memberChoises} = action.data;
   // const isDuplicateInc = await verifyDuplicateInc(companyData.teamId, incTitle);
   // if(isDuplicateInc){
   //   await showDuplicateIncError(context, user, companyData);
   //   return;
   // }
-  const allMembers = await (
-    await TeamsInfo.getTeamMembers(context, companyData.teamId)
-  )
-    .filter((tm) => tm.aadObjectId)
-    .map(
-      (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
-    );  
+  // const allMembers = await (
+  //   await TeamsInfo.getTeamMembers(context, companyData.teamId)
+  // )
+  //   .filter((tm) => tm.aadObjectId)
+  //   .map(
+  //     (tm) =>
+  //     (tm = {
+  //       ...tm,
+  //       messageDelivered: "na",
+  //       response: "na",
+  //       responseValue: "na",
+  //     })
+  //   );  
   console.log({ inc_created_by, action });
-  const newInc = await incidentService.saveRecurrInc(action.data, companyData);
+  const newInc = await incidentService.saveRecurrInc(action.data, companyData, memberChoises);
 
   let sentApprovalTo = "";
   if (action.data.selected_members) {
@@ -1319,23 +1320,39 @@ const sendCardToIndividualUser = async(context, userId, approvalCard) => {
   return activityId;
 }
 
-const sendInitialDashboardToSelectedMembers = async(context, incId, dashboardCard, incType) => {
+const updateIncResponseOfSelectedMembers = async(incId, dashboardCard, runAt) => {
+  const incResponseUserTSData = await incidentService.getIncResponseUserTS(incId, runAt);
+  if(incResponseUserTSData != null && incResponseUserTSData.length > 0){
+    const activityId = incResponseUserTSData[0].activityId;
+    const conversationId = incResponseUserTSData[0].conversationId;
+    const dashboardAdaptiveCard = CardFactory.adaptiveCard(dashboardCard);
+    dashboardAdaptiveCard.id = activityId;
+
+    const activity = MessageFactory.attachment(dashboardAdaptiveCard);
+    activity.id = activityId;
+
+    updateMessage(activityId, activity, conversationId);
+  }
+}
+
+const sendIncResponseToSelectedMembers = async(incId, dashboardCard, runAt) => {
   try{
     let sql = "";
-    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsers(incId);
+    runAt = (runAt == null) ? '' : runAt;
+    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
     if(incRespSelectedUsers != null && incRespSelectedUsers.length > 0){
-      incRespSelectedUsers.map(async (u) => {
-        let member = [{
-          id: u.user_id,
-          name: u.user_name
-        }];
-        const result = await sendProactiveMessaageToUser(member, dashboardCard);
-        if(result.activityId != null){
-          if(incType == "onetime"){
-            sql += `INSERT INTO MSTeamsIncResponseUserTS('incResponseSelectedUserId', 'runAt', 'conversationId', 'activityId') VALUES(${u.id}, '', '${result.conversationId}', '${result.activityId}');`;
-          }
-        }
-      });
+      await Promise.all(
+        incRespSelectedUsers.map(async (u) => {
+          let memberArr = [{
+            id: u.user_id,
+            name: u.user_name
+          }];
+          const result = await sendProactiveMessaageToUser(memberArr, dashboardCard);
+          if(result.activityId != null){
+            sql += `INSERT INTO MSTeamsIncResponseUserTS(incResponseSelectedUserId, runAt, conversationId, activityId) VALUES(${u.id}, '${runAt}', '${result.conversationId}', '${result.activityId}');`;
+          }     
+        })
+      )
     }
     if(sql != ""){
       await incidentService.saveIncResponseUserTS(sql);
@@ -1355,7 +1372,7 @@ const sendApproval = async (context) => {
 
   const incCreatedByUserObj = allMembers.find((m) => m.id === incCreatedBy);
 
-  allMembers = allMembers.map(
+  let allMembersArr = allMembers.map(
     (tm) =>
     (tm = {
       ...tm,
@@ -1366,14 +1383,14 @@ const sendApproval = async (context) => {
   );
 
   if (selectedMembers.length > 0) {
-    allMembers = allMembers.filter((m) =>
-      selectedMembers?.includes(m.aadObjectId)
+    allMembersArr = allMembersArr.filter((m) =>
+      selectedMembers?.includes(m.id)
     );
   }
 
   const incWithAddedMembers = await incidentService.addMembersIntoIncData(
     incId,
-    allMembers,
+    allMembersArr,
     incCreatedBy
   );
   const incGuidance = await incidentService.getIncGuidance(incId);
@@ -1384,7 +1401,7 @@ const sendApproval = async (context) => {
     const conversationId = context.activity.conversation.id;
 
     // send approval msg to all users
-    allMembers.forEach(async (teamMember) => {
+    allMembersArr.forEach(async (teamMember) => {
       let incObj = {
         incId,
         incTitle,
@@ -1396,7 +1413,7 @@ const sendApproval = async (context) => {
       const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData, guidance);
 
       await sendCardToIndividualUser(context, teamMember, approvalCard);
-      await sendInitialDashboardToSelectedMembers(context, incId, dashboardCard, "onetime");
+      await sendIncResponseToSelectedMembers(incId, dashboardCard);
     });
   }
   else if (action.data.incType == "recurringIncident") {
@@ -1449,7 +1466,9 @@ const sendApprovalResponse = async (user, context) => {
       await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
     }
 
-    const activityId = await viewIncResult(incId, context, companyData, inc, runAt);
+    const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
+    const activityId = await viewIncResult(incId, context, companyData, inc, runAt, dashboardCard);
+    await updateIncResponseOfSelectedMembers(incId, dashboardCard, runAt);
   } catch (error) {
     console.log(error);
   }
@@ -1729,6 +1748,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
 
       const dashboardCard = await getOneTimeDashboardCard(incId);
       const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard);
+      await sendIncResponseToSelectedMembers(incId, dashboardCard, subEventObj.runAt);
 
       let incObj = {
         incId,
@@ -1778,8 +1798,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
         ]
       }
 
-      await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard);
-
+      await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard);      
       successflag = true;
     }
   } catch (err) {
