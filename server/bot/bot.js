@@ -1455,9 +1455,9 @@ const sendApproval = async (context) => {
       var guidance = incGuidance ? incGuidance : "No details available"
       const approvalCard = getSaftyCheckCard(incTitle, incObj, companyData, guidance);
 
-      await sendCardToIndividualUser(context, teamMember, approvalCard);
-      await sendIncResponseToSelectedMembers(incId, dashboardCard);
+      await sendCardToIndividualUser(context, teamMember, approvalCard);      
     });
+    await sendIncResponseToSelectedMembers(incId, dashboardCard);
   }
   else if (action.data.incType == "recurringIncident") {
     const userTimeZone = context.activity.entities[0].timezone;
