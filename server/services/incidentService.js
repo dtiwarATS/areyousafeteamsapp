@@ -7,6 +7,8 @@ const db = require("../db");
 const { getCron } = require("../utils");
 const parser = require("cron-parser");
 
+const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
+
 const parseEventData = async (result) => {
   let parsedDataArr = [];
   // console.log("result >>", result);
@@ -108,13 +110,31 @@ const saveInc = async (actionData, companyData, memberChoises) => {
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
 
+  let selectedMembers = actionData.selected_members;
+  if(selectedMembers == null || selectedMembers.length == 0){
+    try{
+      var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+      var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
+    
+      const allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
+      if(allTeamMembers != null && allTeamMembers.length > 0){
+        selectedMembers = allTeamMembers.map((m) => {
+          return m.id;
+        });
+      }
+    }
+    catch(err){
+      console.log(err);
+    }
+  }
+
   let incObj = {
     incTitle: actionData.inc_title,
     incDesc: "",
     incType: "onetime",
     channelId: companyData.teamId,
     teamId: companyData.teamId,
-    selectedMembers: actionData.selected_members || "",
+    selectedMembers: selectedMembers || "",
     incCreatedBy: actionData.inc_created_by.id,
     createdDate: new Date(Date.now()).toISOString(),
     occursEvery: "",
@@ -375,7 +395,7 @@ const verifyDuplicateInc = async(teamId, incTitle) => {
 
 const saveIncResponseSelectedUsers = async(incId, userIds, memberChoises) => {
   try {    
-    if(incId != null && userIds.split(',').length > 0){
+    if(incId != null && userIds != null && userIds.split(',').length > 0){
       let query = "";
       const userIdsArr = userIds.split(',');
       for(let u = 0; u < userIdsArr.length; u++){
