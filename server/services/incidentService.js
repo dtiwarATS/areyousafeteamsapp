@@ -25,7 +25,7 @@ const parseEventData = async (result) => {
 
         let memberResponseData = parsedData.m.map(
           (member) => {
-            if (member.mRecurr != null) {
+            if (member.mRecurr != null && member.mRecurr.length == 1) {
               member = {
                 ...member,
                 ...member.mRecurr[0]
