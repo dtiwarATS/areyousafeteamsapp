@@ -933,7 +933,7 @@ const deleteInc = async (context, action) => {
   const IncidentName = await incidentService.deleteInc(incidentSelectedVal);
 };
 
-const viewAllInc = async (context, companyData) => {
+const viewAllInc = async (context, companyData, dashboardStyle) => {
   try {
     const allIncidentData = await incidentService.getAllInc(companyData.teamId);
 
