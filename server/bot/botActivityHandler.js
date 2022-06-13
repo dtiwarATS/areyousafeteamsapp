@@ -309,13 +309,16 @@ class BotActivityHandler extends TeamsActivityHandler {
 
           // console.log("bot added >> ", addedBot);
         }
-      } else {
+      }
+      else if(acvtivityData?.channelData?.eventType === "channelCreated" || acvtivityData?.channelData?.eventType === "channelDeleted"){
+      } 
+      else {
         const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
              \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.
              
              \n\r\r\n\n Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
 
-        await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
+        await sendDirectMessage(context, acvtivityData.from, welcomeMsg);       
       }
     });
   }
