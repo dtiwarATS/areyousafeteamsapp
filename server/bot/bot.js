@@ -30,7 +30,7 @@ const {
 const {
   updateMainCard
 } = require("../models/UpdateCards");
-
+const dashboard = require("../models/dashboard")
 const { Console } = require("console");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
@@ -115,6 +115,8 @@ const selectResponseCard = async (context, user) => {
       await viewSettings(context, companyData);
     } else if (verb && verb === "submit_settings" && isAdminOrSuperuser) {
       await submitSettings(context, companyData);
+    } else if (verb && (verb === "dashboard_view_previous_inc" || verb == "dashboard_view_next_inc") && isAdminOrSuperuser) {
+      await navigateDashboardList(context, action, verb);
     }
     return Promise.resolve(true);
   } catch (error) {
@@ -933,7 +935,20 @@ const deleteInc = async (context, action) => {
   const IncidentName = await incidentService.deleteInc(incidentSelectedVal);
 };
 
-const viewAllInc = async (context, companyData, dashboardStyle) => {
+const viewAllInc = async (context, companyData) => {
+  try{
+    const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
+    const dashboardCard = await dashboard.getIncidentTileDashboardCard(null, companyData, allTeamMembers);
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(dashboardCard)],
+    });
+  }
+  catch(err) {
+    console.log(err);
+  }  
+};
+
+const viewAllIncOld = async (context, companyData, dashboardStyle) => {
   try {
     const allIncidentData = await incidentService.getAllInc(companyData.teamId);
 
@@ -1741,6 +1756,23 @@ const sendIntroductionMessage = async (context, from) => {
     ],
   };
   await sendDirectMessageCard(context, from, cards);
+}
+
+const navigateDashboardList = async (context, action, verb) => {
+  try {
+    const dashboardData =  action.data;
+    const companyData = dashboardData.companyData;
+    const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
+    const dashboardCard = await dashboard.getIncidentTileDashboardCard(dashboardData, companyData, allTeamMembers);
+    
+    const cards = CardFactory.adaptiveCard(dashboardCard);
+    const message = MessageFactory.attachment(cards);
+    message.id = context.activity.replyToId;
+    await context.updateActivity(message);
+  }
+  catch(err) {
+    console.log(err);
+  }
 }
 
 module.exports = {

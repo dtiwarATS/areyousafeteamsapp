@@ -85,6 +85,24 @@ const getInc = async (incId, runAt = null) => {
   }
 };
 
+const getAllIncByTeamId = async (teamId) => {
+  try {
+    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, 
+    inc.created_by, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+    m.comment, m.timestamp FROM MSTeamsIncidents inc
+    LEFT JOIN MSTeamsMemberResponses m
+    ON inc.id = m.inc_id
+    where inc.team_id = '${teamId}'
+    FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+
+    const result = await db.getDataFromDB(selectQuery);
+    let parsedResult = await parseEventData(result);    
+    return Promise.resolve(parsedResult);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 const getIncGuidance = async (incId) => {
   try {
     let eventData = {};
@@ -383,5 +401,6 @@ module.exports = {
   addMemberResponseDetails,
   getLastRunAt,
   getIncGuidance,
-  verifyDuplicateInc
+  verifyDuplicateInc,
+  getAllIncByTeamId
 };
