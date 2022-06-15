@@ -192,16 +192,19 @@ const getUsersResponse = (members, mentionUserEntities, eventNum) => {
 const getCreatedByObj = async (createdByNameId, allMembers, mentionUserEntities) => {
     let createdByName = "";
     if(createdByNameId != null) {
-        const usrObj = allMembers.find((m) => m.id = createdByNameId);    
-        if(usrObj != null && usrObj.name != null){
+        const usrObj = allMembers.find((m) => m.id == createdByNameId);    
+        if(usrObj != null && usrObj.id != null && usrObj.name != null){
             createdByName = usrObj.name;
-        }
-        mentionUser(mentionUserEntities, usrObj.id, usrObj.name);
+            mentionUser(mentionUserEntities, usrObj.id, usrObj.name);
+        }        
     }
-    
+
+    if(createdByName != ""){
+        createdByName = `**<at>${createdByName}</at>**`;
+    }
     return {
         "type": "TextBlock",
-        "text": `Created by **<at>${createdByName}</at>**`,
+        "text": `Created by ${createdByName}`,
         "wrap": true
     }
 }
@@ -296,7 +299,7 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
             if(dashboardData != null && dashboardData.eventIndex != null){
                 if(dashboardData.eventIndex > 0){
                     eventIndex = dashboardData.eventIndex;
-                }    
+                }
                 
                 if(allIncData.length == eventIndex){
                     eventIndex -= 2;
