@@ -135,7 +135,7 @@ const getIncidentNameHeader = (eventName, addSeperator) => {
  }
 
 const mentionUser = (mentionUserEntities, userId, userName) => {
-    if(mentionUserEntities != null){
+    if(mentionUserEntities != null && userId != null &&  userName != null){
         const user = mentionUserEntities.find((u) => u.text == `<at>${userName}</at>`);
         if(user == null){
             const mention = {
@@ -173,17 +173,7 @@ const getUsersResponse = (members, mentionUserEntities, eventNum) => {
             }
         }
 
-        mentionUser(mentionUserEntities, userId, userName);
-        // const mention = {
-        //     type: "mention",
-        //     text: `<at>${userName}</at>`,
-        //     mentioned: {
-        //       id: userId,
-        //       name: userName,
-        //     },
-        //   };
-      
-        // mentionUserEntities.push(mention);
+        mentionUser(mentionUserEntities, userId, userName);      
     });
 
     const detailResponse = getDetailUsersResponse(result.membersUnsafe, result.membersNotResponded, result.membersSafe, eventNum);
@@ -297,7 +287,7 @@ const getNextPreviousBtnObj = (nextIndex, previousIndex, isPreviousBtnVisible, i
 }
 
 const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamMembers) => {
-    let card = null;
+    let body = [], mentionUserEntities = [], card = null;
     try{
         const allIncData = await incidentService.getAllIncByTeamId(companyData.teamId);
     
@@ -314,15 +304,13 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
             }
     
             const previousIndex = (eventIndex - 2);
-            let body = [];
-            let uniquementionUserEntities = null;
+            
             if(allIncData.length > eventIndex){       
                 let eventCount = 1;
                 let eventNum = 1;
                 if(eventIndex > 1){
                   eventNum = Number(eventIndex) + 1;
                 }
-                const mentionUserEntities = [];
                 for(let i = (allIncData.length - eventIndex); i >= 1; i--){
                     if(eventCount > 2) {
                         break;
@@ -351,29 +339,30 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     eventNum++;
                 }
 
-                if(mentionUserEntities.length > 0){
-                    uniquementionUserEntities =  [...new Set(mentionUserEntities)];
-                }                
-
                 if(body.length > 0 && allIncData.length > 2){
                     const isPreviousBtnVisible = (eventIndex > 2); 
                     const isNextBtnVisible = (eventIndex < allIncData.length);
                     const navBtnObj = getNextPreviousBtnObj(eventIndex, previousIndex, isPreviousBtnVisible, isNextBtnVisible, companyData);
                     body.push(navBtnObj);
                 }
+            }            
+        }
+        else {
+            const emptyInc = {
+                "type": "TextBlock",
+                "wrap": true,
+                "text": "👋 Hello! You do not have any incident running at the moment!!!"
             }
-            if(body.length > 0){
-                card = {
-                    type: "AdaptiveCard",
-                    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-                    version: "1.4",
-                    body: body                             
-                };                
-
-                if(uniquementionUserEntities != null){
-                    card["msteams"] = {
-                        "entities": uniquementionUserEntities
-                    }
+            body.push(emptyInc);
+        }
+        if(body.length > 0){
+            card = {
+                "type": "AdaptiveCard",
+                "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+                "version": "1.4",
+                "body": body,
+                "msteams": {
+                    "entities": mentionUserEntities
                 }
             }
         }

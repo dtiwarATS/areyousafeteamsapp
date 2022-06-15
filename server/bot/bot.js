@@ -939,9 +939,11 @@ const viewAllInc = async (context, companyData) => {
   try{
     const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
     const dashboardCard = await dashboard.getIncidentTileDashboardCard(null, companyData, allTeamMembers);
-    await context.sendActivity({
-      attachments: [CardFactory.adaptiveCard(dashboardCard)],
-    });
+    if(dashboardCard != null) {
+      await context.sendActivity({
+        attachments: [CardFactory.adaptiveCard(dashboardCard)],
+      });
+    }    
   }
   catch(err) {
     console.log(err);
