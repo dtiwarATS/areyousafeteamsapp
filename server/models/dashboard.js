@@ -134,6 +134,24 @@ const getIncidentNameHeader = (eventName, addSeperator) => {
     return detailsResponse;
  }
 
+const mentionUser = (mentionUserEntities, userId, userName) => {
+    if(mentionUserEntities != null){
+        const user = mentionUserEntities.find((u) => u.text == `<at>${userName}</at>`);
+        if(user == null){
+            const mention = {
+                type: "mention",
+                text: `<at>${userName}</at>`,
+                mentioned: {
+                  id: userId,
+                  name: userName,
+                },
+              };
+          
+            mentionUserEntities.push(mention);
+        }
+    }
+}
+
 const getUsersResponse = (members, mentionUserEntities, eventNum) => {    
     let result = {
         membersSafe: [],
@@ -155,16 +173,17 @@ const getUsersResponse = (members, mentionUserEntities, eventNum) => {
             }
         }
 
-        const mention = {
-            type: "mention",
-            text: `<at>${userName}</at>`,
-            mentioned: {
-              id: userId,
-              name: userName,
-            },
-          };
+        mentionUser(mentionUserEntities, userId, userName);
+        // const mention = {
+        //     type: "mention",
+        //     text: `<at>${userName}</at>`,
+        //     mentioned: {
+        //       id: userId,
+        //       name: userName,
+        //     },
+        //   };
       
-        mentionUserEntities.push(mention);
+        // mentionUserEntities.push(mention);
     });
 
     const detailResponse = getDetailUsersResponse(result.membersUnsafe, result.membersNotResponded, result.membersSafe, eventNum);
@@ -180,13 +199,14 @@ const getUsersResponse = (members, mentionUserEntities, eventNum) => {
     }
 }
 
-const getCreatedByObj = async (createdByNameId, allMembers) => {
+const getCreatedByObj = async (createdByNameId, allMembers, mentionUserEntities) => {
     let createdByName = "";
     if(createdByNameId != null) {
         const usrObj = allMembers.find((m) => m.id = createdByNameId);    
         if(usrObj != null && usrObj.name != null){
             createdByName = usrObj.name;
         }
+        mentionUser(mentionUserEntities, usrObj.id, usrObj.name);
     }
     
     return {
@@ -317,7 +337,7 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     const incNameHeader = getIncidentNameHeader(eventName, addSeperator);
                     const incStatusWithStartDate = getIncStatusWithStartDate("In-progress", incData.incCreatedDate);
                     const userResponseObj = getUsersResponse(incData.members, mentionUserEntities, eventNum);
-                    const createdBy = await getCreatedByObj(incData.incCreatedBy, allTeamMembers);
+                    const createdBy = await getCreatedByObj(incData.incCreatedBy, allTeamMembers, mentionUserEntities);
                     const dashboardActionBtn = getDashboardActionBtnObj(incData.incId, companyData, eventNum);
                     body.push(incNameHeader);
                     body.push(incStatusWithStartDate);
@@ -348,17 +368,7 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
                     version: "1.4",
                     body: body                             
-                };
-                // "msteams": {
-                //     "entities": [{
-                //         "type": "mention",
-                //         "text": "<at>Sandesh Sawant</at>",
-                //         "mentioned": {
-                //           "id": "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
-                //           "name": "Sandesh Sawant"
-                //         }
-                //     }]
-                // }
+                };                
 
                 if(uniquementionUserEntities != null){
                     card["msteams"] = {
