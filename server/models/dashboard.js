@@ -74,88 +74,67 @@ const getIncidentNameHeader = (eventName, addSeperator) => {
     }
  }
 
- const getDetailUsersResponse = (membersUnsafe, membersNotResponded, membersSafe) => {
+ const getDetailUsersResponse = (membersUnsafe, membersNotResponded, membersSafe, eventNum) => {
     let membersUnsafeStr = membersUnsafe.join(", ");
     let membersNotRespondedStr = membersNotResponded.join(", ");
     let membersSafeStr = membersSafe.join(", ");
-    const detailsResponse = [
-        {
-            "type": "ColumnSet",
-            "columns": [
-                {
-                    "type": "Column",
-                    "width": 4,
-                    "items": [
-                        {
-                            "type": "TextBlock",
-                            "wrap": true,
-                            "text": `**🔴 Need Assistance: ${membersUnsafe.length}**`,
-                            "color": "attention"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "wrap": true,
-                            "text": membersUnsafeStr,
-                            "isSubtle": true,
-                            "spacing": "none"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "type": "ColumnSet",
-            "columns": [
-                {
-                    "type": "Column",
-                    "width": 4,
-                    "items": [
-                        {
-                            "type": "TextBlock",
-                            "wrap": true,
-                            "text": `**🟡 Not Responded: ${membersNotResponded.length}**`,
-                            "color": "default"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "wrap": true,
-                            "text": membersNotRespondedStr,
-                            "isSubtle": true,
-                            "spacing": "none"
-                        }
-                    ]
-                }
-            ]
-        },
-        {
-            "type": "ColumnSet",
-            "columns": [
-                {
-                    "type": "Column",
-                    "width": 4,
-                    "items": [
-                        {
-                            "type": "TextBlock",
-                            "wrap": true,
-                            "text": `**🟢 Safe: ${membersSafe.length}**`,
-                            "color": "good"
-                        },
-                        {
-                            "type": "TextBlock",
-                            "wrap": true,
-                            "text": membersSafeStr,
-                            "isSubtle": true,
-                            "spacing": "none"
-                        }
-                    ]
-                }
-            ]
-        }
-    ]
+    const detailsResponse = {
+        "type": "ColumnSet",
+        "id" : `colSet${eventNum}`,
+        "style": "emphasis",
+        "isVisible" : false,
+        "columns": [
+            {
+                "type": "Column",
+                "width": 4,
+                "items": [
+                    {
+                        "type": "TextBlock",
+                        "wrap": true,
+                        "text": `**🔴 Need Assistance: ${membersUnsafe.length}**`,
+                        "color": "attention"
+                    },
+                    {
+                        "type": "TextBlock",
+                        "wrap": true,
+                        "text": membersUnsafeStr,
+                        "isSubtle": true,
+                        "spacing": "none"
+                    },
+                    {
+                        "type": "TextBlock",
+                        "wrap": true,
+                        "text": `**🟡 Not Responded: ${membersNotResponded.length}**`,
+                        "color": "default"
+                    },
+                    {
+                        "type": "TextBlock",
+                        "wrap": true,
+                        "text": membersNotRespondedStr,
+                        "isSubtle": true,
+                        "spacing": "none"
+                    },
+                    {
+                        "type": "TextBlock",
+                        "wrap": true,
+                        "text": `**🟢 Safe: ${membersSafe.length}**`,
+                        "color": "good"
+                    },
+                    {
+                        "type": "TextBlock",
+                        "wrap": true,
+                        "text": membersSafeStr,
+                        "isSubtle": true,
+                        "spacing": "none"
+                    }
+                ]
+            }
+        ]
+    }
     return detailsResponse;
  }
 
-const getUsersResponse = (members, mentionUserEntities) => {    
+const getUsersResponse = (members, mentionUserEntities, eventNum) => {    
     let result = {
         membersSafe: [],
         membersUnsafe: [],
@@ -188,7 +167,7 @@ const getUsersResponse = (members, mentionUserEntities) => {
         mentionUserEntities.push(mention);
     });
 
-    const detailResponse = getDetailUsersResponse(result.membersUnsafe, result.membersNotResponded, result.membersSafe);
+    const detailResponse = getDetailUsersResponse(result.membersUnsafe, result.membersNotResponded, result.membersSafe, eventNum);
     const shortResponse = {
         "type": "TextBlock",
         "wrap": true,
@@ -217,23 +196,14 @@ const getCreatedByObj = async (createdByNameId, allMembers) => {
     }
 }
 
-const getDashboardActionBtnObj = (incId, companyData, detailResponse) => {
+const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
     return {
         "type": "ActionSet",
-        "actions": [
+        "actions": [            
             {
-                "type": "Action.ShowCard",
-                "card": {
-                    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-                    "version": "1.4",
-                    "type": "AdaptiveCard",
-                    "body": detailResponse                                      
-                },
+                "type": "Action.ToggleVisibility",
                 "title": "Show Details",
-                "data": {
-                    "incId": `${incId}`,
-                    "companyData": companyData,
-                }               
+                "targetElements": [`colSet${eventNum}`]
             },
             {
                 "type": "Action.Execute",
@@ -346,14 +316,15 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     const eventName = `${eventNum} ${incData.incTitle} ` + (incData.incType == "recurring" ? "(recurring)" : "");
                     const incNameHeader = getIncidentNameHeader(eventName, addSeperator);
                     const incStatusWithStartDate = getIncStatusWithStartDate("In-progress", incData.incCreatedDate);
-                    const userResponseObj = getUsersResponse(incData.members, mentionUserEntities);
+                    const userResponseObj = getUsersResponse(incData.members, mentionUserEntities, eventNum);
                     const createdBy = await getCreatedByObj(incData.incCreatedBy, allTeamMembers);
-                    const dashboardActionBtn = getDashboardActionBtnObj(incData.incId, companyData, userResponseObj.detailResponse, userResponseObj.mentionUserEntities);
+                    const dashboardActionBtn = getDashboardActionBtnObj(incData.incId, companyData, eventNum);
                     body.push(incNameHeader);
                     body.push(incStatusWithStartDate);
                     body.push(userResponseObj.shortResponse);
                     body.push(createdBy);
                     body.push(dashboardActionBtn);
+                    body.push(userResponseObj.detailResponse);
 
                     eventCount++;
                     eventIndex++;
@@ -376,18 +347,19 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     type: "AdaptiveCard",
                     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
                     version: "1.4",
-                    body: body,
-                    "msteams": {
-                        "entities": [{
-                            "type": "mention",
-                            "text": "<at>Sandesh Sawant</at>",
-                            "mentioned": {
-                              "id": "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
-                              "name": "Sandesh Sawant"
-                            }
-                        }]
-                    }         
+                    body: body                             
                 };
+                // "msteams": {
+                //     "entities": [{
+                //         "type": "mention",
+                //         "text": "<at>Sandesh Sawant</at>",
+                //         "mentioned": {
+                //           "id": "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
+                //           "name": "Sandesh Sawant"
+                //         }
+                //     }]
+                // }
+
                 if(uniquementionUserEntities != null){
                     card["msteams"] = {
                         "entities": uniquementionUserEntities
