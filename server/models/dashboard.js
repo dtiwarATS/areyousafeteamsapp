@@ -1,7 +1,4 @@
 const incidentService = require("../services/incidentService");
-const {
-    getAllTeamMembers
-  } = require("../api/apiMethods");
 
 const incList = {
     "type": "TextBlock",
@@ -230,17 +227,7 @@ const getDashboardActionBtnObj = (incId, companyData, detailResponse) => {
                     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
                     "version": "1.4",
                     "type": "AdaptiveCard",
-                    "body": detailResponse,
-                    "msteams": {
-                        "entities": [{
-                            "type": "mention",
-                            "text": "<at>Sandesh Sawant</at>",
-                            "mentioned": {
-                              "id": "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
-                              "name": "Sandesh Sawant"
-                            }
-                        }]
-                    }                  
+                    "body": detailResponse                                      
                 },
                 "title": "Show Details",
                 "data": {
@@ -401,11 +388,11 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                         }]
                     }         
                 };
-                // if(uniquementionUserEntities != null){
-                //     card["msteams"] = {
-                //         "entities": uniquementionUserEntities
-                //     }
-                // }
+                if(uniquementionUserEntities != null){
+                    card["msteams"] = {
+                        "entities": uniquementionUserEntities
+                    }
+                }
             }
         }
     }
