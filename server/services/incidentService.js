@@ -470,6 +470,32 @@ const getIncResponseUserTS = async(incId, runAt) => {
   }
 }
 
+const getRecurrenceMembersResponse = async (incId) => {
+  try{
+    const recurrMembersRespQuery = "SELECT distinct inc.id, m.user_id, m.user_name , mr.is_message_delivered, mr.response, mr.response_value, " +
+    "mr.comment, m.timestamp " + 
+    "FROM MSTeamsIncidents inc " +
+    "LEFT JOIN MSTeamsMemberResponses m  ON inc.id = m.inc_id " +
+    "LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID " +
+    "left join MSTeamsMemberResponsesRecurr mr on mr.memberResponsesId = m.id and mr.runat = mse.LAST_RUN_AT " +
+    "where inc.id = " + incId;
+
+    const result = await db.getDataFromDB(recurrMembersRespQuery);
+    if(result != null && result.length > 0){
+      let memberResponseData = result.map (
+        (member) => {         
+          return new Member(member);
+        }
+      );
+      return Promise.resolve(memberResponseData);
+    }    
+    return Promise.resolve(null);
+  }
+  catch(err){
+    console.log(err);
+  }
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -489,5 +515,6 @@ module.exports = {
   saveIncResponseSelectedUsers,
   saveIncResponseUserTS,
   getIncResponseSelectedUsersList,
-  getIncResponseUserTS
+  getIncResponseUserTS,
+  getRecurrenceMembersResponse
 };

@@ -425,7 +425,13 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     const eventName = `${eventNum}. ${incData.incTitle} ` + (incData.incType == "recurringIncident" ? "(recurring)" : "");
                     const incNameHeader = getIncidentNameHeader(eventName, addSeperator);
                     const incStatusWithStartDate = getIncStatusWithStartDate("In-progress", incData.incCreatedDate);
-                    const userResponseObj = getUsersResponse(incData.members, mentionUserEntities, eventNum);
+
+                    let incMembers = incData.members;
+                    if(incData.incType == "recurringIncident"){
+                        incMembers = await incidentService.getRecurrenceMembersResponse(incData.incId);
+                    }
+
+                    const userResponseObj = getUsersResponse(incMembers, mentionUserEntities, eventNum);
                     const createdBy = await getCreatedByObj(incData.incCreatedBy, allTeamMembers, mentionUserEntities);
                     const dashboardActionBtn = getDashboardActionBtnObj(incData.incId, companyData, eventNum);
                     body.push(incNameHeader);
