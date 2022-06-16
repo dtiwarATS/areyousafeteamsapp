@@ -87,8 +87,8 @@ const getInc = async (incId, runAt = null) => {
 
 const getAllIncByTeamId = async (teamId) => {
   try {
-    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, 
-    inc.created_by, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members,
+    inc.created_by, inc.created_date, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
     m.comment, m.timestamp FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m
     ON inc.id = m.inc_id

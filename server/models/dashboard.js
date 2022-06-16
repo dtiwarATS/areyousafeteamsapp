@@ -11,13 +11,17 @@ const incList = {
 
 const getIncidentNameHeader = (eventName, addSeperator) => { 
     return {
-        "type": "TextBlock",
-        "text": eventName,
-        "wrap": true,
-        "separator": addSeperator,
-        "weight": "Bolder",
-        "size": "Large"
-    }
+        "type": "RichTextBlock",
+        "inlines": [
+            {
+                "type": "TextRun",
+                "text": eventName,
+                "weight": "Bolder",
+                "size": "Large"
+            }            
+        ],
+        "separator": true
+    }    
  }
 
  const getIncStatusWithStartDate = (status, startTime) => {
@@ -25,7 +29,7 @@ const getIncidentNameHeader = (eventName, addSeperator) => {
     const monthName = createdDate.toLocaleString('default', { month: 'long' });
     const creatdDate = createdDate.getDate();
     const createdYear = createdDate.getFullYear();
-    const startOn = `${monthName} ${creatdDate}, ${createdYear}`;
+    const startOn = `Started on ${monthName} ${creatdDate}, ${createdYear}`;
     return {
         "type": "ColumnSet",
         "columns": [
@@ -37,7 +41,7 @@ const getIncidentNameHeader = (eventName, addSeperator) => {
                         "type": "TextBlock",
                         "text": status,
                         "wrap": true,
-                        "color": "Attention",
+                        "color": "good",
                         "weight": "Bolder",
                         "spacing": "None"
                     }
@@ -211,12 +215,106 @@ const getCreatedByObj = async (createdByNameId, allMembers, mentionUserEntities)
 
 const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
     return {
+        "type": "ColumnSet",
+        "columns": [
+            {
+                "type": "Column",
+                "width": "auto",
+                "id" : `colShowDetails${eventNum}`,
+                "spacing": "Small",
+                "items": [
+                    {
+                        "type": "ActionSet",
+                        "spacing": "none",
+                        "actions": [
+                            {
+                                "type": "Action.ToggleVisibility",
+                                "title": "Show Details",
+                                "targetElements": [`colSet${eventNum}`, `colHideDetails${eventNum}`, `colShowDetails${eventNum}`]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "type": "Column",
+                "width": "auto",
+                "id" : `colHideDetails${eventNum}`,
+                "isVisible": false,
+                "spacing": "Small",
+                "items": [
+                    {
+                        "type": "ActionSet",
+                        "spacing": "none",
+                        "actions": [
+                            {
+                                "type": "Action.ToggleVisibility",
+                                "title": "Hide Details",
+                                "targetElements": [`colSet${eventNum}`, `colShowDetails${eventNum}`, `colHideDetails${eventNum}`]
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "type": "Column",
+                "width": "auto",
+                "spacing": "Small",
+                "items": [
+                    {
+                        "type": "ActionSet",
+                        "spacing": "none",
+                        "actions": [
+                            {
+                                "type": "Action.Execute",
+                                "title": "Copy",
+                                "data": {
+                                    "incId": `${incId}`,
+                                    "companyData": companyData
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "type": "Column",
+                "width": "auto",
+                "spacing": "Small",
+                "items": [
+                    {
+                        "type": "ActionSet",
+                        "spacing": "none",
+                        "actions": [
+                            {
+                                "type": "Action.Execute",
+                                "title": "Close",
+                                "data": {
+                                    "incId": `${incId}`,
+                                    "companyData": companyData
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+    return {
         "type": "ActionSet",
         "actions": [            
             {
                 "type": "Action.ToggleVisibility",
                 "title": "Show Details",
-                "targetElements": [`colSet${eventNum}`]
+                "id": `btnShowDetails${eventNum}`,
+                
+            },
+            {
+                "type": "Action.ToggleVisibility",
+                "title": "Hide Details",
+                "id": `btnHideDetails${eventNum}`,
+                "isVisible": false,
+                "targetElements": [`colSet${eventNum}`, `btnShowDetails${eventNum}`]
             },
             {
                 "type": "Action.Execute",
@@ -324,7 +422,7 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     }
                     const incData = allIncData[i-1];
                     const addSeperator = (eventCount == 1);
-                    const eventName = `${eventNum} ${incData.incTitle} ` + (incData.incType == "recurring" ? "(recurring)" : "");
+                    const eventName = `${eventNum}. ${incData.incTitle} ` + (incData.incType == "recurringIncident" ? "(recurring)" : "");
                     const incNameHeader = getIncidentNameHeader(eventName, addSeperator);
                     const incStatusWithStartDate = getIncStatusWithStartDate("In-progress", incData.incCreatedDate);
                     const userResponseObj = getUsersResponse(incData.members, mentionUserEntities, eventNum);
