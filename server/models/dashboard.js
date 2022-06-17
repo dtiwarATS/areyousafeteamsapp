@@ -481,5 +481,6 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
 }
 
 module.exports = {
-    getIncidentTileDashboardCard
+    getIncidentTileDashboardCard,
+    mentionUser
 }
