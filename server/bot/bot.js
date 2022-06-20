@@ -988,7 +988,7 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
 
 const createInc = async (context, user, companyData) => {
   try {    
-    const card = await getNewIncCard(context, user, companyData);
+    const card = await getNewIncCardNew(context, user, companyData);
 
     await context.sendActivity({
       attachments: [CardFactory.adaptiveCard(card)],
@@ -1108,7 +1108,7 @@ const verifyDuplicateInc = async (teamId, incTitle) => {
 };
 const showDuplicateIncError = async (context,user, companyData) => {
   const errorMessage = "The incident with the same name already exists! Please enter another incident name.";
-  const card = await getNewIncCard(context, user, companyData, errorMessage);
+  const card = await getNewIncCardNew(context, user, companyData, errorMessage);
   const cards = CardFactory.adaptiveCard(card);
 
   const message = MessageFactory.attachment(cards);
