@@ -701,7 +701,7 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
 
   const memberChoises = allMembers.map((m) => ({
     title: m.name,
-    value: m.aadObjectId,
+    value: m.id
   }));
   const eventDays = [
     { title: "Sun", value: "0" }, { title: "Mon", value: "1" }, { title: "Tue", value: "2" }, { title: "Wed", value: "3" },
@@ -743,8 +743,7 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
       {
         type: "TextBlock",
         text: "Guidance",
-        weight: "bolder",
-        separator: true,
+        weight: "bolder"
       },
       {
         type: "Input.Text",
@@ -914,8 +913,7 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
         type: "TextBlock",
         wrap: true,
         text: "Select users where the Incident response should be sent (optional)",
-        weight: "bolder",
-        separator: true,
+        weight: "bolder"
       },
       {
         type: "Input.ChoiceSet",
@@ -936,6 +934,7 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
       {
         "type": "ActionSet",
         "id": "asbtnSaveOneTimeInc",
+        "separator": true,
         "actions": [
           {
             type: "Action.Execute",
@@ -964,7 +963,8 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
       {
         "type": "ActionSet",
         "id": "asbtnSaveRecurrInc",
-        "isVisible": false,
+        "isVisible": false,        
+        "separator": true,
         "actions": [
           {
             type: "Action.Execute",
