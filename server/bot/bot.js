@@ -684,7 +684,7 @@ const getNewIncCard = async (context, user, companyData, errorMessage = "") => {
                 info: "save",
                 inc_created_by: user,
                 companyData: companyData,
-                memberChoises: memberChoises
+                memberChoises: memberChoises                
               },
             },
           ]
@@ -763,60 +763,13 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
               {
                 "type": "ActionSet",
                 "actions": [
-                    {
-                        "type": "Action.ToggleVisibility",
-                        "title": "One Time"
-                    }
-                ]
-              },
-              {
-                type: "TextBlock",
-                wrap: true,
-                text: "Send the incident notification to these members (optional)",
-                weight: "bolder",
-                separator: true,
-              },
-              {
-                type: "Input.ChoiceSet",
-                weight: "bolder",
-                id: "selected_members",
-                style: "filtered",
-                isMultiSelect: true,
-                placeholder: "Select users",
-                choices: memberChoises,
-              },
-              {
-                type: "TextBlock",
-                size: "small",
-                isSubtle: true,
-                wrap: true,
-                text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
-              },
-              {
-                "type": "ActionSet",
-                "actions": [
                   {
-                    type: "Action.Execute",
-                    verb: "Cancel_button",
-                    title: "Cancel",
-                    data: {
-                      info: "Back",
-                      companyData: companyData,
-                    },
-                    associatedInputs: "none",
-                  },
-                  {
-                    type: "Action.Execute",
-                    verb: "save_new_inc",
-                    title: "Submit",
-                    data: {
-                      info: "save",
-                      inc_created_by: user,
-                      companyData: companyData,
-                    },
+                    "type": "Action.ToggleVisibility",
+                    "title": "Recurring",
+                    "targetElements": ["colSetOneTime", "colSetRecurring", "asbtnSaveOneTimeInc", "asbtnSaveRecurrInc"]
                   }
                 ]
-              }                   
+              }                  
             ]
           }
         ]
@@ -824,6 +777,7 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
       {
         "type": "ColumnSet",
         "id" : "colSetRecurring",
+        "isVisible" : false,
         "columns": [
           {
             "type": "Column",
@@ -834,7 +788,8 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
                 "actions": [
                   {
                       "type": "Action.ToggleVisibility",
-                      "title": "Recurring"
+                      "title": "One Time",
+                      "targetElements": ["colSetOneTime", "colSetRecurring", "asbtnSaveOneTimeInc", "asbtnSaveRecurrInc"]
                   }
                 ]
               },
@@ -928,55 +883,110 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "") =
                     ]
                   }
                 ]
-              },
-              {
-                type: "TextBlock",
-                wrap: true,
-                text: "Send the incident notification to these members (optional)",
-                weight: "bolder",
-              },
-              {
-                type: "Input.ChoiceSet",
-                weight: "bolder",
-                id: "selected_members",
-                style: "filtered",
-                isMultiSelect: true,
-                placeholder: "Select users",
-                choices: memberChoises,
-              },
-              {
-                type: "TextBlock",
-                size: "small",
-                isSubtle: true,
-                wrap: true,
-                text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
-              },
-              {
-                "type": "ActionSet",
-                "actions": [
-                  {
-                    type: "Action.Execute",
-                    verb: "Cancel_button",
-                    title: "Cancel",
-                    data: {
-                      info: "Back",
-                      companyData: companyData,
-                    },
-                    associatedInputs: "none",
-                  },
-                  {
-                    type: "Action.Execute",
-                    verb: "save_new_recurr_inc",
-                    title: "Submit",
-                    data: {
-                      info: "save",
-                      inc_created_by: user,
-                      companyData: companyData,
-                    },
-                  }
-                ]
-              }                 
+              }               
             ]
+          }
+        ]
+      },
+      {
+        type: "TextBlock",
+        wrap: true,
+        text: "Send the incident notification to these members (optional)",
+        weight: "bolder",
+      },
+      {
+        type: "Input.ChoiceSet",
+        weight: "bolder",
+        id: "selected_members",
+        style: "filtered",
+        isMultiSelect: true,
+        placeholder: "Select users",
+        choices: memberChoises,
+      },
+      {
+        type: "TextBlock",
+        size: "small",
+        isSubtle: true,
+        wrap: true,
+        text: `⚠️ Ignore this field to send incident notification to **all teams members**`,
+      },
+      {
+        type: "TextBlock",
+        wrap: true,
+        text: "Select users where the Incident response should be sent (optional)",
+        weight: "bolder",
+        separator: true,
+      },
+      {
+        type: "Input.ChoiceSet",
+        weight: "bolder",
+        id: "selected_members_response",
+        style: "filtered",
+        isMultiSelect: true,
+        placeholder: "Select users",
+        choices: memberChoises,
+      },
+      {
+        type: "TextBlock",
+        size: "small",
+        isSubtle: true,
+        wrap: true,
+        text: `⚠️ Safety check responses will be sent to these members`,
+      },
+      {
+        "type": "ActionSet",
+        "id": "asbtnSaveOneTimeInc",
+        "actions": [
+          {
+            type: "Action.Execute",
+            verb: "Cancel_button",
+            title: "Cancel",
+            data: {
+              info: "Back",
+              companyData: companyData,
+            },
+            associatedInputs: "none"
+          },
+          {
+            type: "Action.Execute",
+            verb: "save_new_inc",
+            title: "Submit",
+            "id": "btnSaveOneTimeInc",
+            data: {
+              info: "save",
+              inc_created_by: user,
+              companyData: companyData,
+              memberChoises: memberChoises
+            }
+          }
+        ]
+      },
+      {
+        "type": "ActionSet",
+        "id": "asbtnSaveRecurrInc",
+        "isVisible": false,
+        "actions": [
+          {
+            type: "Action.Execute",
+            verb: "Cancel_button",
+            title: "Cancel",
+            data: {
+              info: "Back",
+              companyData: companyData,
+            },
+            associatedInputs: "none"
+          },
+          {
+            type: "Action.Execute",
+            verb: "save_new_recurr_inc",
+            title: "Submit",
+            "id": "btnSaveRecurrInc",            
+            data: {
+              info: "save",
+              inc_created_by: user,
+              companyData: companyData,
+              memberChoises: memberChoises
+            }
           }
         ]
       }

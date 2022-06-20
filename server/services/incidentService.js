@@ -418,8 +418,14 @@ const saveIncResponseSelectedUsers = async(incId, userIds, memberChoises) => {
       const userIdsArr = userIds.split(',');
       for(let u = 0; u < userIdsArr.length; u++){
         const userId = userIdsArr[u];
-        const usrObj = memberChoises.find((m) => m.value == userId);
-        query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${usrObj.title}');`;
+        let userName = "";
+        if(memberChoises != null){
+          const usrObj = memberChoises.find((m) => m.value == userId);
+          if(usrObj != null){
+            userName = usrObj.title;
+          }
+        }
+        query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${userName}');`;
       }
       console.log("insert query => ", query);
       await pool.request().query(query);
