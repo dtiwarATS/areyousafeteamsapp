@@ -1002,8 +1002,8 @@ const getSafetyCheckMessageText = async (incId, createdByName, incTitle, mention
   const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
   if(incRespSelectedUsers != null && incRespSelectedUsers.length > 0){
     for(let i = 0; i< incRespSelectedUsers.length; i++){
-        const { user_id: userId, user_name : userName} = incRespSelectedUsers[0];
-        responseUsers = (responseUsers != "") ? " ," : "" +  `<at>${userName}</at>`;
+        const { user_id: userId, user_name : userName} = incRespSelectedUsers[i];
+        responseUsers += ((responseUsers != "") ? ", " : "") +  `<at>${userName}</at>`;
         dashboard.mentionUser(mentionUserEntities, userId, userName);
     }
   }
