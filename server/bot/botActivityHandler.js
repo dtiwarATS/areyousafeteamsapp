@@ -453,8 +453,8 @@ class BotActivityHandler extends TeamsActivityHandler {
         let incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance ? incGuidance : "No details available"
         let responseText = commentVal
-          ? `✔️ Your safety status has been sent to the <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance
-          : `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance;
+          ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance
+          : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy)
         );
@@ -477,9 +477,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         const { incId, incTitle, incCreatedBy } = inc;
         let responseText = "";
         if (response === "i_am_safe") {
-          responseText = `Glad you're safe! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
+          responseText = `Glad you're safe! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
         } else {
-          responseText = `Sorry for your situation! We have informed <at>${incCreatedBy.name}</at> of your situation.`;
+          responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
         }
         var incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance ? incGuidance : "No details available";
@@ -527,7 +527,10 @@ class BotActivityHandler extends TeamsActivityHandler {
             preTextMsg,
             uVerb === "send_approval" ? true : false,
             isAllMember,
-            isRecurringInc
+            isRecurringInc,
+            action.data.safetyCheckMessageText,
+            action.data.mentionUserEntities,
+            action.data.guidance
           )
         );
         const message = MessageFactory.attachment(cards);
