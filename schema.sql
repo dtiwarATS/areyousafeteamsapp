@@ -215,9 +215,3 @@ BEGIN
 	ALTER TABLE DBO.MSTeamsIncResponseUserTS CHECK CONSTRAINT FK_MSTeamsIncResponseUserTS_MSTeamsIncResponseSelectedUsers
 END
 GO
-
-IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='response_selected_users' AND TABLE_NAME='MSTeamsIncidents')
-BEGIN
-ALTER TABLE MSTeamsIncidents ADD response_selected_users [varchar](max)
-END
-GO

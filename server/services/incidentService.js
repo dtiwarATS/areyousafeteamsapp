@@ -58,8 +58,9 @@ const getInc = async (incId, runAt = null) => {
     let selectQuery = "";
     if (runAt != null) {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-      inc.selected_members, inc.created_by, m.user_id, m.user_name, mRecurr.is_message_delivered, 
-      mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp 
+      inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, mRecurr.is_message_delivered, 
+      mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
+      inc.EVENT_END_DATE, inc.EVENT_END_TIME 
       FROM MSTeamsIncidents inc
       LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
       LEFT JOIN MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id
@@ -67,9 +68,11 @@ const getInc = async (incId, runAt = null) => {
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     }
     else {
-      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, 
-      inc.created_by, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-      m.comment, m.timestamp FROM MSTeamsIncidents inc
+      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
+      inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, m.is_message_delivered, 
+      m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
+      inc.EVENT_END_DATE, inc.EVENT_END_TIME 
+      FROM MSTeamsIncidents inc
       LEFT JOIN MSTeamsMemberResponses m
       ON inc.id = m.inc_id
       where inc.id = ${incId}

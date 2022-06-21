@@ -168,16 +168,16 @@ const getUsersResponse = (members, mentionUserEntities, eventNum) => {
 
         if (response == "na" || response == false) {
             result.membersNotResponded.push(`<at>${userName}</at>`);
+            mentionUser(mentionUserEntities, userId, userName);   
         }
-        if (response == true) {
+        else if (response == true) {
             if (responseValue == true) {
                 result.membersSafe.push(`<at>${userName}</at>`);
             } else if (responseValue == false || responseValue == null) {
                 result.membersUnsafe.push(`<at>${userName}</at>`);
             }
-        }
-
-        mentionUser(mentionUserEntities, userId, userName);      
+            mentionUser(mentionUserEntities, userId, userName);
+        } 
     });
 
     const detailResponse = getDetailUsersResponse(result.membersUnsafe, result.membersNotResponded, result.membersSafe, eventNum);
@@ -268,6 +268,7 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
                             {
                                 "type": "Action.Execute",
                                 "title": "Copy",
+                                "verb": "copyInc",
                                 "data": {
                                     "incId": `${incId}`,
                                     "companyData": companyData
