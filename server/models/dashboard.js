@@ -213,7 +213,8 @@ const getCreatedByObj = async (createdByNameId, allMembers, mentionUserEntities)
     }
 }
 
-const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
+const getDashboardActionBtnObj = (incId, companyData, eventNum, lastPageEventIndex, incStatus) => {
+    const dashboardData = {"lastPageEventIndex": lastPageEventIndex};
     return {
         "type": "ColumnSet",
         "columns": [
@@ -260,6 +261,7 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
                 "type": "Column",
                 "width": "auto",
                 "spacing": "Small",
+                "isVisible": (incStatus == "In progress"),
                 "items": [
                     {
                         "type": "ActionSet",
@@ -273,6 +275,16 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
                                     "incId": `${incId}`,
                                     "companyData": companyData
                                 }
+                            },
+                            {
+                                "type": "Action.Execute",
+                                "title": "Close",
+                                "verb": "closeInc",
+                                "data": {
+                                    "incId": `${incId}`,
+                                    "companyData": companyData,
+                                    "dashboardData": dashboardData
+                                }
                             }
                         ]
                     }
@@ -282,6 +294,7 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
                 "type": "Column",
                 "width": "auto",
                 "spacing": "Small",
+                "isVisible": (incStatus == "Closed"),
                 "items": [
                     {
                         "type": "ActionSet",
@@ -289,10 +302,22 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
                         "actions": [
                             {
                                 "type": "Action.Execute",
-                                "title": "Close",
+                                "title": "Reopen",
+                                "verb": "reopenInc",
                                 "data": {
                                     "incId": `${incId}`,
-                                    "companyData": companyData
+                                    "companyData": companyData,
+                                    "dashboardData": dashboardData
+                                }
+                            },
+                            {
+                                "type": "Action.Execute",
+                                "title": "Delete",
+                                "verb": "deleteInc",
+                                "data": {
+                                    "incId": `${incId}`,
+                                    "companyData": companyData,
+                                    "dashboardData": dashboardData
                                 }
                             }
                         ]
@@ -300,41 +325,7 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum) => {
                 ]
             }
         ]
-    }
-    return {
-        "type": "ActionSet",
-        "actions": [            
-            {
-                "type": "Action.ToggleVisibility",
-                "title": "Show Details",
-                "id": `btnShowDetails${eventNum}`,
-                
-            },
-            {
-                "type": "Action.ToggleVisibility",
-                "title": "Hide Details",
-                "id": `btnHideDetails${eventNum}`,
-                "isVisible": false,
-                "targetElements": [`colSet${eventNum}`, `btnShowDetails${eventNum}`]
-            },
-            {
-                "type": "Action.Execute",
-                "title": "Copy",
-                "data": {
-                    "incId": `${incId}`,
-                    "companyData": companyData
-                }
-            },
-            {
-                "type": "Action.Execute",
-                "title": "Close",
-                "data": {
-                    "incId": `${incId}`,
-                    "companyData": companyData
-                }
-            }
-        ]
-    }
+    }   
 }
 
 const getNextPreviousBtnObj = (nextIndex, previousIndex, isPreviousBtnVisible, isNextBtnVisible, companyData) => {
@@ -395,14 +386,16 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
     
         if(allIncData != null && allIncData.length > 0){
             let eventIndex = 0;
+            let lastPageEventIndex = 0;
             if(dashboardData != null && dashboardData.eventIndex != null){
                 if(dashboardData.eventIndex > 0){
                     eventIndex = dashboardData.eventIndex;
+                    lastPageEventIndex = dashboardData.eventIndex;                
                 }
                 
-                if(allIncData.length == eventIndex){
-                    eventIndex -= 2;
-                }
+                // if(allIncData.length == eventIndex){
+                //     eventIndex -= 2;
+                // }
             }
     
             const previousIndex = (eventIndex - 2);
@@ -424,8 +417,12 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     const incData = allIncData[i-1];
                     const addSeperator = (eventCount == 1);
                     const eventName = `${eventNum}. ${incData.incTitle} ` + (incData.incType == "recurringIncident" ? "(recurring)" : "");
+                    let incStatus = "In progress";
+                    if(incData.incStatus != null){
+                        incStatus = incData.incStatus;
+                    }
                     const incNameHeader = getIncidentNameHeader(eventName, addSeperator);
-                    const incStatusWithStartDate = getIncStatusWithStartDate("In-progress", incData.incCreatedDate);
+                    const incStatusWithStartDate = getIncStatusWithStartDate(incStatus, incData.incCreatedDate);
 
                     let incMembers = incData.members;
                     if(incData.incType == "recurringIncident"){
@@ -434,7 +431,7 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
 
                     const userResponseObj = getUsersResponse(incMembers, mentionUserEntities, eventNum);
                     const createdBy = await getCreatedByObj(incData.incCreatedBy, allTeamMembers, mentionUserEntities);
-                    const dashboardActionBtn = getDashboardActionBtnObj(incData.incId, companyData, eventNum);
+                    const dashboardActionBtn = getDashboardActionBtnObj(incData.incId, companyData, eventNum, lastPageEventIndex, incStatus);
                     body.push(incNameHeader);
                     body.push(incStatusWithStartDate);
                     body.push(userResponseObj.shortResponse);
@@ -481,7 +478,53 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
     return card;
 }
 
+const getUpdateIncidentStatusCard = (incId, dashboardData, companyData, statusToUpdate) => {
+    let btnTitle = "Close Incident";
+    let msgText = "Are you sure you want to close this incident?";
+
+    if(statusToUpdate == "In progress"){
+        btnTitle = "Reopen Incident";
+        msgText = "Are you sure you want to reopen this incident?";
+    }
+    
+    const card = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": "Are you sure you want to close this incident?",
+                "wrap": true,
+                "weight": "Bolder"
+            },
+            {
+                "type": "ActionSet",
+                "actions": [
+                    {
+                        "type": "Action.Execute",
+                        "title": "Cancel"
+                    },
+                    {
+                        "type": "Action.Execute",
+                        "title": btnTitle,
+                        "verb": "updateIncStatus",
+                        "data": {
+                            "incId" : incId,
+                            "statusToUpdate": statusToUpdate,
+                            "dashboardData": dashboardData,
+                            "companyData": companyData
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    return card;
+}
+
 module.exports = {
     getIncidentTileDashboardCard,
-    mentionUser
+    mentionUser,
+    getUpdateIncidentStatusCard
 }

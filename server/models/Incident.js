@@ -15,7 +15,9 @@ class Incident {
     EVENT_START_DATE,
     EVENT_START_TIME,
     EVENT_END_DATE,
-    EVENT_END_TIME    
+    EVENT_END_TIME,
+    INC_STATUS_ID,
+    STATUS
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -33,6 +35,8 @@ class Incident {
     this.endDate = EVENT_END_DATE;
     this.endTime = EVENT_END_TIME;
     this.incGuidance = GUIDANCE;
+    this.incStatusId = INC_STATUS_ID,
+    this.incStatus = STATUS
   }
 }
 

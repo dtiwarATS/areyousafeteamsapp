@@ -60,10 +60,11 @@ const getInc = async (incId, runAt = null) => {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
       inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
-      inc.EVENT_END_DATE, inc.EVENT_END_TIME 
+      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.LIST_ITEM STATUS
       FROM MSTeamsIncidents inc
       LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
       LEFT JOIN MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id
+      LEFT JOIN GEN_LIST_ITEM GLI ON GLI.ID = INC.INC_STATUS_ID
       where inc.id = ${incId} and convert(datetime, runAt) = convert(datetime, '${runAt}')
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     }
@@ -71,10 +72,10 @@ const getInc = async (incId, runAt = null) => {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
       inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, m.is_message_delivered, 
       m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
-      inc.EVENT_END_DATE, inc.EVENT_END_TIME 
+      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.LIST_ITEM STATUS
       FROM MSTeamsIncidents inc
-      LEFT JOIN MSTeamsMemberResponses m
-      ON inc.id = m.inc_id
+      LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+      LEFT JOIN GEN_LIST_ITEM GLI ON GLI.ID = INC.INC_STATUS_ID
       where inc.id = ${incId}
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     }
@@ -164,7 +165,8 @@ const saveInc = async (actionData, companyData, memberChoises) => {
     endDate: "",
     endTime: "",
     incCreatedByName: actionData.inc_created_by.name,
-    guidance: actionData.guidance ? actionData.guidance : ''
+    guidance: actionData.guidance ? actionData.guidance : '',
+    incStatusId: 1
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
@@ -505,6 +507,23 @@ const getRecurrenceMembersResponse = async (incId) => {
   }
 }
 
+const updateIncStatus = async (incId, incStatus) => {
+  try{
+    pool = await poolPromise;
+    let incStatusId = 1;
+    if(incStatus == "Closed"){
+      incStatusId = 2;
+    }
+    const query = `UPDATE MSTEAMSINCIDENTS SET INC_STATUS_ID = ${incStatusId} WHERE ID = ${incId}`;
+    console.log("update query >> ", query);
+    await pool.request().query(query);
+  }
+  catch(err){
+    console.log(err);
+  }  
+  return Promise.resolve();
+};
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -525,5 +544,6 @@ module.exports = {
   saveIncResponseUserTS,
   getIncResponseSelectedUsersList,
   getIncResponseUserTS,
-  getRecurrenceMembersResponse
+  getRecurrenceMembersResponse,
+  updateIncStatus
 };

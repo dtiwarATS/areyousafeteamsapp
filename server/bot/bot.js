@@ -86,8 +86,6 @@ const selectResponseCard = async (context, user) => {
     isAdminOrSuperuser = true;
     if (verb === "create_onetimeincident" && isAdminOrSuperuser) {
       await createInc(context, user, companyData);
-    } else if (verb === "copyInc" && isAdminOrSuperuser) {
-      await copyInc(context, user, action);
     } else if (verb === "create_recurringincident" && isAdminOrSuperuser) {
       await createRecurrInc(context, user, companyData);
     } else if (verb === "save_new_inc" && isAdminOrSuperuser) {
@@ -121,7 +119,15 @@ const selectResponseCard = async (context, user) => {
       await submitSettings(context, companyData);
     } else if (verb && (verb === "dashboard_view_previous_inc" || verb == "dashboard_view_next_inc") && isAdminOrSuperuser) {
       await navigateDashboardList(context, action, verb);
-    }
+    } else if (verb === "copyInc" && isAdminOrSuperuser) {
+      await copyInc(context, user, action);
+    } else if (verb === "closeInc" && isAdminOrSuperuser) {
+      await showIncStatusConfirmationCard(context, action, "Closed");
+    } else if (verb === "reopenInc" && isAdminOrSuperuser) {
+      await showIncStatusConfirmationCard(context, action, "In progress");
+    } else if (verb === "updateIncStatus" && isAdminOrSuperuser) {
+      await updateIncStatus(context, action);
+    }    
     return Promise.resolve(true);
   } catch (error) {
     console.log("ERROR: ", error);
@@ -714,6 +720,51 @@ const getNewIncCardNew = async (context, user, companyData, errorMessage = "", i
     }
   }
   return newIncident.getNewIncCardNew(user, companyData, allMembers, errorMessage, incData, isCopy);
+}
+
+const updateIncStatus = async (context, action) => {
+  try{
+    const companyData = action.data.companyData ? action.data.companyData : {};
+    const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+    const incId = action.data.incId ? Number(action.data.incId) : -1;
+    const statusToUpdate = action.data.statusToUpdate;
+    await incidentService.updateIncStatus(incId, statusToUpdate);
+
+    if(dashboardData.ts != null){
+      const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
+      let eventIndex = 0;
+      if(dashboardData != null && dashboardData.lastPageEventIndex != null){
+        eventIndex = dashboardData.lastPageEventIndex;
+      }
+      dashboardData["eventIndex"] = eventIndex;
+      const dashboardCard = dashboard.getIncidentTileDashboardCard(dashboardData, companyData, allTeamMembers);
+      const card = CardFactory.adaptiveCard(dashboardCard);
+      const message = MessageFactory.attachment(card);
+      message.id = dashboardData.ts;
+      await context.updateActivity(message);
+    }
+  }
+  catch(err){
+    console.log(err);
+  }  
+}
+
+const showIncStatusConfirmationCard = async (context, action, statusToUpdate) => {  
+  try {    
+    const companyData = action.data.companyData ? action.data.companyData : {};
+    const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+    const incId = action.data.incId ? Number(action.data.incId) : -1;
+
+    dashboardData["ts"] = context.activity.replyToId;
+
+    const card = dashboard.getUpdateIncidentStatusCard(incId, dashboardData, companyData, statusToUpdate);
+
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(card)],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 const copyInc = async (context, user, action) => {  
