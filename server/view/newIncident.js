@@ -16,141 +16,152 @@ const getIncNameInputJson = (incData, isCopy) => {
 }
 
 const getIncGuidanceInputJson = (incData, isCopy) => {
-    const incGuidanceInputJson = {
-        type: "Input.Text",
-        isMultiline: true,
-        placeholder: "Enter the Guidance",
-        id: "guidance",
-      }
-    if(isCopy && incData != null && incData.incGuidance != null){
-        incGuidanceInputJson["value"] = incData.incGuidance;
-    }
-    return incGuidanceInputJson;
+  const incGuidanceInputJson = {
+    type: "Input.Text",
+    isMultiline: true,
+    placeholder: "Enter the Guidance",
+    id: "guidance"
+  }
+  if(isCopy && incData != null && incData.incGuidance != null){
+    incGuidanceInputJson["value"] = incData.incGuidance.replace(/\n\n/g, '\n');
+  }
+  return incGuidanceInputJson;
 }
 
-const getEventDaysDrpJson = (incData, isCopy) => {
-    const eventDays = [
-        { title: "Sun", value: "0" }, { title: "Mon", value: "1" }, { title: "Tue", value: "2" }, { title: "Wed", value: "3" },
-        { title: "Thur", value: "4" }, { title: "Fri", value: "5" }, { title: "Sat", value: "6" }
-    ];
-    const incEventDaysDrpJson = {
-        type: "Input.ChoiceSet",
-        weight: "bolder",
-        id: "eventDays",
-        style: "filtered",
-        isMultiSelect: true,
-        choices: eventDays,
-        value: "1,2,3,4,5"
-    }
-    if(isCopy && incData != null && incData.occursEvery != null){
-        incEventDaysDrpJson["value"] = incData.occursEvery;
-    }
-    return incEventDaysDrpJson;
+const getEventDaysDrpJson = (incData, isCopy, incType) => {
+  const eventDays = [
+    { title: "Sun", value: "0" }, { title: "Mon", value: "1" }, { title: "Tue", value: "2" }, { title: "Wed", value: "3" },
+    { title: "Thur", value: "4" }, { title: "Fri", value: "5" }, { title: "Sat", value: "6" }
+  ];
+  const incEventDaysDrpJson = {
+    type: "Input.ChoiceSet",
+    weight: "bolder",
+    id: "eventDays",
+    style: "filtered",
+    isMultiSelect: true,
+    choices: eventDays,
+    value: "1,2,3,4,5"
+  }
+  if(isCopy && incData != null && incData.occursEvery != null && incType == "incType"){
+      incEventDaysDrpJson["value"] = incData.occursEvery;
+  }
+  return incEventDaysDrpJson;
 }
 
-const getStartDateDPJson = (incData, isCopy) => {
-    const incStartDateDPJson = {
-        "type": "Input.Date",
-        "value": formatedDate("yyyy-mm-dd", (new Date())),
-        "id": "startDate"
-    }
-    if(isCopy && incData != null && incData.startDate != null) {
-        const startDate = new Date(incData.startDate);
-        incStartDateDPJson["value"] = formatedDate("yyyy-mm-dd", startDate);
-    }
-    return incStartDateDPJson;
+const getStartDateDPJson = (incData, isCopy, incType) => {
+  const incStartDateDPJson = {
+    "type": "Input.Date",
+    "value": formatedDate("yyyy-mm-dd", (new Date())),
+    "id": "startDate"
+  }
+  if(isCopy && incData != null && incData.startDate != null && incType == "incType") {
+    const startDate = new Date(incData.startDate);
+    incStartDateDPJson["value"] = formatedDate("yyyy-mm-dd", startDate);
+  }
+  return incStartDateDPJson;
 }
 
-const getStartTimeTPJson = (incData, isCopy) => {
-    const incStartTimeTPJson = {
-        "type": "Input.Time",
-        "value": "10:00",
-        "id": "startTime"
-    }
-    if(isCopy && incData != null && incData.startTime != null) {
-        incStartTimeTPJson["value"] = incData.startTime;
-    }
-    return incStartTimeTPJson;
+const getStartTimeTPJson = (incData, isCopy, incType) => {
+  const incStartTimeTPJson = {
+    "type": "Input.Time",
+    "value": "10:00",
+    "id": "startTime"
+  }
+  if(isCopy && incData != null && incData.startTime != null && incType == "incType") {
+    incStartTimeTPJson["value"] = incData.startTime;
+  }
+  return incStartTimeTPJson;
 }
 
-const getEndDateDPJson = (incData, isCopy) => {
-    var nextWeekDate = new Date();
-    nextWeekDate.setDate(nextWeekDate.getDate() + 7);
+const getEndDateDPJson = (incData, isCopy, incType) => {
+  var nextWeekDate = new Date();
+  nextWeekDate.setDate(nextWeekDate.getDate() + 7);
 
-    const incEndDateDPJson = {
-        "type": "Input.Date",
-        "value": formatedDate("yyyy-mm-dd", nextWeekDate),
-        "id": "endDate"
-    }
-    if(isCopy && incData != null && incData.endDate != null) {
-        const endDate = new Date(incData.endDate);
-        incEndDateDPJson["value"] = formatedDate("yyyy-mm-dd", endDate);
-    }
-    return incEndDateDPJson;
+  const incEndDateDPJson = {
+    "type": "Input.Date",
+    "value": formatedDate("yyyy-mm-dd", nextWeekDate),
+    "id": "endDate"
+  }
+  if(isCopy && incData != null && incData.endDate != null && incType == "incType") {
+    const endDate = new Date(incData.endDate);
+    incEndDateDPJson["value"] = formatedDate("yyyy-mm-dd", endDate);
+  }
+  return incEndDateDPJson;
 }
 
-const getEndTimeTPJson = (incData, isCopy) => {
-    const incEndTimeTPJson = {
-        "type": "Input.Time",
-        "value": "10:00",
-        "id": "endTime"
-    }
-    if(isCopy && incData != null && incData.endTime != null) {
-        incEndTimeTPJson["value"] = incData.endTime;
-    }
-    return incEndTimeTPJson;
+const getEndTimeTPJson = (incData, isCopy, incType) => {
+  const incEndTimeTPJson = {
+    "type": "Input.Time",
+    "value": "10:00",
+    "id": "endTime"
+  }
+  if(isCopy && incData != null && incData.endTime != null && incType == "incType") {
+    incEndTimeTPJson["value"] = incData.endTime;
+  }
+  return incEndTimeTPJson;
 }
 
 const getSelectedMemberDrpJson = (incData, isCopy, memberChoises) => {
-    const incSelectedMemberDrpJson = {
-        type: "Input.ChoiceSet",
-        weight: "bolder",
-        id: "selected_members",
-        style: "filtered",
-        isMultiSelect: true,
-        placeholder: "Select users",
-        choices: memberChoises,
-    }
-    if(isCopy && incData != null && incData.members != null && incData.members.length > 0){
-        let userId = incData.members.map((m) => m.userId);
-        incSelectedMemberDrpJson["value"] = userId.toString();
-    }
-    return incSelectedMemberDrpJson;
+  const incSelectedMemberDrpJson = {
+    type: "Input.ChoiceSet",
+    weight: "bolder",
+    id: "selected_members",
+    style: "filtered",
+    isMultiSelect: true,
+    placeholder: "Select users",
+    choices: memberChoises
+  }
+  if(isCopy && incData != null && incData.members != null && incData.members.length > 0){
+    let userId = incData.members.map((m) => m.userId);
+    incSelectedMemberDrpJson["value"] = userId.toString();
+  }
+  return incSelectedMemberDrpJson;
 }
 
 const getResponseSelectedMemberDrpJson = (incData, isCopy, memberChoises) => {
-    const incResponseSelectedMemberDrpJson = {
-        type: "Input.ChoiceSet",
-        weight: "bolder",
-        id: "selected_members_response",
-        style: "filtered",
-        isMultiSelect: true,
-        placeholder: "Select users",
-        choices: memberChoises,
-      }
-    if(isCopy && incData != null && incData.responseSelectedUsers != null && incData.responseSelectedUsers.length > 0){
-        let userId = incData.responseSelectedUsers.map((m) => m.user_id);
-        incResponseSelectedMemberDrpJson["value"] = userId.toString();
-    }
-    return incResponseSelectedMemberDrpJson;
+  const incResponseSelectedMemberDrpJson = {
+    type: "Input.ChoiceSet",
+    weight: "bolder",
+    id: "selected_members_response",
+    style: "filtered",
+    isMultiSelect: true,
+    placeholder: "Select users",
+    choices: memberChoises,
+  }
+  if(isCopy && incData != null && incData.responseSelectedUsers != null && incData.responseSelectedUsers.length > 0){
+    let userId = incData.responseSelectedUsers.map((m) => m.user_id);
+    incResponseSelectedMemberDrpJson["value"] = userId.toString();
+  }
+  return incResponseSelectedMemberDrpJson;
 }
 
-const getNewIncCardNew = async (user, companyData, allMembers, errorMessage = "", incData = null, isCopy = false) => {  
+const getNewIncCardNew = async (user, companyData, allMembers, errorMessage = "", incData = null, isCopy = false) => {
+  let card = null;
+  try{
     const memberChoises = allMembers.map((m) => ({
       title: m.name,
       value: m.id
     }));
-
+  
+    let incType = "onetime";
+    if(incData != null && incData.incType != null){
+      incType = incData.incType;
+    }
+  
     const incNameInputJson = getIncNameInputJson(incData, isCopy);
     const incGuidanceInputJson = getIncGuidanceInputJson(incData, isCopy);
-    const incEventDaysDrpJson = getEventDaysDrpJson(incData, isCopy);
-    const incStartDateDPJson = getStartDateDPJson(incData, isCopy);
-    const incStartTimeTPJson = getStartTimeTPJson(incData, isCopy);
-    const incEndDateDPJson = getEndDateDPJson(incData, isCopy);
-    const incEndTimeTPJson = getEndTimeTPJson(incData, isCopy);
+    const incEventDaysDrpJson = getEventDaysDrpJson(incData, isCopy, incType);
+    const incStartDateDPJson = getStartDateDPJson(incData, isCopy, incType);
+    const incStartTimeTPJson = getStartTimeTPJson(incData, isCopy, incType);
+    const incEndDateDPJson = getEndDateDPJson(incData, isCopy, incType);
+    const incEndTimeTPJson = getEndTimeTPJson(incData, isCopy, incType);
     const incSelectedMemberDrpJson = getSelectedMemberDrpJson(incData, isCopy, memberChoises);
     const incResponseSelectedMemberDrpJson = getResponseSelectedMemberDrpJson(incData, isCopy, memberChoises);
-    return {
+  
+    const isOneTimeVisible = (incType == "onetime");
+    const isRecurringVisible = (incType == "recurringIncident");
+  
+    card = {
       $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
       appId: process.env.MicrosoftAppId,
       body: [
@@ -183,6 +194,7 @@ const getNewIncCardNew = async (user, companyData, allMembers, errorMessage = ""
         {
           "type": "ColumnSet",
           "id" : "colSetOneTime",
+          "isVisible" : isOneTimeVisible,
           "columns": [
             {
               "type": "Column",
@@ -205,7 +217,7 @@ const getNewIncCardNew = async (user, companyData, allMembers, errorMessage = ""
         {
           "type": "ColumnSet",
           "id" : "colSetRecurring",
-          "isVisible" : false,
+          "isVisible" : isRecurringVisible,
           "columns": [
             {
               "type": "Column",
@@ -324,6 +336,7 @@ const getNewIncCardNew = async (user, companyData, allMembers, errorMessage = ""
           "type": "ActionSet",
           "id": "asbtnSaveOneTimeInc",
           "separator": true,
+          "isVisible": isOneTimeVisible,
           "actions": [
             {
               type: "Action.Execute",
@@ -352,7 +365,7 @@ const getNewIncCardNew = async (user, companyData, allMembers, errorMessage = ""
         {
           "type": "ActionSet",
           "id": "asbtnSaveRecurrInc",
-          "isVisible": false,        
+          "isVisible": isRecurringVisible,        
           "separator": true,
           "actions": [
             {
@@ -383,8 +396,13 @@ const getNewIncCardNew = async (user, companyData, allMembers, errorMessage = ""
       type: "AdaptiveCard",
       version: "1.4",
     };
+  }
+  catch(err){
+    console.log(err);
+  }
+  return card;
 }
 
 module.exports = {
-    getNewIncCardNew
+  getNewIncCardNew
 }
