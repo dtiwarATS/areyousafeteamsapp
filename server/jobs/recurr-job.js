@@ -15,7 +15,8 @@ const moment = require("moment-timezone");
                 `A.CREATED_BY_NAME AS createdByName, A.TEAM_ID, A.CHANNEL_ID, A.EVENT_END_DATE eventEndDate, A.EVENT_END_TIME eventEndTime, B.RUN_AT runAt ` +
                 ` FROM MSTEAMSINCIDENTS A `+
                 `LEFT JOIN MSTEAMS_SUB_EVENT B ON A.ID = B.INC_ID `+
-                `WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT) AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) `;                
+                `WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT) ` + 
+                `AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2`;                
 
   let jobsToBeExecutedArr = await db.getDataFromDB(sqlJob);
   if(jobsToBeExecutedArr != null && jobsToBeExecutedArr.length > 0){

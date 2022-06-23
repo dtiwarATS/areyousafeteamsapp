@@ -28,7 +28,8 @@ const {
 } = require("../db/dbOperations");
 
 const {
-  updateMainCard
+  updateMainCard,
+  updateCard
 } = require("../models/UpdateCards");
 const dashboard = require("../models/dashboard")
 const { Console } = require("console");
@@ -728,19 +729,32 @@ const updateIncStatus = async (context, action) => {
     const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
     const incId = action.data.incId ? Number(action.data.incId) : -1;
     const statusToUpdate = action.data.statusToUpdate;
-    await incidentService.updateIncStatus(incId, statusToUpdate);
+    const incTitle = action.data.incTitle ? action.data.incTitle : "";
+    const isUpdated = await incidentService.updateIncStatus(incId, statusToUpdate);    
 
-    if(dashboardData.ts != null){
+    if(dashboardData.ts != null && isUpdated){
       const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
       let eventIndex = 0;
       if(dashboardData != null && dashboardData.lastPageEventIndex != null){
         eventIndex = dashboardData.lastPageEventIndex;
       }
       dashboardData["eventIndex"] = eventIndex;
-      const dashboardCard = dashboard.getIncidentTileDashboardCard(dashboardData, companyData, allTeamMembers);
-      const card = CardFactory.adaptiveCard(dashboardCard);
-      const message = MessageFactory.attachment(card);
-      message.id = dashboardData.ts;
+      const dashboardCard = await dashboard.getIncidentTileDashboardCard(dashboardData, companyData, allTeamMembers);
+      const dsCard = CardFactory.adaptiveCard(dashboardCard);
+      const dsMessage = MessageFactory.attachment(dsCard);
+      dsMessage.id = dashboardData.ts;
+      await context.updateActivity(dsMessage);
+
+      let text = `Incident **${incTitle}** has been closed.`;
+      if(statusToUpdate == "In progress"){
+        text = `Incident **${incTitle}** has been reopen.`;
+      }
+      const cards = CardFactory.adaptiveCard(
+        updateCard("", "", text)
+      );
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
       await context.updateActivity(message);
     }
   }
@@ -754,10 +768,10 @@ const showIncStatusConfirmationCard = async (context, action, statusToUpdate) =>
     const companyData = action.data.companyData ? action.data.companyData : {};
     const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
     const incId = action.data.incId ? Number(action.data.incId) : -1;
-
+    const incTitle = action.data.incTitle ? action.data.incTitle : "";
     dashboardData["ts"] = context.activity.replyToId;
 
-    const card = dashboard.getUpdateIncidentStatusCard(incId, dashboardData, companyData, statusToUpdate);
+    const card = dashboard.getUpdateIncidentStatusCard(incId, dashboardData, companyData, statusToUpdate, incTitle);
 
     await context.sendActivity({
       attachments: [CardFactory.adaptiveCard(card)],

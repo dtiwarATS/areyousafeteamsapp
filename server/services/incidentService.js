@@ -60,11 +60,11 @@ const getInc = async (incId, runAt = null) => {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
       inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
-      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.LIST_ITEM STATUS
+      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
       FROM MSTeamsIncidents inc
       LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
       LEFT JOIN MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id
-      LEFT JOIN GEN_LIST_ITEM GLI ON GLI.ID = INC.INC_STATUS_ID
+      LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
       where inc.id = ${incId} and convert(datetime, runAt) = convert(datetime, '${runAt}')
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     }
@@ -72,10 +72,10 @@ const getInc = async (incId, runAt = null) => {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
       inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, m.is_message_delivered, 
       m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
-      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.LIST_ITEM STATUS
+      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
       FROM MSTeamsIncidents inc
       LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
-      LEFT JOIN GEN_LIST_ITEM GLI ON GLI.ID = INC.INC_STATUS_ID
+      LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
       where inc.id = ${incId}
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     }
@@ -93,11 +93,12 @@ const getInc = async (incId, runAt = null) => {
 
 const getAllIncByTeamId = async (teamId) => {
   try {
-    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members,
-    inc.created_by, inc.created_date, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-    m.comment, m.timestamp FROM MSTeamsIncidents inc
-    LEFT JOIN MSTeamsMemberResponses m
-    ON inc.id = m.inc_id
+    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
+    inc.selected_members, inc.created_by, inc.created_date, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+    m.comment, m.timestamp, inc.INC_STATUS_ID
+    FROM MSTeamsIncidents inc
+    LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+    LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
     where inc.team_id = '${teamId}'
     FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
@@ -201,13 +202,14 @@ const saveRecurrInc = async (actionData, companyData, memberChoises) => {
     endTime: actionData.endTime,
     incCreatedByName: actionData.inc_created_by.name,
     guidance: actionData.guidance ? actionData.guidance : '',
+    incStatusId: 1
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
   // console.log("incidentValues >> ", incidentValues);
   const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
 
-  if (res.length > 0) {
+  if (res != null && res.length > 0) {
     newInc = new Incident(res[0]);
     await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
     incObj.responseSelectedUsers = actionData.selected_members_response;
@@ -508,6 +510,7 @@ const getRecurrenceMembersResponse = async (incId) => {
 }
 
 const updateIncStatus = async (incId, incStatus) => {
+  let isupdated = false;
   try{
     pool = await poolPromise;
     let incStatusId = 1;
@@ -515,13 +518,13 @@ const updateIncStatus = async (incId, incStatus) => {
       incStatusId = 2;
     }
     const query = `UPDATE MSTEAMSINCIDENTS SET INC_STATUS_ID = ${incStatusId} WHERE ID = ${incId}`;
-    console.log("update query >> ", query);
-    await pool.request().query(query);
+    const updateResult = await db.updateDataIntoDB(query);
+    isupdated = (updateResult != null && updateResult.rowsAffected.length > 0);
   }
   catch(err){
     console.log(err);
   }  
-  return Promise.resolve();
+  return Promise.resolve(isupdated);
 };
 
 module.exports = {

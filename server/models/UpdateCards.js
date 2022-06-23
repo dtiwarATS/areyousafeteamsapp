@@ -80,7 +80,7 @@ const updateMainCard = (companyData) => {
     ],
   };
 };
-const updateCreateIncidentCard = (incidentTitle, members, text) => {
+const updateCard = (incidentTitle, members, text) => {
   console.log({ incidentTitle, members });
   return {
     type: "AdaptiveCard",
@@ -379,7 +379,7 @@ const updateContactSubmitCard = (responseText, incCreatedBy) => {
 };
 module.exports = {
   updateMainCard,
-  updateCreateIncidentCard,
+  updateCard,
   updateSendApprovalMessage,
   updateSafeMessage,
   updateSesttingsCard,

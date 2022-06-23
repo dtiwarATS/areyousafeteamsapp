@@ -213,7 +213,7 @@ const getCreatedByObj = async (createdByNameId, allMembers, mentionUserEntities)
     }
 }
 
-const getDashboardActionBtnObj = (incId, companyData, eventNum, lastPageEventIndex, incStatus) => {
+const getDashboardActionBtnObj = (incId, companyData, eventNum, lastPageEventIndex, incStatus, incTitle) => {
     const dashboardData = {"lastPageEventIndex": lastPageEventIndex};
     return {
         "type": "ColumnSet",
@@ -283,7 +283,8 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum, lastPageEventInd
                                 "data": {
                                     "incId": `${incId}`,
                                     "companyData": companyData,
-                                    "dashboardData": dashboardData
+                                    "dashboardData": dashboardData,
+                                    "incTitle": incTitle
                                 }
                             }
                         ]
@@ -307,7 +308,8 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum, lastPageEventInd
                                 "data": {
                                     "incId": `${incId}`,
                                     "companyData": companyData,
-                                    "dashboardData": dashboardData
+                                    "dashboardData": dashboardData,
+                                    "incTitle": incTitle
                                 }
                             },
                             {
@@ -418,8 +420,8 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     const addSeperator = (eventCount == 1);
                     const eventName = `${eventNum}. ${incData.incTitle} ` + (incData.incType == "recurringIncident" ? "(recurring)" : "");
                     let incStatus = "In progress";
-                    if(incData.incStatus != null){
-                        incStatus = incData.incStatus;
+                    if(incData.incStatusId != null && incData.incStatusId == 2){
+                        incStatus = "Closed";
                     }
                     const incNameHeader = getIncidentNameHeader(eventName, addSeperator);
                     const incStatusWithStartDate = getIncStatusWithStartDate(incStatus, incData.incCreatedDate);
@@ -431,7 +433,7 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
 
                     const userResponseObj = getUsersResponse(incMembers, mentionUserEntities, eventNum);
                     const createdBy = await getCreatedByObj(incData.incCreatedBy, allTeamMembers, mentionUserEntities);
-                    const dashboardActionBtn = getDashboardActionBtnObj(incData.incId, companyData, eventNum, lastPageEventIndex, incStatus);
+                    const dashboardActionBtn = getDashboardActionBtnObj(incData.incId, companyData, eventNum, lastPageEventIndex, incStatus, incData.incTitle);
                     body.push(incNameHeader);
                     body.push(incStatusWithStartDate);
                     body.push(userResponseObj.shortResponse);
@@ -478,7 +480,7 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
     return card;
 }
 
-const getUpdateIncidentStatusCard = (incId, dashboardData, companyData, statusToUpdate) => {
+const getUpdateIncidentStatusCard = (incId, dashboardData, companyData, statusToUpdate, incTitle) => {
     let btnTitle = "Close Incident";
     let msgText = "Are you sure you want to close this incident?";
 
@@ -494,7 +496,7 @@ const getUpdateIncidentStatusCard = (incId, dashboardData, companyData, statusTo
         "body": [
             {
                 "type": "TextBlock",
-                "text": "Are you sure you want to close this incident?",
+                "text": msgText,
                 "wrap": true,
                 "weight": "Bolder"
             },
@@ -513,7 +515,8 @@ const getUpdateIncidentStatusCard = (incId, dashboardData, companyData, statusTo
                             "incId" : incId,
                             "statusToUpdate": statusToUpdate,
                             "dashboardData": dashboardData,
-                            "companyData": companyData
+                            "companyData": companyData,
+                            "incTitle": incTitle
                         }
                     }
                 ]

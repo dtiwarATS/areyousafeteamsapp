@@ -30,7 +30,7 @@ const {
 
 const {
   updateMainCard,
-  updateCreateIncidentCard,
+  updateCard,
   updateSendApprovalMessage,
   updateSubmitCommentCard,
   updateSafeMessage,
@@ -361,7 +361,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         let recurrInc = (uVerb === "save_new_recurr_inc") ? "recurring " : "";
         let text = `✔️ New ${recurrInc}incident '${incTitle}' created successfully.`;
         const cards = CardFactory.adaptiveCard(
-          updateCreateIncidentCard(incTitle, members, text)
+          updateCard(incTitle, members, text)
         );
 
         const message = MessageFactory.attachment(cards);
@@ -376,7 +376,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         let recurrInc = (uVerb === "save_new_recurr_inc") ? "recurring " : "";
         let text = `Ok.. No Problem... We can do this later. Thank you for your time.`;
         const cards = CardFactory.adaptiveCard(
-          updateCreateIncidentCard(incTitle, members, text)
+          updateCard(incTitle, members, text)
         );
 
         const message = MessageFactory.attachment(cards);
@@ -391,7 +391,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         }
         let text = `Hello! You do not have any incident running at the moment!!!`;
         const cards = CardFactory.adaptiveCard(
-          updateCreateIncidentCard(incTitle, members, text)
+          updateCard(incTitle, members, text)
         );
 
         const message = MessageFactory.attachment(cards);
