@@ -247,8 +247,8 @@ const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
 };
 
 const deleteInc = async (incId) => {
-  try {
-    let incName;
+  let incName = null;
+  try {    
     pool = await poolPromise;
     const query = `DELETE FROM MSTeamsMemberResponses WHERE inc_id = ${incId};
     DELETE FROM MSTeamsIncidents OUTPUT Deleted.inc_name WHERE id = ${incId}`;
@@ -257,12 +257,11 @@ const deleteInc = async (incId) => {
     const res = await pool.request().query(query);
     if (res.recordset.length > 0) {
       incName = res.recordset[0].inc_name;
-    }
-    return Promise.resolve(incName);
+    }    
   } catch (err) {
     console.log(err);
   }
-  return newInc;
+  return Promise.resolve(incName);
 };
 
 const addMemberResponseDetails = async (respDetailsObj) => {

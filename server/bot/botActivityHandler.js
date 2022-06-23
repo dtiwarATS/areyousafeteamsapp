@@ -425,21 +425,21 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "delete_inc") {
-        const cards = CardFactory.adaptiveCard({
-          type: "AdaptiveCard",
-          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-          version: "1.4",
-          body: [
-            {
-              type: "TextBlock",
-              text: `✔️ The Incident has been deleted successfully.`,
-              wrap: true,
-            },
-          ],
-        });
-        const message = MessageFactory.attachment(cards);
-        message.id = context.activity.replyToId;
-        await context.updateActivity(message);
+        // const cards = CardFactory.adaptiveCard({
+        //   type: "AdaptiveCard",
+        //   $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        //   version: "1.4",
+        //   body: [
+        //     {
+        //       type: "TextBlock",
+        //       text: `✔️ The Incident has been deleted successfully.`,
+        //       wrap: true,
+        //     },
+        //   ],
+        // });
+        // const message = MessageFactory.attachment(cards);
+        // message.id = context.activity.replyToId;
+        // await context.updateActivity(message);
       } else if (uVerb === "submit_comment") {
         const action = context.activity.value.action;
         const {

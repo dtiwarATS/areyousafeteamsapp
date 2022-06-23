@@ -128,7 +128,9 @@ const selectResponseCard = async (context, user) => {
       await showIncStatusConfirmationCard(context, action, "In progress");
     } else if (verb === "updateIncStatus" && isAdminOrSuperuser) {
       await updateIncStatus(context, action);
-    }    
+    } else if (verb === "confirmDeleteInc" && isAdminOrSuperuser) {
+      await showIncDeleteConfirmationCard(context, action);
+    }
     return Promise.resolve(true);
   } catch (error) {
     console.log("ERROR: ", error);
@@ -733,17 +735,7 @@ const updateIncStatus = async (context, action) => {
     const isUpdated = await incidentService.updateIncStatus(incId, statusToUpdate);    
 
     if(dashboardData.ts != null && isUpdated){
-      const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
-      let eventIndex = 0;
-      if(dashboardData != null && dashboardData.lastPageEventIndex != null){
-        eventIndex = dashboardData.lastPageEventIndex;
-      }
-      dashboardData["eventIndex"] = eventIndex;
-      const dashboardCard = await dashboard.getIncidentTileDashboardCard(dashboardData, companyData, allTeamMembers);
-      const dsCard = CardFactory.adaptiveCard(dashboardCard);
-      const dsMessage = MessageFactory.attachment(dsCard);
-      dsMessage.id = dashboardData.ts;
-      await context.updateActivity(dsMessage);
+      await updateDashboardCard(context, dashboardData, companyData);      
 
       let text = `Incident **${incTitle}** has been closed.`;
       if(statusToUpdate == "In progress"){
@@ -761,6 +753,24 @@ const updateIncStatus = async (context, action) => {
   catch(err){
     console.log(err);
   }  
+}
+
+const showIncDeleteConfirmationCard = async (context, action) => {  
+  try {    
+    const companyData = action.data.companyData ? action.data.companyData : {};
+    const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+    const incId = action.data.incId ? Number(action.data.incId) : -1;
+    const incTitle = action.data.incTitle ? action.data.incTitle : "";
+    dashboardData["ts"] = context.activity.replyToId;
+
+    const card = dashboard.getDeleteIncidentCard(incId, dashboardData, companyData, incTitle);
+
+    await context.sendActivity({
+      attachments: [CardFactory.adaptiveCard(card)],
+    });
+  } catch (error) {
+    console.log(error);
+  }
 }
 
 const showIncStatusConfirmationCard = async (context, action, statusToUpdate) => {  
@@ -1081,9 +1091,55 @@ const sendDeleteIncCard = async (context, user, companyData) => {
   }
 };
 
+const updateDashboardCard = async (context, dashboardData, companyData) => {
+  const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
+  let eventIndex = 0;
+  if(dashboardData != null && dashboardData.lastPageEventIndex != null){
+    eventIndex = dashboardData.lastPageEventIndex;
+  }
+  dashboardData["eventIndex"] = eventIndex;
+  const dashboardCard = await dashboard.getIncidentTileDashboardCard(dashboardData, companyData, allTeamMembers);
+  const dsCard = CardFactory.adaptiveCard(dashboardCard);
+  const dsMessage = MessageFactory.attachment(dsCard);
+  dsMessage.id = dashboardData.ts;
+  await context.updateActivity(dsMessage);
+}
+
 const deleteInc = async (context, action) => { 
-  const incidentSelectedVal = action.data.incidentSelectedVal;
-  const IncidentName = await incidentService.deleteInc(incidentSelectedVal);
+  try{
+    let incId = -1;
+    const deleteFromDashboard = (action.data.deleteFromDashboard == true);
+    if(deleteFromDashboard){
+      incId = action.data.incId ? Number(action.data.incId) : -1;
+    }
+    else {
+      incId = action.data.incidentSelectedVal;
+    }
+
+    const incName = await incidentService.deleteInc(incId);
+
+    if(deleteFromDashboard && incName != null){
+      const companyData = action.data.companyData ? action.data.companyData : {};
+      const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+      if(dashboardData.ts != null){
+        await updateDashboardCard(context, dashboardData, companyData);
+      }
+    }
+
+    if(incName != null){
+      const deleteText = `The incident **${incName}** has been deleted successfully.`;
+      const cards = CardFactory.adaptiveCard(
+        updateCard("", "", deleteText)
+      );
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    }
+  }
+  catch(err){
+    console.log(err);
+  }  
 };
 
 const viewAllInc = async (context, companyData) => {

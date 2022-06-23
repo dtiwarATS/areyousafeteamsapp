@@ -315,11 +315,12 @@ const getDashboardActionBtnObj = (incId, companyData, eventNum, lastPageEventInd
                             {
                                 "type": "Action.Execute",
                                 "title": "Delete",
-                                "verb": "deleteInc",
+                                "verb": "confirmDeleteInc",
                                 "data": {
                                     "incId": `${incId}`,
                                     "companyData": companyData,
-                                    "dashboardData": dashboardData
+                                    "dashboardData": dashboardData,
+                                    "incTitle": incTitle
                                 }
                             }
                         ]
@@ -395,9 +396,9 @@ const getIncidentTileDashboardCard = async (dashboardData, companyData, allTeamM
                     lastPageEventIndex = dashboardData.eventIndex;                
                 }
                 
-                // if(allIncData.length == eventIndex){
-                //     eventIndex -= 2;
-                // }
+                if(allIncData.length == eventIndex){ //When there is only one incident on last page. If user delete that incident then this code will set the previous page eventIndex to navigate back  
+                    eventIndex -= 2;
+                }
             }
     
             const previousIndex = (eventIndex - 2);
@@ -505,7 +506,8 @@ const getUpdateIncidentStatusCard = (incId, dashboardData, companyData, statusTo
                 "actions": [
                     {
                         "type": "Action.Execute",
-                        "title": "Cancel"
+                        "title": "Cancel",
+                        "verb": "Cancel_button"
                     },
                     {
                         "type": "Action.Execute",
@@ -526,8 +528,50 @@ const getUpdateIncidentStatusCard = (incId, dashboardData, companyData, statusTo
     return card;
 }
 
+const getDeleteIncidentCard = (incId, dashboardData, companyData, incTitle) => {    
+    let msgText = "Are you sure you want to delete this incident?";
+    
+    const card = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": msgText,
+                "wrap": true,
+                "weight": "Bolder"
+            },
+            {
+                "type": "ActionSet",
+                "actions": [
+                    {
+                        "type": "Action.Execute",
+                        "title": "Cancel",
+                        "verb": "Cancel_button"
+                    },
+                    {
+                        "type": "Action.Execute",
+                        "title": "Delete Incident",
+                        "verb": "delete_inc",
+                        "data": {
+                            "incId" : incId,
+                            "dashboardData": dashboardData,
+                            "companyData": companyData,
+                            "incTitle": incTitle,
+                            "deleteFromDashboard": true,
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+    return card;
+}
+
 module.exports = {
     getIncidentTileDashboardCard,
     mentionUser,
-    getUpdateIncidentStatusCard
+    getUpdateIncidentStatusCard,
+    getDeleteIncidentCard
 }
