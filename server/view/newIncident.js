@@ -42,7 +42,7 @@ const getEventDaysDrpJson = (incData, isCopy, incType) => {
     choices: eventDays,
     value: "1,2,3,4,5"
   }
-  if(isCopy && incData != null && incData.occursEvery != null && incType == "incType"){
+  if(isCopy && incData != null && incData.occursEvery != null && incType == "recurringIncident"){
       incEventDaysDrpJson["value"] = incData.occursEvery;
   }
   return incEventDaysDrpJson;
@@ -54,7 +54,7 @@ const getStartDateDPJson = (incData, isCopy, incType) => {
     "value": formatedDate("yyyy-mm-dd", (new Date())),
     "id": "startDate"
   }
-  if(isCopy && incData != null && incData.startDate != null && incType == "incType") {
+  if(isCopy && incData != null && incData.startDate != null && incType == "recurringIncident") {
     const startDate = new Date(incData.startDate);
     incStartDateDPJson["value"] = formatedDate("yyyy-mm-dd", startDate);
   }
@@ -67,7 +67,7 @@ const getStartTimeTPJson = (incData, isCopy, incType) => {
     "value": "10:00",
     "id": "startTime"
   }
-  if(isCopy && incData != null && incData.startTime != null && incType == "incType") {
+  if(isCopy && incData != null && incData.startTime != null && incType == "recurringIncident") {
     incStartTimeTPJson["value"] = incData.startTime;
   }
   return incStartTimeTPJson;
@@ -82,7 +82,7 @@ const getEndDateDPJson = (incData, isCopy, incType) => {
     "value": formatedDate("yyyy-mm-dd", nextWeekDate),
     "id": "endDate"
   }
-  if(isCopy && incData != null && incData.endDate != null && incType == "incType") {
+  if(isCopy && incData != null && incData.endDate != null && incType == "recurringIncident") {
     const endDate = new Date(incData.endDate);
     incEndDateDPJson["value"] = formatedDate("yyyy-mm-dd", endDate);
   }
@@ -95,7 +95,7 @@ const getEndTimeTPJson = (incData, isCopy, incType) => {
     "value": "10:00",
     "id": "endTime"
   }
-  if(isCopy && incData != null && incData.endTime != null && incType == "incType") {
+  if(isCopy && incData != null && incData.endTime != null && incType == "recurringIncident") {
     incEndTimeTPJson["value"] = incData.endTime;
   }
   return incEndTimeTPJson;
