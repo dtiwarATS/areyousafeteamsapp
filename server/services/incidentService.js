@@ -103,7 +103,7 @@ const getAllIncByTeamId = async (teamId) => {
     FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
     const result = await db.getDataFromDB(selectQuery);
-    let parsedResult = await parseEventData(result);    
+    let parsedResult = await parseEventData(result);
     return Promise.resolve(parsedResult);
   } catch (err) {
     console.log(err);
@@ -134,19 +134,19 @@ const saveInc = async (actionData, companyData, memberChoises) => {
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
 
   let selectedMembers = actionData.selected_members;
-  if(selectedMembers == null || selectedMembers.length == 0){
-    try{
+  if (selectedMembers == null || selectedMembers.length == 0) {
+    try {
       var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
       var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
-    
+
       const allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
-      if(allTeamMembers != null && allTeamMembers.length > 0){
+      if (allTeamMembers != null && allTeamMembers.length > 0) {
         selectedMembers = allTeamMembers.map((m) => {
           return m.id;
         });
       }
     }
-    catch(err){
+    catch (err) {
       console.log(err);
     }
   }
@@ -248,7 +248,7 @@ const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
 
 const deleteInc = async (incId) => {
   let incName = null;
-  try {    
+  try {
     pool = await poolPromise;
     const query = `DELETE FROM MSTeamsMemberResponses WHERE inc_id = ${incId};
     DELETE FROM MSTeamsIncidents OUTPUT Deleted.inc_name WHERE id = ${incId}`;
@@ -257,7 +257,7 @@ const deleteInc = async (incId) => {
     const res = await pool.request().query(query);
     if (res.recordset.length > 0) {
       incName = res.recordset[0].inc_name;
-    }    
+    }
   } catch (err) {
     console.log(err);
   }
@@ -408,8 +408,8 @@ const getLastRunAt = async (incId) => {
   return Promise.resolve(lastRunAt);
 }
 
-const verifyDuplicateInc = async(teamId, incTitle) => {
-  if(teamId != null && teamId != ''){
+const verifyDuplicateInc = async (teamId, incTitle) => {
+  if (teamId != null && teamId != '') {
     const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle}' AND TEAM_ID = '${teamId}'`;
     const result = await db.getDataFromDB(sqlLastRunAt);
     return (result != null && result.length > 0);
@@ -417,17 +417,17 @@ const verifyDuplicateInc = async(teamId, incTitle) => {
   return false;
 }
 
-const saveIncResponseSelectedUsers = async(incId, userIds, memberChoises) => {
-  try {    
-    if(incId != null && userIds != null && userIds.split(',').length > 0){
+const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises) => {
+  try {
+    if (incId != null && userIds != null && userIds.split(',').length > 0) {
       let query = "";
       const userIdsArr = userIds.split(',');
-      for(let u = 0; u < userIdsArr.length; u++){
+      for (let u = 0; u < userIdsArr.length; u++) {
         const userId = userIdsArr[u];
         let userName = "";
-        if(memberChoises != null){
+        if (memberChoises != null) {
           const usrObj = memberChoises.find((m) => m.value == userId);
-          if(usrObj != null){
+          if (usrObj != null) {
             userName = usrObj.title;
           }
         }
@@ -442,12 +442,12 @@ const saveIncResponseSelectedUsers = async(incId, userIds, memberChoises) => {
   }
 }
 
-const saveIncResponseUserTS = async(respUserTSquery) => {
+const saveIncResponseUserTS = async (respUserTSquery) => {
   try {
-    if(respUserTSquery != null && respUserTSquery != ""){
+    if (respUserTSquery != null && respUserTSquery != "") {
       console.log("insert query => ", respUserTSquery);
       await pool.request().query(respUserTSquery);
-    }    
+    }
   }
   catch (err) {
     console.log(err);
@@ -455,76 +455,86 @@ const saveIncResponseUserTS = async(respUserTSquery) => {
 }
 
 const getIncResponseSelectedUsersList = async (incId) => {
-  try{    
+  try {
     const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});`;
     const result = await db.getDataFromDB(sql);
     return Promise.resolve(result);
   }
-  catch(err){
+  catch (err) {
     console.log(err);
   }
 }
 
-const getIncResponseUserTS = async(incId, runAt) => {
-  try{
+const getIncResponseUserTS = async (incId, runAt) => {
+  try {
     let runAtFilter = '';
-    if(runAt != null){
+    if (runAt != null) {
       runAtFilter = ` and convert(datetime, a.runAt) = convert(datetime, '${runAt}' )`;
     }
     const sql = `SELECT A.conversationId, A.activityId FROM MSTEAMSINCRESPONSEUSERTS A` +
-    ` LEFT JOIN MSTEAMSINCRESPONSESELECTEDUSERS B ON A.INCRESPONSESELECTEDUSERID = B.ID` +
-    ` WHERE B.INC_ID = ${incId} ${runAtFilter};`;
+      ` LEFT JOIN MSTEAMSINCRESPONSESELECTEDUSERS B ON A.INCRESPONSESELECTEDUSERID = B.ID` +
+      ` WHERE B.INC_ID = ${incId} ${runAtFilter};`;
     const result = await db.getDataFromDB(sql);
     return Promise.resolve(result);
   }
-  catch(err){
+  catch (err) {
     console.log(err);
   }
 }
 
 const getRecurrenceMembersResponse = async (incId) => {
-  try{
+  try {
     const recurrMembersRespQuery = "SELECT distinct inc.id, m.user_id, m.user_name , mr.is_message_delivered, mr.response, mr.response_value, " +
-    "mr.comment, m.timestamp " + 
-    "FROM MSTeamsIncidents inc " +
-    "LEFT JOIN MSTeamsMemberResponses m  ON inc.id = m.inc_id " +
-    "LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID " +
-    "left join MSTeamsMemberResponsesRecurr mr on mr.memberResponsesId = m.id and mr.runat = mse.LAST_RUN_AT " +
-    "where inc.id = " + incId;
+      "mr.comment, m.timestamp " +
+      "FROM MSTeamsIncidents inc " +
+      "LEFT JOIN MSTeamsMemberResponses m  ON inc.id = m.inc_id " +
+      "LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID " +
+      "left join MSTeamsMemberResponsesRecurr mr on mr.memberResponsesId = m.id and mr.runat = mse.LAST_RUN_AT " +
+      "where inc.id = " + incId;
 
     const result = await db.getDataFromDB(recurrMembersRespQuery);
-    if(result != null && result.length > 0){
-      let memberResponseData = result.map (
-        (member) => {         
+    if (result != null && result.length > 0) {
+      let memberResponseData = result.map(
+        (member) => {
           return new Member(member);
         }
       );
       return Promise.resolve(memberResponseData);
-    }    
+    }
     return Promise.resolve(null);
   }
-  catch(err){
+  catch (err) {
     console.log(err);
   }
 }
 
 const updateIncStatus = async (incId, incStatus) => {
   let isupdated = false;
-  try{
+  try {
     pool = await poolPromise;
     let incStatusId = 1;
-    if(incStatus == "Closed"){
+    if (incStatus == "Closed") {
       incStatusId = 2;
     }
     const query = `UPDATE MSTEAMSINCIDENTS SET INC_STATUS_ID = ${incStatusId} WHERE ID = ${incId}`;
     const updateResult = await db.updateDataIntoDB(query);
     isupdated = (updateResult != null && updateResult.rowsAffected.length > 0);
   }
-  catch(err){
+  catch (err) {
     console.log(err);
-  }  
+  }
   return Promise.resolve(isupdated);
 };
+
+const getIncStatus = async (incId) => {
+  let incStatusId = -1;
+  const sql = `select inc_status_id from MSTeamsIncidents where id = ${incId}`;
+  const result = await db.getDataFromDB(sql);
+  if (result != null && result.length > 0) {
+    incStatusId = Number(result[0]["inc_status_id"]);
+  }
+  return Promise.resolve(incStatusId);
+}
 
 module.exports = {
   saveInc,
@@ -547,5 +557,6 @@ module.exports = {
   getIncResponseSelectedUsersList,
   getIncResponseUserTS,
   getRecurrenceMembersResponse,
-  updateIncStatus
+  updateIncStatus,
+  getIncStatus
 };

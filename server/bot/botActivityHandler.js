@@ -310,15 +310,15 @@ class BotActivityHandler extends TeamsActivityHandler {
           // console.log("bot added >> ", addedBot);
         }
       }
-      else if(acvtivityData?.channelData?.eventType === "channelCreated" || acvtivityData?.channelData?.eventType === "channelDeleted"){
-      } 
+      else if (acvtivityData?.channelData?.eventType === "channelCreated" || acvtivityData?.channelData?.eventType === "channelDeleted") {
+      }
       else {
         const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
              \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.
              
              \n\r\r\n\n Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
 
-        await sendDirectMessage(context, acvtivityData.from, welcomeMsg);       
+        await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
       }
     });
   }
@@ -342,18 +342,18 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {
-        
+
         const { inc_title: incTitle } = context.activity?.value?.action?.data;
         const user = context.activity.from;
         const isDuplicateInc = await bot.verifyDuplicateInc(companyData.teamId, incTitle);
-        if(isDuplicateInc){
+        if (isDuplicateInc) {
           await bot.showDuplicateIncError(context, user, companyData);
           return {
             status: StatusCodes.OK,
           };
         }
 
-        await context.sendActivities([{ type: "typing" }]);        
+        await context.sendActivities([{ type: "typing" }]);
         let members = context.activity?.value?.action?.data?.selected_members;
         if (members === undefined) {
           members = "All Members";
@@ -475,6 +475,13 @@ class BotActivityHandler extends TeamsActivityHandler {
         const action = context.activity.value.action;
         const { info: response, inc, companyData } = action.data;
         const { incId, incTitle, incCreatedBy } = inc;
+
+        const incStatusId = await incidentService.getIncStatus(incId);
+        if (incStatusId == -1 || incStatusId == 2) {
+          await bot.sendIncStatusValidation(context, incStatusId);
+          return;
+        }
+
         let responseText = "";
         if (response === "i_am_safe") {
           responseText = `Glad you're safe! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
