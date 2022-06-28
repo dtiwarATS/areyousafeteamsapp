@@ -9,12 +9,15 @@ class Incident {
     selected_members,
     created_by,
     created_date,
+    GUIDANCE,
     m,
     OCCURS_EVERY,
     EVENT_START_DATE,
     EVENT_START_TIME,
     EVENT_END_DATE,
-    EVENT_END_TIME
+    EVENT_END_TIME,
+    INC_STATUS_ID,
+    STATUS
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -31,6 +34,9 @@ class Incident {
     this.startTime = EVENT_START_TIME;
     this.endDate = EVENT_END_DATE;
     this.endTime = EVENT_END_TIME;
+    this.incGuidance = GUIDANCE;
+    this.incStatusId = INC_STATUS_ID,
+    this.incStatus = STATUS
   }
 }
 

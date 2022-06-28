@@ -80,7 +80,7 @@ const updateMainCard = (companyData) => {
     ],
   };
 };
-const updateCreateIncidentCard = (incidentTitle, members, text) => {
+const updateCard = (incidentTitle, members, text) => {
   console.log({ incidentTitle, members });
   return {
     type: "AdaptiveCard",
@@ -104,7 +104,10 @@ const updateSendApprovalMessage = (
   preTextMsg,
   approved,
   isAllMember,
-  isRecurringInc
+  isRecurringInc,
+  safetyCheckMessageText,
+  mentionUserEntities,
+  guidance
 ) => {
   let msg = isRecurringInc ? "will be" : "has been";
   return {
@@ -123,7 +126,33 @@ const updateSendApprovalMessage = (
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `Incident Message:\nThis is a safety check from <at>${inc_created_by.name}</at>. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance for this incident.`,
+        text: `${safetyCheckMessageText}`,
+      },
+      {
+        type: "ActionSet",
+        actions: [
+          {
+            type: "Action.Execute",
+            title: "I am safe",
+            data: {
+              info: "i_am_safe"
+            },
+          },
+          {
+            type: "Action.Execute",
+            title: "I need assistance",
+            data: {
+              info: "need_assistance"
+            },
+          },
+
+        ],
+      },
+      {
+        type: "TextBlock",
+        separator: true,
+        wrap: true,
+        text: `**Guidance:**\n\n` + guidance,
       },
       {
         type: "RichTextBlock",
@@ -134,6 +163,11 @@ const updateSendApprovalMessage = (
             text: preTextMsg,
           },
         ],
+      },
+      {
+        type: "TextBlock",
+        wrap: true,
+        text: "Yes / No",
       },
       {
         type: "TextBlock",
@@ -148,16 +182,7 @@ const updateSendApprovalMessage = (
       },
     ],
     msteams: {
-      entities: [
-        {
-          type: "mention",
-          text: `<at>${inc_created_by.name}</at>`,
-          mentioned: {
-            id: inc_created_by.id,
-            name: inc_created_by.name,
-          },
-        },
-      ],
+      entities: mentionUserEntities,
     },
   };
 };
@@ -354,7 +379,7 @@ const updateContactSubmitCard = (responseText, incCreatedBy) => {
 };
 module.exports = {
   updateMainCard,
-  updateCreateIncidentCard,
+  updateCard,
   updateSendApprovalMessage,
   updateSafeMessage,
   updateSesttingsCard,
