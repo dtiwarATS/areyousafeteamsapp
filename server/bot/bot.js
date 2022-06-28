@@ -146,34 +146,23 @@ const sendMsg = async (context) => {
   console.log("hi msg send");
   console.log(allInstallation);
   const card = {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    appId: process.env.MicrosoftAppId,
-    body: [
+    "type": "AdaptiveCard",
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.4",
+    "appId": process.env.MicrosoftAppId,
+    "body": [
       {
-        type: "TextBlock",
-        text: `Hello there, we have added some cool **new features** recently. 
-        \n1. **Guidance section** - You can use this for additional guidance as part of your safety check message
-        \n2. Create **one-time** and **recurring** safety checks from the “Create Incident” button
-        \n3. Preview outgoing safety check message
-        
-        `,
-        wrap: true,
+        "type": "TextBlock",
+        "text": "Hello there, we have added some cool **new features** recently.\n\n1. Improved **incident dashboard** view - Now you can **copy**, **close**, **re-open** and **delete** incidents\n\n2. **Show Details** - A more detailed view of your employees safety status",
+        "wrap": true
       },
       {
-        type: "TextBlock",
-        text: `**Type Hi in your chat window** to access these new features
-        
-        **Contact us**:  [help@safetybot.in](mailto:help@safetybot.in) 
-        
-        With Gratitude,\n
-        AreYouSafeBot team`,
-        wrap: true,
-      },
-
-    ],
-    type: "AdaptiveCard",
-    version: "1.4",
-  };
+        "type": "TextBlock",
+        "text": "**Type Hi in your chat window** to access these new features \n\n**Contact us**: [help@safetybot.in](mailto:help@safetybot.in) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        "wrap": true
+      }
+    ]
+  }
   allInstallation.filter(async function (data, index) {
     try {
       await sendDirectMessageCard(context, data, card);
