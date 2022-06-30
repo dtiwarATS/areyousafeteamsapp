@@ -93,9 +93,9 @@ const getInc = async (incId, runAt = null) => {
 
 const getAllIncByTeamId = async (teamId, orderBy) => {
   try {
-    let orderBy = "";
+    let orderBySql = "";
     if (orderBy != null && orderBy == "desc") {
-      orderBy = " order by inc.id desc "
+      orderBySql = " order by inc.id desc "
     }
 
     let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
@@ -104,7 +104,7 @@ const getAllIncByTeamId = async (teamId, orderBy) => {
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
-    where inc.team_id = '${teamId}' ${orderBy}
+    where inc.team_id = '${teamId}' ${orderBySql}
     FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
     const result = await db.getDataFromDB(selectQuery);
