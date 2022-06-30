@@ -13,7 +13,7 @@ const handlerForSafetyBotTab = (app) => {
 
     app.get("/areyousafetabhandler/getAllIncDataByTeamId", (req, res) => {
         incidentService
-            .getAllIncByTeamId(req.query.teamId)
+            .getAllIncByTeamId(req.query.teamId, "desc")
             .then(incData => {
                 res.send(
                     incData

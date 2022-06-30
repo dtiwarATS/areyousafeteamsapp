@@ -91,15 +91,20 @@ const getInc = async (incId, runAt = null) => {
   }
 };
 
-const getAllIncByTeamId = async (teamId) => {
+const getAllIncByTeamId = async (teamId, orderBy) => {
   try {
+    let orderBy = "";
+    if (orderBy != null && orderBy == "desc") {
+      orderBy = " order by inc.id desc "
+    }
+
     let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
     inc.selected_members, inc.created_by, inc.created_date, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
     m.comment, m.timestamp, inc.INC_STATUS_ID
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
-    where inc.team_id = '${teamId}'
+    where inc.team_id = '${teamId}' ${orderBy}
     FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
     const result = await db.getDataFromDB(selectQuery);
