@@ -121,15 +121,19 @@ const selectResponseCard = async (context, user) => {
     } else if (verb && (verb === "dashboard_view_previous_inc" || verb == "dashboard_view_next_inc") && isAdminOrSuperuser) {
       await navigateDashboardList(context, action, verb);
     } else if (verb === "copyInc" && isAdminOrSuperuser) {
-      await copyInc(context, user, action);
+      const card = await copyInc(context, user, action);
+      return Promise.resolve(card);
     } else if (verb === "closeInc" && isAdminOrSuperuser) {
-      await showIncStatusConfirmationCard(context, action, "Closed");
+      const card = await showIncStatusConfirmationCard(context, action, "Closed");
+      return Promise.resolve(card);
     } else if (verb === "reopenInc" && isAdminOrSuperuser) {
-      await showIncStatusConfirmationCard(context, action, "In progress");
+      const card = await showIncStatusConfirmationCard(context, action, "In progress");
+      return Promise.resolve(card);
     } else if (verb === "updateIncStatus" && isAdminOrSuperuser) {
       await updateIncStatus(context, action);
     } else if (verb === "confirmDeleteInc" && isAdminOrSuperuser) {
-      await showIncDeleteConfirmationCard(context, action);
+      const card = await showIncDeleteConfirmationCard(context, action);
+      return Promise.resolve(card);
     }
     return Promise.resolve(true);
   } catch (error) {
@@ -753,10 +757,12 @@ const showIncDeleteConfirmationCard = async (context, action) => {
     dashboardData["ts"] = context.activity.replyToId;
 
     const card = dashboard.getDeleteIncidentCard(incId, dashboardData, companyData, incTitle);
-
+    const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
-      attachments: [CardFactory.adaptiveCard(card)],
+      attachments: [adaptiveCard],
     });
+
+    return Promise.resolve(adaptiveCard);
   } catch (error) {
     console.log(error);
   }
@@ -771,10 +777,12 @@ const showIncStatusConfirmationCard = async (context, action, statusToUpdate) =>
     dashboardData["ts"] = context.activity.replyToId;
 
     const card = dashboard.getUpdateIncidentStatusCard(incId, dashboardData, companyData, statusToUpdate, incTitle);
-
+    const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
-      attachments: [CardFactory.adaptiveCard(card)],
+      attachments: [adaptiveCard],
     });
+
+    return Promise.resolve(adaptiveCard);
   } catch (error) {
     console.log(error);
   }
@@ -785,10 +793,11 @@ const copyInc = async (context, user, action) => {
     const companyData = action.data.companyData ? action.data.companyData : {};
     const incId = action.data.incId ? Number(action.data.incId) : -1;
     const card = await getNewIncCardNew(context, user, companyData, "", true, incId);
-
+    const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
-      attachments: [CardFactory.adaptiveCard(card)],
+      attachments: [adaptiveCard],
     });
+    return Promise.resolve(adaptiveCard);
   } catch (error) {
     console.log(error);
   }

@@ -73,12 +73,12 @@ const sendDirectMessageCard = async (
 
 const sendProactiveMessaageToUser = async (members, msgAttachment, msgText) => {
   let resp = {
-    "conversationId" : null,
-    "activityId" : null
+    "conversationId": null,
+    "activityId": null
   };
-  try{
+  try {
     const conversationParameters = {
-      isGroup: false,      
+      isGroup: false,
       channelData: {
         tenant: {
           id: process.env.tenantId
@@ -88,42 +88,44 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText) => {
         id: process.env.MicrosoftAppId,
         name: process.env.BotName
       },
-      members: members    
+      members: members
     };
-  
+
     let activity = null;
-    if(msgAttachment != null){
+    if (msgAttachment != null) {
       activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
-    }else if(msgText != null){
+    } else if (msgText != null) {
       activity = MessageFactory.text(msgText);
     }
-    
-    if(activity != null){
+
+    if (activity != null) {
       var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
       var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
-      
-      const response = await connectorClient.conversations.createConversation(conversationParameters);                  
+
+      const response = await connectorClient.conversations.createConversation(conversationParameters);
       const activityId = await connectorClient.conversations.sendToConversation(response.id, activity);
+
+
 
       resp.conversationId = response.id;
       resp.activityId = activityId.id;
     }
   }
-  catch(err){
+  catch (err) {
     console.log(err);
-  }  
+  }
   return Promise.resolve(resp);
 }
 
 const updateMessage = async (activityId, activity, conversationId) => { //Update dashboard 
-  try{
+  try {
     var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
     var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
     await connectorClient.conversations.updateActivity(conversationId, activityId, activity);
   }
-  catch(err){
+  catch (err) {
     console.log(err);
-  }  
+  }
 }
 
 module.exports = {

@@ -323,7 +323,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     });
   }
 
-  async onInvokeActivity(context) {
+  async onInvokeActivity(context, resp) {
     try {
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;
@@ -547,7 +547,9 @@ class BotActivityHandler extends TeamsActivityHandler {
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
         const card = await bot.selectResponseCard(context, user);
-        if (card && card["$schema"]) {
+        if (card != null && (uVerb === "closeInc" || uVerb === "reopenInc" || uVerb === "copyInc" || uVerb === "confirmDeleteInc")) {
+          return bot.invokeResponse(card);
+        } else if (card && card["$schema"]) {
           console.log("insidess");
           return bot.invokeResponse(card);
         } else {
