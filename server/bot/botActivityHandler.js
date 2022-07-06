@@ -22,6 +22,10 @@ const {
   getCompaniesDataBySuperUserId,
   updateCompanyData,
   getInstallationData,
+  addTeamMember,
+  removeTeamMember,
+  removeAllTeamMember,
+  deleteCompanyDataByTeamId
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
@@ -199,16 +203,16 @@ class BotActivityHandler extends TeamsActivityHandler {
         acvtivityData?.channelData?.eventType === "teamMemberAdded"
       ) {
         const { membersAdded } = acvtivityData;
+        const teamId = acvtivityData.channelData.team.id;
+        // retrive user info who installed the app from TeamsInfo.getTeamMembers(context, teamId);
+        const allMembersInfo = await TeamsInfo.getTeamMembers(
+          context,
+          teamId
+        );
         for (let i = 0; i < membersAdded.length; i++) {
           // See if the member added was our bot
           if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
             addedBot = true;
-            const teamId = acvtivityData.channelData.team.id;
-            // retrive user info who installed the app from TeamsInfo.getTeamMembers(context, teamId);
-            const allMembersInfo = await TeamsInfo.getTeamMembers(
-              context,
-              teamId
-            );
 
             const adminUserInfo = allMembersInfo.find(
               (m) => m.id === acvtivityData.from.id
@@ -228,10 +232,10 @@ class BotActivityHandler extends TeamsActivityHandler {
                 teamName: acvtivityData.channelData.team.name,
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 1,
+                welcomeMessageSent: 1
               };
 
-              const companyData = await insertCompanyData(companyDataObj);
+              const companyData = await insertCompanyData(companyDataObj, allMembersInfo);
               this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
 
               // const companyData = await getCompaniesData(
@@ -258,23 +262,37 @@ class BotActivityHandler extends TeamsActivityHandler {
               //   }
               // }
             }
+          } else {
+            const teamMember = allMembersInfo.find(
+              (m) => m.id === membersAdded[i].id
+            );
+            const teamMembers = [teamMember];
+            await addTeamMember(teamId, teamMembers);
           }
           //console.log("bot added >> ", addedBot);
         }
-      }
-      // if bot/member is installed/added
+      } // if bot/member is installed/added
       else if (
         (acvtivityData &&
           acvtivityData?.channelData?.eventType === "teamDeleted") ||
         acvtivityData?.channelData?.eventType === "teamMemberRemoved"
       ) {
-        const { membersRemoved } = acvtivityData;
+        if (acvtivityData?.channelData?.eventType === "teamDeleted") {
+          await deleteCompanyDataByTeamId(teamId);
+          await removeAllTeamMember(teamId);
+        } else {
+          const { membersRemoved } = acvtivityData;
 
-        if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
-          await deleteCompanyData(
-            acvtivityData?.from?.aadObjectId,
-            acvtivityData?.channelData?.team.id
-          );
+          if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
+            await deleteCompanyData(
+              acvtivityData?.from?.aadObjectId,
+              acvtivityData?.channelData?.team.id
+            );
+          } else {
+            for (let i = 0; i < membersRemoved.length; i++) {
+              await removeTeamMember(teamId, membersRemoved[i].id);
+            }
+          }
         }
       } else if (teamId == null && acvtivityData) {
         const { membersAdded } = acvtivityData;
@@ -323,7 +341,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     });
   }
 
-  async onInvokeActivity(context, resp) {
+  async onInvokeActivity(context) {
     try {
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;
@@ -548,7 +566,8 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (context.activity.name === "adaptiveCard/action") {
         const card = await bot.selectResponseCard(context, user);
         if (card != null && (uVerb === "closeInc" || uVerb === "reopenInc" || uVerb === "copyInc" || uVerb === "confirmDeleteInc")) {
-          return bot.invokeResponse(card);
+          //return bot.invokeResponse(card);
+          //return context.next();
         } else if (card && card["$schema"]) {
           console.log("insidess");
           return bot.invokeResponse(card);
