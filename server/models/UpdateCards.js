@@ -314,55 +314,6 @@ const updateSesttingsCard = () => {
   };
 };
 
-const updateIncidentListCard = (companyData, incList, incidentID) => {
-  return {
-    type: "AdaptiveCard",
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    version: "1.4",
-    body: [
-      {
-        type: "TextBlock",
-        text: "View Incident Dashboard",
-        size: "Large",
-        weight: "Bolder",
-      },
-      {
-        type: "TextBlock",
-        text: "Incident List",
-        wrap: true,
-        separator: true,
-        weight: "bolder",
-      },
-      {
-        type: "Input.ChoiceSet",
-        id: "incidentSelectedVal",
-        placeholder: "Select an Incident",
-        value: incidentID ? incidentID : incList.length > 0 && incList[0].value,
-        choices: incList,
-        isRequired: true,
-      },
-    ],
-    actions: [
-      {
-        type: "Action.Execute",
-        verb: "Cancel_button",
-        title: "Cancel",
-        data: {
-          info: "Back",
-          companyData: companyData,
-        },
-      },
-      {
-        type: "Action.Execute",
-        verb: "view_inc_result",
-        title: "Submit",
-        data: {
-          companyData: companyData,
-        },
-      },
-    ],
-  };
-};
 const updateContactSubmitCard = (responseText, incCreatedBy) => {
   return {
     type: "AdaptiveCard",
@@ -385,6 +336,5 @@ module.exports = {
   updateSesttingsCard,
   updateSubmitCommentCard,
   updateDeleteCard,
-  updateIncidentListCard,
   updateContactSubmitCard,
 };
