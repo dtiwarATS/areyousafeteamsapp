@@ -301,16 +301,16 @@ const updateDeleteCard = () => {
 
 const updateSesttingsCard = () => {
   return {
-    type: "AdaptiveCard",
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    version: "1.4",
-    body: [
+    "type": "AdaptiveCard",
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.4",
+    "body": [
       {
-        type: "TextBlock",
-        text: `✔️ Your App Settings have been saved successfully.`,
-        wrap: true,
-      },
-    ],
+        "type": "TextBlock",
+        "text": `✔️ Your App Settings have been saved successfully.`,
+        "wrap": true
+      }
+    ]
   };
 };
 

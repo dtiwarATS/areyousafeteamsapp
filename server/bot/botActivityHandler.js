@@ -344,7 +344,7 @@ class BotActivityHandler extends TeamsActivityHandler {
 
   getAdaptiveCardResponseObj = (card) => {
     return {
-      "status": 200,
+      "status": StatusCodes.OK,
       "type": "application/vnd.microsoft.card.adaptive",
       "value": card
     }
@@ -355,13 +355,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;
       console.log({ uVerb });
-      if (
-        uVerb === "create_onetimeincident" ||
-        uVerb === "contact_us" ||
-        uVerb === "view_settings" ||
-        uVerb === "list_inc" ||
-        uVerb === "list_delete_inc"
-      ) {
+      if (uVerb === "create_onetimeincident" || uVerb === "contact_us" || uVerb === "view_settings" || uVerb === "list_inc" || uVerb === "list_delete_inc") {
         await context.sendActivities([{ type: "typing" }]);
         // const cards = CardFactory.adaptiveCard(updateMainCard(companyData));
 
@@ -369,7 +363,6 @@ class BotActivityHandler extends TeamsActivityHandler {
         // message.id = context.activity.replyToId;
         // await context.updateActivity(message);
       } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {
-
         const { inc_title: incTitle } = context.activity?.value?.action?.data;
         const user = context.activity.from;
         const isDuplicateInc = await bot.verifyDuplicateInc(companyData.teamId, incTitle);
@@ -575,11 +568,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           return this.getAdaptiveCardResponseObj(card);
         } else if (card != null && (uVerb === "dashboard_view_previous_inc" || uVerb == "dashboard_view_next_inc")) {
           return this.getAdaptiveCardResponseObj(card);
-        } else if (card != null && (uVerb === "create_recurringincident" || uVerb == "create_onetimeincident")) {
-          return this.getAdaptiveCardResponseObj(card);
-        } else if (card != null && (uVerb === "save_new_inc" || uVerb == "save_new_recurr_inc" || uVerb == "delete_inc")) {
-          return this.getAdaptiveCardResponseObj(card);
-        } else if (card != null && (uVerb === "confirmDeleteInc")) {
+        } else if (card != null && (uVerb === "confirmDeleteInc" || uVerb == "delete_inc")) {
           return this.getAdaptiveCardResponseObj(card);
         }
 
