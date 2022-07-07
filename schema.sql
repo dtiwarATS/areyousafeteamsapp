@@ -273,3 +273,19 @@ BEGIN
 	FOREIGN KEY (memberResponsesId) REFERENCES MSTeamsMemberResponses (ID) ON DELETE CASCADE;
 END
 GO
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsTeamsUsers')
+BEGIN
+	CREATE TABLE [dbo].[MSTeamsTeamsUsers](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[team_id] [varchar](256) NOT NULL,
+	[user_aadobject_id] [varchar](256) NOT NULL,
+	[user_id] [varchar](256) NOT NULL,
+	[user_name] [varchar](100) NULL
+	PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+	) ON [PRIMARY]
+END
+GO
