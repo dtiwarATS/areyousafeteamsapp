@@ -17,7 +17,8 @@ const {
   sendDirectMessage,
   sendDirectMessageCard,
   sendProactiveMessaageToUser,
-  updateMessage
+  updateMessage,
+  addLog
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
@@ -25,6 +26,7 @@ const {
   updateSuperUserData,
   getInstallationData,
   isAdminUser,
+  saveLog
 } = require("../db/dbOperations");
 
 const {
@@ -1472,9 +1474,9 @@ const getSaftyCheckCard = async (incTitle, incObj, companyData, incGuidance) => 
 }
 
 const sendCardToIndividualUser = async (context, userId, approvalCard) => {
+  let activityId = null;
+  let conversationId = null;
   try {
-    let activityId = null;
-    let conversationId = null;
     var ref = TurnContext.getConversationReference(context.activity);
     ref.user = userId;
     await context.adapter.createConversation(ref, async (t1) => {
@@ -1495,6 +1497,7 @@ const sendCardToIndividualUser = async (context, userId, approvalCard) => {
 
 const sendCommentToSelectedMembers = async (incId, context, approvalCardResponse) => {
   try {
+    const serviceUrl = context?.activity?.serviceUrl;
     const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
     if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
       for (let i = 0; i < incRespSelectedUsers.length; i++) {
@@ -1502,7 +1505,7 @@ const sendCommentToSelectedMembers = async (incId, context, approvalCardResponse
           id: incRespSelectedUsers[i].user_id,
           name: incRespSelectedUsers[i].user_name
         }];
-        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse);
+        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse, null, serviceUrl);
       }
     }
   }
@@ -1513,6 +1516,7 @@ const sendCommentToSelectedMembers = async (incId, context, approvalCardResponse
 
 const sendApprovalResponseToSelectedMembers = async (incId, context, approvalCardResponse) => { //If user click on Need assistance, then send message to selected users 
   try {
+    const serviceUrl = context?.activity?.serviceUrl;
     const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
     if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
       for (let i = 0; i < incRespSelectedUsers.length; i++) {
@@ -1520,7 +1524,7 @@ const sendApprovalResponseToSelectedMembers = async (incId, context, approvalCar
           id: incRespSelectedUsers[i].user_id,
           name: incRespSelectedUsers[i].user_name
         }];
-        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse);
+        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse, null, serviceUrl);
       }
     }
   }
@@ -1551,11 +1555,17 @@ const updateIncResponseOfSelectedMembers = async (incId, runAt, dashboardCard) =
   }
 }
 
-const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt) => {
+const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, serviceUrl) => {
+  let log = [];
   try {
     let sql = "";
+    addLog(log, "sendIncResponseToSelectedMembers start. ");
+    addLog(log, ` inc id : ${incId}`);
+    addLog(log, ` serviceUrl : ${serviceUrl}`);
     runAt = (runAt == null) ? '' : runAt;
     const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+    addLog(log, "incRespSelectedUsers data : ");
+    addLog(log, JSON.stringify(incRespSelectedUsers));
     if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
       await Promise.all(
         incRespSelectedUsers.map(async (u) => {
@@ -1563,7 +1573,8 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt) => 
             id: u.user_id,
             name: u.user_name
           }];
-          const result = await sendProactiveMessaageToUser(memberArr, dashboardCard);
+          const result = await sendProactiveMessaageToUser(memberArr, dashboardCard, null, serviceUrl, log);
+          addLog(log, ` activityId :  ${result.activityId} `);
           if (result.activityId != null) {
             sql += `INSERT INTO MSTeamsIncResponseUserTS(incResponseSelectedUserId, runAt, conversationId, activityId) VALUES(${u.id}, '${runAt}', '${result.conversationId}', '${result.activityId}');`;
           }
@@ -1571,11 +1582,23 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt) => 
       )
     }
     if (sql != "") {
+      addLog(log, " sql Inser start ");
       await incidentService.saveIncResponseUserTS(sql);
+      addLog(log, " sql Inser end ");
     }
   }
   catch (err) {
+    addLog(log, " An Error occured: ");
+    addLog(log, JSON.stringify(err));
     console.log(err);
+  }
+  finally {
+    addLog(log, "sendIncResponseToSelectedMembers end. ");
+
+    let logMessage = log.toString();
+    logMessage = `<table>${logMessage}</table>`;
+    const logSql = `insert into MSTeamsLog ([inc_id], [log], [datetime]) values (${incId}, '${logMessage}', GETDATE())`;
+    await saveLog(logSql);
   }
 }
 
@@ -1583,6 +1606,7 @@ const sendApproval = async (context) => {
   const action = context.activity.value.action;
   const { incident, companyData, sentApprovalTo } = action.data;
   const { incId, incTitle, selectedMembers, incCreatedBy, responseSelectedUsers } = incident;
+  const serviceUrl = context.activity.serviceUrl;
 
   let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
@@ -1630,7 +1654,7 @@ const sendApproval = async (context) => {
 
       await sendCardToIndividualUser(context, teamMember, approvalCard);
     });
-    await sendIncResponseToSelectedMembers(incId, dashboardCard);
+    await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
   }
   else if (action.data.incType == "recurringIncident") {
     const userTimeZone = context.activity.entities[0].timezone;

@@ -286,6 +286,12 @@ const addFeedbackData = async (feedbackDataObj) => {
   }
 };
 
+const saveLog = async (sqlLog) => {
+  pool = await poolPromise;
+  console.log("Sql log >> ", sqlLog);
+  await pool.request().query(sqlLog);
+}
+
 module.exports = {
   getCompaniesData,
   addFeedbackData,
@@ -299,5 +305,6 @@ module.exports = {
   addTeamMember,
   removeTeamMember,
   removeAllTeamMember,
-  deleteCompanyDataByTeamId
+  deleteCompanyDataByTeamId,
+  saveLog
 };
