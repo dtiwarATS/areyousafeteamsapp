@@ -565,10 +565,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
         const card = await bot.selectResponseCard(context, user);
-        if (card != null && (uVerb === "closeInc" || uVerb === "reopenInc" || uVerb === "copyInc" || uVerb === "confirmDeleteInc")) {
-          //return bot.invokeResponse(card);
-          //return context.next();
-        } else if (card && card["$schema"]) {
+        if (card && card["$schema"]) {
           console.log("insidess");
           return bot.invokeResponse(card);
         } else {

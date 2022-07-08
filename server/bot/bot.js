@@ -124,16 +124,16 @@ const selectResponseCard = async (context, user) => {
       const card = await copyInc(context, user, action);
       return Promise.resolve(card);
     } else if (verb === "closeInc" && isAdminOrSuperuser) {
-      const card = await showIncStatusConfirmationCard(context, action, "Closed");
-      return Promise.resolve(card);
+      await showIncStatusConfirmationCard(context, action, "Closed");
+
     } else if (verb === "reopenInc" && isAdminOrSuperuser) {
-      const card = await showIncStatusConfirmationCard(context, action, "In progress");
-      return Promise.resolve(card);
+      await showIncStatusConfirmationCard(context, action, "In progress");
+
     } else if (verb === "updateIncStatus" && isAdminOrSuperuser) {
       await updateIncStatus(context, action);
     } else if (verb === "confirmDeleteInc" && isAdminOrSuperuser) {
-      const card = await showIncDeleteConfirmationCard(context, action);
-      return Promise.resolve(card);
+      await showIncDeleteConfirmationCard(context, action);
+
     }
     return Promise.resolve(true);
   } catch (error) {
@@ -762,7 +762,9 @@ const showIncDeleteConfirmationCard = async (context, action) => {
       attachments: [adaptiveCard],
     });
 
-    return Promise.resolve(adaptiveCard);
+    if (context.activity.replyToId != null) {
+      await updateDashboardCard(context, dashboardData, companyData);
+    }
   } catch (error) {
     console.log(error);
   }
@@ -782,7 +784,9 @@ const showIncStatusConfirmationCard = async (context, action, statusToUpdate) =>
       attachments: [adaptiveCard],
     });
 
-    return Promise.resolve(adaptiveCard);
+    if (context.activity.replyToId != null) {
+      await updateDashboardCard(context, dashboardData, companyData);
+    }
   } catch (error) {
     console.log(error);
   }
@@ -797,7 +801,12 @@ const copyInc = async (context, user, action) => {
     await context.sendActivity({
       attachments: [adaptiveCard],
     });
-    return Promise.resolve(adaptiveCard);
+
+    if (context.activity.replyToId != null) {
+      const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+      dashboardData["ts"] = context.activity.replyToId;
+      await updateDashboardCard(context, dashboardData, companyData);
+    }
   } catch (error) {
     console.log(error);
   }
