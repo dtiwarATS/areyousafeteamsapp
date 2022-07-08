@@ -115,6 +115,30 @@ const getAllIncByTeamId = async (teamId, orderBy) => {
   }
 };
 
+const getAllIncByUserId = async (aadObjuserId, orderBy) => {
+  try {
+    let orderBySql = "";
+    if (orderBy != null && orderBy == "desc") {
+      orderBySql = " order by inc.id desc "
+    }
+
+    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
+    inc.selected_members, inc.created_by, inc.created_date, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+    m.comment, m.timestamp, inc.INC_STATUS_ID
+    FROM MSTeamsIncidents inc
+    LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+    LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
+    where inc.created_by in (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}') ${orderBySql}
+    FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+
+    const result = await db.getDataFromDB(selectQuery);
+    let parsedResult = await parseEventData(result);
+    return Promise.resolve(parsedResult);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 const getIncGuidance = async (incId) => {
   try {
     let eventData = {};
@@ -563,5 +587,6 @@ module.exports = {
   getIncResponseUserTS,
   getRecurrenceMembersResponse,
   updateIncStatus,
-  getIncStatus
+  getIncStatus,
+  getAllIncByUserId
 };

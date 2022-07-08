@@ -25,6 +25,19 @@ const handlerForSafetyBotTab = (app) => {
             })
     });
 
+    app.get("/areyousafetabhandler/getAllIncDataByUserId", (req, res) => {
+        incidentService
+            .getAllIncByUserId(req.query.userId, "desc")
+            .then(incData => {
+                res.send(
+                    incData
+                );
+            })
+            .catch(err => {
+                console.log(err);
+            })
+    });
+
     app.get("/areyousafetabhandler/sendMesssage", (req, res) => {
 
         const tabObj = new tab.AreYouSafeTab();
