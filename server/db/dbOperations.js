@@ -165,7 +165,7 @@ const addTeamMember = async (teamId, teamMembers) => {
   await Promise.all(
     teamMembers.map(
       async (m) => {
-        sqlInserUsers += ` IF NOT EXISTS (SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.aadobject_id}') ` +
+        sqlInserUsers += ` IF NOT EXISTS (SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.aadObjectId}') ` +
           ` BEGIN ` +
           ` INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name]) VALUES ('${teamId}', '${m.aadObjectId}', '${m.id}', '${m.name}'); ` +
           ` END `;
