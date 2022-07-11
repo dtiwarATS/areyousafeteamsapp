@@ -40,7 +40,6 @@ const {
   updateSafeMessage,
   updateDeleteCard,
   updateSesttingsCard,
-  updateIncidentListCard,
   updateContactSubmitCard,
 } = require("../models/UpdateCards");
 
@@ -232,7 +231,8 @@ class BotActivityHandler extends TeamsActivityHandler {
                 teamName: acvtivityData.channelData.team.name,
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 1
+                welcomeMessageSent: 1,
+                serviceUrl: context.activity.serviceUrl
               };
 
               const companyData = await insertCompanyData(companyDataObj, allMembersInfo);
@@ -421,43 +421,6 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
-      } else if (uVerb === "view_inc_result") {
-        const incidentId =
-          context.activity?.value?.action.data.incidentSelectedVal;
-        const allIncidentData = await incidentService.getAllInc(
-          companyData.teamId
-        );
-
-        let incList = [];
-        if (allIncidentData.length > 0) {
-          incList = allIncidentData.map((inc, index) => ({
-            title: inc.incTitle,
-            value: inc.incId,
-          }));
-        }
-        const cards = CardFactory.adaptiveCard(
-          updateIncidentListCard(companyData, incList, incidentId)
-        );
-
-        const message = MessageFactory.attachment(cards);
-        message.id = context.activity.replyToId;
-        await context.updateActivity(message);
-      } else if (uVerb === "delete_inc") {
-        // const cards = CardFactory.adaptiveCard({
-        //   type: "AdaptiveCard",
-        //   $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        //   version: "1.4",
-        //   body: [
-        //     {
-        //       type: "TextBlock",
-        //       text: `✔️ The Incident has been deleted successfully.`,
-        //       wrap: true,
-        //     },
-        //   ],
-        // });
-        // const message = MessageFactory.attachment(cards);
-        // message.id = context.activity.replyToId;
-        // await context.updateActivity(message);
       } else if (uVerb === "submit_comment") {
         const action = context.activity.value.action;
         const {

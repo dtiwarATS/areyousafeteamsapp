@@ -29,25 +29,8 @@ class AreYouSafeTab {
         };
     }
 
-    getConnectorClient = () => {
-        var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-        return new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
-    }
-
     sendMessage = async (userId) => {
-        const member = [
-            {
-                id: "29:1fO2SnbY7d2YM2BD8cgiHv6bybXVxWJ0EHHhYF0c-F7boC5vramm41yxO1OFfGsMSq3oifj28EBPcdpLmIWUp-g",
-                aadObjectId: "2117d3fc-4485-4898-8db5-4c80f11ac73c"
-            }
-        ]
 
-        const activity = MessageFactory.text("msgText");
-        const client = this.getConnectorClient();
-        const conversationParameters = this.getConversationParameters(member);
-        const response = await client.conversations.createConversation(conversationParameters);
-        const activityObj = await client.conversations.sendToConversation(response.id, activity);
-        return activityObj;
     }
 }
 

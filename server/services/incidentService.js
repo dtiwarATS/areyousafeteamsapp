@@ -156,7 +156,7 @@ const getIncGuidance = async (incId) => {
   }
 };
 
-const saveInc = async (actionData, companyData, memberChoises) => {
+const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
   // const { inc_title: title, inc_created_by: createdBy } = actionData;
   let newInc = {};
   if (actionData.guidance != undefined)
@@ -166,7 +166,7 @@ const saveInc = async (actionData, companyData, memberChoises) => {
   if (selectedMembers == null || selectedMembers.length == 0) {
     try {
       var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-      var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
       const allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
       if (allTeamMembers != null && allTeamMembers.length > 0) {
@@ -208,10 +208,11 @@ const saveInc = async (actionData, companyData, memberChoises) => {
     await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
     incObj.responseSelectedUsers = actionData.selected_members_response;
   }
+  await saveServiceUrl(companyData.teamId, serviceUrl);
   return Promise.resolve(newInc);
 };
 
-const saveRecurrInc = async (actionData, companyData, memberChoises) => {
+const saveRecurrInc = async (actionData, companyData, memberChoises, serviceUrl) => {
   let newInc = {};
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
@@ -243,6 +244,7 @@ const saveRecurrInc = async (actionData, companyData, memberChoises) => {
     await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
     incObj.responseSelectedUsers = actionData.selected_members_response;
   }
+  await saveServiceUrl(companyData.teamId, serviceUrl);
   return Promise.resolve(newInc);
 };
 
@@ -494,6 +496,22 @@ const getIncResponseSelectedUsersList = async (incId) => {
   }
 }
 
+const getUserTenantDetails = async (incId) => {
+  try {
+    const sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id ` +
+      ` in (select team_id from MSTeamsIncidents where id = ${incId})`;
+    const result = await db.getDataFromDB(sql);
+    let tenantDetails = null;
+    if (result != null && result.length > 0) {
+      tenantDetails = result[0];
+    }
+    return Promise.resolve(tenantDetails);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
 const getIncResponseUserTS = async (incId, runAt) => {
   try {
     let runAtFilter = '';
@@ -565,6 +583,19 @@ const getIncStatus = async (incId) => {
   return Promise.resolve(incStatusId);
 }
 
+const saveServiceUrl = async (teamId, serviceUrl) => {
+  let isupdated = false;
+  try {
+    pool = await poolPromise;
+    const sqlUpdateServiceUrl = `update msteamsinstallationdetails set serviceUrl = '${serviceUrl}' where team_id = '${teamId}' and serviceUrl is null`;
+    const updateResult = await db.updateDataIntoDB(sqlUpdateServiceUrl);
+    isupdated = (updateResult != null && updateResult.rowsAffected.length > 0);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(isupdated);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -588,5 +619,6 @@ module.exports = {
   getRecurrenceMembersResponse,
   updateIncStatus,
   getIncStatus,
-  getAllIncByUserId
+  getAllIncByUserId,
+  getUserTenantDetails
 };

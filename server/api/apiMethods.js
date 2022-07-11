@@ -76,18 +76,26 @@ const addLog = (log, message) => {
     log.push(message);
   }
 }
-const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serviceUrl, log) => {
+const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serviceUrl, tenantId, log) => {
   addLog(log, "sendProactiveMessaageToUser start");
   let resp = {
     "conversationId": null,
     "activityId": null
   };
   try {
+    if (serviceUrl == null) {
+      serviceUrl = process.env.serviceUrl;
+    }
+
+    if (tenantId == null) {
+      tenantId = process.env.tenantId;
+    }
+
     const conversationParameters = {
       isGroup: false,
       channelData: {
         tenant: {
-          id: process.env.tenantId
+          id: tenantId
         }
       },
       bot: {
@@ -105,10 +113,6 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
     }
 
     if (activity != null) {
-      if (serviceUrl == null) {
-        serviceUrl = process.env.serviceUrl;
-      }
-
       var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
       var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
@@ -132,10 +136,13 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
   return Promise.resolve(resp);
 }
 
-const updateMessage = async (activityId, activity, conversationId) => { //Update dashboard 
+const updateMessage = async (activityId, activity, conversationId, serviceUrl) => { //Update dashboard 
   try {
+    if (serviceUrl == null) {
+      serviceUrl = process.env.serviceUrl;
+    }
     var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-    var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
+    var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
     await connectorClient.conversations.updateActivity(conversationId, activityId, activity);
   }
   catch (err) {
