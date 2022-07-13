@@ -66,8 +66,24 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (acvtivityData.text == "sendversionupdate") {
         await bot.sendMsg(context);
       }
+      // else if (acvtivityData.text == "dashboard") {
+      //   const card = {
+      //     "type": "AdaptiveCard",
+      //     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+      //     "version": "1.5",
+      //     "actions": [
+      //       {
+      //         "type": "Action.Execute",
+      //         "title": "Action.Execute",
+      //         "verb": "add_user_info"
+      //       }
+      //     ]
+      //   };
+      //   await context.sendActivity({
+      //     attachments: [CardFactory.adaptiveCard(card)],
+      //   });
+      // }
       else {
-
         await context.sendActivities([{ type: "typing" }]);
         if (acvtivityData.conversation.conversationType === "channel") {
           await this.hanldeChannelUserMsg(context);
@@ -346,7 +362,9 @@ class BotActivityHandler extends TeamsActivityHandler {
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;
       console.log({ uVerb });
-      if (
+      if (uVerb == "add_user_info") {
+        bot.addUserInfoByTeamId(context);
+      } else if (
         uVerb === "create_onetimeincident" ||
         uVerb === "contact_us" ||
         uVerb === "view_settings" ||
