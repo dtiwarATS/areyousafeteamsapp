@@ -207,10 +207,11 @@ const insertCompanyData = async (companyDataObj, allMembersInfo) => {
     console.log("inside insertCompanyData start");
 
     let values = Object.keys(companyDataObj).map((key) => companyDataObj[key]);
+    const teamId = (companyDataObj.teamId == null || companyDataObj.teamId == '') ? '' : companyDataObj.teamId;
     ///const res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
 
-    const sqlWhere = ` USER_OBJ_ID = '${companyDataObj.userObjId}'  AND TEAM_ID IS NOT NULL AND TEAM_NAME IS NOT NULL`;
-    const teamId = (companyDataObj.teamId == null || companyDataObj.teamId == '') ? '' : companyDataObj.teamId;
+    const sqlWhere = ` USER_OBJ_ID = '${companyDataObj.userObjId}'  AND TEAM_ID IS NOT NULL AND TEAM_NAME IS NOT NULL AND TEAM_ID = '${teamId}'`;
+
     let sqlUpdate = ` UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', ` +
       `team_name = '${companyDataObj.teamName}' WHERE user_id = '${companyDataObj.userId}';  SELECT *, 'true' isUpdate FROM MSTeamsInstallationDetails WHERE USER_OBJ_ID = '${companyDataObj.userObjId}'; `;
     if (companyDataObj.teamId == null || companyDataObj.teamId == '' || companyDataObj.teamName == null || companyDataObj.teamName == '') {
