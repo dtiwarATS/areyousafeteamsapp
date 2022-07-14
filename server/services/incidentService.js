@@ -309,34 +309,18 @@ const addMemberResponseDetails = async (respDetailsObj) => {
   }
 }
 
-const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
-  let incData = {};
-  pool = await poolPromise;
+const addMembersIntoIncData = async (sqlInsert) => {
+  try {
+    pool = await poolPromise;
 
-  // TODO: use bulk insert instead inseting data one by one
-  for (let i = 0; i < allMembers.length; i++) {
-    let member = allMembers[i];
-    const query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
-        values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
-
-    console.log("insert query => ", query);
-    await pool.request().query(query);
+    if (sqlInsert.length > 0) {
+      console.log("insert query => ", sqlInsert);
+      await pool.request().query(sqlInsert.join(" "));
+    }
+  } catch (err) {
+    console.log(err);
   }
-
-  const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by, 
-    m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-    m.comment, m.timestamp FROM MSTeamsIncidents inc
-    LEFT JOIN MSTeamsMemberResponses m
-    ON inc.id = m.inc_id
-    where inc.id = ${incId}
-    FOR JSON AUTO , INCLUDE_NULL_VALUES`;
-
-  const result = await db.getDataFromDB(selectQuery);
-  let parsedResult = await parseEventData(result);
-  if (parsedResult.length > 0) {
-    incData = parsedResult[0];
-  }
-  return Promise.resolve(incData);
+  return Promise.resolve(true);
 };
 
 const updateIncResponseData = async (incidentId, userId, responseValue, incData) => {

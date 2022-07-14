@@ -1233,29 +1233,26 @@ const sendApproval = async (context) => {
   const serviceUrl = context.activity.serviceUrl;
   let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
-  const incCreatedByUserObj = allMembers.find((m) => m.id === incCreatedBy);
+  // const incCreatedByUserObj = allMembers.find((m) => m.id === incCreatedBy);
+  const incCreatedByUserObj = context.activity.from;
 
-  let allMembersArr = allMembers.map(
-    (tm) =>
-    (tm = {
-      ...tm,
-      messageDelivered: "na",
-      response: "na",
-      responseValue: "na",
-    })
-  );
-
+  let allMembersArr = [];
+  let sqlInsert = [];
   if (selectedMembers.length > 0) {
-    allMembersArr = allMembersArr.filter((m) =>
-      selectedMembers?.includes(m.id)
-    );
+    for (let m = 0; m < allMembers.length; m++) {
+      const member = allMembers[m];
+      if (selectedMembers?.includes(member.id)) {
+        allMembersArr.push(member);
+
+        const query = ` insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
+          values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL); `;
+
+        sqlInsert.push(query);
+      }
+    }
   }
 
-  const incWithAddedMembers = await incidentService.addMembersIntoIncData(
-    incId,
-    allMembersArr,
-    incCreatedBy
-  );
+  await incidentService.addMembersIntoIncData(sqlInsert);
   const incGuidance = await incidentService.getIncGuidance(incId);
   if (action.data.incType == "onetime") {
     let dashboardCard = await getOneTimeDashboardCard(incId, null);
@@ -1263,18 +1260,17 @@ const sendApproval = async (context) => {
     const activityId = await viewIncResult(incId, context, companyData, incident, null, dashboardCard, serviceUrl);
     const conversationId = context.activity.conversation.id;
 
+    let incObj = {
+      incId,
+      incTitle,
+      incCreatedBy: incCreatedByUserObj,
+      activityId,
+      conversationId
+    }
+    var guidance = incGuidance ? incGuidance : "No details available";
+    const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, guidance);
     // send approval msg to all users
     allMembersArr.forEach(async (teamMember) => {
-      let incObj = {
-        incId,
-        incTitle,
-        incCreatedBy: incCreatedByUserObj,
-        activityId,
-        conversationId
-      }
-      var guidance = incGuidance ? incGuidance : "No details available"
-      const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, guidance);
-
       await sendCardToIndividualUser(context, teamMember, approvalCard);
     });
     await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
