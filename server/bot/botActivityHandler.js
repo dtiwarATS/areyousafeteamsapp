@@ -105,7 +105,9 @@ class BotActivityHandler extends TeamsActivityHandler {
           if (isAdmin && isInstalledInTeam) {
             await this.hanldeAdminOrSuperUserMsg(context, companyData);
             await next();
-            return;
+            return {
+              status: StatusCodes.OK,
+            };
           }
 
           if (!isInstalledInTeam) {
@@ -361,6 +363,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     try {
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;
+      let adaptiveCard = null;
       console.log({ uVerb });
       if (uVerb == "add_user_info") {
         bot.addUserInfoByTeamId(context);
@@ -372,9 +375,10 @@ class BotActivityHandler extends TeamsActivityHandler {
         uVerb === "list_delete_inc"
       ) {
         await context.sendActivities([{ type: "typing" }]);
-        const cards = CardFactory.adaptiveCard(updateMainCard(companyData));
+        adaptiveCard = updateMainCard(companyData);
+        const card = CardFactory.adaptiveCard(updateMainCard(companyData));
 
-        const message = MessageFactory.attachment(cards);
+        const message = MessageFactory.attachment(card);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {
@@ -404,17 +408,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "Cancel_button") {
-        const { inc_title: incTitle } = context.activity?.value?.action?.data;
-        let members = context.activity?.value?.action?.data?.selected_members;
-        if (members === undefined) {
-          members = "All Members";
-        }
-        let recurrInc = (uVerb === "save_new_recurr_inc") ? "recurring " : "";
-        let text = `Ok.. No Problem... We can do this later. Thank you for your time.`;
-        const cards = CardFactory.adaptiveCard(
-          updateCard(incTitle, members, text)
-        );
-
+        const text = `Ok.. No Problem... We can do this later. Thank you for your time.`;
+        adaptiveCard = updateCard(null, null, text);
+        const cards = CardFactory.adaptiveCard(adaptiveCard);
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
@@ -546,8 +542,9 @@ class BotActivityHandler extends TeamsActivityHandler {
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
         const card = await bot.selectResponseCard(context, user);
-        if (card && card["$schema"]) {
-          console.log("insidess");
+        if (adaptiveCard != null) {
+          return bot.invokeResponse(adaptiveCard);
+        } else if (card) {
           return bot.invokeResponse(card);
         } else {
           return {

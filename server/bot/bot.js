@@ -99,7 +99,8 @@ const selectResponseCard = async (context, user) => {
     } else if (verb === "list_delete_inc" && isAdminOrSuperuser) {
       await sendDeleteIncCard(context, user, companyData);
     } else if (verb === "delete_inc" && isAdminOrSuperuser) {
-      await deleteInc(context, action);
+      const adaptiveCard = await deleteInc(context, action);
+      return Promise.resolve(adaptiveCard);
     } else if (verb === "list_inc" && isAdminOrSuperuser) {
       await viewAllInc(context, companyData);
     } else if (verb && verb === "send_approval" && isAdminOrSuperuser) {
@@ -119,10 +120,10 @@ const selectResponseCard = async (context, user) => {
     } else if (verb && verb === "submit_settings" && isAdminOrSuperuser) {
       await submitSettings(context, companyData);
     } else if (verb && (verb === "dashboard_view_previous_inc" || verb == "dashboard_view_next_inc") && isAdminOrSuperuser) {
-      await navigateDashboardList(context, action, verb);
+      const adaptiveCard = await navigateDashboardList(context, action, verb);
+      return Promise.resolve(adaptiveCard);
     } else if (verb === "copyInc" && isAdminOrSuperuser) {
-      const card = await copyInc(context, user, action);
-      return Promise.resolve(card);
+      await copyInc(context, user, action);
     } else if (verb === "closeInc" && isAdminOrSuperuser) {
       await showIncStatusConfirmationCard(context, action, "Closed");
 
@@ -130,7 +131,8 @@ const selectResponseCard = async (context, user) => {
       await showIncStatusConfirmationCard(context, action, "In progress");
 
     } else if (verb === "updateIncStatus" && isAdminOrSuperuser) {
-      await updateIncStatus(context, action);
+      const adaptiveCard = await updateIncStatus(context, action);
+      return Promise.resolve(adaptiveCard);
     } else if (verb === "confirmDeleteInc" && isAdminOrSuperuser) {
       await showIncDeleteConfirmationCard(context, action);
 
@@ -421,7 +423,7 @@ const updateIncStatus = async (context, action) => {
     const statusToUpdate = action.data.statusToUpdate;
     const incTitle = action.data.incTitle ? action.data.incTitle : "";
     const isUpdated = await incidentService.updateIncStatus(incId, statusToUpdate);
-
+    let adaptiveCard = null;
     if (dashboardData.ts != null && isUpdated) {
       await updateDashboardCard(context, dashboardData, companyData);
 
@@ -429,13 +431,16 @@ const updateIncStatus = async (context, action) => {
       if (statusToUpdate == "In progress") {
         text = `Incident **${incTitle}** has been reopen.`;
       }
+      adaptiveCard = updateCard("", "", text);
       const cards = CardFactory.adaptiveCard(
-        updateCard("", "", text)
+        adaptiveCard
       );
 
       const message = MessageFactory.attachment(cards);
       message.id = context.activity.replyToId;
       await context.updateActivity(message);
+
+      return adaptiveCard;
     }
   }
   catch (err) {
@@ -790,11 +795,13 @@ const updateDashboardCard = async (context, dashboardData, companyData) => {
   const dsMessage = MessageFactory.attachment(dsCard);
   dsMessage.id = dashboardData.ts;
   await context.updateActivity(dsMessage);
+  return dsCard;
 }
 
 const deleteInc = async (context, action) => {
   try {
     let incId = -1;
+    let adaptiveCard = null;
     const deleteFromDashboard = (action.data.deleteFromDashboard == true);
     if (deleteFromDashboard) {
       incId = action.data.incId ? Number(action.data.incId) : -1;
@@ -815,14 +822,17 @@ const deleteInc = async (context, action) => {
 
     if (incName != null) {
       const deleteText = `The incident **${incName}** has been deleted successfully.`;
-      const cards = CardFactory.adaptiveCard(
-        updateCard("", "", deleteText)
+      adaptiveCard = updateCard("", "", deleteText);
+      const card = CardFactory.adaptiveCard(
+        adaptiveCard
       );
 
-      const message = MessageFactory.attachment(cards);
+      const message = MessageFactory.attachment(card);
       message.id = context.activity.replyToId;
       await context.updateActivity(message);
     }
+
+    return adaptiveCard;
   }
   catch (err) {
     console.log(err);
@@ -1759,6 +1769,7 @@ const navigateDashboardList = async (context, action, verb) => {
     const message = MessageFactory.attachment(cards);
     message.id = context.activity.replyToId;
     await context.updateActivity(message);
+    return dashboardCard;
   }
   catch (err) {
     console.log(err);

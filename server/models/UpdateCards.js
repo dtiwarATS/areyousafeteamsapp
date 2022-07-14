@@ -81,7 +81,6 @@ const updateMainCard = (companyData) => {
   };
 };
 const updateCard = (incidentTitle, members, text) => {
-  console.log({ incidentTitle, members });
   return {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",

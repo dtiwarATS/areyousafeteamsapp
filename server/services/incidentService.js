@@ -163,12 +163,12 @@ const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
 
   let selectedMembers = actionData.selected_members;
-  if (selectedMembers == null || selectedMembers.length == 0) {
+  if ((selectedMembers == null || selectedMembers.length == 0) && companyData.teamId != null) {
     try {
       var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
       var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
-      const allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
+      const allTeamMembers = await connectorClient.conversations.getConversationMembers(companyData.teamId);
       if (allTeamMembers != null && allTeamMembers.length > 0) {
         selectedMembers = allTeamMembers.map((m) => {
           return m.id;
@@ -450,7 +450,7 @@ const verifyDuplicateInc = async (teamId, incTitle) => {
 
 const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises) => {
   try {
-    if (incId != null && userIds != null && userIds.split(',').length > 0) {
+    if (incId != null && userIds != null && userIds != '' && userIds.split(',').length > 0) {
       let query = "";
       const userIdsArr = userIds.split(',');
       for (let u = 0; u < userIdsArr.length; u++) {
