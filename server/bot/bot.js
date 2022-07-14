@@ -1769,7 +1769,14 @@ const navigateDashboardList = async (context, action, verb) => {
     const message = MessageFactory.attachment(cards);
     message.id = context.activity.replyToId;
     await context.updateActivity(message);
-    return dashboardCard;
+
+    // const activity = MessageFactory.attachment(cards);
+    // activity.id = context.activity.replyToId;
+    // const serviceUrl = context?.activity?.serviceUrl;
+    // await updateMessage(context.activity.replyToId, activity, context.activity.conversation.id, serviceUrl);
+    // return dashboardCard;
+    return true;
+
   }
   catch (err) {
     console.log(err);
