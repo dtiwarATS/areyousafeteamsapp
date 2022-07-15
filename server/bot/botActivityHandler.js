@@ -474,7 +474,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         const incStatusId = await incidentService.getIncStatus(incId);
         if (incStatusId == -1 || incStatusId == 2) {
           await bot.sendIncStatusValidation(context, incStatusId);
-          return;
+          return {
+            status: StatusCodes.OK,
+          };
         }
 
         let responseText = "";

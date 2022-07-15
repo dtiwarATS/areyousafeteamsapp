@@ -13,12 +13,12 @@ const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-conne
 
 class AreYouSafeTab {
 
-    getConversationParameters = (members) => {
+    getConversationParameters = (members, tenantId) => {
         return {
             isGroup: false,
             channelData: {
                 tenant: {
-                    id: process.env.tenantId
+                    id: tenantId
                 }
             },
             bot: {
@@ -29,8 +29,12 @@ class AreYouSafeTab {
         };
     }
 
-    sendMessage = async (userId) => {
+    getAllTeamMembers = async (teamId, serviceUrl) => {
+        var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+        var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
+        const allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
+        return Promise.resolve(allTeamMembers);
     }
 }
 
