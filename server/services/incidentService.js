@@ -424,6 +424,7 @@ const getCompanyData = async (teamId) => {
       superUser: [],
       createdDate: result[0].created_date,
       welcomeMessageSent: result[0].welcomeMessageSent,
+      serviceUrl: result[0].serviceUrl
     };
   }
   return companyDataObj;
@@ -596,6 +597,50 @@ const saveServiceUrl = async (teamId, serviceUrl) => {
   return Promise.resolve(isupdated);
 }
 
+const getUserTenantDetailsByTeamId = async (teamId) => {
+  try {
+    const sql = `select serviceUrl, user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}'`;
+    const result = await db.getDataFromDB(sql);
+    let tenantDetails = null;
+    if (result != null && result.length > 0) {
+      tenantDetails = result[0];
+    }
+    return Promise.resolve(tenantDetails);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
+const getUserTenantDetailsByUserAadObjectId = async (userAadObjectId) => {
+  try {
+    let sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id  in ` +
+      ` (select team_id from MSTeamsTeamsUsers where user_aadobject_id = ${userAadObjectId})`;
+    let result = await db.getDataFromDB(sql);
+    let tenantDetails = null;
+    if (result != null && result.length > 0) {
+      tenantDetails = result[0];
+    } else {
+      sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where user_obj_id  = '${userAadObjectId}' `;
+      result = await db.getDataFromDB(sql);
+      if (result != null && result.length > 0) {
+        tenantDetails = result[0];
+      } else {
+        sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where super_users  like '%${userAadObjectId}%' `;
+        result = await db.getDataFromDB(sql);
+        if (result != null && result.length > 0) {
+          tenantDetails = result[0];
+        }
+      }
+    }
+    return Promise.resolve(tenantDetails);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -620,5 +665,6 @@ module.exports = {
   updateIncStatus,
   getIncStatus,
   getAllIncByUserId,
-  getUserTenantDetails
+  getUserTenantDetails,
+  saveServiceUrl
 };

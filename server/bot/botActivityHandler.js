@@ -30,6 +30,7 @@ const {
 const {
   sendDirectMessage,
   sendDirectMessageCard,
+  getAllTeamMembers
 } = require("../api/apiMethods");
 
 const {
@@ -74,7 +75,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       //     "actions": [
       //       {
       //         "type": "Action.Execute",
-      //         "title": "Action.Execute",
+      //         "title": "Go to dashboard tab",
       //         "verb": "add_user_info"
       //       }
       //     ]
@@ -357,6 +358,21 @@ class BotActivityHandler extends TeamsActivityHandler {
         await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
       }
     });
+  }
+
+  async onInstallationUpdateActivity(context) {
+    try {
+      var activity = context.activity.action;
+      if (activity == "add-upgrade") {
+        const teamId = context.activity.channelData.team.id;
+        const serviceUrl = context.activity.serviceUrl;
+        const allMembersInfo = await getAllTeamMembers(context, teamId);
+        await addTeamMember(teamId, allMembersInfo);
+        await incidentService.saveServiceUrl(teamId, serviceUrl);
+      }
+    } catch (err) {
+      console.log(err);
+    }
   }
 
   async onInvokeActivity(context) {

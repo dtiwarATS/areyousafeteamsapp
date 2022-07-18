@@ -1661,8 +1661,10 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
       }
       incCreatedByUserArr.push(incCreatedByUserObj);
 
+      const serviceUrl = subEventObj.serviceUrl;
+      const userTenantId = subEventObj.userTenantId;
       const dashboardCard = await getOneTimeDashboardCard(incId);
-      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard);
+      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId);
       await sendIncResponseToSelectedMembers(incId, dashboardCard, subEventObj.runAt);
 
       let incObj = {
