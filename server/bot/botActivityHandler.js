@@ -337,6 +337,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
                 welcomeMessageSent: 1,
+                serviceUrl: context.activity.serviceUrl
               };
               const companyData = await insertCompanyData(companyDataObj);
               this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
