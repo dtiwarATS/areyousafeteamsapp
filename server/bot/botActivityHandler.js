@@ -25,7 +25,8 @@ const {
   addTeamMember,
   removeTeamMember,
   removeAllTeamMember,
-  deleteCompanyDataByTeamId
+  deleteCompanyDataByTeamId,
+  deleteCompanyDataByuserAadObjId
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
@@ -43,6 +44,7 @@ const {
   updateSesttingsCard,
   updateContactSubmitCard,
 } = require("../models/UpdateCards");
+const db = require("../db");
 
 class BotActivityHandler extends TeamsActivityHandler {
   constructor() {
@@ -134,11 +136,6 @@ class BotActivityHandler extends TeamsActivityHandler {
           } else {
             await this.hanldeNonAdminUserMsg(context);
           }
-
-
-
-
-
           /*
           let a = false;
           let b = false;
@@ -216,6 +213,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       let addedBot = false;
       const acvtivityData = context.activity;
       const teamId = acvtivityData?.channelData?.team?.id;
+      const conversationType = context.activity.conversation.conversationType;
       if (
         acvtivityData &&
         acvtivityData?.channelData?.eventType === "teamMemberAdded"
@@ -254,7 +252,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 serviceUrl: context.activity.serviceUrl
               };
 
-              const companyData = await insertCompanyData(companyDataObj, allMembersInfo);
+              const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
               this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
 
               // const companyData = await getCompaniesData(
@@ -339,7 +337,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 welcomeMessageSent: 1,
                 serviceUrl: context.activity.serviceUrl
               };
-              const companyData = await insertCompanyData(companyDataObj);
+              const companyData = await insertCompanyData(companyDataObj, null, conversationType);
               this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
               //console.log("Company data inserted into DB >> ", companyData);
             }
@@ -363,14 +361,18 @@ class BotActivityHandler extends TeamsActivityHandler {
 
   async onInstallationUpdateActivity(context) {
     try {
-      var activity = context.activity.action;
-      if (activity == "add-upgrade") {
-        const teamId = context.activity.channelData.team.id;
-        const serviceUrl = context.activity.serviceUrl;
-        const allMembersInfo = await getAllTeamMembers(context, teamId);
-        await addTeamMember(teamId, allMembersInfo);
-        await incidentService.saveServiceUrl(teamId, serviceUrl);
+      var action = context.activity.action;
+      const conversationType = context.activity.conversation.conversationType;
+      if (action == "remove" && conversationType == "personal") {
+        await deleteCompanyDataByuserAadObjId(context?.activity?.from?.aadObjectId);
       }
+      // if (action == "add-upgrade") {
+      //   const teamId = context.activity.channelData.team.id;
+      //   const serviceUrl = context.activity.serviceUrl;
+      //   const allMembersInfo = await getAllTeamMembers(context, teamId);
+      //   await addTeamMember(teamId, allMembersInfo);
+      //   await incidentService.saveServiceUrl(teamId, serviceUrl);
+      // }
     } catch (err) {
       console.log(err);
     }
@@ -624,7 +626,11 @@ class BotActivityHandler extends TeamsActivityHandler {
     if (companyData == null) {
       return;
     }
+    // let isUpdate = false;
     let isUpdate = (companyData.isUpdate == "true");
+    // if (context.activity.conversation.conversationType != "personal") {
+    //   return;
+    // }
 
     if (!isUpdate) {
       const cards = {
