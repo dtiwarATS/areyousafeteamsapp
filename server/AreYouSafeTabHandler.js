@@ -10,8 +10,10 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
             .getAllIncByTeamId(req.query.teamId, "desc")
             .then(incData => {
+                const tabObj = new tab.AreYouSafeTab();
+                const formatedIncData = tabObj.getFormatedIncData(incData);
                 res.send(
-                    incData
+                    formatedIncData
                 );
             })
             .catch(err => {
