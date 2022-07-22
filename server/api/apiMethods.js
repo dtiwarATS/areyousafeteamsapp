@@ -70,18 +70,32 @@ const sendDirectMessageCard = async (
     });
   });
 };
-
-const sendProactiveMessaageToUser = async (members, msgAttachment, msgText) => {
+const addLog = (log, message) => {
+  if (log != null) {
+    message = `<tr><td>${message}</td></tr>`;
+    log.push(message);
+  }
+}
+const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serviceUrl, tenantId, log) => {
+  addLog(log, "sendProactiveMessaageToUser start");
   let resp = {
     "conversationId": null,
     "activityId": null
   };
   try {
+    if (serviceUrl == null) {
+      serviceUrl = process.env.serviceUrl;
+    }
+
+    if (tenantId == null) {
+      tenantId = process.env.tenantId;
+    }
+
     const conversationParameters = {
       isGroup: false,
       channelData: {
         tenant: {
-          id: process.env.tenantId
+          id: tenantId
         }
       },
       bot: {
@@ -100,27 +114,35 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText) => {
 
     if (activity != null) {
       var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-      var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
       const response = await connectorClient.conversations.createConversation(conversationParameters);
       const activityId = await connectorClient.conversations.sendToConversation(response.id, activity);
 
-
-
       resp.conversationId = response.id;
       resp.activityId = activityId.id;
+
+      addLog(log, `response object ${JSON.stringify(resp)}`);
     }
   }
   catch (err) {
+    addLog(log, "sendProactiveMessaageToUser error : ");
+    addLog(log, JSON.stringify(err));
     console.log(err);
+  }
+  finally {
+    addLog(log, "sendProactiveMessaageToUser end");
   }
   return Promise.resolve(resp);
 }
 
-const updateMessage = async (activityId, activity, conversationId) => { //Update dashboard 
+const updateMessage = async (activityId, activity, conversationId, serviceUrl) => { //Update dashboard 
   try {
+    if (serviceUrl == null) {
+      serviceUrl = process.env.serviceUrl;
+    }
     var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-    var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
+    var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
     await connectorClient.conversations.updateActivity(conversationId, activityId, activity);
   }
   catch (err) {
@@ -133,5 +155,6 @@ module.exports = {
   sendDirectMessage,
   sendDirectMessageCard,
   sendProactiveMessaageToUser,
-  updateMessage
+  updateMessage,
+  addLog
 };

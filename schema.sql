@@ -289,3 +289,26 @@ BEGIN
 	) ON [PRIMARY]
 END
 GO
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsLog')
+BEGIN
+	CREATE TABLE [dbo].[MSTeamsLog](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[inc_id] [int],
+	[log] nvarchar(max),
+	[datetime] datetime,
+	PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+	) ON [PRIMARY]
+END
+GO
+
+
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='serviceUrl' AND TABLE_NAME='msteamsinstallationdetails')
+BEGIN
+ALTER TABLE msteamsinstallationdetails ADD serviceUrl nvarchar(256)
+END
+GO

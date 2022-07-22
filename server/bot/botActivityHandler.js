@@ -25,11 +25,13 @@ const {
   addTeamMember,
   removeTeamMember,
   removeAllTeamMember,
-  deleteCompanyDataByTeamId
+  deleteCompanyDataByTeamId,
+  deleteCompanyDataByuserAadObjId
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
   sendDirectMessageCard,
+  getAllTeamMembers
 } = require("../api/apiMethods");
 
 const {
@@ -40,9 +42,9 @@ const {
   updateSafeMessage,
   updateDeleteCard,
   updateSesttingsCard,
-  updateIncidentListCard,
   updateContactSubmitCard,
 } = require("../models/UpdateCards");
+const db = require("../db");
 
 class BotActivityHandler extends TeamsActivityHandler {
   constructor() {
@@ -67,8 +69,24 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (acvtivityData.text == "sendversionupdate") {
         await bot.sendMsg(context);
       }
+      // else if (acvtivityData.text == "dashboard") {
+      //   const card = {
+      //     "type": "AdaptiveCard",
+      //     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+      //     "version": "1.5",
+      //     "actions": [
+      //       {
+      //         "type": "Action.Execute",
+      //         "title": "Go to dashboard tab",
+      //         "verb": "add_user_info"
+      //       }
+      //     ]
+      //   };
+      //   await context.sendActivity({
+      //     attachments: [CardFactory.adaptiveCard(card)],
+      //   });
+      // }
       else {
-
         await context.sendActivities([{ type: "typing" }]);
         if (acvtivityData.conversation.conversationType === "channel") {
           await this.hanldeChannelUserMsg(context);
@@ -90,7 +108,9 @@ class BotActivityHandler extends TeamsActivityHandler {
           if (isAdmin && isInstalledInTeam) {
             await this.hanldeAdminOrSuperUserMsg(context, companyData);
             await next();
-            return;
+            return {
+              status: StatusCodes.OK,
+            };
           }
 
           if (!isInstalledInTeam) {
@@ -116,11 +136,6 @@ class BotActivityHandler extends TeamsActivityHandler {
           } else {
             await this.hanldeNonAdminUserMsg(context);
           }
-
-
-
-
-
           /*
           let a = false;
           let b = false;
@@ -198,6 +213,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       let addedBot = false;
       const acvtivityData = context.activity;
       const teamId = acvtivityData?.channelData?.team?.id;
+      const conversationType = context.activity.conversation.conversationType;
       if (
         acvtivityData &&
         acvtivityData?.channelData?.eventType === "teamMemberAdded"
@@ -232,10 +248,11 @@ class BotActivityHandler extends TeamsActivityHandler {
                 teamName: acvtivityData.channelData.team.name,
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 1
+                welcomeMessageSent: 1,
+                serviceUrl: context.activity.serviceUrl
               };
 
-              const companyData = await insertCompanyData(companyDataObj, allMembersInfo);
+              const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
               this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
 
               // const companyData = await getCompaniesData(
@@ -318,8 +335,9 @@ class BotActivityHandler extends TeamsActivityHandler {
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
                 welcomeMessageSent: 1,
+                serviceUrl: context.activity.serviceUrl
               };
-              const companyData = await insertCompanyData(companyDataObj);
+              const companyData = await insertCompanyData(companyDataObj, null, conversationType);
               this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
               //console.log("Company data inserted into DB >> ", companyData);
             }
@@ -341,12 +359,34 @@ class BotActivityHandler extends TeamsActivityHandler {
     });
   }
 
+  async onInstallationUpdateActivity(context) {
+    try {
+      var action = context.activity.action;
+      const conversationType = context.activity.conversation.conversationType;
+      if (action == "remove" && conversationType == "personal") {
+        await deleteCompanyDataByuserAadObjId(context?.activity?.from?.aadObjectId);
+      }
+      // if (action == "add-upgrade") {
+      //   const teamId = context.activity.channelData.team.id;
+      //   const serviceUrl = context.activity.serviceUrl;
+      //   const allMembersInfo = await getAllTeamMembers(context, teamId);
+      //   await addTeamMember(teamId, allMembersInfo);
+      //   await incidentService.saveServiceUrl(teamId, serviceUrl);
+      // }
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
   async onInvokeActivity(context) {
     try {
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;
+      let adaptiveCard = null;
       console.log({ uVerb });
-      if (
+      if (uVerb == "add_user_info") {
+        bot.addUserInfoByTeamId(context);
+      } else if (
         uVerb === "create_onetimeincident" ||
         uVerb === "contact_us" ||
         uVerb === "view_settings" ||
@@ -354,9 +394,10 @@ class BotActivityHandler extends TeamsActivityHandler {
         uVerb === "list_delete_inc"
       ) {
         await context.sendActivities([{ type: "typing" }]);
-        const cards = CardFactory.adaptiveCard(updateMainCard(companyData));
+        adaptiveCard = updateMainCard(companyData);
+        const card = CardFactory.adaptiveCard(updateMainCard(companyData));
 
-        const message = MessageFactory.attachment(cards);
+        const message = MessageFactory.attachment(card);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {
@@ -386,17 +427,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "Cancel_button") {
-        const { inc_title: incTitle } = context.activity?.value?.action?.data;
-        let members = context.activity?.value?.action?.data?.selected_members;
-        if (members === undefined) {
-          members = "All Members";
-        }
-        let recurrInc = (uVerb === "save_new_recurr_inc") ? "recurring " : "";
-        let text = `Ok.. No Problem... We can do this later. Thank you for your time.`;
-        const cards = CardFactory.adaptiveCard(
-          updateCard(incTitle, members, text)
-        );
-
+        const text = `Ok.. No Problem... We can do this later. Thank you for your time.`;
+        adaptiveCard = updateCard(null, null, text);
+        const cards = CardFactory.adaptiveCard(adaptiveCard);
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
@@ -421,43 +454,6 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
-      } else if (uVerb === "view_inc_result") {
-        const incidentId =
-          context.activity?.value?.action.data.incidentSelectedVal;
-        const allIncidentData = await incidentService.getAllInc(
-          companyData.teamId
-        );
-
-        let incList = [];
-        if (allIncidentData.length > 0) {
-          incList = allIncidentData.map((inc, index) => ({
-            title: inc.incTitle,
-            value: inc.incId,
-          }));
-        }
-        const cards = CardFactory.adaptiveCard(
-          updateIncidentListCard(companyData, incList, incidentId)
-        );
-
-        const message = MessageFactory.attachment(cards);
-        message.id = context.activity.replyToId;
-        await context.updateActivity(message);
-      } else if (uVerb === "delete_inc") {
-        // const cards = CardFactory.adaptiveCard({
-        //   type: "AdaptiveCard",
-        //   $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        //   version: "1.4",
-        //   body: [
-        //     {
-        //       type: "TextBlock",
-        //       text: `✔️ The Incident has been deleted successfully.`,
-        //       wrap: true,
-        //     },
-        //   ],
-        // });
-        // const message = MessageFactory.attachment(cards);
-        // message.id = context.activity.replyToId;
-        // await context.updateActivity(message);
       } else if (uVerb === "submit_comment") {
         const action = context.activity.value.action;
         const {
@@ -497,7 +493,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         const incStatusId = await incidentService.getIncStatus(incId);
         if (incStatusId == -1 || incStatusId == 2) {
           await bot.sendIncStatusValidation(context, incStatusId);
-          return;
+          return {
+            status: StatusCodes.OK,
+          };
         }
 
         let responseText = "";
@@ -565,8 +563,9 @@ class BotActivityHandler extends TeamsActivityHandler {
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
         const card = await bot.selectResponseCard(context, user);
-        if (card && card["$schema"]) {
-          console.log("insidess");
+        if (adaptiveCard != null) {
+          return bot.invokeResponse(adaptiveCard);
+        } else if (card) {
           return bot.invokeResponse(card);
         } else {
           return {
@@ -627,7 +626,11 @@ class BotActivityHandler extends TeamsActivityHandler {
     if (companyData == null) {
       return;
     }
+    // let isUpdate = false;
     let isUpdate = (companyData.isUpdate == "true");
+    // if (context.activity.conversation.conversationType != "personal") {
+    //   return;
+    // }
 
     if (!isUpdate) {
       const cards = {

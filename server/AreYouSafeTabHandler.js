@@ -5,16 +5,25 @@ const db = require("./db");
 const tab = require("./tab/AreYouSafeTab");
 
 const handlerForSafetyBotTab = (app) => {
-    app.get("/areyousafetabhandler", (req, res) => {
-        console.log(req);
-        res.send(
-            "<h2>This is are you safe tab handler</h2>"
-        );
-    });
 
     app.get("/areyousafetabhandler/getAllIncDataByTeamId", (req, res) => {
         incidentService
             .getAllIncByTeamId(req.query.teamId, "desc")
+            .then(incData => {
+                const tabObj = new tab.AreYouSafeTab();
+                const formatedIncData = tabObj.getFormatedIncData(incData);
+                res.send(
+                    formatedIncData
+                );
+            })
+            .catch(err => {
+                console.log(err);
+            });
+    });
+
+    app.get("/areyousafetabhandler/getAllIncDataByUserId", (req, res) => {
+        incidentService
+            .getAllIncByUserId(req.query.userId, "desc")
             .then(incData => {
                 res.send(
                     incData
@@ -22,18 +31,34 @@ const handlerForSafetyBotTab = (app) => {
             })
             .catch(err => {
                 console.log(err);
-            })
+            });
     });
 
-    app.get("/areyousafetabhandler/sendMesssage", (req, res) => {
+    app.delete("/areyousafetabhandler/deleteIncident", (req, res) => {
+        incidentService
+            .deleteInc(req.query.incid)
+            .then(incData => {
+                res.send(
+                    incData
+                );
+            })
+            .catch(err => {
+                console.log(err);
+            });
+    });
 
-        const tabObj = new tab.AreYouSafeTab();
-        let activityObj = null;
-        tabObj
-            .sendMessage(req.query.userid)
-            .then(data => {
-                activityObj = data;
-                console.log(activityObj);
+    app.put("/areyousafetabhandler/updateincstatus", (req, res) => {
+        const incId = req.query.incid;
+        const incStatus = req.query.incstatus;
+        incidentService
+            .updateIncStatus(incId, incStatus)
+            .then(incData => {
+                res.send(
+                    incData
+                );
+            })
+            .catch(err => {
+                console.log(err);
             });
     });
 }

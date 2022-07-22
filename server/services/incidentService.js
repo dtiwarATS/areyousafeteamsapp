@@ -99,12 +99,36 @@ const getAllIncByTeamId = async (teamId, orderBy) => {
     }
 
     let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-    inc.selected_members, inc.created_by, inc.created_date, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+    inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
     m.comment, m.timestamp, inc.INC_STATUS_ID
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
     where inc.team_id = '${teamId}' ${orderBySql}
+    FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+
+    const result = await db.getDataFromDB(selectQuery);
+    let parsedResult = await parseEventData(result);
+    return Promise.resolve(parsedResult);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const getAllIncByUserId = async (aadObjuserId, orderBy) => {
+  try {
+    let orderBySql = "";
+    if (orderBy != null && orderBy == "desc") {
+      orderBySql = " order by inc.id desc "
+    }
+
+    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
+    inc.selected_members, inc.created_by, inc.created_date, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+    m.comment, m.timestamp, inc.INC_STATUS_ID
+    FROM MSTeamsIncidents inc
+    LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+    LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
+    where inc.created_by in (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}') ${orderBySql}
     FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
     const result = await db.getDataFromDB(selectQuery);
@@ -132,19 +156,19 @@ const getIncGuidance = async (incId) => {
   }
 };
 
-const saveInc = async (actionData, companyData, memberChoises) => {
+const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
   // const { inc_title: title, inc_created_by: createdBy } = actionData;
   let newInc = {};
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
 
   let selectedMembers = actionData.selected_members;
-  if (selectedMembers == null || selectedMembers.length == 0) {
+  if ((selectedMembers == null || selectedMembers.length == 0) && companyData.teamId != null) {
     try {
       var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-      var connectorClient = new ConnectorClient(credentials, { baseUri: process.env.serviceUrl });
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
-      const allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
+      const allTeamMembers = await connectorClient.conversations.getConversationMembers(companyData.teamId);
       if (allTeamMembers != null && allTeamMembers.length > 0) {
         selectedMembers = allTeamMembers.map((m) => {
           return m.id;
@@ -184,10 +208,11 @@ const saveInc = async (actionData, companyData, memberChoises) => {
     await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
     incObj.responseSelectedUsers = actionData.selected_members_response;
   }
+  await saveServiceUrl(companyData.teamId, serviceUrl);
   return Promise.resolve(newInc);
 };
 
-const saveRecurrInc = async (actionData, companyData, memberChoises) => {
+const saveRecurrInc = async (actionData, companyData, memberChoises, serviceUrl) => {
   let newInc = {};
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
@@ -219,6 +244,7 @@ const saveRecurrInc = async (actionData, companyData, memberChoises) => {
     await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
     incObj.responseSelectedUsers = actionData.selected_members_response;
   }
+  await saveServiceUrl(companyData.teamId, serviceUrl);
   return Promise.resolve(newInc);
 };
 
@@ -398,6 +424,7 @@ const getCompanyData = async (teamId) => {
       superUser: [],
       createdDate: result[0].created_date,
       welcomeMessageSent: result[0].welcomeMessageSent,
+      serviceUrl: result[0].serviceUrl
     };
   }
   return companyDataObj;
@@ -424,7 +451,7 @@ const verifyDuplicateInc = async (teamId, incTitle) => {
 
 const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises) => {
   try {
-    if (incId != null && userIds != null && userIds.split(',').length > 0) {
+    if (incId != null && userIds != null && userIds != '' && userIds.split(',').length > 0) {
       let query = "";
       const userIdsArr = userIds.split(',');
       for (let u = 0; u < userIdsArr.length; u++) {
@@ -464,6 +491,22 @@ const getIncResponseSelectedUsersList = async (incId) => {
     const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});`;
     const result = await db.getDataFromDB(sql);
     return Promise.resolve(result);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
+const getUserTenantDetails = async (incId) => {
+  try {
+    const sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id ` +
+      ` in (select team_id from MSTeamsIncidents where id = ${incId})`;
+    const result = await db.getDataFromDB(sql);
+    let tenantDetails = null;
+    if (result != null && result.length > 0) {
+      tenantDetails = result[0];
+    }
+    return Promise.resolve(tenantDetails);
   }
   catch (err) {
     console.log(err);
@@ -541,6 +584,63 @@ const getIncStatus = async (incId) => {
   return Promise.resolve(incStatusId);
 }
 
+const saveServiceUrl = async (teamId, serviceUrl) => {
+  let isupdated = false;
+  try {
+    pool = await poolPromise;
+    const sqlUpdateServiceUrl = `update msteamsinstallationdetails set serviceUrl = '${serviceUrl}' where team_id = '${teamId}' and serviceUrl is null`;
+    const updateResult = await db.updateDataIntoDB(sqlUpdateServiceUrl);
+    isupdated = (updateResult != null && updateResult.rowsAffected.length > 0);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(isupdated);
+}
+
+const getUserTenantDetailsByTeamId = async (teamId) => {
+  try {
+    const sql = `select serviceUrl, user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}'`;
+    const result = await db.getDataFromDB(sql);
+    let tenantDetails = null;
+    if (result != null && result.length > 0) {
+      tenantDetails = result[0];
+    }
+    return Promise.resolve(tenantDetails);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
+const getUserTenantDetailsByUserAadObjectId = async (userAadObjectId) => {
+  try {
+    let sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id  in ` +
+      ` (select team_id from MSTeamsTeamsUsers where user_aadobject_id = ${userAadObjectId})`;
+    let result = await db.getDataFromDB(sql);
+    let tenantDetails = null;
+    if (result != null && result.length > 0) {
+      tenantDetails = result[0];
+    } else {
+      sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where user_obj_id  = '${userAadObjectId}' `;
+      result = await db.getDataFromDB(sql);
+      if (result != null && result.length > 0) {
+        tenantDetails = result[0];
+      } else {
+        sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where super_users  like '%${userAadObjectId}%' `;
+        result = await db.getDataFromDB(sql);
+        if (result != null && result.length > 0) {
+          tenantDetails = result[0];
+        }
+      }
+    }
+    return Promise.resolve(tenantDetails);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -563,5 +663,8 @@ module.exports = {
   getIncResponseUserTS,
   getRecurrenceMembersResponse,
   updateIncStatus,
-  getIncStatus
+  getIncStatus,
+  getAllIncByUserId,
+  getUserTenantDetails,
+  saveServiceUrl
 };
