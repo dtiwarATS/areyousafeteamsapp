@@ -598,10 +598,10 @@ const saveServiceUrl = async (teamId, serviceUrl) => {
 }
 
 const getUserTenantDetailsByTeamId = async (teamId) => {
+  let tenantDetails = null;
   try {
     const sql = `select serviceUrl, user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}'`;
     const result = await db.getDataFromDB(sql);
-    let tenantDetails = null;
     if (result != null && result.length > 0) {
       tenantDetails = result[0];
     }
@@ -613,11 +613,11 @@ const getUserTenantDetailsByTeamId = async (teamId) => {
 }
 
 const getUserTenantDetailsByUserAadObjectId = async (userAadObjectId) => {
+  let tenantDetails = null;
   try {
     let sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id  in ` +
       ` (select team_id from MSTeamsTeamsUsers where user_aadobject_id = ${userAadObjectId})`;
     let result = await db.getDataFromDB(sql);
-    let tenantDetails = null;
     if (result != null && result.length > 0) {
       tenantDetails = result[0];
     } else {
@@ -640,6 +640,32 @@ const getUserTenantDetailsByUserAadObjectId = async (userAadObjectId) => {
   }
 }
 
+const getAllTeamsIdByTenantId = async (tenantId) => {
+  let teamsIds = null;
+  try {
+    const sqlTeamsId = `select id, team_id from MSTeamsInstallationDetails WHERE user_tenant_id = '${tenantId}' and team_id is not null AND team_id <> ''`;
+    const result = await db.getDataFromDB(sqlTeamsId);
+    if (result != null && result.length > 0) {
+      teamsIds = result;
+    }
+    return Promise.resolve(teamsIds);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
+const updateUserInfoFlag = async (installationIds) => {
+  try {
+    pool = await poolPromise;
+    const sqlUpdateUserInfo = `update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id in (${installationIds})`;
+    console.log(sqlUpdateUserInfo);
+    await db.updateDataIntoDB(sqlUpdateUserInfo);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
 
 module.exports = {
   saveInc,
@@ -666,5 +692,7 @@ module.exports = {
   getIncStatus,
   getAllIncByUserId,
   getUserTenantDetails,
-  saveServiceUrl
+  saveServiceUrl,
+  getAllTeamsIdByTenantId,
+  updateUserInfoFlag
 };

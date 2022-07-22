@@ -589,10 +589,11 @@ class BotActivityHandler extends TeamsActivityHandler {
         // Remove the line break
         txt = removedMentionText.toLowerCase().replace(/\n|\r/g, "").trim();
       }
+      const mainCard = await bot.invokeMainActivityBoard(context, companyData);
       await context.sendActivity({
         attachments: [
-          CardFactory.adaptiveCard(bot.invokeMainActivityBoard(companyData)),
-        ],
+          CardFactory.adaptiveCard(mainCard)
+        ]
       });
     } catch (error) {
       console.log(error);

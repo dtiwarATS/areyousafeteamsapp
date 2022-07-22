@@ -147,7 +147,35 @@ const selectResponseCard = async (context, user) => {
   }
 };
 
-const invokeMainActivityBoard = (companyData) => (updateMainCard(companyData));
+const updateUserInfo = async (context, companyData) => {
+  try {
+    if (companyData != null && companyData.isUserInfoSaved == null) {
+      const tenantId = companyData.userTenantId;
+      const teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
+      let installationids = [];
+      if (teams != null && teams.length > 0) {
+        for (let i = 0; i < teams.length; i++) {
+          const team = teams[i];
+          const allTeamMembers = await getAllTeamMembers(context, team.team_id);
+          if (allTeamMembers && allTeamMembers.length > 0) {
+            await addTeamMember(team.team_id, allTeamMembers);
+          }
+          installationids.push(team.id);
+        }
+        if (installationids != null && installationids.length > 0) {
+          await incidentService.updateUserInfoFlag(installationids.join(","));
+        }
+      }
+    }
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+const invokeMainActivityBoard = async (context, companyData) => {
+  await updateUserInfo(context, companyData);
+  return updateMainCard(companyData);
+};
 
 const sendMsg = async (context) => {
 

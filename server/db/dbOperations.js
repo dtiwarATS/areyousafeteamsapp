@@ -167,7 +167,14 @@ const addTeamMember = async (teamId, teamMembers) => {
       async (m) => {
         sqlInserUsers += ` IF NOT EXISTS (SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.aadObjectId}') ` +
           ` BEGIN ` +
-          ` INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name]) VALUES ('${teamId}', '${m.aadObjectId}', '${m.id}', '${m.name}'); ` +
+          ` INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [userPrincipalName], [email], [tenantid], [userRole]) ` +
+          ` VALUES ('${teamId}', '${m.aadObjectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${m.email}', '${m.tenantId}', '${m.userRole}'); ` +
+          ` END ` +
+          ` ELSE IF EXISTS (SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.aadObjectId}' AND userPrincipalName is null) ` +
+          ` BEGIN ` +
+          ` UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${m.email}', tenantid = '${m.tenantId}', userRole = '${m.userRole}' ` +
+          ` WHERE team_id = '${teamId}' ` +
+          ` AND [user_aadobject_id] = '${m.aadObjectId}' ` +
           ` END `;
       }
     )
