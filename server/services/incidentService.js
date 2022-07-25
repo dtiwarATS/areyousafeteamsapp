@@ -33,6 +33,7 @@ const parseEventData = async (result) => {
                 ...member.mRecurr[0]
               }
             }
+
             return new Member(member);
           }
         );
@@ -100,9 +101,10 @@ const getAllIncByTeamId = async (teamId, orderBy) => {
 
     let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
     inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-    m.comment, m.timestamp, inc.INC_STATUS_ID
+    m.comment, m.timestamp, inc.INC_STATUS_ID, tu.userPrincipalName
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+    LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers where team_id = '${teamId}') tu on tu.user_id = m.user_id
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
     where inc.team_id = '${teamId}' ${orderBySql}
     FOR JSON AUTO , INCLUDE_NULL_VALUES`;
@@ -124,9 +126,10 @@ const getAllIncByUserId = async (aadObjuserId, orderBy) => {
 
     let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
     inc.selected_members, inc.created_by, inc.created_date, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-    m.comment, m.timestamp, inc.INC_STATUS_ID
+    m.comment, m.timestamp, inc.INC_STATUS_ID, tu.userPrincipalName
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+    LEFT JOIN (select distinct userPrincipalName, user_id, team_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id and tu.team_id = inc.team_id
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
     where inc.created_by in (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}') ${orderBySql}
     FOR JSON AUTO , INCLUDE_NULL_VALUES`;
@@ -208,7 +211,7 @@ const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
     await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
     incObj.responseSelectedUsers = actionData.selected_members_response;
   }
-  await saveServiceUrl(companyData.teamId, serviceUrl);
+  //await saveServiceUrl(companyData.teamId, serviceUrl);
   return Promise.resolve(newInc);
 };
 
@@ -244,7 +247,7 @@ const saveRecurrInc = async (actionData, companyData, memberChoises, serviceUrl)
     await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
     incObj.responseSelectedUsers = actionData.selected_members_response;
   }
-  await saveServiceUrl(companyData.teamId, serviceUrl);
+  //await saveServiceUrl(companyData.teamId, serviceUrl);
   return Promise.resolve(newInc);
 };
 
@@ -584,11 +587,12 @@ const getIncStatus = async (incId) => {
   return Promise.resolve(incStatusId);
 }
 
-const saveServiceUrl = async (teamId, serviceUrl) => {
+const saveServiceUrl = async (installationIds, serviceUrl) => {
   let isupdated = false;
   try {
     pool = await poolPromise;
-    const sqlUpdateServiceUrl = `update msteamsinstallationdetails set serviceUrl = '${serviceUrl}' where team_id = '${teamId}' and serviceUrl is null`;
+    const sqlUpdateServiceUrl = `update msteamsinstallationdetails set serviceUrl = '${serviceUrl}' where id in (${installationIds}) and (serviceUrl is null or serviceUrl = '') `;
+    console.log(sqlUpdateServiceUrl);
     const updateResult = await db.updateDataIntoDB(sqlUpdateServiceUrl);
     isupdated = (updateResult != null && updateResult.rowsAffected.length > 0);
   } catch (err) {

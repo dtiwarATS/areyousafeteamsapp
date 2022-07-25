@@ -12,7 +12,8 @@ class Company {
     super_users,
     welcomeMessageSent,
     isUpdate,
-    isUserInfoSaved
+    isUserInfoSaved,
+    serviceUrl
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -27,6 +28,7 @@ class Company {
     this.welcomeMessageSent = welcomeMessageSent || false;
     this.isUpdate = (isUpdate == null) ? "false" : isUpdate;
     this.isUserInfoSaved = isUserInfoSaved;
+    this.serviceUrl = serviceUrl;
   }
 }
 
