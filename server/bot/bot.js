@@ -168,7 +168,7 @@ const updateUserInfo = async (context, teams, tenantId) => {
   }
 }
 
-const updateServiceUrl = async (context, teams, tenantId) => {
+const updateServiceUrl = async (context, teams) => {
   try {
     if (teams != null && teams.length > 0) {
       const serviceUrl = context.activity.serviceUrl;
