@@ -13,9 +13,14 @@ const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-conne
 
 const getAllTeamMembers = async (context, teamId) => {
   console.log({ teamId });
-  let allMembers = await (
-    await TeamsInfo.getTeamMembers(context, teamId)
-  ).filter((tm) => tm.aadObjectId);
+  let allMembers = null;
+  try {
+    allMembers = await (
+      await TeamsInfo.getTeamMembers(context, teamId)
+    ).filter((tm) => tm.aadObjectId);
+  } catch (err) {
+    console.log(err);
+  }
 
   return Promise.resolve(allMembers);
 };
