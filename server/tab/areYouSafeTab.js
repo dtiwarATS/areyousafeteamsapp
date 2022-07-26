@@ -62,15 +62,15 @@ class AreYouSafeTab {
         };
 
         members.forEach((m) => {
-            const { userName, response, responseValue } = m;
+            const { response, responseValue } = m;
 
             if (response === "na" || response === false) {
-                memberObj.membersNotResponded.push(userName);
+                memberObj.membersNotResponded.push(m);
             } else if (response === true) {
                 if (responseValue === true) {
-                    memberObj.membersSafe.push(userName);
+                    memberObj.membersSafe.push(m);
                 } else if (responseValue === false || responseValue == null) {
-                    memberObj.membersUnsafe.push(userName);
+                    memberObj.membersUnsafe.push(m);
                 }
             }
         });

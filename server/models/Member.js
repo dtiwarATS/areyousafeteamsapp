@@ -7,6 +7,7 @@ class Member {
     response_value,
     comment,
     timestamp,
+    tu
   }) {
     this.userId = user_id;
     this.userName = user_name;
@@ -15,6 +16,7 @@ class Member {
     this.responseValue = response_value;
     this.comment = comment;
     this.timestamp = timestamp;
+    this.userPrincipalName = (tu && tu.length > 0) ? tu[0].userPrincipalName : null;
   }
 }
 
