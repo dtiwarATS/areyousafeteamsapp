@@ -25,7 +25,6 @@ const {
   addTeamMember,
   removeTeamMember,
   removeAllTeamMember,
-  deleteCompanyDataByTeamId,
   deleteCompanyDataByuserAadObjId
 } = require("../db/dbOperations");
 const {
@@ -295,14 +294,12 @@ class BotActivityHandler extends TeamsActivityHandler {
         acvtivityData?.channelData?.eventType === "teamMemberRemoved"
       ) {
         if (acvtivityData?.channelData?.eventType === "teamDeleted") {
-          await deleteCompanyDataByTeamId(teamId);
-          await removeAllTeamMember(teamId);
+          await deleteCompanyData(teamId);
         } else {
           const { membersRemoved } = acvtivityData;
 
           if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
             await deleteCompanyData(
-              acvtivityData?.from?.aadObjectId,
               acvtivityData?.channelData?.team.id
             );
           } else {

@@ -1,39 +1,72 @@
 const incidentService = require("./services/incidentService");
-const path = require("path");
-const poolPromise = require("./db/dbConn");
-const db = require("./db");
+const dbOperation = require("./db/dbOperations");
 const tab = require("./tab/AreYouSafeTab");
 
 const handlerForSafetyBotTab = (app) => {
-
     app.get("/areyousafetabhandler/getAllIncDataByTeamId", (req, res) => {
-        incidentService
-            .getAllIncByTeamId(req.query.teamId, "desc")
-            .then(incData => {
-                const tabObj = new tab.AreYouSafeTab();
-                const formatedIncData = tabObj.getFormatedIncData(incData);
+        dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
+            if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
+                incidentService
+                    .getAllIncByTeamId(req.query.teamId, "desc")
+                    .then(incData => {
+                        const tabObj = new tab.AreYouSafeTab();
+                        const formatedIncData = tabObj.getFormatedIncData(incData);
+                        const responseObj = {
+                            respData: formatedIncData
+                        }
+                        res.send(
+                            responseObj
+                        );
+                    })
+                    .catch(err => {
+                        console.log(err);
+                    });
+            } else {
+                const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+                const responseObj = {
+                    respData: "no permission",
+                    safetyInitiator
+                }
                 res.send(
-                    formatedIncData
+                    responseObj
                 );
-            })
-            .catch(err => {
-                console.log(err);
-            });
+            }
+        }).catch(err => {
+            console.log(err);
+        });
     });
 
     app.get("/areyousafetabhandler/getAllIncDataByUserId", (req, res) => {
-        incidentService
-            .getAllIncByUserId(req.query.userId, "desc")
-            .then(incData => {
-                const tabObj = new tab.AreYouSafeTab();
-                const formatedIncData = tabObj.getFormatedIncData(incData);
+        dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
+            if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
+                incidentService
+                    .getAllIncByUserId(req.query.userId, "desc")
+                    .then(incData => {
+                        const tabObj = new tab.AreYouSafeTab();
+                        const formatedIncData = tabObj.getFormatedIncData(incData);
+                        const responseObj = {
+                            respData: formatedIncData
+                        }
+                        res.send(
+                            responseObj
+                        );
+                    })
+                    .catch(err => {
+                        console.log(err);
+                    });
+            } else {
+                const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+                const responseObj = {
+                    respData: "no permission",
+                    safetyInitiator
+                }
                 res.send(
-                    formatedIncData
+                    responseObj
                 );
-            })
-            .catch(err => {
-                console.log(err);
-            });
+            }
+        }).catch(err => {
+            console.log(err);
+        });
     });
 
     app.delete("/areyousafetabhandler/deleteIncident", (req, res) => {
