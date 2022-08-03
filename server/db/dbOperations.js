@@ -167,16 +167,6 @@ const removeTeamMember = async (teamId, userId) => {
   }
 }
 
-const deleteCompanyDataByTeamId = async (teamId) => {
-  try {
-    pool = await poolPromise;
-    const sqlRemoveMember = `DELETE FROM MSTeamsInstallationDetails WHERE TEAM_ID = '${teamId}'`;
-    await pool.request().query(sqlRemoveMember);
-  } catch (err) {
-    console.log(err);
-  }
-}
-
 const removeAllTeamMember = async (teamId) => {
   try {
     pool = await poolPromise;
@@ -323,10 +313,10 @@ const deleteCompanyDataByuserAadObjId = async (userObjId) => {
   }
 }
 
-const deleteCompanyData = async (userObjId, teamId) => {
+const deleteCompanyData = async (teamId) => {
   try {
     pool = await poolPromise;
-    let query = `DELETE FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}';` +
+    let query = `DELETE FROM MSTeamsInstallationDetails where team_id = '${teamId}';` +
       ` UPDATE MSTeamsIncidents SET IS_DELETED = 1 WHERE team_id = '${teamId}';`;
 
     await pool.request().query(query);
@@ -336,6 +326,7 @@ const deleteCompanyData = async (userObjId, teamId) => {
     console.log(err);
   }
 };
+
 const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
   try {
     pool = await poolPromise;
@@ -395,7 +386,6 @@ module.exports = {
   addTeamMember,
   removeTeamMember,
   removeAllTeamMember,
-  deleteCompanyDataByTeamId,
   saveLog,
   deleteCompanyDataByuserAadObjId,
   verifyAdminUserForDashboardTab
