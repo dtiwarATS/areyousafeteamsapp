@@ -96,7 +96,7 @@ const getAllIncByTeamId = async (teamId, orderBy) => {
   try {
     let orderBySql = "";
     if (orderBy != null && orderBy == "desc") {
-      orderBySql = " order by inc.id desc "
+      orderBySql = " order by inc.id desc, m.user_name";
     }
 
     let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
@@ -121,7 +121,7 @@ const getAllIncByUserId = async (aadObjuserId, orderBy) => {
   try {
     let orderBySql = "";
     if (orderBy != null && orderBy == "desc") {
-      orderBySql = " order by inc.id desc "
+      orderBySql = " order by inc.id desc, m.user_name";
     }
 
     let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
@@ -129,7 +129,7 @@ const getAllIncByUserId = async (aadObjuserId, orderBy) => {
     m.comment, m.timestamp, inc.INC_STATUS_ID, tu.userPrincipalName
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
-    LEFT JOIN (select distinct userPrincipalName, user_id, team_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id and tu.team_id = inc.team_id
+    LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
     where inc.created_by in (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}') ${orderBySql}
     FOR JSON AUTO , INCLUDE_NULL_VALUES`;

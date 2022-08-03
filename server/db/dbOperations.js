@@ -39,11 +39,10 @@ const parseCompanyData = async (result) => {
   return Promise.resolve(parsedCompanyObj);
 };
 
-const isAdminUser = async (userObjId, teamId) => {
+const isAdminUser = async (userObjId) => {
   try {
     selectQuery = "";
     let adminUserLogin = false;
-    //selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}'`;
     selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}'`; //If bot is added using 'Add Me', team Id is always blank. Hence removed 'team-id' from where condition
 
     let res = await db.getDataFromDB(selectQuery);
@@ -65,6 +64,35 @@ const isAdminUser = async (userObjId, teamId) => {
     console.log(err);
   }
 };
+
+const getSafetyInitiatorOfNonAdminUser = async (userObjId) => {
+  let safetyInitiator = null;
+  try {
+    const sqlInitiator = `select top 1 user_name from MSTeamsInstallationDetails where team_id in ( ` +
+      ` select top 1 team_id from MSTeamsTeamsUsers where user_aadobject_id = '${userObjId}' )`;
+
+    let safetyInitiatorData = await db.getDataFromDB(sqlInitiator);
+
+    if (safetyInitiatorData != null && safetyInitiatorData.length > 0) {
+      safetyInitiator = safetyInitiatorData[0]["user_name"];
+    }
+  } catch (err) {
+    console.log(err);
+  }
+  return safetyInitiator;
+}
+
+const verifyAdminUserForDashboardTab = async (userObjId) => {
+  const isAdmin = await isAdminUser(userObjId);
+  let safetyInitiator = null;
+  if (!isAdmin) {
+    safetyInitiator = await getSafetyInitiatorOfNonAdminUser(userObjId);
+  }
+  return {
+    isAdmin,
+    safetyInitiator
+  }
+}
 
 const getInstallationData = async () => {
   try {
@@ -369,5 +397,6 @@ module.exports = {
   removeAllTeamMember,
   deleteCompanyDataByTeamId,
   saveLog,
-  deleteCompanyDataByuserAadObjId
+  deleteCompanyDataByuserAadObjId,
+  verifyAdminUserForDashboardTab
 };
