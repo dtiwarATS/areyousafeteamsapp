@@ -117,6 +117,47 @@ const getAllIncByTeamId = async (teamId, orderBy) => {
   }
 };
 
+const getAdmins = async (aadObjuserId) => {
+  console.log("came in method");
+  try {
+    let selectQuery = `select user_id, serviceurl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
+    (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');
+    select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'`;
+
+    const result = await db.getDataFromDB(selectQuery, false);
+    console.log(result);
+    return Promise.resolve(result);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+const addComment = async (assistanceId, comment) => {
+  let sqlUpdate = `UPDATE MSTeamsAssistance SET comments = '${comment}', comment_date = '${new Date().toLocaleString(
+    "en-US",
+    {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+    }
+  )}' WHERE id = ${assistanceId}`;
+  let res = await db.updateDataIntoDB(sqlUpdate);
+  console.log(res);
+};
+
+const getAssistanceData = async (aadObjuserId) => {
+  try {
+    let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id desc`;
+
+    const result = await db.getDataFromDB(selectQuery);
+    return Promise.resolve(result);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 const getAllIncByUserId = async (aadObjuserId, orderBy) => {
   try {
     let orderBySql = "";
@@ -695,8 +736,11 @@ module.exports = {
   updateIncStatus,
   getIncStatus,
   getAllIncByUserId,
+  getAdmins,
+  addComment,
+  getAssistanceData,
   getUserTenantDetails,
   saveServiceUrl,
   getAllTeamsIdByTenantId,
-  updateUserInfoFlag
+  updateUserInfoFlag,
 };

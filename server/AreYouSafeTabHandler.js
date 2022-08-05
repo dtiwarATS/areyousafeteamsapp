@@ -1,4 +1,7 @@
 const incidentService = require("./services/incidentService");
+const path = require("path");
+const poolPromise = require("./db/dbConn");
+const db = require("./db");
 const dbOperation = require("./db/dbOperations");
 const tab = require("./tab/AreYouSafeTab");
 
@@ -93,6 +96,48 @@ const handlerForSafetyBotTab = (app) => {
                 );
             })
             .catch(err => {
+                console.log(err);
+            });
+    });
+    app.get("/areyousafetabhandler/getAssistanceData", (req, res) => {
+        incidentService
+            .getAssistanceData(req.query.userId, "desc")
+            .then((incData) => {
+                res.send(incData);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    });
+
+    app.get("/areyousafetabhandler/requestAssistance", (req, res) => {
+        console.log("came in request");
+        incidentService
+            .getAdmins(req.query.userId, "desc")
+            .then(async (incData) => {
+                let user = incData[1][0];
+                let assistanceData;
+                const tabObj = new tab.AreYouSafeTab();
+                const admins = await tabObj.requestAssistance(incData);
+                if (admins) {
+                    assistanceData = await tabObj.saveAssistance(admins, user);
+                }
+                console.log(assistanceData);
+                res.send(assistanceData[0]);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    });
+
+    app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
+        var data = req.query;
+        incidentService
+            .addComment(data.assistId, data.comment, data.userId)
+            .then((data) => {
+                res.send(data);
+            })
+            .catch((err) => {
                 console.log(err);
             });
     });
