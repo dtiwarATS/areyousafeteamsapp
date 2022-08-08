@@ -66,8 +66,8 @@ BEGIN
 	CREATE TABLE MSTeamsAssistance (
 	id INT IDENTITY(100001,1) NOT NULL PRIMARY KEY,
 	user_id VARCHAR(100) NOT NULL,
-	sent_to_ids VARCHAR(100),
-	sent_to_names VARCHAR(255) NOT NULL,
+	sent_to_ids NVARCHAR(MAX),
+	sent_to_names NVARCHAR(MAX) NOT NULL,
 	comments NVARCHAR(MAX)  NOT NULL,
 	requested_date VARCHAR(255) NOT NULL,
 	comment_date VARCHAR(255) NOT NULL
