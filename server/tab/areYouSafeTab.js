@@ -5,11 +5,14 @@ const {
     CardFactory,
 } = require("botbuilder");
 
+const incidentService = require("../services/incidentService");
+
 const path = require("path");
 const ENV_FILE = path.join(__dirname, "../.env");
 require("dotenv").config({ path: ENV_FILE });
 
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
+const { Promise } = require("mssql/lib/base");
 
 class AreYouSafeTab {
 
@@ -122,6 +125,16 @@ class AreYouSafeTab {
             console.log(err);
         }
         return incFormatedData;
+    }
+
+    getTeamMembers = async (teamId, userAadObjId) => {
+        let teamsMembers = null;
+        if (teamId != null) {
+            teamsMembers = await incidentService.getAllTeamMembersByTeamId(teamId);
+        } else if (userAadObjId != null) {
+            teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
+        }
+        return Promise.resolve(teamsMembers);
     }
 }
 

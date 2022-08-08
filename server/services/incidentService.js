@@ -671,6 +671,37 @@ const updateUserInfoFlag = async (installationIds) => {
   }
 }
 
+const getAllTeamMembersQuery = (teamId, userAadObjId) => {
+  let whereSql = "";
+  if (teamId != null) {
+    whereSql = ` TEAM_ID = '${teamId}'`;
+  } else {
+    whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
+  }
+
+  return `SELECT [USER_ID] key , [USER_NAME] label userName FROM MSTEAMSTEAMSUSERS WHERE ${whereSql}`;
+}
+
+const getAllTeamMembersByTeamId = async (teamId) => {
+  try {
+    const sqlTeamMembers = getAllTeamMembersQuery(teamId, null);
+    const result = await db.getDataFromDB(sqlTeamMembers);
+    return Promise.resolve(result);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+const getAllTeamMembersByUserAadObjId = async (userAadObjId) => {
+  try {
+    const sqlTeamMembers = getAllTeamMembersQuery(null, userAadObjId);
+    const result = await db.getDataFromDB(sqlTeamMembers);
+    return Promise.resolve(result);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -698,5 +729,7 @@ module.exports = {
   getUserTenantDetails,
   saveServiceUrl,
   getAllTeamsIdByTenantId,
-  updateUserInfoFlag
+  updateUserInfoFlag,
+  getAllTeamMembersByTeamId,
+  getAllTeamMembersByUserAadObjId
 };

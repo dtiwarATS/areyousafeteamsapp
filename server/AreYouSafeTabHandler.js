@@ -96,6 +96,16 @@ const handlerForSafetyBotTab = (app) => {
                 console.log(err);
             });
     });
+
+    app.get("/areyousafetabhandler/getTeamsMembers", async (req, res) => {
+        const teamId = req.query.teamId;
+        const userAadObjId = req.query.userAadObjId;
+        const tabObj = new tab.AreYouSafeTab();
+        const teamsMember = await tabObj.getTeamMembers(teamId, userAadObjId);
+        res.send(
+            teamsMember
+        );
+    });
 }
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;
