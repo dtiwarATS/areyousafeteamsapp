@@ -4,7 +4,7 @@ const {
   MessageFactory,
   CardFactory,
 } = require("botbuilder");
-
+const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const path = require("path");
 const ENV_FILE = path.join(__dirname, "../.env");
 const db = require("../db");

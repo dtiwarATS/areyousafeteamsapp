@@ -98,12 +98,12 @@ const processValues = (values) => {
   return processedValues;
 };
 
-const getDataFromDB = async (sqlQuery) => {
+const getDataFromDB = async (sqlQuery, isSingleQuery = true) => {
   try {
     pool = await poolPromise;
     const data = await pool.request().query(sqlQuery);
     // console.log("sqlQuery => ", sqlQuery);
-    return data.recordset;
+    return isSingleQuery ? data.recordset : data.recordsets;
   } catch (err) {
     console.log(err);
   }
