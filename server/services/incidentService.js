@@ -9,7 +9,7 @@ const parser = require("cron-parser");
 
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 
-const parseEventData = async (result) => {
+const parseEventData = async (result, updateRecurrMemebersResp = false) => {
   let parsedDataArr = [];
   // console.log("result >>", result);
   if (result.length > 0) {
@@ -27,10 +27,17 @@ const parseEventData = async (result) => {
 
         let memberResponseData = parsedData.m.map(
           (member) => {
-            if (member.mRecurr != null && member.mRecurr.length == 1) {
-              member = {
-                ...member,
-                ...member.mRecurr[0]
+            if (member.mRecurr != null && member.mRecurr.length == 1 && parsedData.inc_type === 'recurringIncident') {
+              if (updateRecurrMemebersResp) {
+                const recurrMemberResp = member.mRecurr[0];
+                member.response = recurrMemberResp.responseR;
+                member.response_value = recurrMemberResp.response_valueR;
+                member.comment = recurrMemberResp.commentR;
+              } else {
+                member = {
+                  ...member,
+                  ...member.mRecurr[0]
+                }
               }
             }
 
@@ -92,25 +99,43 @@ const getInc = async (incId, runAt = null) => {
   }
 };
 
+const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
+  let orderBySql = "";
+  if (orderBy != null && orderBy == "desc") {
+    orderBySql = " order by inc.id desc, m.user_name";
+  }
+
+  let whereSql = "", userPrincipalleftJoin = "";
+  if (teamId != null) {
+    whereSql = ` where inc.team_id = '${teamId}' `;
+    userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers where team_id = '${teamId}') tu on tu.user_id = m.user_id `;
+  }
+
+  if (aadObjuserId != null) {
+    whereSql = ` where inc.created_by in (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}') `;
+    userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id `;
+  }
+
+  let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
+  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+  m.comment, m.timestamp, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, inc.INC_STATUS_ID, tu.userPrincipalName
+  FROM MSTeamsIncidents inc
+  LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+  LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
+  Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
+  ${userPrincipalleftJoin}
+  LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
+  ${whereSql} ${orderBySql}
+  FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+
+  return selectQuery;
+}
+
 const getAllIncByTeamId = async (teamId, orderBy) => {
   try {
-    let orderBySql = "";
-    if (orderBy != null && orderBy == "desc") {
-      orderBySql = " order by inc.id desc, m.user_name";
-    }
-
-    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-    inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-    m.comment, m.timestamp, inc.INC_STATUS_ID, tu.userPrincipalName
-    FROM MSTeamsIncidents inc
-    LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
-    LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers where team_id = '${teamId}') tu on tu.user_id = m.user_id
-    LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
-    where inc.team_id = '${teamId}' ${orderBySql}
-    FOR JSON AUTO , INCLUDE_NULL_VALUES`;
-
+    const selectQuery = getAllIncQuery(teamId, null, orderBy);
     const result = await db.getDataFromDB(selectQuery);
-    let parsedResult = await parseEventData(result);
+    let parsedResult = await parseEventData(result, true);
     return Promise.resolve(parsedResult);
   } catch (err) {
     console.log(err);
@@ -160,23 +185,9 @@ const getAssistanceData = async (aadObjuserId) => {
 
 const getAllIncByUserId = async (aadObjuserId, orderBy) => {
   try {
-    let orderBySql = "";
-    if (orderBy != null && orderBy == "desc") {
-      orderBySql = " order by inc.id desc, m.user_name";
-    }
-
-    let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-    inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-    m.comment, m.timestamp, inc.INC_STATUS_ID, tu.userPrincipalName
-    FROM MSTeamsIncidents inc
-    LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
-    LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id
-    LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
-    where inc.created_by in (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}') ${orderBySql}
-    FOR JSON AUTO , INCLUDE_NULL_VALUES`;
-
+    const selectQuery = getAllIncQuery(null, aadObjuserId, orderBy);
     const result = await db.getDataFromDB(selectQuery);
-    let parsedResult = await parseEventData(result);
+    let parsedResult = await parseEventData(result, true);
     return Promise.resolve(parsedResult);
   } catch (err) {
     console.log(err);
