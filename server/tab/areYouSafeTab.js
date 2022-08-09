@@ -53,9 +53,23 @@ class AreYouSafeTab {
     const currentDate = new Date();
     const startDateTime = new Date(startDate);
     let dateDiff = (currentDate.getTime() - startDateTime.getTime()) / 1000;
-    dateDiff /= 60 * 60 * 24 * 7;
-    return Math.abs(Math.round(dateDiff));
-  };
+    //let dateDiffInMonth = dateDiff / (60 * 60 * 24 * new Date(startDateTime.getFullYear(), startDateTime.getMonth(), 0).getDate());
+    let dateDiffInWeek = dateDiff / (60 * 60 * 24 * 7);
+    let dateDiffInDay = dateDiff / (60 * 60 * 24);
+    let dateDiffInHours = dateDiff / (60 * 60);
+    let dateDiffInMin = dateDiff / (60);
+
+    if (Math.abs(parseInt(dateDiffInWeek)) >= 1)
+      return Math.abs(parseInt(dateDiffInWeek)) + 'w';
+    else if (Math.abs(parseInt(dateDiffInDay)) >= 1)
+      return Math.abs(parseInt(dateDiffInDay)) + 'd';
+    else if (Math.abs(parseInt(dateDiffInHours)) >= 1)
+      return Math.abs(parseInt(dateDiffInHours)) + 'h';
+    else if (Math.abs(parseInt(dateDiffInMin)) >= 1)
+      return Math.abs(parseInt(dateDiffInMin)) + 'm';
+    else
+      return Math.abs(parseInt(dateDiff)) + 's';
+  }
 
   sortMembers = (members) => {
     const memberObj = {
@@ -91,7 +105,7 @@ class AreYouSafeTab {
           const title = inc.incTitle;
           const createdBy = inc.incCreatedByName;
           const startDate = this.getStartDate(inc.incCreatedDate);
-          const duration = this.getDurationInWeek(inc.incCreatedDate).toString() + "w";
+          const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
           let safe = null;
           let needAssistance = null;
           let notResponded = null;
