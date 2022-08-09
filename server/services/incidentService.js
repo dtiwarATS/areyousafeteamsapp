@@ -157,17 +157,8 @@ const getAdmins = async (aadObjuserId) => {
   }
 };
 
-const addComment = async (assistanceId, comment) => {
-  let sqlUpdate = `UPDATE MSTeamsAssistance SET comments = '${comment}', comment_date = '${new Date().toLocaleString(
-    "en-US",
-    {
-      day: "numeric",
-      month: "numeric",
-      year: "numeric",
-      hour: "numeric",
-      minute: "numeric",
-    }
-  )}' WHERE id = ${assistanceId}`;
+const addComment = async (assistanceId, comment, ts) => {
+  let sqlUpdate = `UPDATE MSTeamsAssistance SET comments = '${comment}', comment_date = '${ts}' WHERE id = ${assistanceId}`;
   let res = await db.updateDataIntoDB(sqlUpdate);
   console.log(res);
 };

@@ -171,7 +171,7 @@ class AreYouSafeTab {
     return resArray;
   };
 
-  saveAssistance = async (adminsData, user) => {
+  saveAssistance = async (adminsData, user, ts) => {
     let res;
     if (adminsData != null && adminsData.length > 0) {
       let sentToIds = "";
@@ -186,13 +186,7 @@ class AreYouSafeTab {
         sentToIds.trimLeft(),
         sentToNames,
         "",
-        `${new Date().toLocaleString("en-US", {
-          day: "numeric",
-          month: "numeric",
-          year: "numeric",
-          hour: "numeric",
-          minute: "numeric",
-        })}`,
+        ts,
         "",
       ]);
     }

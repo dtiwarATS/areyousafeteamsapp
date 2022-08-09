@@ -120,7 +120,11 @@ const handlerForSafetyBotTab = (app) => {
                 const tabObj = new tab.AreYouSafeTab();
                 const admins = await tabObj.requestAssistance(incData);
                 if (admins) {
-                    assistanceData = await tabObj.saveAssistance(admins, user);
+                    let ts = req.query.ts;
+                    if (ts != null) {
+                        ts = ts.replace(/-/g, "/");
+                    }
+                    assistanceData = await tabObj.saveAssistance(admins, user, ts);
                 }
                 console.log(assistanceData);
                 res.send(assistanceData[0]);
@@ -133,8 +137,12 @@ const handlerForSafetyBotTab = (app) => {
     app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
         var data = req.query;
         if (data.comment != null && data.comment != "") {
+            let ts = req.query.ts;
+            if (ts != null) {
+                ts = ts.replace(/-/g, "/");
+            }
             incidentService
-                .addComment(data.assistId, data.comment, data.userId)
+                .addComment(data.assistId, data.comment, ts)
                 .then((respData) => {
                     incidentService
                         .getAdmins(data.userAadObjId, "desc")
@@ -143,10 +151,11 @@ const handlerForSafetyBotTab = (app) => {
                             tabObj.sendUserCommentToAdmin(userData, data.comment);
                         });
 
-                    res.send(data);
+                    res.send(true);
                 })
                 .catch((err) => {
                     console.log(err);
+                    res.send(false);
                 });
         }
     });
