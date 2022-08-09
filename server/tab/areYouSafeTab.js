@@ -152,18 +152,19 @@ class AreYouSafeTab {
       for (let i = 0; i < admins.length; i++) {
         let memberArr = [
           {
-            id: admins[0].user_id,
-            name: admins[0].user_name,
+            id: admins[i].user_id,
+            name: admins[i].user_name,
           },
         ];
         const res = await sendProactiveMessaageToUser(
           memberArr,
           approvalCardResponse,
-          admins[0].user_tenant_id,
-          admins[0].serviceUrl
+          null,
+          admins[i].serviceUrl,
+          admins[i].user_tenant_id
         );
         if (res && res.activityId) {
-          resArray.push(admins[0]);
+          resArray.push(admins[i]);
         }
       }
     }
@@ -196,6 +197,46 @@ class AreYouSafeTab {
       ]);
     }
     return res;
+  };
+
+  sendUserCommentToAdmin = async (data, userComment) => {
+    let admins = data[0];
+    let user = data[1][0];
+    if (admins != null && admins.length > 0) {
+      let mentionUserEntities = [];
+      dashboard.mentionUser(mentionUserEntities, user.user_id, user.user_name);
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `User <at>${user.user_name}</at> has commented : ${userComment}`,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: mentionUserEntities,
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      for (let i = 0; i < admins.length; i++) {
+        let memberArr = [
+          {
+            id: admins[i].user_id,
+            name: admins[i].user_name,
+          },
+        ];
+        const res = await sendProactiveMessaageToUser(
+          memberArr,
+          approvalCardResponse,
+          null,
+          admins[i].serviceurl,
+          admins[i].user_tenant_id
+        );
+      }
+    }
   };
 }
 

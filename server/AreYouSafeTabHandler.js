@@ -132,14 +132,23 @@ const handlerForSafetyBotTab = (app) => {
 
     app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
         var data = req.query;
-        incidentService
-            .addComment(data.assistId, data.comment, data.userId)
-            .then((data) => {
-                res.send(data);
-            })
-            .catch((err) => {
-                console.log(err);
-            });
+        if (data.comment != null && data.comment != "") {
+            incidentService
+                .addComment(data.assistId, data.comment, data.userId)
+                .then((respData) => {
+                    incidentService
+                        .getAdmins(data.userAadObjId, "desc")
+                        .then((userData) => {
+                            const tabObj = new tab.AreYouSafeTab();
+                            tabObj.sendUserCommentToAdmin(userData, data.comment);
+                        });
+
+                    res.send(data);
+                })
+                .catch((err) => {
+                    console.log(err);
+                });
+        }
     });
 }
 

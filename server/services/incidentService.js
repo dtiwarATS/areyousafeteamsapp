@@ -174,7 +174,7 @@ const addComment = async (assistanceId, comment) => {
 
 const getAssistanceData = async (aadObjuserId) => {
   try {
-    let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id desc`;
+    let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id desc`;
 
     const result = await db.getDataFromDB(selectQuery);
     return Promise.resolve(result);
