@@ -17,7 +17,7 @@ const getColumns = (tableName) => {
         "super_users",
         "created_date",
         "welcomeMessageSent",
-        "serviceUrl"
+        "serviceUrl",
       ];
       break;
 
@@ -38,7 +38,7 @@ const getColumns = (tableName) => {
         "EVENT_END_TIME",
         "CREATED_BY_NAME",
         "GUIDANCE",
-        "INC_STATUS_ID"
+        "INC_STATUS_ID",
       ];
       break;
 
@@ -53,10 +53,19 @@ const getColumns = (tableName) => {
         "CRON",
         "RUN_AT",
         "TIMEZONE",
-        "COMPLETED"
+        "COMPLETED",
       ];
       break;
-
+    case "MSTeamsAssistance":
+      columns = [
+        "user_id",
+        "sent_to_ids",
+        "sent_to_names",
+        "comments",
+        "requested_date",
+        "comment_date",
+      ];
+      break;
     default:
       columns = [];
   }
@@ -89,12 +98,12 @@ const processValues = (values) => {
   return processedValues;
 };
 
-const getDataFromDB = async (sqlQuery) => {
+const getDataFromDB = async (sqlQuery, isSingleQuery = true) => {
   try {
     pool = await poolPromise;
     const data = await pool.request().query(sqlQuery);
     // console.log("sqlQuery => ", sqlQuery);
-    return data.recordset;
+    return isSingleQuery ? data.recordset : data.recordsets;
   } catch (err) {
     console.log(err);
   }
