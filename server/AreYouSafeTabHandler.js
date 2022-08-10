@@ -1,4 +1,7 @@
 const incidentService = require("./services/incidentService");
+const path = require("path");
+const poolPromise = require("./db/dbConn");
+const db = require("./db");
 const dbOperation = require("./db/dbOperations");
 const tab = require("./tab/AreYouSafeTab");
 
@@ -105,6 +108,67 @@ const handlerForSafetyBotTab = (app) => {
         res.send(
             teamsMember
         );
+    });
+
+    app.get("/areyousafetabhandler/getAssistanceData", (req, res) => {
+        incidentService
+            .getAssistanceData(req.query.userId, "desc")
+            .then((incData) => {
+                res.send(incData);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    });
+
+    app.get("/areyousafetabhandler/requestAssistance", (req, res) => {
+        console.log("came in request");
+        incidentService
+            .getAdmins(req.query.userId, "desc")
+            .then(async (incData) => {
+                let user = incData[1][0];
+                let assistanceData;
+                const tabObj = new tab.AreYouSafeTab();
+                const admins = await tabObj.requestAssistance(incData);
+                if (admins) {
+                    let ts = req.query.ts;
+                    if (ts != null) {
+                        ts = ts.replace(/-/g, "/");
+                    }
+                    assistanceData = await tabObj.saveAssistance(admins, user, ts);
+                }
+                console.log(assistanceData);
+                res.send(assistanceData[0]);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    });
+
+    app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
+        var data = req.query;
+        if (data.comment != null && data.comment != "") {
+            let ts = req.query.ts;
+            if (ts != null) {
+                ts = ts.replace(/-/g, "/");
+            }
+            incidentService
+                .addComment(data.assistId, data.comment, ts)
+                .then((respData) => {
+                    incidentService
+                        .getAdmins(data.userAadObjId, "desc")
+                        .then((userData) => {
+                            const tabObj = new tab.AreYouSafeTab();
+                            tabObj.sendUserCommentToAdmin(userData, data.comment);
+                        });
+
+                    res.send(true);
+                })
+                .catch((err) => {
+                    console.log(err);
+                    res.send(false);
+                });
+        }
     });
 }
 
