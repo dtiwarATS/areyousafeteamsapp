@@ -3,5 +3,9 @@
   // Set the default
   "editor.formatOnSave": true,
   "appService.defaultWebAppToDeploy": "None",
-  "appService.showBuildDuringDeployPrompt": false
+  "appService.showBuildDuringDeployPrompt": false,
+  "appService.zipIgnorePattern": [
+    "node_modules{,/**}",
+    ".vscode{,/**}"
+  ]
 }
