@@ -194,7 +194,7 @@ class AreYouSafeTab {
       let sentToNames = "";
       adminsData.forEach((element, index) => {
         sentToIds += (index == 0 ? "" : ",") + element.user_id;
-        sentToNames += (index == 0 ? "" : ", ") + element.user_name;
+        sentToNames += (index == 0 ? "" : (index == (adminsData.length - 1)) ? " and " : ", ") + element.user_name;
       });
 
       res = await db.insertDataIntoDB("MSTeamsAssistance", [
