@@ -217,12 +217,12 @@ const sendMsg = async (context) => {
     "body": [
       {
         "type": "TextBlock",
-        "text": "Hello there, we have added some cool **new features** recently.\n\n1. Improved **incident dashboard** view - Now you can **copy**, **close**, **re-open** and **delete** incidents\n\n2. **Show Details** - A more detailed view of your employees safety status",
+        "text": "Hello there, we have added a couple of cool **new features** recently. \n\n **● Dashboard Tab -** \n\n  1. New and improved incident dashboard for admins \n\n \t\t**Chat:** Go to the Chat section >> AreYouSafe? Bot >> Dashboard tab \n\n \t\t**Team:** Go to the Teams section >> Go to the General channel under the team for which AreYouSafe? Bot is installed >> AreYouSafe? tab \n\n 2. Employees can send emergency messages by clicking the “I Need Assistance” button under the dashboard tab and admin(s) will get notified of the employees safety status",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "**Type Hi in your chat window** to access these new features \n\n**Contact us**: [help@safetybot.in](mailto:help@safetybot.in) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        "text": "**Contact us**: [help@safetybot.in](mailto:help@safetybot.in) \n\nWith Gratitude,\n\nAreYouSafeBot team",
         "wrap": true
       }
     ]

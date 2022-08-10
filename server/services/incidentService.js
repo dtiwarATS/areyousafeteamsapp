@@ -41,6 +41,18 @@ const parseEventData = async (result, updateRecurrMemebersResp = false) => {
               }
             }
 
+            try {
+              if (member.mRecurr[0]?.tu && member.mRecurr[0]?.tu.length > 0) {
+                member = {
+                  ...member,
+                  ...member.mRecurr[0],
+                  ...member.mRecurr[0]?.tu[0]
+                }
+              }
+            } catch (err) {
+
+            }
+
             return new Member(member);
           }
         );
