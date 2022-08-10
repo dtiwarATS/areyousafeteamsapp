@@ -83,10 +83,10 @@ const parseValue = (value) => {
   }
   if (Array.isArray(value)) {
     let str = value.join(",");
-    parsedValue = `'${str}'`;
+    parsedValue = `'${str.replace(/'/g, "''")}'`;
   }
   if (typeof value === "string") {
-    parsedValue = `'${value}'`;
+    parsedValue = `'${value.replace(/'/g, "''")}'`;
   }
 
   return parsedValue;

@@ -255,7 +255,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
       let data = await db.getDataFromDB(sqlCompanyData);
       if (data != null && data.length > 0) {
         let sqlUpdate = ` UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', ` +
-          `team_name = '${companyDataObj.teamName}' WHERE user_id = '${companyDataObj.userId}';  SELECT *, 'true' isUpdate FROM MSTeamsInstallationDetails WHERE USER_OBJ_ID = '${companyDataObj.userObjId}'; `;
+          `team_name = '${companyDataObj.teamName.replace(/'/g, "''")}' WHERE user_id = '${companyDataObj.userId}';  SELECT *, 'true' isUpdate FROM MSTeamsInstallationDetails WHERE USER_OBJ_ID = '${companyDataObj.userObjId}'; `;
 
         data = await db.getDataFromDB(sqlUpdate);
         if (data != null && data.length > 0) {
