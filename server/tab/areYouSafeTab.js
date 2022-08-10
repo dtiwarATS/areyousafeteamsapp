@@ -164,21 +164,23 @@ class AreYouSafeTab {
         version: "1.4",
       };
       for (let i = 0; i < admins.length; i++) {
-        let memberArr = [
-          {
-            id: admins[i].user_id,
-            name: admins[i].user_name,
-          },
-        ];
-        const res = await sendProactiveMessaageToUser(
-          memberArr,
-          approvalCardResponse,
-          null,
-          admins[i].serviceUrl,
-          admins[i].user_tenant_id
-        );
-        if (res && res.activityId) {
-          resArray.push(admins[i]);
+        if (admins[i].serviceUrl != null && admins[i].user_tenant_id != null) {
+          let memberArr = [
+            {
+              id: admins[i].user_id,
+              name: admins[i].user_name,
+            },
+          ];
+          const res = await sendProactiveMessaageToUser(
+            memberArr,
+            approvalCardResponse,
+            null,
+            admins[i].serviceUrl,
+            admins[i].user_tenant_id
+          );
+          if (res && res.activityId) {
+            resArray.push(admins[i]);
+          }
         }
       }
     }
@@ -230,19 +232,21 @@ class AreYouSafeTab {
         version: "1.4",
       };
       for (let i = 0; i < admins.length; i++) {
-        let memberArr = [
-          {
-            id: admins[i].user_id,
-            name: admins[i].user_name,
-          },
-        ];
-        const res = await sendProactiveMessaageToUser(
-          memberArr,
-          approvalCardResponse,
-          null,
-          admins[i].serviceurl,
-          admins[i].user_tenant_id
-        );
+        if (admins[i].serviceUrl != null && admins[i].user_tenant_id != null) {
+          let memberArr = [
+            {
+              id: admins[i].user_id,
+              name: admins[i].user_name,
+            },
+          ];
+          const res = await sendProactiveMessaageToUser(
+            memberArr,
+            approvalCardResponse,
+            null,
+            admins[i].serviceurl,
+            admins[i].user_tenant_id
+          );
+        }
       }
     }
   };

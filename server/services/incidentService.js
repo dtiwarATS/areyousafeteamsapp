@@ -145,9 +145,40 @@ const getAllIncByTeamId = async (teamId, orderBy) => {
 const getAdmins = async (aadObjuserId) => {
   console.log("came in method");
   try {
-    let selectQuery = `select user_id, serviceurl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
-    (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');
-    select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'`;
+
+    const userSql = `select user_obj_id, super_users from msteamsinstallationdetails where team_id in
+    (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}')`;
+    const userResult = await db.getDataFromDB(userSql);
+    const superUsersArr = [];
+    if (userResult != null && userResult.length > 0) {
+      userResult.map((usr) => {
+        if (usr.user_obj_id != null) {
+          superUsersArr.push(usr.user_obj_id);
+
+          if (usr.super_users != null && usr.super_users.trim() != "") {
+            let superUsers = usr.super_users.split(",");
+            if (superUsers.length > 0) {
+              superUsers.map((superUsr) => {
+                superUsersArr.push(superUsr);
+              })
+            }
+          }
+        }
+      });
+    }
+
+    let selectQuery = "";
+    if (superUsersArr.length > 0) {
+      selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name
+                      FROM MSTEAMSTEAMSUSERS A 
+                      LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
+                      WHERE A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null;
+      select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'`;
+    } else {
+      selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
+        (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');
+        select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'`;
+    }
 
     const result = await db.getDataFromDB(selectQuery, false);
     console.log(result);
