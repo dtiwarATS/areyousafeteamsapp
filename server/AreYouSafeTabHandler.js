@@ -115,11 +115,12 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
             .getAdmins(req.query.userId, "desc")
             .then(async (incData) => {
+                let admins = incData[0];
                 let user = incData[1][0];
-                let assistanceData;
+                let assistanceData = null;
                 const tabObj = new tab.AreYouSafeTab();
-                const admins = await tabObj.requestAssistance(incData);
-                if (admins) {
+                // const admins = await tabObj.requestAssistance(incData);
+                if (admins && admins.length > 0) {
                     let ts = req.query.ts;
                     if (ts != null) {
                         ts = ts.replace(/-/g, "/");
@@ -128,6 +129,20 @@ const handlerForSafetyBotTab = (app) => {
                 }
                 console.log(assistanceData);
                 res.send(assistanceData[0]);
+            })
+            .catch((err) => {
+                console.log(err);
+            });
+    });
+
+    app.get("/areyousafetabhandler/sendNeedAssistanceProactiveMessage", (req, res) => {
+        console.log("came in request");
+        incidentService
+            .getAdmins(req.query.userId, "desc")
+            .then(async (incData) => {
+                const tabObj = new tab.AreYouSafeTab();
+                const isProactiveMessageSent = await tabObj.requestAssistance(incData);
+                res.send(isProactiveMessageSent);
             })
             .catch((err) => {
                 console.log(err);
