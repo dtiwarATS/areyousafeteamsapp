@@ -765,7 +765,7 @@ const getAllTeamMembersQuery = (teamId, userAadObjId) => {
     whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
-  return `SELECT [USER_ID] key , [USER_NAME] label userName FROM MSTEAMSTEAMSUSERS WHERE ${whereSql}`;
+  return `SELECT [USER_ID] [key] , [USER_NAME] [label] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql}`;
 }
 
 const getAllTeamMembersByTeamId = async (teamId) => {
