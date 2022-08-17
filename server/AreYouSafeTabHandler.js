@@ -130,6 +130,8 @@ const handlerForSafetyBotTab = (app) => {
                 console.log(assistanceData);
                 if (assistanceData != null && assistanceData.length > 0) {
                     assistanceData = assistanceData[0];
+                } else {
+                    assistanceData = "no safety officers";
                 }
                 res.send(assistanceData);
             })
