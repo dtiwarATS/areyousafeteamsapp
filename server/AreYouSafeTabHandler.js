@@ -128,7 +128,10 @@ const handlerForSafetyBotTab = (app) => {
                     assistanceData = await tabObj.saveAssistance(admins, user, ts);
                 }
                 console.log(assistanceData);
-                res.send(assistanceData[0]);
+                if (assistanceData != null && assistanceData.length > 0) {
+                    assistanceData = assistanceData[0];
+                }
+                res.send(assistanceData);
             })
             .catch((err) => {
                 console.log(err);
