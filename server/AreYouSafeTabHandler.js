@@ -156,19 +156,20 @@ const handlerForSafetyBotTab = (app) => {
 
     app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
         var data = req.query;
-        if (data.comment != null && data.comment != "") {
+        var reqBody = req.body;
+        if (reqBody && reqBody.comment != null && reqBody.comment != "") {
             let ts = req.query.ts;
             if (ts != null) {
                 ts = ts.replace(/-/g, "/");
             }
             incidentService
-                .addComment(data.assistId, data.comment, ts)
+                .addComment(data.assistId, reqBody.comment, ts)
                 .then((respData) => {
                     incidentService
                         .getAdmins(data.userAadObjId, "desc")
                         .then((userData) => {
                             const tabObj = new tab.AreYouSafeTab();
-                            tabObj.sendUserCommentToAdmin(userData, data.comment);
+                            tabObj.sendUserCommentToAdmin(userData, reqBody.comment);
                         });
 
                     res.send(true);
