@@ -788,6 +788,20 @@ const getAllTeamMembersByUserAadObjId = async (userAadObjId) => {
   }
 }
 
+const getTeamIdByUserAadObjId = async (userAadObjId) => {
+  let teamId = null;
+  try {
+    const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc`;
+    const result = await db.getDataFromDB(teamIdSql);
+    if (result != null && result.length > 0) {
+      teamId = result[0]["team_id"];
+    }
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(teamId);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -820,5 +834,6 @@ module.exports = {
   getAllTeamsIdByTenantId,
   updateUserInfoFlag,
   getAllTeamMembersByTeamId,
-  getAllTeamMembersByUserAadObjId
+  getAllTeamMembersByUserAadObjId,
+  getTeamIdByUserAadObjId
 };

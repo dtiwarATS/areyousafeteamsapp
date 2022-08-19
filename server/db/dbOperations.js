@@ -47,7 +47,7 @@ const isAdminUser = async (userObjId) => {
 
     let res = await db.getDataFromDB(selectQuery);
     // check if the user is super user or not
-    if (res.length == 0) {
+    if (!res || res.length == 0) {
       res = await db.getDataFromDB(
         `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%'`
       );

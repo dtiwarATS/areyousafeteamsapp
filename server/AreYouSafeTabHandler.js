@@ -170,6 +170,18 @@ const handlerForSafetyBotTab = (app) => {
                 });
         }
     });
+
+    app.get("/areyousafetabhandler/checkduplicateInc", async (req, res) => {
+        try {
+            var qs = req.query;
+            const tabObj = new tab.AreYouSafeTab();
+            const isDuplicate = await tabObj.checkDuplicateInc(qs.incTitle, qs.teamId, qs.userAadObjId);
+            res.send(isDuplicate);
+        } catch (err) {
+            console.log(err);
+            res.send({ "error": "Error: Please try again" });
+        }
+    });
 }
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;

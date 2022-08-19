@@ -265,6 +265,17 @@ class AreYouSafeTab {
       }
     }
   };
+
+  checkDuplicateInc = async (incTitle, teamId, userAadObjId) => {
+    let isDuplicate = false;
+    if (teamId == null) {
+      teamId = await incidentService.getTeamIdByUserAadObjId(userAadObjId);
+    }
+    if (teamId != null) {
+      isDuplicate = await incidentService.verifyDuplicateInc(teamId, incTitle);
+    }
+    return Promise.resolve(isDuplicate);
+  }
 }
 
 module.exports.AreYouSafeTab = AreYouSafeTab;
