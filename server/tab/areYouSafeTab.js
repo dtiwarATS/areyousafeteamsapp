@@ -156,70 +156,76 @@ class AreYouSafeTab {
   }
 
   requestAssistance = async (data) => {
-    let admins = data[0];
-    let user = data[1][0];
-    let resArray = [];
-    if (admins != null && admins.length > 0) {
-      let mentionUserEntities = [];
-      dashboard.mentionUser(mentionUserEntities, user.user_id, user.user_name);
-      const approvalCardResponse = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: [
-          {
-            type: "TextBlock",
-            text: `User <at>${user.user_name}</at> needs assistance.`,
-            wrap: true,
-          },
-        ],
-        msteams: {
-          entities: mentionUserEntities,
-        },
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
-      for (let i = 0; i < admins.length; i++) {
-        if (admins[i].serviceUrl != null && admins[i].user_tenant_id != null) {
-          let memberArr = [
+    let isMessageSent = false;
+    try {
+      let admins = data[0];
+      let user = data[1][0];
+      if (admins != null && admins.length > 0) {
+        let mentionUserEntities = [];
+        dashboard.mentionUser(mentionUserEntities, user.user_id, user.user_name);
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
             {
-              id: admins[i].user_id,
-              name: admins[i].user_name,
+              type: "TextBlock",
+              text: `User <at>${user.user_name}</at> needs assistance.`,
+              wrap: true,
             },
-          ];
-          const res = await sendProactiveMessaageToUser(
-            memberArr,
-            approvalCardResponse,
-            null,
-            admins[i].serviceUrl,
-            admins[i].user_tenant_id
-          );
-          if (res && res.activityId) {
-            resArray.push(admins[i]);
+          ],
+          msteams: {
+            entities: mentionUserEntities,
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+        for (let i = 0; i < admins.length; i++) {
+          if (admins[i].serviceUrl != null && admins[i].user_tenant_id != null) {
+            let memberArr = [
+              {
+                id: admins[i].user_id,
+                name: admins[i].user_name,
+              },
+            ];
+            const res = await sendProactiveMessaageToUser(
+              memberArr,
+              approvalCardResponse,
+              null,
+              admins[i].serviceUrl,
+              admins[i].user_tenant_id
+            );
           }
         }
+        isMessageSent = true;
       }
+    } catch (err) {
+      console.log(err);
     }
-    return resArray;
+    return isMessageSent;
   };
 
   saveAssistance = async (adminsData, user, ts) => {
-    let res;
+    let res = null;
     if (adminsData != null && adminsData.length > 0) {
       let sentToIds = "";
       let sentToNames = "";
       adminsData.forEach((element, index) => {
-        sentToIds += (index == 0 ? "" : ",") + element.user_id;
-        sentToNames += (index == 0 ? "" : (index == (adminsData.length - 1)) ? " and " : ", ") + element.user_name;
+        if (element.serviceUrl != null && element.user_tenant_id != null) {
+          sentToIds += (index == 0 ? "" : ",") + element.user_id;
+          sentToNames += (index == 0 ? "" : (index == (adminsData.length - 1)) ? " and " : ", ") + element.user_name;
+        }
       });
 
-      res = await db.insertDataIntoDB("MSTeamsAssistance", [
-        user.user_id,
-        sentToIds.trimLeft(),
-        sentToNames,
-        "",
-        ts,
-        "",
-      ]);
+      if (sentToIds != "") {
+        res = await db.insertDataIntoDB("MSTeamsAssistance", [
+          user.user_id,
+          sentToIds.trimLeft(),
+          sentToNames,
+          "",
+          ts,
+          "",
+        ]);
+      }
     }
     return res;
   };

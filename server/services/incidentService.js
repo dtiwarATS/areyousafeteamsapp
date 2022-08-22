@@ -184,13 +184,13 @@ const getAdmins = async (aadObjuserId) => {
       selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name
                       FROM MSTEAMSTEAMSUSERS A 
                       LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
-                      WHERE A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null;
-      select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'`;
+                      WHERE A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null;`;
     } else {
       selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
-        (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');
-        select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'`;
+        (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');`;
     }
+
+    selectQuery += ` select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'; `;
 
     const result = await db.getDataFromDB(selectQuery, false);
     console.log(result);
