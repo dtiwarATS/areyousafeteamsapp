@@ -39,6 +39,7 @@ const getColumns = (tableName) => {
         "CREATED_BY_NAME",
         "GUIDANCE",
         "INC_STATUS_ID",
+        "situation"
       ];
       break;
 

@@ -6,16 +6,18 @@ const dbOperation = require("./db/dbOperations");
 const tab = require("./tab/AreYouSafeTab");
 
 const handlerForSafetyBotTab = (app) => {
-    app.get("/areyousafetabhandler/getAllIncDataByTeamId", (req, res) => {
+    app.get("/areyousafetabhandler/getAllIncDataByTeamId", async (req, res) => {
+        const tabObj = new tab.AreYouSafeTab();
+        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
         dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
             if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
                 incidentService
                     .getAllIncByTeamId(req.query.teamId, "desc")
                     .then(incData => {
-                        const tabObj = new tab.AreYouSafeTab();
                         const formatedIncData = tabObj.getFormatedIncData(incData);
                         const responseObj = {
-                            respData: formatedIncData
+                            respData: formatedIncData,
+                            botUserInfo
                         }
                         res.send(
                             responseObj
@@ -39,16 +41,18 @@ const handlerForSafetyBotTab = (app) => {
         });
     });
 
-    app.get("/areyousafetabhandler/getAllIncDataByUserId", (req, res) => {
+    app.get("/areyousafetabhandler/getAllIncDataByUserId", async (req, res) => {
+        const tabObj = new tab.AreYouSafeTab();
+        const botUserInfo = tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
         dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
             if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
                 incidentService
                     .getAllIncByUserId(req.query.userId, "desc")
                     .then(incData => {
-                        const tabObj = new tab.AreYouSafeTab();
                         const formatedIncData = tabObj.getFormatedIncData(incData);
                         const responseObj = {
-                            respData: formatedIncData
+                            respData: formatedIncData,
+                            botUserInfo
                         }
                         res.send(
                             responseObj
@@ -198,6 +202,18 @@ const handlerForSafetyBotTab = (app) => {
             const tabObj = new tab.AreYouSafeTab();
             const isDuplicate = await tabObj.checkDuplicateInc(qs.incTitle, qs.teamId, qs.userAadObjId);
             res.send(isDuplicate);
+        } catch (err) {
+            console.log(err);
+            res.send({ "error": "Error: Please try again" });
+        }
+    });
+
+    app.post("/areyousafetabhandler/createnewincident", async (req, res) => {
+        try {
+            var reqBody = req.body;
+            const tabObj = new tab.AreYouSafeTab();
+            const isSaved = await tabObj.createNewIncident(reqBody);
+            res.send(isSaved);
         } catch (err) {
             console.log(err);
             res.send({ "error": "Error: Please try again" });

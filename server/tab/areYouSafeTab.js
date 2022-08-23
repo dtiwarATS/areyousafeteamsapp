@@ -282,6 +282,55 @@ class AreYouSafeTab {
     }
     return Promise.resolve(isDuplicate);
   }
+
+  getBotUserInfo = async (teamId, aadUserObjId) => {
+    let userInfo = null;
+    if (aadUserObjId != null) {
+      try {
+        if (teamId == null) {
+          teamId = await incidentService.getTeamIdByUserAadObjId(userAadObjId);
+        }
+        userInfo = await incidentService.getUserInfo(teamId, aadUserObjId);
+      } catch (err) {
+        console.log(err);
+      }
+    }
+    return Promise.resolve(userInfo);
+  }
+
+  createNewIncident = async (incObj) => {
+    let isSaved = false;
+
+    try {
+      if (incObj != null && incObj.incData != null) {
+        let incData = incObj.incData;
+        if (incData.incType === "recurringIncident" && incObj.incRecurrData != null) {
+          incData = {
+            ...incData,
+            ...incObj.incRecurrData
+          }
+        }
+        let memberChoises = null;
+        if (incObj.incMembers != null) {
+          memberChoises = incObj.incMembers;
+        }
+        let responseSelectedMembers = null;
+        if (incObj.responseSelectedMembers != null) {
+          responseSelectedMembers = incObj.responseSelectedMembers;
+        }
+
+        const newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises);
+        if (newInc != null) {
+          isSaved = true;
+        }
+      }
+    } catch (err) {
+      isSaved = false;
+      console.log(err);
+    }
+
+    return Promise.resolve(isSaved);
+  }
 }
 
 module.exports.AreYouSafeTab = AreYouSafeTab;

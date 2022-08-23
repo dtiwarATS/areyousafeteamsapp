@@ -245,9 +245,22 @@ const getIncGuidance = async (incId) => {
   }
 };
 
+const createNewInc = async (incObj, selectedMembersResp, memberChoises) => {
+  let newInc = {};
+  let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
+  const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
+
+  if (res.length > 0) {
+    newInc = new Incident(res[0]);
+    await saveIncResponseSelectedUsers(newInc.incId, selectedMembersResp, memberChoises);
+    incObj.responseSelectedUsers = selectedMembersResp;
+  }
+
+  return Promise.resolve(newInc);
+}
+
 const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
   // const { inc_title: title, inc_created_by: createdBy } = actionData;
-  let newInc = {};
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
 
@@ -285,24 +298,14 @@ const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
     endTime: "",
     incCreatedByName: actionData.inc_created_by.name,
     guidance: actionData.guidance ? actionData.guidance : '',
-    incStatusId: 1
+    incStatusId: 1,
+    situation: ""
   };
-  // console.log("incObj >> ", incObj);
-  let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
-  // console.log("incidentValues >> ", incidentValues);
-  const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
-
-  if (res.length > 0) {
-    newInc = new Incident(res[0]);
-    await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
-    incObj.responseSelectedUsers = actionData.selected_members_response;
-  }
-  //await saveServiceUrl(companyData.teamId, serviceUrl);
+  let newInc = createNewInc(incObj, actionData.selected_members_response, memberChoises);
   return Promise.resolve(newInc);
 };
 
 const saveRecurrInc = async (actionData, companyData, memberChoises, serviceUrl) => {
-  let newInc = {};
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
   let incObj = {
@@ -321,19 +324,15 @@ const saveRecurrInc = async (actionData, companyData, memberChoises, serviceUrl)
     endTime: actionData.endTime,
     incCreatedByName: actionData.inc_created_by.name,
     guidance: actionData.guidance ? actionData.guidance : '',
-    incStatusId: 1
+    incStatusId: 1,
+    situation: ""
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
   // console.log("incidentValues >> ", incidentValues);
   const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
 
-  if (res != null && res.length > 0) {
-    newInc = new Incident(res[0]);
-    await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
-    incObj.responseSelectedUsers = actionData.selected_members_response;
-  }
-  //await saveServiceUrl(companyData.teamId, serviceUrl);
+  let newInc = createNewInc(incObj, actionData.selected_members_response, memberChoises);
   return Promise.resolve(newInc);
 };
 
@@ -765,7 +764,7 @@ const getAllTeamMembersQuery = (teamId, userAadObjId) => {
     whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
-  return `SELECT [USER_ID] [key] , [USER_NAME] [label] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql}`;
+  return `SELECT [USER_ID] [value] , [USER_NAME] [title] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql}`;
 }
 
 const getAllTeamMembersByTeamId = async (teamId) => {
@@ -802,6 +801,17 @@ const getTeamIdByUserAadObjId = async (userAadObjId) => {
   return Promise.resolve(teamId);
 }
 
+const getUserInfo = async (teamId, useraadObjId) => {
+  let result = null;
+  try {
+    const sqlUserInfo = `select * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'`;
+    result = await db.getDataFromDB(sqlUserInfo);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -835,5 +845,7 @@ module.exports = {
   updateUserInfoFlag,
   getAllTeamMembersByTeamId,
   getAllTeamMembersByUserAadObjId,
-  getTeamIdByUserAadObjId
+  getTeamIdByUserAadObjId,
+  getUserInfo,
+  createNewInc
 };
