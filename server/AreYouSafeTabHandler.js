@@ -170,8 +170,8 @@ const handlerForSafetyBotTab = (app) => {
     });
 
     app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
-        var data = req.query;
-        var reqBody = req.body;
+        const data = req.query;
+        const reqBody = req.body;
         if (reqBody && reqBody.comment != null && reqBody.comment != "") {
             let ts = req.query.ts;
             if (ts != null) {
@@ -198,7 +198,7 @@ const handlerForSafetyBotTab = (app) => {
 
     app.get("/areyousafetabhandler/checkduplicateInc", async (req, res) => {
         try {
-            var qs = req.query;
+            const qs = req.query;
             const tabObj = new tab.AreYouSafeTab();
             const isDuplicate = await tabObj.checkDuplicateInc(qs.incTitle, qs.teamId, qs.userAadObjId);
             res.send(isDuplicate);
@@ -210,10 +210,25 @@ const handlerForSafetyBotTab = (app) => {
 
     app.post("/areyousafetabhandler/createnewincident", async (req, res) => {
         try {
-            var reqBody = req.body;
+            const reqBody = req.body;
             const tabObj = new tab.AreYouSafeTab();
-            const isSaved = await tabObj.createNewIncident(reqBody);
-            res.send(isSaved);
+            const newInc = await tabObj.createNewIncident(reqBody);
+            res.send(newInc);
+        } catch (err) {
+            console.log(err);
+            res.send({ "error": "Error: Please try again" });
+        }
+    });
+
+    app.post("/areyousafetabhandler/sendSafetyCheckMessage", async (req, res) => {
+        try {
+            const qs = req.query;
+            const incId = qs.incId;
+            const teamId = qs.teamId;
+            const createdByUserInfo = req.body;
+            const tabObj = new tab.AreYouSafeTab();
+            const isMessageSent = await tabObj.sendSafetyCheckMessage(incId, teamId, createdByUserInfo);
+            res.send(isMessageSent);
         } catch (err) {
             console.log(err);
             res.send({ "error": "Error: Please try again" });

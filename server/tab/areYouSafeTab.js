@@ -299,7 +299,7 @@ class AreYouSafeTab {
   }
 
   createNewIncident = async (incObj) => {
-    let isSaved = false;
+    let newInc = null;
 
     try {
       if (incObj != null && incObj.incData != null) {
@@ -318,18 +318,16 @@ class AreYouSafeTab {
         if (incObj.responseSelectedMembers != null) {
           responseSelectedMembers = incObj.responseSelectedMembers;
         }
-
-        const newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises);
-        if (newInc != null) {
-          isSaved = true;
-        }
+        newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises);
       }
     } catch (err) {
-      isSaved = false;
       console.log(err);
     }
+    return Promise.resolve(newInc);
+  }
 
-    return Promise.resolve(isSaved);
+  sendSafetyCheckMessage = (incId, teamId, createdByUserInfo) => {
+
   }
 }
 

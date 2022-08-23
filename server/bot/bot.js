@@ -27,7 +27,8 @@ const {
   getInstallationData,
   isAdminUser,
   saveLog,
-  addTeamMember
+  addTeamMember,
+  getCompanyDataByTeamId
 } = require("../db/dbOperations");
 
 const {
@@ -1277,6 +1278,64 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
     logMessage = `<table>${logMessage}</table>`;
     const logSql = `insert into MSTeamsLog ([inc_id], [log], [datetime]) values (${incId}, '${logMessage}', GETDATE())`;
     await saveLog(logSql);
+  }
+}
+
+const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
+  const companyData = await getCompanyDataByTeamId(teamId);
+  const incData = await incidentService.getInc(incId);
+  let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, null, "id", "name");
+  const { incId, incTitle, selectedMembers, incCreatedBy, responseSelectedUsers } = incData;
+  const serviceUrl = companyData.serviceUrl;
+
+  let allMembersArr = allMembers.map(
+    (tm) =>
+    (tm = {
+      ...tm,
+      messageDelivered: "na",
+      response: "na",
+      responseValue: "na",
+    })
+  );
+
+  if (selectedMembers != null && selectedMembers.split(",").length > 0) {
+    allMembersArr = allMembersArr.filter((m) =>
+      selectedMembers.split(",").includes(m.id)
+    );
+  }
+
+  const incWithAddedMembers = await incidentService.addMembersIntoIncData(
+    incId,
+    allMembersArr,
+    incCreatedBy
+  );
+
+  const incGuidance = await incidentService.getIncGuidance(incId);
+  if (action.data.incType == "onetime") {
+    let dashboardCard = await getOneTimeDashboardCard(incId, null);
+
+    const activityId = await viewIncResult(incId, context, companyData, incident, null, dashboardCard, serviceUrl);
+    const conversationId = context.activity.conversation.id;
+
+    // send approval msg to all users
+    allMembersArr.forEach(async (teamMember) => {
+      let incObj = {
+        incId,
+        incTitle,
+        incCreatedBy: incCreatedByUserObj,
+        activityId,
+        conversationId
+      }
+      var guidance = incGuidance ? incGuidance : "No details available"
+      const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, guidance);
+
+      await sendCardToIndividualUser(context, teamMember, approvalCard);
+    });
+    await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
+  }
+  else if (action.data.incType == "recurringIncident") {
+    const userTimeZone = context.activity.entities[0].timezone;
+    await incidentService.saveRecurrSubEventInc(action.data, companyData, userTimeZone);
   }
 }
 

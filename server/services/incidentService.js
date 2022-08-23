@@ -404,6 +404,7 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
   // TODO: use bulk insert instead inseting data one by one
   for (let i = 0; i < allMembers.length; i++) {
     let member = allMembers[i];
+    let userId = member.id;
     const query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
         values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
 
@@ -756,7 +757,7 @@ const updateUserInfoFlag = async (installationIds) => {
   }
 }
 
-const getAllTeamMembersQuery = (teamId, userAadObjId) => {
+const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
   let whereSql = "";
   if (teamId != null) {
     whereSql = ` TEAM_ID = '${teamId}'`;
@@ -764,12 +765,12 @@ const getAllTeamMembersQuery = (teamId, userAadObjId) => {
     whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
-  return `SELECT [USER_ID] [value] , [USER_NAME] [title] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql}`;
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${title}] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql}`;
 }
 
-const getAllTeamMembersByTeamId = async (teamId) => {
+const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title") => {
   try {
-    const sqlTeamMembers = getAllTeamMembersQuery(teamId, null);
+    const sqlTeamMembers = getAllTeamMembersQuery(teamId, null, userIdAlias, userNameAlias);
     const result = await db.getDataFromDB(sqlTeamMembers);
     return Promise.resolve(result);
   } catch (err) {

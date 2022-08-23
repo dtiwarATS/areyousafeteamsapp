@@ -157,6 +157,18 @@ const getCompaniesData = async (
   }
 };
 
+const getCompanyDataByTeamId = async (teamId) => {
+  let companyData = null;
+  try {
+    const selectQuery = `SELECT * FROM MSTeamsInstallationDetails where team_id = '${teamId}'`;
+    let res = await db.getDataFromDB(selectQuery);
+    companyData = await parseCompanyData(res);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(companyData);
+}
+
 const removeTeamMember = async (teamId, userId) => {
   try {
     pool = await poolPromise;
@@ -388,5 +400,6 @@ module.exports = {
   removeAllTeamMember,
   saveLog,
   deleteCompanyDataByuserAadObjId,
-  verifyAdminUserForDashboardTab
+  verifyAdminUserForDashboardTab,
+  getCompanyDataByTeamId
 };
