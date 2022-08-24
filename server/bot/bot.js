@@ -1285,7 +1285,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
   const companyData = await getCompanyDataByTeamId(teamId);
   const incData = await incidentService.getInc(incId);
   let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, null, "id", "name");
-  const { incTitle, selectedMembers, incCreatedBy, responseSelectedUsers } = incData;
+  const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
   const serviceUrl = companyData.serviceUrl;
 
   let allMembersArr = allMembers.map(
@@ -1311,7 +1311,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
   );
 
   const incGuidance = await incidentService.getIncGuidance(incId);
-  if (action.data.incType == "onetime") {
+  if (incType == "onetime") {
     let dashboardCard = await getOneTimeDashboardCard(incId, null);
 
     const activityId = await viewIncResult(incId, context, companyData, incident, null, dashboardCard, serviceUrl);
@@ -1333,7 +1333,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
     });
     await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
   }
-  else if (action.data.incType == "recurringIncident") {
+  else if (incType == "recurringIncident") {
     const userTimeZone = context.activity.entities[0].timezone;
     await incidentService.saveRecurrSubEventInc(action.data, companyData, userTimeZone);
   }
