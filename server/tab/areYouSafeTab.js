@@ -12,6 +12,7 @@ const path = require("path");
 const ENV_FILE = path.join(__dirname, "../.env");
 const db = require("../db");
 const dashboard = require("../models/dashboard");
+const bot = require("../bot/bot");
 require("dotenv").config({ path: ENV_FILE });
 
 
@@ -288,7 +289,7 @@ class AreYouSafeTab {
     if (aadUserObjId != null) {
       try {
         if (teamId == null) {
-          teamId = await incidentService.getTeamIdByUserAadObjId(userAadObjId);
+          teamId = await incidentService.getTeamIdByUserAadObjId(aadUserObjId);
         }
         userInfo = await incidentService.getUserInfo(teamId, aadUserObjId);
       } catch (err) {
@@ -326,8 +327,9 @@ class AreYouSafeTab {
     return Promise.resolve(newInc);
   }
 
-  sendSafetyCheckMessage = (incId, teamId, createdByUserInfo) => {
-
+  sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
+    const safetyCheckSend = await bot.sendSafetyCheckMessage(incId, teamId, createdByUserInfo);
+    return Promise.resolve(safetyCheckSend);
   }
 }
 

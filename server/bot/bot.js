@@ -1233,7 +1233,7 @@ const updateIncResponseOfSelectedMembers = async (incId, runAt, dashboardCard, s
   }
 }
 
-const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, contextServiceUrl) => {
+const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, contextServiceUrl, userTenantId) => {
   let log = [];
   try {
     let sql = "";
@@ -1242,16 +1242,23 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
 
     runAt = (runAt == null) ? '' : runAt;
     const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
-    const userTenantDetails = await incidentService.getUserTenantDetails(incId);
     let serviceUrl = null;
     let tenantId = null;
-    if (userTenantDetails != null) {
-      serviceUrl = userTenantDetails.serviceUrl;
-      tenantId = userTenantDetails.user_tenant_id;
-    }
-    if (contextServiceUrl != null && (serviceUrl == null || serviceUrl == '')) {
+    if (contextServiceUrl != null && contextServiceUrl != "" && userTenantId != null && userTenantId != "") {
       serviceUrl = contextServiceUrl;
+      tenantId = userTenantId;
+    } else {
+      const userTenantDetails = await incidentService.getUserTenantDetails(incId);
+
+      if (userTenantDetails != null) {
+        serviceUrl = userTenantDetails.serviceUrl;
+        tenantId = userTenantDetails.user_tenant_id;
+      }
     }
+
+    // if (contextServiceUrl != null && (serviceUrl == null || serviceUrl == '')) {
+    //   serviceUrl = contextServiceUrl;
+    // }
     addLog(log, ` serviceUrl : ${serviceUrl}`);
     addLog(log, "incRespSelectedUsers data : ");
     addLog(log, JSON.stringify(incRespSelectedUsers));
@@ -1292,61 +1299,78 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
 }
 
 const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
-  const companyData = await getCompanyDataByTeamId(teamId);
-  const incData = await incidentService.getInc(incId);
-  let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, null, "id", "name");
-  const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
-  const serviceUrl = companyData.serviceUrl;
+  let safetyCheckSend = false;
+  try {
+    const companyData = await getCompanyDataByTeamId(teamId);
+    const incData = await incidentService.getInc(incId);
+    let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "id", "name");
+    const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
+    const { serviceUrl, userTenantId } = companyData;
 
-  let allMembersArr = allMembers.map(
-    (tm) =>
-    (tm = {
-      ...tm,
-      messageDelivered: "na",
-      response: "na",
-      responseValue: "na",
-    })
-  );
-
-  if (selectedMembers != null && selectedMembers.split(",").length > 0) {
-    allMembersArr = allMembersArr.filter((m) =>
-      selectedMembers.split(",").includes(m.id)
+    let allMembersArr = allMembers.map(
+      (tm) =>
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
     );
-  }
 
-  const incWithAddedMembers = await incidentService.addMembersIntoIncData(
-    incId,
-    allMembersArr,
-    incCreatedBy
-  );
+    if (selectedMembers != null && selectedMembers.split(",").length > 0) {
+      allMembersArr = allMembersArr.filter((m) =>
+        selectedMembers.split(",").includes(m.id)
+      );
+    }
 
-  const incGuidance = await incidentService.getIncGuidance(incId);
-  if (incType == "onetime") {
-    let dashboardCard = await getOneTimeDashboardCard(incId, null);
+    const incWithAddedMembers = await incidentService.addMembersIntoIncData(
+      incId,
+      allMembersArr,
+      incCreatedBy
+    );
 
-    const activityId = await viewIncResult(incId, context, companyData, incident, null, dashboardCard, serviceUrl);
-    const conversationId = context.activity.conversation.id;
+    if (incType == "onetime") {
+      const incCreatedByUserArr = [];
+      const incCreatedByUserObj = {
+        id: createdByUserInfo.user_id,
+        name: createdByUserInfo.user_name
+      }
+      incCreatedByUserArr.push(incCreatedByUserObj);
 
-    // send approval msg to all users
-    allMembersArr.forEach(async (teamMember) => {
+      const dashboardCard = await getOneTimeDashboardCard(incId);
+      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId);
+      await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId);
+
       let incObj = {
         incId,
         incTitle,
+        incType,
+        runAt: null,
         incCreatedBy: incCreatedByUserObj,
-        activityId,
-        conversationId
+        conversationId: dashboardResponse.conversationId,
+        activityId: dashboardResponse.activityId
       }
-      var guidance = incGuidance ? incGuidance : "No details available"
-      const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, guidance);
+      let incGuidance = await incidentService.getIncGuidance(incId);
+      incGuidance = incGuidance ? incGuidance : "No details available";
 
-      await sendCardToIndividualUser(context, teamMember, approvalCard);
-    });
-    await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
+      const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, incGuidance);
+      for (let i = 0; i < allMembersArr.length; i++) {
+        let member = [{
+          id: allMembersArr[i].id,
+          name: allMembersArr[i].name
+        }];
+        await sendProactiveMessaageToUser(member, approvalCard);
+      }
+    }
+    else if (incType == "recurringIncident") {
+      const userTimeZone = context.activity.entities[0].timezone;
+      await incidentService.saveRecurrSubEventInc(action.data, companyData, userTimeZone);
+    }
+    safetyCheckSend = true;
+  } catch (err) {
+    console.log(err);
   }
-  else if (incType == "recurringIncident") {
-    const userTimeZone = context.activity.entities[0].timezone;
-    await incidentService.saveRecurrSubEventInc(action.data, companyData, userTimeZone);
-  }
+  return Promise.resolve(safetyCheckSend);
 }
 
 const sendApproval = async (context) => {
@@ -1800,7 +1824,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle) => {
         activityId: dashboardResponse.activityId
       }
       var incGuidance = await incidentService.getIncGuidance(incId);
-      incGuidance = incGuidance ? incGuidance : "No details available"
+      incGuidance = incGuidance ? incGuidance : "No details available";
       const approvalCard = await getSaftyCheckCard(incTitle, incObj, subEventObj.companyData, incGuidance);
 
       for (let i = 0; i < subEventObj.eventMembers.length; i++) {
@@ -1935,5 +1959,6 @@ module.exports = {
   showDuplicateIncError,
   sendMsg,
   sendIncStatusValidation,
-  addUserInfoByTeamId
+  addUserInfoByTeamId,
+  sendSafetyCheckMessage
 };

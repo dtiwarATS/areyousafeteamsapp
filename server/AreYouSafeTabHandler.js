@@ -43,7 +43,7 @@ const handlerForSafetyBotTab = (app) => {
 
     app.get("/areyousafetabhandler/getAllIncDataByUserId", async (req, res) => {
         const tabObj = new tab.AreYouSafeTab();
-        const botUserInfo = tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
+        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
         dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
             if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
                 incidentService
@@ -227,8 +227,8 @@ const handlerForSafetyBotTab = (app) => {
             const teamId = qs.teamId;
             const createdByUserInfo = req.body;
             const tabObj = new tab.AreYouSafeTab();
-            const isMessageSent = await tabObj.sendSafetyCheckMessage(incId, teamId, createdByUserInfo);
-            res.send(isMessageSent);
+            const safetyCheckSend = await tabObj.sendSafetyCheckMessage(incId, teamId, createdByUserInfo);
+            res.send(safetyCheckSend);
         } catch (err) {
             console.log(err);
             res.send({ "error": "Error: Please try again" });
