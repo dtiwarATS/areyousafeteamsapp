@@ -1285,7 +1285,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
   const companyData = await getCompanyDataByTeamId(teamId);
   const incData = await incidentService.getInc(incId);
   let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, null, "id", "name");
-  const { incId, incTitle, selectedMembers, incCreatedBy, responseSelectedUsers } = incData;
+  const { incTitle, selectedMembers, incCreatedBy, responseSelectedUsers } = incData;
   const serviceUrl = companyData.serviceUrl;
 
   let allMembersArr = allMembers.map(
