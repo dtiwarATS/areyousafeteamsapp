@@ -217,7 +217,17 @@ const sendMsg = async (context) => {
     "body": [
       {
         "type": "TextBlock",
-        "text": "Hello there, we have added a couple of cool **new features** recently. \n\n **● Dashboard Tab -** \n\n  1. New and improved incident dashboard for admins \n\n \t\t**Chat:** Go to the Chat section >> AreYouSafe? Bot >> Dashboard tab \n\n \t\t**Team:** Go to the Teams section >> Go to the General channel under the team for which AreYouSafe? Bot is installed >> AreYouSafe? tab \n\n 2. Employees can send emergency messages by clicking the “I Need Assistance” button under the dashboard tab and admin(s) will get notified of the employees safety status",
+        "text": "Hello there, we have added a cool new features recently.",
+        "wrap": true
+      },
+      {
+        "type": "TextBlock",
+        "text": "**● Dashboard Tab -** Admins can send emergency messages by clicking the “I Need Assistance” button under the dashboard tab and other admin(s) will get notified of the safety status.",
+        "wrap": true
+      },
+      {
+        "type": "TextBlock",
+        "text": "To access this feature in: \n\n1. **Chat:** Go to the Chat section >> AreYouSafe? Bot >> Dashboard tab \n\n2. **Team:** Go to the Teams section >> Go to the General channel under the team for which AreYouSafe? Bot is installed >> AreYouSafe? tab",
         "wrap": true
       },
       {
