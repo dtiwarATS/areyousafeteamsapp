@@ -1363,8 +1363,9 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
       }
     }
     else if (incType == "recurringIncident") {
-      const userTimeZone = context.activity.entities[0].timezone;
-      await incidentService.saveRecurrSubEventInc(action.data, companyData, userTimeZone);
+      const userTimeZone = createdByUserInfo.userTimeZone;
+      const actionData = { incident: incData };
+      await incidentService.saveRecurrSubEventInc(actionData, companyData, userTimeZone);
     }
     safetyCheckSend = true;
   } catch (err) {
