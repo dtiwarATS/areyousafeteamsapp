@@ -247,6 +247,12 @@ const getIncGuidance = async (incId) => {
 
 const createNewInc = async (incObj, selectedMembersResp, memberChoises) => {
   let newInc = {};
+  if ((incObj.selectedMembers.length === 0 || incObj.selectedMembers === "".length > 0) && memberChoises && memberChoises) {
+    const selectedMembers = memberChoises.map((m) => {
+      return m.value;
+    });
+    incObj.selectedMembers = selectedMembers;
+  }
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
   const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
 
