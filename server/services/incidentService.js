@@ -813,6 +813,17 @@ const getUserInfo = async (teamId, useraadObjId) => {
   return Promise.resolve(result);
 }
 
+const getUserTeamInfo = async (userAadObjId) => {
+  let result = null;
+  try {
+    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where user_obj_id = '${userAadObjId}' OR super_users like '${userAadObjId}'`;
+    result = await db.getDataFromDB(sqlTeamInfo);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -848,5 +859,6 @@ module.exports = {
   getAllTeamMembersByUserAadObjId,
   getTeamIdByUserAadObjId,
   getUserInfo,
-  createNewInc
+  createNewInc,
+  getUserTeamInfo
 };

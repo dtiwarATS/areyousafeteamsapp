@@ -331,6 +331,11 @@ class AreYouSafeTab {
     const safetyCheckSend = await bot.sendSafetyCheckMessage(incId, teamId, createdByUserInfo);
     return Promise.resolve(safetyCheckSend);
   }
+
+  getUserTeamInfo = async (userAadObjId) => {
+    const userTeamInfo = await incidentService.getUserTeamInfo(userAadObjId);
+    return Promise.resolve(userTeamInfo);
+  }
 }
 
 module.exports.AreYouSafeTab = AreYouSafeTab;
