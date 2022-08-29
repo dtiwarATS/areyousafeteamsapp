@@ -247,7 +247,7 @@ const getIncGuidance = async (incId) => {
 
 const createNewInc = async (incObj, selectedMembersResp, memberChoises) => {
   let newInc = {};
-  if ((incObj.selectedMembers.length === 0 || incObj.selectedMembers === "".length > 0) && memberChoises && memberChoises) {
+  if (incObj.selectedMembers.length === 0 && memberChoise && memberChoise.length > 0) {
     const selectedMembers = memberChoises.map((m) => {
       return m.value;
     });
@@ -256,10 +256,12 @@ const createNewInc = async (incObj, selectedMembersResp, memberChoises) => {
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
   const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
 
-  if (res.length > 0) {
+  if (res && res.length > 0) {
     newInc = new Incident(res[0]);
-    await saveIncResponseSelectedUsers(newInc.incId, selectedMembersResp, memberChoises);
-    incObj.responseSelectedUsers = selectedMembersResp;
+    if (selectedMembersResp && selectedMembersResp != "") {
+      await saveIncResponseSelectedUsers(newInc.incId, selectedMembersResp, memberChoises);
+      incObj.responseSelectedUsers = selectedMembersResp;
+    }
   }
 
   return Promise.resolve(newInc);

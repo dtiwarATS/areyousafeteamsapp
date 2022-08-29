@@ -148,9 +148,9 @@ class AreYouSafeTab {
 
   getTeamMembers = async (teamId, userAadObjId) => {
     let teamsMembers = null;
-    if (teamId != null) {
+    if (teamId != null && teamId != "null") {
       teamsMembers = await incidentService.getAllTeamMembersByTeamId(teamId);
-    } else if (userAadObjId != null) {
+    } else if (userAadObjId != null && userAadObjId != "null") {
       teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
     }
     return Promise.resolve(teamsMembers);
@@ -275,10 +275,10 @@ class AreYouSafeTab {
 
   checkDuplicateInc = async (incTitle, teamId, userAadObjId) => {
     let isDuplicate = false;
-    if (teamId == null) {
+    if (teamId == null || teamId == "null") {
       teamId = await incidentService.getTeamIdByUserAadObjId(userAadObjId);
     }
-    if (teamId != null) {
+    if (teamId != null && teamId != "null") {
       isDuplicate = await incidentService.verifyDuplicateInc(teamId, incTitle);
     }
     return Promise.resolve(isDuplicate);
@@ -288,7 +288,7 @@ class AreYouSafeTab {
     let userInfo = null;
     if (aadUserObjId != null) {
       try {
-        if (teamId == null) {
+        if (teamId == null || teamId == "null") {
           teamId = await incidentService.getTeamIdByUserAadObjId(aadUserObjId);
         }
         userInfo = await incidentService.getUserInfo(teamId, aadUserObjId);

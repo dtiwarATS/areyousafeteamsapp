@@ -28,7 +28,7 @@ const handlerForSafetyBotTab = (app) => {
                 );
             }
             if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
-                if (req.query.teamId != null && req.query.teamId != "undefined") {
+                if (req.query.teamId != null && req.query.teamId != "null") {
                     incidentService
                         .getAllIncByTeamId(req.query.teamId, "desc")
                         .then(incData => {
@@ -57,76 +57,76 @@ const handlerForSafetyBotTab = (app) => {
         });
     });
 
-    app.get("/areyousafetabhandler/getAllIncDataByTeamId", async (req, res) => {
-        const tabObj = new tab.AreYouSafeTab();
-        let isAdmin = false;
-        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
-        dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
-            isAdmin = safetyInitiatorObj.isAdmin;
-            const safetyInitiator = safetyInitiatorObj.safetyInitiator;
-            const responseObj = {
-                respData: "no permission",
-                safetyInitiator,
-                botUserInfo,
-                isAdmin
-            }
-            if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
-                incidentService
-                    .getAllIncByTeamId(req.query.teamId, "desc")
-                    .then(incData => {
-                        const formatedIncData = tabObj.getFormatedIncData(incData);
-                        responseObj.respData = formatedIncData;
-                        res.send(
-                            responseObj
-                        );
-                    })
-                    .catch(err => {
-                        console.log(err);
-                    });
-            } else {
-                res.send(
-                    responseObj
-                );
-            }
-        }).catch(err => {
-            console.log(err);
-        });
-    });
+    // app.get("/areyousafetabhandler/getAllIncDataByTeamId", async (req, res) => {
+    //     const tabObj = new tab.AreYouSafeTab();
+    //     let isAdmin = false;
+    //     const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
+    //     dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
+    //         isAdmin = safetyInitiatorObj.isAdmin;
+    //         const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+    //         const responseObj = {
+    //             respData: "no permission",
+    //             safetyInitiator,
+    //             botUserInfo,
+    //             isAdmin
+    //         }
+    //         if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
+    //             incidentService
+    //                 .getAllIncByTeamId(req.query.teamId, "desc")
+    //                 .then(incData => {
+    //                     const formatedIncData = tabObj.getFormatedIncData(incData);
+    //                     responseObj.respData = formatedIncData;
+    //                     res.send(
+    //                         responseObj
+    //                     );
+    //                 })
+    //                 .catch(err => {
+    //                     console.log(err);
+    //                 });
+    //         } else {
+    //             res.send(
+    //                 responseObj
+    //             );
+    //         }
+    //     }).catch(err => {
+    //         console.log(err);
+    //     });
+    // });
 
-    app.get("/areyousafetabhandler/getAllIncDataByUserId", async (req, res) => {
-        const tabObj = new tab.AreYouSafeTab();
-        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
-        dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
-            if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
-                incidentService
-                    .getAllIncByUserId(req.query.userId, "desc")
-                    .then(incData => {
-                        const formatedIncData = tabObj.getFormatedIncData(incData);
-                        const responseObj = {
-                            respData: formatedIncData,
-                            botUserInfo
-                        }
-                        res.send(
-                            responseObj
-                        );
-                    })
-                    .catch(err => {
-                        console.log(err);
-                    });
-            } else {
-                const safetyInitiator = safetyInitiatorObj.safetyInitiator;
-                const responseObj = {
-                    respData: "no permission",
-                    safetyInitiator
-                }
-                res.send(
-                    responseObj
-                );
-            }
-        }).catch(err => {
-            console.log(err);
-        });
-    });
+    // app.get("/areyousafetabhandler/getAllIncDataByUserId", async (req, res) => {
+    //     const tabObj = new tab.AreYouSafeTab();
+    //     const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
+    //     dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
+    //         if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
+    //             incidentService
+    //                 .getAllIncByUserId(req.query.userId, "desc")
+    //                 .then(incData => {
+    //                     const formatedIncData = tabObj.getFormatedIncData(incData);
+    //                     const responseObj = {
+    //                         respData: formatedIncData,
+    //                         botUserInfo
+    //                     }
+    //                     res.send(
+    //                         responseObj
+    //                     );
+    //                 })
+    //                 .catch(err => {
+    //                     console.log(err);
+    //                 });
+    //         } else {
+    //             const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+    //             const responseObj = {
+    //                 respData: "no permission",
+    //                 safetyInitiator
+    //             }
+    //             res.send(
+    //                 responseObj
+    //             );
+    //         }
+    //     }).catch(err => {
+    //         console.log(err);
+    //     });
+    // });
 
     app.delete("/areyousafetabhandler/deleteIncident", (req, res) => {
         incidentService
