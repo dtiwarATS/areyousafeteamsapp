@@ -306,8 +306,7 @@ const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
     endTime: "",
     incCreatedByName: actionData.inc_created_by.name,
     guidance: actionData.guidance ? actionData.guidance : '',
-    incStatusId: 1,
-    situation: ""
+    incStatusId: 1
   };
   let newInc = createNewInc(incObj, actionData.selected_members_response, memberChoises);
   return Promise.resolve(newInc);
@@ -332,8 +331,7 @@ const saveRecurrInc = async (actionData, companyData, memberChoises, serviceUrl)
     endTime: actionData.endTime,
     incCreatedByName: actionData.inc_created_by.name,
     guidance: actionData.guidance ? actionData.guidance : '',
-    incStatusId: 1,
-    situation: ""
+    incStatusId: 1
   };
   // console.log("incObj >> ", incObj);
   let incidentValues = Object.keys(incObj).map((key) => incObj[key]);

@@ -38,8 +38,7 @@ const getColumns = (tableName) => {
         "EVENT_END_TIME",
         "CREATED_BY_NAME",
         "GUIDANCE",
-        "INC_STATUS_ID",
-        "situation"
+        "INC_STATUS_ID"
       ];
       break;
 
