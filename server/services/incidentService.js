@@ -247,7 +247,7 @@ const getIncGuidance = async (incId) => {
 
 const createNewInc = async (incObj, selectedMembersResp, memberChoises) => {
   let newInc = {};
-  if (incObj.selectedMembers.length === 0 && memberChoise && memberChoise.length > 0) {
+  if (incObj.selectedMembers.length === 0 && memberChoises && memberChoises.length > 0) {
     const selectedMembers = memberChoises.map((m) => {
       return m.value;
     });
