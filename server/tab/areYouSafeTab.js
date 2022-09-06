@@ -319,6 +319,7 @@ class AreYouSafeTab {
         if (incObj.responseSelectedMembers != null) {
           responseSelectedMembers = incObj.responseSelectedMembers;
         }
+        incData.guidance = incData.guidance.toString().replace(/\\n/g, "\n\n");
         newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises);
       }
     } catch (err) {
