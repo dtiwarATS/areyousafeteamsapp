@@ -129,7 +129,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   }
 
   let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
   m.comment, m.timestamp, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, inc.INC_STATUS_ID, tu.userPrincipalName
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
@@ -771,7 +771,7 @@ const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", use
     whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
-  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql}`;
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
 }
 
 const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title") => {
