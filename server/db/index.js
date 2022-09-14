@@ -38,7 +38,7 @@ const getColumns = (tableName) => {
         "EVENT_END_TIME",
         "CREATED_BY_NAME",
         "GUIDANCE",
-        "INC_STATUS_ID",
+        "INC_STATUS_ID"
       ];
       break;
 
@@ -64,6 +64,7 @@ const getColumns = (tableName) => {
         "comments",
         "requested_date",
         "comment_date",
+        "team_ids"
       ];
       break;
     default:

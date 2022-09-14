@@ -6,63 +6,48 @@ const dbOperation = require("./db/dbOperations");
 const tab = require("./tab/AreYouSafeTab");
 
 const handlerForSafetyBotTab = (app) => {
-    app.get("/areyousafetabhandler/getAllIncDataByTeamId", (req, res) => {
+
+    app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
+        const tabObj = new tab.AreYouSafeTab();
+        let isAdmin = false;
+        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
         dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
-            if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
-                incidentService
-                    .getAllIncByTeamId(req.query.teamId, "desc")
-                    .then(incData => {
-                        const tabObj = new tab.AreYouSafeTab();
-                        const formatedIncData = tabObj.getFormatedIncData(incData);
-                        const responseObj = {
-                            respData: formatedIncData
-                        }
-                        res.send(
-                            responseObj
-                        );
-                    })
-                    .catch(err => {
-                        console.log(err);
-                    });
-            } else {
-                const safetyInitiator = safetyInitiatorObj.safetyInitiator;
-                const responseObj = {
-                    respData: "no permission",
-                    safetyInitiator
-                }
+            isAdmin = safetyInitiatorObj.isAdmin;
+            const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+            const responseObj = {
+                respData: "no permission",
+                safetyInitiator,
+                botUserInfo,
+                isAdmin
+            }
+            const sendRespData = (incData) => {
+                const formatedIncData = tabObj.getFormatedIncData(incData);
+                responseObj.respData = formatedIncData;
                 res.send(
                     responseObj
                 );
             }
-        }).catch(err => {
-            console.log(err);
-        });
-    });
-
-    app.get("/areyousafetabhandler/getAllIncDataByUserId", (req, res) => {
-        dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
             if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
-                incidentService
-                    .getAllIncByUserId(req.query.userId, "desc")
-                    .then(incData => {
-                        const tabObj = new tab.AreYouSafeTab();
-                        const formatedIncData = tabObj.getFormatedIncData(incData);
-                        const responseObj = {
-                            respData: formatedIncData
-                        }
-                        res.send(
-                            responseObj
-                        );
-                    })
-                    .catch(err => {
-                        console.log(err);
-                    });
-            } else {
-                const safetyInitiator = safetyInitiatorObj.safetyInitiator;
-                const responseObj = {
-                    respData: "no permission",
-                    safetyInitiator
+                if (req.query.teamId != null && req.query.teamId != "null") {
+                    incidentService
+                        .getAllIncByTeamId(req.query.teamId, "desc")
+                        .then(incData => {
+                            sendRespData(incData);
+                        })
+                        .catch(err => {
+                            console.log(err);
+                        });
+                } else {
+                    incidentService
+                        .getAllIncByUserId(req.query.userId, "desc")
+                        .then(incData => {
+                            sendRespData(incData);
+                        })
+                        .catch(err => {
+                            console.log(err);
+                        });
                 }
+            } else {
                 res.send(
                     responseObj
                 );
@@ -99,6 +84,17 @@ const handlerForSafetyBotTab = (app) => {
                 console.log(err);
             });
     });
+
+    app.get("/areyousafetabhandler/getTeamsMembers", async (req, res) => {
+        const teamId = req.query.teamId;
+        const userAadObjId = req.query.userAadObjId;
+        const tabObj = new tab.AreYouSafeTab();
+        const teamsMember = await tabObj.getTeamMembers(teamId, userAadObjId);
+        res.send(
+            teamsMember
+        );
+    });
+
     app.get("/areyousafetabhandler/getAssistanceData", (req, res) => {
         incidentService
             .getAssistanceData(req.query.userId, "desc")
@@ -155,8 +151,8 @@ const handlerForSafetyBotTab = (app) => {
     });
 
     app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
-        var data = req.query;
-        var reqBody = req.body;
+        const data = req.query;
+        const reqBody = req.body;
         if (reqBody && reqBody.comment != null && reqBody.comment != "") {
             let ts = req.query.ts;
             if (ts != null) {
@@ -179,6 +175,54 @@ const handlerForSafetyBotTab = (app) => {
                     res.send(false);
                 });
         }
+    });
+
+    app.get("/areyousafetabhandler/checkduplicateInc", async (req, res) => {
+        try {
+            const qs = req.query;
+            const tabObj = new tab.AreYouSafeTab();
+            const isDuplicate = await tabObj.checkDuplicateInc(qs.incTitle, qs.teamId, qs.userAadObjId);
+            res.send(isDuplicate);
+        } catch (err) {
+            console.log(err);
+            res.send({ "error": "Error: Please try again" });
+        }
+    });
+
+    app.post("/areyousafetabhandler/createnewincident", async (req, res) => {
+        try {
+            const reqBody = req.body;
+            const tabObj = new tab.AreYouSafeTab();
+            const newInc = await tabObj.createNewIncident(reqBody);
+            res.send(newInc);
+        } catch (err) {
+            console.log(err);
+            res.send({ "error": "Error: Please try again" });
+        }
+    });
+
+    app.post("/areyousafetabhandler/sendSafetyCheckMessage", async (req, res) => {
+        try {
+            const qs = req.query;
+            const incId = qs.incId;
+            const teamId = qs.teamId;
+            const createdByUserInfo = req.body;
+            const tabObj = new tab.AreYouSafeTab();
+            const safetyCheckSend = await tabObj.sendSafetyCheckMessage(incId, teamId, createdByUserInfo);
+            res.send(safetyCheckSend);
+        } catch (err) {
+            console.log(err);
+            res.send({ "error": "Error: Please try again" });
+        }
+    });
+
+    app.get("/areyousafetabhandler/getUserTeamInfo", async (req, res) => {
+        const userAadObjId = req.query.userAadObjId;
+        const tabObj = new tab.AreYouSafeTab();
+        const userTeamInfo = await tabObj.getUserTeamInfo(userAadObjId);
+        res.send(
+            userTeamInfo
+        );
     });
 }
 

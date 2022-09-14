@@ -129,7 +129,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   }
 
   let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
   m.comment, m.timestamp, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, inc.INC_STATUS_ID, tu.userPrincipalName
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
@@ -158,20 +158,29 @@ const getAdmins = async (aadObjuserId) => {
   console.log("came in method");
   try {
 
-    const userSql = `select user_obj_id, super_users from msteamsinstallationdetails where team_id in
+    const userSql = `select user_obj_id, super_users, team_id, team_name from msteamsinstallationdetails where team_id in
     (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}')`;
     const userResult = await db.getDataFromDB(userSql);
     const superUsersArr = [];
+    const teamsIds = [];
     if (userResult != null && userResult.length > 0) {
       userResult.map((usr) => {
         if (usr.user_obj_id != null) {
-          superUsersArr.push(usr.user_obj_id);
+          if (!superUsersArr.includes(usr.user_obj_id)) {
+            superUsersArr.push(usr.user_obj_id);
+          }
+
+          if (!teamsIds.includes(usr.team_id)) {
+            teamsIds.push(usr.team_id);
+          }
 
           if (usr.super_users != null && usr.super_users.trim() != "") {
             let superUsers = usr.super_users.split(",");
             if (superUsers.length > 0) {
               superUsers.map((superUsr) => {
-                superUsersArr.push(superUsr);
+                if (!superUsersArr.includes(superUsr)) {
+                  superUsersArr.push(superUsr);
+                }
               })
             }
           }
@@ -181,10 +190,10 @@ const getAdmins = async (aadObjuserId) => {
 
     let selectQuery = "";
     if (superUsersArr.length > 0) {
-      selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name
+      selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
                       FROM MSTEAMSTEAMSUSERS A 
                       LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
-                      WHERE A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null;`;
+                      WHERE A.team_id in ('${teamsIds.join("','")}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null  order by B.team_name;`;
     } else {
       selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
         (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');`;
@@ -245,9 +254,30 @@ const getIncGuidance = async (incId) => {
   }
 };
 
+const createNewInc = async (incObj, selectedMembersResp, memberChoises) => {
+  let newInc = {};
+  if (incObj.selectedMembers.length === 0 && memberChoises && memberChoises.length > 0) {
+    const selectedMembers = memberChoises.map((m) => {
+      return m.value;
+    });
+    incObj.selectedMembers = selectedMembers;
+  }
+  let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
+  const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
+
+  if (res && res.length > 0) {
+    newInc = new Incident(res[0]);
+    if (selectedMembersResp && selectedMembersResp != "") {
+      await saveIncResponseSelectedUsers(newInc.incId, selectedMembersResp, memberChoises);
+      incObj.responseSelectedUsers = selectedMembersResp;
+    }
+  }
+
+  return Promise.resolve(newInc);
+}
+
 const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
   // const { inc_title: title, inc_created_by: createdBy } = actionData;
-  let newInc = {};
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
 
@@ -287,22 +317,11 @@ const saveInc = async (actionData, companyData, memberChoises, serviceUrl) => {
     guidance: actionData.guidance ? actionData.guidance : '',
     incStatusId: 1
   };
-  // console.log("incObj >> ", incObj);
-  let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
-  // console.log("incidentValues >> ", incidentValues);
-  const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
-
-  if (res.length > 0) {
-    newInc = new Incident(res[0]);
-    await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
-    incObj.responseSelectedUsers = actionData.selected_members_response;
-  }
-  //await saveServiceUrl(companyData.teamId, serviceUrl);
+  let newInc = createNewInc(incObj, actionData.selected_members_response, memberChoises);
   return Promise.resolve(newInc);
 };
 
 const saveRecurrInc = async (actionData, companyData, memberChoises, serviceUrl) => {
-  let newInc = {};
   if (actionData.guidance != undefined)
     actionData.guidance = actionData.guidance.replace(/\n/g, "\n\n");
   let incObj = {
@@ -328,12 +347,7 @@ const saveRecurrInc = async (actionData, companyData, memberChoises, serviceUrl)
   // console.log("incidentValues >> ", incidentValues);
   const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
 
-  if (res != null && res.length > 0) {
-    newInc = new Incident(res[0]);
-    await saveIncResponseSelectedUsers(newInc.incId, actionData.selected_members_response, memberChoises);
-    incObj.responseSelectedUsers = actionData.selected_members_response;
-  }
-  //await saveServiceUrl(companyData.teamId, serviceUrl);
+  let newInc = createNewInc(incObj, actionData.selected_members_response, memberChoises);
   return Promise.resolve(newInc);
 };
 
@@ -405,6 +419,7 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
   // TODO: use bulk insert instead inseting data one by one
   for (let i = 0; i < allMembers.length; i++) {
     let member = allMembers[i];
+    let userId = member.id;
     const query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
         values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
 
@@ -757,6 +772,73 @@ const updateUserInfoFlag = async (installationIds) => {
   }
 }
 
+const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
+  let whereSql = "";
+  if (teamId != null) {
+    whereSql = ` TEAM_ID = '${teamId}'`;
+  } else {
+    whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
+  }
+
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
+}
+
+const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title") => {
+  try {
+    const sqlTeamMembers = getAllTeamMembersQuery(teamId, null, userIdAlias, userNameAlias);
+    const result = await db.getDataFromDB(sqlTeamMembers);
+    return Promise.resolve(result);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+const getAllTeamMembersByUserAadObjId = async (userAadObjId) => {
+  try {
+    const sqlTeamMembers = getAllTeamMembersQuery(null, userAadObjId);
+    const result = await db.getDataFromDB(sqlTeamMembers);
+    return Promise.resolve(result);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+const getTeamIdByUserAadObjId = async (userAadObjId) => {
+  let teamId = null;
+  try {
+    const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc`;
+    const result = await db.getDataFromDB(teamIdSql);
+    if (result != null && result.length > 0) {
+      teamId = result[0]["team_id"];
+    }
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(teamId);
+}
+
+const getUserInfo = async (teamId, useraadObjId) => {
+  let result = null;
+  try {
+    const sqlUserInfo = `select * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'`;
+    result = await db.getDataFromDB(sqlUserInfo);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
+const getUserTeamInfo = async (userAadObjId) => {
+  let result = null;
+  try {
+    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%'`;
+    result = await db.getDataFromDB(sqlTeamInfo);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -788,4 +870,10 @@ module.exports = {
   saveServiceUrl,
   getAllTeamsIdByTenantId,
   updateUserInfoFlag,
+  getAllTeamMembersByTeamId,
+  getAllTeamMembersByUserAadObjId,
+  getTeamIdByUserAadObjId,
+  getUserInfo,
+  createNewInc,
+  getUserTeamInfo
 };

@@ -47,7 +47,7 @@ const isAdminUser = async (userObjId) => {
 
     let res = await db.getDataFromDB(selectQuery);
     // check if the user is super user or not
-    if (res.length == 0) {
+    if (!res || res.length == 0) {
       res = await db.getDataFromDB(
         `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%'`
       );
@@ -156,6 +156,18 @@ const getCompaniesData = async (
     console.log(err);
   }
 };
+
+const getCompanyDataByTeamId = async (teamId) => {
+  let companyData = null;
+  try {
+    const selectQuery = `SELECT * FROM MSTeamsInstallationDetails where team_id = '${teamId}'`;
+    let res = await db.getDataFromDB(selectQuery);
+    companyData = await parseCompanyData(res);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(companyData);
+}
 
 const removeTeamMember = async (teamId, userId) => {
   try {
@@ -388,5 +400,6 @@ module.exports = {
   removeAllTeamMember,
   saveLog,
   deleteCompanyDataByuserAadObjId,
-  verifyAdminUserForDashboardTab
+  verifyAdminUserForDashboardTab,
+  getCompanyDataByTeamId
 };

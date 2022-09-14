@@ -25,6 +25,20 @@ const getAllTeamMembers = async (context, teamId) => {
   return Promise.resolve(allMembers);
 };
 
+const getAllTeamMembersByConnectorClient = async (teamId, serviceUrl) => {
+  try {
+    var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+    var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+
+    const allTeamMembersData = await connectorClient.conversations.getConversationMembers(teamId);
+    const allTeamsMembers = allTeamMembersData.filter((tm) => tm.aadObjectId);
+    return Promise.resolve(allTeamsMembers);
+  }
+  catch (err) {
+    console.log(err);
+  }
+}
+
 /**
  * NOTE:
  * @param teamMember should be in same format as the context.activity.from object
@@ -161,5 +175,6 @@ module.exports = {
   sendDirectMessageCard,
   sendProactiveMessaageToUser,
   updateMessage,
-  addLog
+  addLog,
+  getAllTeamMembersByConnectorClient
 };
