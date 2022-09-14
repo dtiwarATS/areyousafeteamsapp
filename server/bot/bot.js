@@ -1656,28 +1656,21 @@ const sendContactUsForm = async (context, companyData) => {
   }
 };
 
-const submitContactUsForm = async (context, companyData) => {
+const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName = "") => {
   try {
-    const { emailVal, feedbackVal } = context.activity.value.action.data;
+    const feedbackDataObj = {
+      userId: companyData.userId,
+      teamId: companyData.teamId,
+      userEmail: emailVal,
+      feedbackContent: feedbackVal,
+    };
 
-    if (emailVal && feedbackVal) {
-      // save feedback data into DB
-      // then send the response
+    await addFeedbackData(feedbackDataObj);
 
-      const feedbackDataObj = {
-        userId: companyData.userId,
-        teamId: companyData.teamId,
-        userEmail: emailVal,
-        feedbackContent: feedbackVal,
-      };
-
-      await addFeedbackData(feedbackDataObj);
-
-      const emailBody =
-        "Hi,<br/> <br />" +
+    const emailBody =
+      "Hi,<br/> <br />" +
         "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : <br />" +
-        "<b>User Name: </b>" +
-        companyData.userName +
+        (userName != "") ? "<b>User Name: </b>" + userName : "" +
         "<br />" +
         "<b>Email: </b>" +
         emailVal +
@@ -1690,11 +1683,25 @@ const submitContactUsForm = async (context, companyData) => {
         "<br />" +
         "<br /><br />" +
         "Thank you, <br />" +
-        "AreYouSafe Support";
+      "AreYouSafe Support";
 
-      const subject = "AreYouSafe Teams Bot | Feedback";
+    const subject = "AreYouSafe Teams Bot | Feedback";
 
-      await sendEmail(emailVal, subject, emailBody);
+    await sendEmail(emailVal, subject, emailBody);
+  } catch (err) {
+    console.log(error);
+  }
+}
+
+const submitContactUsForm = async (context, companyData) => {
+  try {
+    const { emailVal, feedbackVal } = context.activity.value.action.data;
+
+    if (emailVal && feedbackVal) {
+      // save feedback data into DB
+      // then send the response
+
+      await sendNewContactEmail(emailVal, feedbackVal, companyData);
     }
   } catch (error) {
     console.log(error);
@@ -1961,5 +1968,6 @@ module.exports = {
   sendMsg,
   sendIncStatusValidation,
   addUserInfoByTeamId,
-  sendSafetyCheckMessage
+  sendSafetyCheckMessage,
+  sendNewContactEmail
 };

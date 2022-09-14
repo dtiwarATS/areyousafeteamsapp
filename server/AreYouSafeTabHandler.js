@@ -224,6 +224,50 @@ const handlerForSafetyBotTab = (app) => {
             userTeamInfo
         );
     });
+
+    app.put("/areyousafetabhandler/contactus", async (req, res) => {
+        try {
+            const email = req.query.email;
+            const msg = req.query.msg;
+            const userId = req.query.userId;
+            const name = req.query.name;
+            const tabObj = new tab.AreYouSafeTab();
+            await tabObj.submitContactUs(email, msg, userId, name);
+            res.send(
+                true
+            );
+        } catch (err) {
+            console.log(err);
+            res.send(
+                false
+            );
+        }
+    });
+
+    app.get("/areyousafetabhandler/getSuperUsersByTeamId", async (req, res) => {
+        const teamId = req.query.teamid;
+        const tabObj = new tab.AreYouSafeTab();
+        const superUsers = await tabObj.getSuperUsersByTeamId(teamId);
+        res.send(
+            superUsers
+        );
+    });
+
+    app.post("/areyousafetabhandler/saveUserSetting", async (req, res) => {
+        try {
+            const reqBody = req.body;
+            const tabObj = new tab.AreYouSafeTab();
+            const isUpdated = await tabObj.saveUserSetting(reqBody);
+            if (isUpdated) {
+                res.send("Your App Settings have been saved successfully.");
+            } else {
+                res.send({ "error": "Error: Please try again" });
+            }
+        } catch (err) {
+            console.log(err);
+            res.send({ "error": "Error: Please try again" });
+        }
+    });
 }
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;

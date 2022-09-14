@@ -780,7 +780,7 @@ const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", use
     whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
-  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
 }
 
 const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title") => {
@@ -839,6 +839,17 @@ const getUserTeamInfo = async (userAadObjId) => {
   return Promise.resolve(result);
 }
 
+const getSuperUsersByTeamId = async (teamId) => {
+  let result = null;
+  try {
+    const sqlSuperUsers = `select top 1 super_users from MSTeamsInstallationDetails where team_id = '${teamId}' and super_users <> '' and super_users is not null`;
+    result = await db.getDataFromDB(sqlSuperUsers);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -875,5 +886,6 @@ module.exports = {
   getTeamIdByUserAadObjId,
   getUserInfo,
   createNewInc,
-  getUserTeamInfo
+  getUserTeamInfo,
+  getSuperUsersByTeamId
 };

@@ -13,7 +13,11 @@ const ENV_FILE = path.join(__dirname, "../.env");
 const db = require("../db");
 const dashboard = require("../models/dashboard");
 const bot = require("../bot/bot");
+const { getCompaniesData, updateSuperUserDataByUserAadObjId } = require("../db/dbOperations");
+
 require("dotenv").config({ path: ENV_FILE });
+
+
 
 
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
@@ -148,10 +152,26 @@ class AreYouSafeTab {
 
   getTeamMembers = async (teamId, userAadObjId) => {
     let teamsMembers = null;
+    let teamsMembersWithsUserUsersFlag = null;
     if (teamId != null && teamId != "null") {
       teamsMembers = await incidentService.getAllTeamMembersByTeamId(teamId);
     } else if (userAadObjId != null && userAadObjId != "null") {
       teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
+    }
+    const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
+    let superUsersArr = [];
+    if (superUsers.length > 0) {
+      superUsersArr = superUsers[0]["super_users"].split(",").map((sUser) => sUser);
+    }
+    if (superUsersArr.length > 0 && teamsMembers && teamsMembers.length > 0) {
+      teamsMembersWithsUserUsersFlag = teamsMembers.map((usr) => {
+        let isSuperUser = superUsersArr.includes(usr.userAadObjId);
+        usr.isSuperUser = isSuperUser;
+        return usr;
+      });
+    }
+    if (teamsMembersWithsUserUsersFlag && teamsMembersWithsUserUsersFlag.length > 0) {
+      return Promise.resolve(teamsMembersWithsUserUsersFlag);
     }
     return Promise.resolve(teamsMembers);
   }
@@ -390,6 +410,23 @@ class AreYouSafeTab {
   getUserTeamInfo = async (userAadObjId) => {
     const userTeamInfo = await incidentService.getUserTeamInfo(userAadObjId);
     return Promise.resolve(userTeamInfo);
+  }
+
+  submitContactUs = async (email, msg, userId, userName) => {
+    const companyData = await getCompaniesData(userId);
+    if (companyData != null) {
+      bot.sendNewContactEmail(email, msg, companyData, userName);
+    }
+  }
+
+  getSuperUsersByTeamId = async (teamId) => {
+    const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
+    return Promise.resolve(superUsers);
+  }
+
+  saveUserSetting = async ({ teamId, superUsers, userAadObjId }) => {
+    const result = await updateSuperUserDataByUserAadObjId(userAadObjId, teamId, superUsers);
+    return Promise.resolve(result);
   }
 }
 

@@ -340,17 +340,37 @@ const deleteCompanyData = async (teamId) => {
 };
 
 const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
+  let isUpdated = false;
   try {
     pool = await poolPromise;
-    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}' WHERE user_id = '${userId}' AND team_id = '${teamId}'`;
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}' WHERE (user_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
 
-    await pool.request().query(updateQuery);
-
+    const result = await pool.request().query(updateQuery);
+    isUpdated = true;
     // return Promise.resolve();
   } catch (err) {
     console.log(err);
+    isUpdated = false;
   }
+  return Promise.resolve(isUpdated);
 };
+
+const updateSuperUserDataByUserAadObjId = async (userId, teamId, selectedUserStr = "") => {
+  let isUpdated = false;
+  try {
+    pool = await poolPromise;
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}' WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
+
+    const result = await pool.request().query(updateQuery);
+    isUpdated = true;
+    // return Promise.resolve();
+  } catch (err) {
+    console.log(err);
+    isUpdated = false;
+  }
+  return Promise.resolve(isUpdated);
+};
+
 const updateCompanyData = async (userId, teamId, teamName = "") => {
   try {
     pool = await poolPromise;
@@ -401,5 +421,6 @@ module.exports = {
   saveLog,
   deleteCompanyDataByuserAadObjId,
   verifyAdminUserForDashboardTab,
-  getCompanyDataByTeamId
+  getCompanyDataByTeamId,
+  updateSuperUserDataByUserAadObjId
 };
