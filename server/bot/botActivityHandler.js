@@ -294,13 +294,13 @@ class BotActivityHandler extends TeamsActivityHandler {
         acvtivityData?.channelData?.eventType === "teamMemberRemoved"
       ) {
         if (acvtivityData?.channelData?.eventType === "teamDeleted") {
-          await deleteCompanyData(teamId);
+          await deleteCompanyData(teamId, acvtivityData.from.aadObjectId);
         } else {
           const { membersRemoved } = acvtivityData;
 
           if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
             await deleteCompanyData(
-              acvtivityData?.channelData?.team.id
+              acvtivityData?.channelData?.team.id, acvtivityData.from.aadObjectId
             );
           } else {
             for (let i = 0; i < membersRemoved.length; i++) {

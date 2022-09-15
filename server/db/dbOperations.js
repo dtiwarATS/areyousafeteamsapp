@@ -317,7 +317,7 @@ const deleteCompanyDataByuserAadObjId = async (userObjId) => {
   try {
     if (userObjId != null) {
       pool = await poolPromise;
-      let query = `DELETE FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and (team_id is null or team_id = '' )`;
+      let query = `update msteamsinstallationdetails set uninstallation_date = '${new Date(Date.now()).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where user_obj_id = '${userObjId}' and (team_id is null or team_id = '' )`;
       await pool.request().query(query);
     }
   } catch (err) {
@@ -325,15 +325,22 @@ const deleteCompanyDataByuserAadObjId = async (userObjId) => {
   }
 }
 
-const deleteCompanyData = async (teamId) => {
+const deleteCompanyData = async (teamId, userObjId) => {
   try {
     pool = await poolPromise;
-    let query = `DELETE FROM MSTeamsInstallationDetails where team_id = '${teamId}';` +
-      ` UPDATE MSTeamsIncidents SET IS_DELETED = 1 WHERE team_id = '${teamId}';`;
+    let updateQuery = `update msteamsinstallationdetails set uninstallation_date = '${new Date(Date.now()).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where team_id = '${teamId}'`;
+    await pool.request().query(updateQuery);
 
-    await pool.request().query(query);
+    let deleteIncQuery = `delete from MSTeamsIncidents where team_id = '${teamId}';`;
+    await pool.request().query(deleteIncQuery);
 
-    await removeAllTeamMember(teamId);
+
+    // let query = `DELETE FROM MSTeamsInstallationDetails where team_id = '${teamId}';` +
+    //   ` UPDATE MSTeamsIncidents SET IS_DELETED = 1 WHERE team_id = '${teamId}';`;
+
+    //await pool.request().query(query);
+
+    //await removeAllTeamMember(teamId);
   } catch (err) {
     console.log(err);
   }
