@@ -10,7 +10,9 @@ const handlerForSafetyBotTab = (app) => {
     app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
         const tabObj = new tab.AreYouSafeTab();
         let isAdmin = false;
-        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
+        const userObjId = req.query.userId;
+        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
+        const teamInfo = await incidentService.getUserTeamInfo(userObjId);
         dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
             isAdmin = safetyInitiatorObj.isAdmin;
             const safetyInitiator = safetyInitiatorObj.safetyInitiator;
@@ -21,7 +23,7 @@ const handlerForSafetyBotTab = (app) => {
                 isAdmin
             }
             const sendRespData = (incData) => {
-                const formatedIncData = tabObj.getFormatedIncData(incData);
+                const formatedIncData = tabObj.getFormatedIncData(incData, teamInfo);
                 responseObj.respData = formatedIncData;
                 res.send(
                     responseObj

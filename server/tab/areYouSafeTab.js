@@ -104,10 +104,18 @@ class AreYouSafeTab {
     return memberObj;
   };
 
-  getFormatedIncData = (incData) => {
+  getFormatedIncData = (incData, teamInfo) => {
     let incFormatedData = null;
     try {
       if (incData != null && incData.length > 0) {
+        let teamObj = null;
+        if (teamInfo != null && teamInfo.length > 0) {
+          teamObj = {};
+          teamInfo.forEach((team) => {
+            teamObj[team.teamId] = team.teamName;
+          })
+        }
+
         incFormatedData = incData.map((inc) => {
           const incId = inc.incId;
           const status = (inc.incStatusId === 2) ? "Closed" : "In progress";
@@ -140,8 +148,9 @@ class AreYouSafeTab {
               }
             }
           }
+          const teamName = (teamObj && teamObj[inc.teamId]) ? teamObj[inc.teamId] : "";
 
-          return { incId, status, title, createdBy, startDate, duration, safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount, responsePercentage };
+          return { incId, status, title, createdBy, startDate, duration, safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount, responsePercentage, teamName };
         });
       }
     } catch (err) {
