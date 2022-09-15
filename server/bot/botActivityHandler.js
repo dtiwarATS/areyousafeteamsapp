@@ -252,7 +252,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               };
 
               const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
-              this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
+              await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
 
               // const companyData = await getCompaniesData(
               //   acvtivityData?.from?.aadObjectId
@@ -335,7 +335,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 serviceUrl: context.activity.serviceUrl
               };
               const companyData = await insertCompanyData(companyDataObj, null, conversationType);
-              this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
+              await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
               //console.log("Company data inserted into DB >> ", companyData);
             }
           }
