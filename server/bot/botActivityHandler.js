@@ -247,7 +247,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 teamName: acvtivityData.channelData.team.name,
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 1,
+                welcomeMessageSent: 0,
                 serviceUrl: context.activity.serviceUrl
               };
 
@@ -331,7 +331,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 teamName: "",
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 1,
+                welcomeMessageSent: 0,
                 serviceUrl: context.activity.serviceUrl
               };
               const companyData = await insertCompanyData(companyDataObj, null, conversationType);
@@ -625,12 +625,14 @@ class BotActivityHandler extends TeamsActivityHandler {
       return;
     }
     // let isUpdate = false;
-    let isUpdate = (companyData.isUpdate == "true");
+    //let isUpdate = (companyData.isUpdate == "true");
     // if (context.activity.conversation.conversationType != "personal") {
     //   return;
     // }
 
-    if (!isUpdate) {
+    const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(acvtivityData.from.aadObjectId);
+
+    if (!isWelcomeMessageSent) {
       const cards = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         type: "AdaptiveCard",
