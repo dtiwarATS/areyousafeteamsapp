@@ -421,10 +421,10 @@ class AreYouSafeTab {
     return Promise.resolve(userTeamInfo);
   }
 
-  submitContactUs = async (email, msg, userId, userName) => {
+  submitContactUs = async (email, msg, userId) => {
     const companyData = await getCompaniesData(userId);
     if (companyData != null) {
-      bot.sendNewContactEmail(email, msg, companyData, userName);
+      bot.sendNewContactEmail(email, msg, companyData);
     }
   }
 

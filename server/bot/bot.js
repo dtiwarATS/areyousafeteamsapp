@@ -1656,7 +1656,7 @@ const sendContactUsForm = async (context, companyData) => {
   }
 };
 
-const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName = "") => {
+const sendNewContactEmail = async (emailVal, feedbackVal, companyData) => {
   try {
     const feedbackDataObj = {
       userId: companyData.userId,
@@ -1669,20 +1669,16 @@ const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName 
 
     const emailBody =
       "Hi,<br/> <br />" +
-        "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : <br />" +
-        (userName != "") ? "<b>User Name: </b>" + userName : "" +
-        "<br />" +
-        "<b>Email: </b>" +
-        emailVal +
-        "<br />" +
-        "<b>Teams Name: </b>" +
-        companyData.teamName +
-        "<br />" +
-        "<b>Feedback: </b>" +
-        feedbackVal +
-        "<br />" +
-        "<br /><br />" +
-        "Thank you, <br />" +
+      "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
+      "<br />" +
+      "<b>Email: </b>" +
+      emailVal +
+      "<br />" +
+      "<b>Feedback: </b>" +
+      feedbackVal +
+      "<br />" +
+      "<br /><br />" +
+      "Thank you, <br />" +
       "AreYouSafe Support";
 
     const subject = "AreYouSafe Teams Bot | Feedback";

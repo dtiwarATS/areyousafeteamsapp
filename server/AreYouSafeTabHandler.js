@@ -232,9 +232,8 @@ const handlerForSafetyBotTab = (app) => {
             const email = req.query.email;
             const msg = req.query.msg;
             const userId = req.query.userId;
-            const name = req.query.name;
             const tabObj = new tab.AreYouSafeTab();
-            await tabObj.submitContactUs(email, msg, userId, name);
+            await tabObj.submitContactUs(email, msg, userId);
             res.send(
                 true
             );
