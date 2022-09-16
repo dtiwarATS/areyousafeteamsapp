@@ -113,6 +113,9 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
             .getAdmins(req.query.userId, "desc")
             .then(async (incData) => {
+                if (incData === null) {
+                    res.send(null);
+                }
                 let admins = incData[0];
                 let user = incData[1][0];
                 let assistanceData = null;
@@ -232,8 +235,9 @@ const handlerForSafetyBotTab = (app) => {
             const email = req.query.email;
             const msg = req.query.msg;
             const userId = req.query.userId;
+            const userName = req.query.userName;
             const tabObj = new tab.AreYouSafeTab();
-            await tabObj.submitContactUs(email, msg, userId);
+            await tabObj.submitContactUs(email, msg, userId, userName);
             res.send(
                 true
             );

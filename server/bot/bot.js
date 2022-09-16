@@ -1656,7 +1656,7 @@ const sendContactUsForm = async (context, companyData) => {
   }
 };
 
-const sendNewContactEmail = async (emailVal, feedbackVal, companyData) => {
+const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName = "") => {
   try {
     const feedbackDataObj = {
       userId: companyData.userId,
@@ -1671,6 +1671,7 @@ const sendNewContactEmail = async (emailVal, feedbackVal, companyData) => {
       "Hi,<br/> <br />" +
       "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
       "<br />" +
+      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "}` +
       "<b>Email: </b>" +
       emailVal +
       "<br />" +
