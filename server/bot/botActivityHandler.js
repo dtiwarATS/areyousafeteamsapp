@@ -247,12 +247,12 @@ class BotActivityHandler extends TeamsActivityHandler {
                 teamName: acvtivityData.channelData.team.name,
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 1,
+                welcomeMessageSent: 0,
                 serviceUrl: context.activity.serviceUrl
               };
 
               const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
-              this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
+              await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
 
               // const companyData = await getCompaniesData(
               //   acvtivityData?.from?.aadObjectId
@@ -294,13 +294,13 @@ class BotActivityHandler extends TeamsActivityHandler {
         acvtivityData?.channelData?.eventType === "teamMemberRemoved"
       ) {
         if (acvtivityData?.channelData?.eventType === "teamDeleted") {
-          await deleteCompanyData(teamId);
+          await deleteCompanyData(teamId, acvtivityData.from.aadObjectId);
         } else {
           const { membersRemoved } = acvtivityData;
 
           if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
             await deleteCompanyData(
-              acvtivityData?.channelData?.team.id
+              acvtivityData?.channelData?.team.id, acvtivityData.from.aadObjectId
             );
           } else {
             for (let i = 0; i < membersRemoved.length; i++) {
@@ -331,11 +331,11 @@ class BotActivityHandler extends TeamsActivityHandler {
                 teamName: "",
                 superUser: [],
                 createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 1,
+                welcomeMessageSent: 0,
                 serviceUrl: context.activity.serviceUrl
               };
               const companyData = await insertCompanyData(companyDataObj, null, conversationType);
-              this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
+              await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData);
               //console.log("Company data inserted into DB >> ", companyData);
             }
           }
@@ -625,12 +625,14 @@ class BotActivityHandler extends TeamsActivityHandler {
       return;
     }
     // let isUpdate = false;
-    let isUpdate = (companyData.isUpdate == "true");
+    //let isUpdate = (companyData.isUpdate == "true");
     // if (context.activity.conversation.conversationType != "personal") {
     //   return;
     // }
 
-    if (!isUpdate) {
+    const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(acvtivityData.from.aadObjectId);
+
+    if (!isWelcomeMessageSent) {
       const cards = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         type: "AdaptiveCard",

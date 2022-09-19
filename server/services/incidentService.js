@@ -159,51 +159,70 @@ const getAdmins = async (aadObjuserId) => {
   try {
 
     const userSql = `select user_obj_id, super_users, team_id, team_name from msteamsinstallationdetails where team_id in
-    (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}')`;
+    (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') order by team_name`;
     const userResult = await db.getDataFromDB(userSql);
-    const superUsersArr = [];
     const teamsIds = [];
     if (userResult != null && userResult.length > 0) {
       userResult.map((usr) => {
+        const superUsersArr = [];
+        const userTeamId = usr.team_id;
         if (usr.user_obj_id != null) {
           if (!superUsersArr.includes(usr.user_obj_id)) {
             superUsersArr.push(usr.user_obj_id);
-          }
-
-          if (!teamsIds.includes(usr.team_id)) {
-            teamsIds.push(usr.team_id);
           }
 
           if (usr.super_users != null && usr.super_users.trim() != "") {
             let superUsers = usr.super_users.split(",");
             if (superUsers.length > 0) {
               superUsers.map((superUsr) => {
-                if (!superUsersArr.includes(superUsr)) {
-                  superUsersArr.push(superUsr);
-                }
+                superUsersArr.push(superUsr);
               })
             }
+          }
+
+          if ((aadObjuserId !== usr.user_obj_id || (usr.super_users != null && usr.super_users.trim() != "")) && !teamsIds.includes(userTeamId)) {
+            teamsIds.push({ userTeamId, superUsersArr });
           }
         }
       });
     }
 
-    let selectQuery = "";
-    if (superUsersArr.length > 0) {
-      selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
-                      FROM MSTEAMSTEAMSUSERS A 
-                      LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
-                      WHERE A.team_id in ('${teamsIds.join("','")}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null  order by B.team_name;`;
-    } else {
-      selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
-        (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');`;
+    let allTeamsAdminsData = [];
+    const adminData = [];
+    if (teamsIds && teamsIds.length > 0) {
+      await Promise.all(
+        teamsIds.map(async (teamObj) => {
+          try {
+            const teamId = teamObj.userTeamId;
+            const superUsersArr = teamObj.superUsersArr;
+
+            let selectQuery = "";
+            if (superUsersArr.length > 0) {
+              selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
+                            FROM MSTEAMSTEAMSUSERS A 
+                            LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
+                            WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null;`;
+            } else {
+              selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
+              (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');`;
+            }
+
+            const result = await db.getDataFromDB(selectQuery);
+            //console.log(result);
+            if (result && result.length > 0) {
+              allTeamsAdminsData = allTeamsAdminsData.concat(result);
+            }
+          } catch (err) {
+            console.log(err);
+          }
+        })
+      );
+      const usersQuery = ` select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'; `;
+      const userResult = await db.getDataFromDB(usersQuery);
+      adminData.push(allTeamsAdminsData);
+      adminData.push(userResult);
     }
-
-    selectQuery += ` select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'; `;
-
-    const result = await db.getDataFromDB(selectQuery, false);
-    console.log(result);
-    return Promise.resolve(result);
+    return Promise.resolve(adminData);
   } catch (err) {
     console.log(err);
   }
@@ -780,7 +799,7 @@ const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", use
     whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
-  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}] FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
 }
 
 const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title") => {
@@ -831,12 +850,47 @@ const getUserInfo = async (teamId, useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%'`;
+    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%' order by team_name`;
     result = await db.getDataFromDB(sqlTeamInfo);
   } catch (err) {
     console.log(err);
   }
   return Promise.resolve(result);
+}
+
+const getSuperUsersByTeamId = async (teamId) => {
+  let result = null;
+  try {
+    const sqlSuperUsers = `select top 1 super_users from MSTeamsInstallationDetails where team_id = '${teamId}' and super_users <> '' and super_users is not null`;
+    result = await db.getDataFromDB(sqlSuperUsers);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
+const isWelcomeMessageSend = async (userObjId) => {
+  let isWelcomeMessageSent = false;
+  try {
+    const sqlIsMessageSent = `IF EXISTS (select * from msteamsinstallationdetails where user_obj_id = '${userObjId}' and welcomeMessageSent = 1) ` +
+      `BEGIN ` +
+      `UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; ` +
+      `SELECT cast('1' as bit) AS isWelcomeMessageSent ` +
+      `END ` +
+      `ELSE ` +
+      `BEGIN ` +
+      `UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; ` +
+      `SELECT cast('0' as bit) AS isWelcomeMessageSent; ` +
+      `END `;
+    result = await db.getDataFromDB(sqlIsMessageSent);
+    if (result && result.length > 0) {
+      isWelcomeMessageSent = result[0]["isWelcomeMessageSent"];
+    }
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(isWelcomeMessageSent);
+
 }
 
 module.exports = {
@@ -875,5 +929,7 @@ module.exports = {
   getTeamIdByUserAadObjId,
   getUserInfo,
   createNewInc,
-  getUserTeamInfo
+  getUserTeamInfo,
+  getSuperUsersByTeamId,
+  isWelcomeMessageSend
 };

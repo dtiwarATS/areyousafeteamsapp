@@ -10,7 +10,9 @@ const handlerForSafetyBotTab = (app) => {
     app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
         const tabObj = new tab.AreYouSafeTab();
         let isAdmin = false;
-        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, req.query.userId);
+        const userObjId = req.query.userId;
+        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
+        const teamInfo = await incidentService.getUserTeamInfo(userObjId);
         dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
             isAdmin = safetyInitiatorObj.isAdmin;
             const safetyInitiator = safetyInitiatorObj.safetyInitiator;
@@ -21,7 +23,7 @@ const handlerForSafetyBotTab = (app) => {
                 isAdmin
             }
             const sendRespData = (incData) => {
-                const formatedIncData = tabObj.getFormatedIncData(incData);
+                const formatedIncData = tabObj.getFormatedIncData(incData, teamInfo);
                 responseObj.respData = formatedIncData;
                 res.send(
                     responseObj
@@ -111,6 +113,9 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
             .getAdmins(req.query.userId, "desc")
             .then(async (incData) => {
+                if (incData === null) {
+                    res.send(null);
+                }
                 let admins = incData[0];
                 let user = incData[1][0];
                 let assistanceData = null;
@@ -223,6 +228,50 @@ const handlerForSafetyBotTab = (app) => {
         res.send(
             userTeamInfo
         );
+    });
+
+    app.put("/areyousafetabhandler/contactus", async (req, res) => {
+        try {
+            const email = req.query.email;
+            const msg = req.query.msg;
+            const userId = req.query.userId;
+            const userName = req.query.userName;
+            const tabObj = new tab.AreYouSafeTab();
+            await tabObj.submitContactUs(email, msg, userId, userName);
+            res.send(
+                true
+            );
+        } catch (err) {
+            console.log(err);
+            res.send(
+                false
+            );
+        }
+    });
+
+    app.get("/areyousafetabhandler/getSuperUsersByTeamId", async (req, res) => {
+        const teamId = req.query.teamid;
+        const tabObj = new tab.AreYouSafeTab();
+        const superUsers = await tabObj.getSuperUsersByTeamId(teamId);
+        res.send(
+            superUsers
+        );
+    });
+
+    app.post("/areyousafetabhandler/saveUserSetting", async (req, res) => {
+        try {
+            const reqBody = req.body;
+            const tabObj = new tab.AreYouSafeTab();
+            const isUpdated = await tabObj.saveUserSetting(reqBody);
+            if (isUpdated) {
+                res.send("Your App Settings have been saved successfully.");
+            } else {
+                res.send({ "error": "Error: Please try again" });
+            }
+        } catch (err) {
+            console.log(err);
+            res.send({ "error": "Error: Please try again" });
+        }
     });
 }
 

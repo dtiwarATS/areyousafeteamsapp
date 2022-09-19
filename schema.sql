@@ -354,3 +354,21 @@ BEGIN
 ALTER TABLE MSTeamsTeamsUsers ADD userRole nvarchar(100) NULL
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='team_ids' AND TABLE_NAME='MSTeamsAssistance')
+BEGIN
+ALTER TABLE MSTeamsAssistance ADD team_ids NVARCHAR(max) NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='uninstallation_date' AND TABLE_NAME='msteamsinstallationdetails')
+BEGIN
+ALTER TABLE msteamsinstallationdetails ADD uninstallation_date varchar(100) NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='uninstallation_user_aadObjid' AND TABLE_NAME='msteamsinstallationdetails')
+BEGIN
+ALTER TABLE msteamsinstallationdetails ADD uninstallation_user_aadObjid varchar(100) NULL
+END
+GO
