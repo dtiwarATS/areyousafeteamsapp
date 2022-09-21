@@ -114,7 +114,7 @@ const getInc = async (incId, runAt = null) => {
 const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let orderBySql = "";
   if (orderBy != null && orderBy == "desc") {
-    orderBySql = " order by inc.id desc, m.user_name";
+    orderBySql = " order by inc.INC_STATUS_ID,  inc.id desc";
   }
 
   let whereSql = "", userPrincipalleftJoin = "";
