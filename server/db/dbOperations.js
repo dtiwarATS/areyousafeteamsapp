@@ -255,10 +255,14 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
     ///const res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
     let res = null;
     if (conversationType == "personal") {
-      const sqlCompanyData = `SELECT top 1 * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}'`;
+      const sqlCompanyData = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}'`;
       const data = await db.getDataFromDB(sqlCompanyData);
       if (data != null && data.length > 0) {
-        res = data;
+        if (data.length == 1) {
+          const sqlUpdate = `UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null WHERE user_obj_id = '${companyDataObj.userObjId}'`;
+          await db.updateDataIntoDB(sqlUpdate);
+        }
+        res = data[0];
       } else {
         res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
       }
@@ -266,7 +270,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
       const sqlCompanyData = `SELECT top 1 * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}' and (TEAM_ID is null OR TEAM_ID = '')`;
       let data = await db.getDataFromDB(sqlCompanyData);
       if (data != null && data.length > 0) {
-        let sqlUpdate = ` UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', ` +
+        let sqlUpdate = ` UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null, team_id = '${teamId}', ` +
           `team_name = '${companyDataObj.teamName.replace(/'/g, "''")}' WHERE user_id = '${companyDataObj.userId}';  SELECT *, 'true' isUpdate FROM MSTeamsInstallationDetails WHERE USER_OBJ_ID = '${companyDataObj.userObjId}'; `;
 
         data = await db.getDataFromDB(sqlUpdate);
@@ -278,6 +282,9 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
         let data = await db.getDataFromDB(sqlCompanyData);
         if (data == null || data.length == 0) {
           res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
+        } else if (data != null && data.length == 1) {
+          const sqlUpdate = `UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null WHERE team_id = '${teamId}' and user_obj_id = '${companyDataObj.userObjId}'`;
+          await db.updateDataIntoDB(sqlUpdate);
         }
       }
     }
