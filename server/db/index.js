@@ -131,6 +131,13 @@ const insertOrUpdateDataIntoDB = async (tableName, values, sqlWhere, sqlUpdate) 
   }
 };
 
+const getInsertSql = (tableName, values) => {
+  const columns = getColumns(tableName);
+  const columnsStr = columns.join(",");
+  const valuesStr = processValues(values);
+  return `insert into ${tableName}(${columnsStr}) values(${valuesStr})`;
+}
+
 const insertDataIntoDB = async (tableName, values) => {
   try {
     pool = await poolPromise;
@@ -165,6 +172,7 @@ const db = {
   getDataFromDB,
   updateDataIntoDB,
   insertOrUpdateDataIntoDB,
+  getInsertSql
 };
 
 module.exports = db;

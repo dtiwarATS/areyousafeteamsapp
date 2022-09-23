@@ -847,6 +847,17 @@ const getUserInfo = async (teamId, useraadObjId) => {
   return Promise.resolve(result);
 }
 
+const getUserInfoByUserAadObjId = async (useraadObjId) => {
+  let result = null;
+  try {
+    const sqlUserInfo = `select * from MSTeamsTeamsUsers where user_aadobject_id = '${useraadObjId}'`;
+    result = await db.getDataFromDB(sqlUserInfo);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
@@ -931,5 +942,6 @@ module.exports = {
   createNewInc,
   getUserTeamInfo,
   getSuperUsersByTeamId,
-  isWelcomeMessageSend
+  isWelcomeMessageSend,
+  getUserInfoByUserAadObjId
 };
