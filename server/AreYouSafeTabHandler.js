@@ -64,7 +64,7 @@ const handlerForSafetyBotTab = (app) => {
             .deleteInc(req.query.incid)
             .then(incData => {
                 res.send(
-                    incData
+                    incData !== null
                 );
             })
             .catch(err => {

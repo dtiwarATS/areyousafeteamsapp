@@ -65,6 +65,26 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
     await sendEmail(userEmailId, subject, emailBody);
 };
 
+const sendUninstallationEmail = async (userEmailId, userName) => {
+  const emailBody =
+    "Hi,<br/> <br />" +
+    "Below user has uninstalled AreYouSafe app in Microsoft Teams: <br />" +
+    "<b>User Name: </b>" +
+    userName +
+    "<br />" +
+    "<b>User Email: </b>" +
+    userEmailId +
+    "<br />" +
+    "<br /><br />" +
+    "Thank you, <br />" +
+    "AreYouSafe Support";
+
+  const subject = "AreYouSafe? Teams Bot | New Uninstallation Details";
+  if (process.env.IS_EMAIL_SEND == 'true') {
+    await sendEmail(userEmailId, subject, emailBody);
+  }
+};
+
 const invokeResponse = (card) => {
   try {
     const cardRes = {
@@ -223,7 +243,7 @@ const sendMsg = async (context) => {
       },
       {
         "type": "TextBlock",
-        "text": "**● Dashboard Tab -** Admins can send emergency messages by clicking the “I Need Assistance” button under the dashboard tab and other admin(s) will get notified of the safety status.",
+        "text": "Admins can **close**, **re-open** and **delete** incident from the dashboard tab",
         "wrap": true
       },
       {
@@ -1966,5 +1986,6 @@ module.exports = {
   sendIncStatusValidation,
   addUserInfoByTeamId,
   sendSafetyCheckMessage,
-  sendNewContactEmail
+  sendNewContactEmail,
+  sendUninstallationEmail
 };

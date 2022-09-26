@@ -294,14 +294,20 @@ class BotActivityHandler extends TeamsActivityHandler {
         acvtivityData?.channelData?.eventType === "teamMemberRemoved"
       ) {
         if (acvtivityData?.channelData?.eventType === "teamDeleted") {
-          await deleteCompanyData(teamId, acvtivityData.from.aadObjectId);
+          const isDeleted = await deleteCompanyData(teamId, acvtivityData.from.aadObjectId);
+          if (isDeleted) {
+            await this.sendUninstallationEmail(acvtivityData.from.aadObjectId);
+          }
         } else {
           const { membersRemoved } = acvtivityData;
 
           if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
-            await deleteCompanyData(
+            const isDeleted = await deleteCompanyData(
               acvtivityData?.channelData?.team.id, acvtivityData.from.aadObjectId
             );
+            if (isDeleted) {
+              await this.sendUninstallationEmail(acvtivityData.from.aadObjectId);
+            }
           } else {
             for (let i = 0; i < membersRemoved.length; i++) {
               await removeTeamMember(teamId, membersRemoved[i].id);
@@ -673,6 +679,18 @@ class BotActivityHandler extends TeamsActivityHandler {
       );
     }
   }
+
+  async sendUninstallationEmail(userAadObjId) {
+    const userInfo = await incidentService.getUserInfoByUserAadObjId(
+      userAadObjId
+    );
+    if (userInfo && userInfo.length > 0) {
+      await bot.sendUninstallationEmail(
+        userInfo[0].email, userInfo[0].user_name
+      );
+    }
+  }
+
 }
 
 module.exports.BotActivityHandler = BotActivityHandler;
