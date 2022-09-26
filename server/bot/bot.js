@@ -243,7 +243,7 @@ const sendMsg = async (context) => {
       },
       {
         "type": "TextBlock",
-        "text": "**● Dashboard Tab -** Admins can send emergency messages by clicking the “I Need Assistance” button under the dashboard tab and other admin(s) will get notified of the safety status.",
+        "text": "Admins can **close**, **re-open** and **delete** incident from the dashboard tab",
         "wrap": true
       },
       {
