@@ -437,6 +437,19 @@ class AreYouSafeTab {
     const result = await updateSuperUserDataByUserAadObjId(userAadObjId, teamId, superUsers);
     return Promise.resolve(result);
   }
+
+  getIncDataToCopyInc = async (incId) => {
+    let teamId = '', selectedUsers = "";
+    const incData = await incidentService.getInc(incId);
+    if (incData) {
+      teamId = incData.teamId;
+      selectedUsers = incData.selectedMembers;
+    }
+
+    const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId);
+    const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId);
+    return { incData, incResponseMembersData, incSelectedMembersData };
+  }
 }
 
 module.exports.AreYouSafeTab = AreYouSafeTab;
