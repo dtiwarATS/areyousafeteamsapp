@@ -892,7 +892,7 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%' order by team_name`;
+    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is not null order by team_name`;
     result = await db.getDataFromDB(sqlTeamInfo);
   } catch (err) {
     console.log(err);
