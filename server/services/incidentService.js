@@ -791,6 +791,10 @@ const updateUserInfoFlag = async (installationIds) => {
   }
 }
 
+const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias = "title") => {
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
+}
+
 const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
   let whereSql = "";
   if (teamId != null) {
@@ -799,7 +803,7 @@ const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", use
     whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
-  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
+  return getTeamMemeberSqlQuery(whereSql, userIdAlias, userNameAlias);
 }
 
 const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title") => {
@@ -810,6 +814,33 @@ const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userName
   } catch (err) {
     console.log(err);
   }
+}
+
+const getIncResponseMembers = async (incId, teamId) => {
+  let result = null;
+  try {
+    const sqlWhere = ` team_id = '${teamId}' and user_id in (select user_id from MSTeamsIncResponseSelectedUsers where inc_id = ${incId})`;
+    const sqlTeamMembers = getTeamMemeberSqlQuery(sqlWhere);
+    result = await db.getDataFromDB(sqlTeamMembers);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
+const getIncSelectedMembers = async (selectedUsers, teamId) => {
+  let result = null;
+  try {
+    if (selectedUsers && selectedUsers.length > 0) {
+      selectedUsers = "'" + selectedUsers.split(",").join("','") + "'";
+    }
+    const sqlWhere = ` team_id = '${teamId}' and user_id in (${selectedUsers})`;
+    const sqlTeamMembers = getTeamMemeberSqlQuery(sqlWhere);
+    result = await db.getDataFromDB(sqlTeamMembers);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
 }
 
 const getAllTeamMembersByUserAadObjId = async (userAadObjId) => {
@@ -861,7 +892,7 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%' order by team_name`;
+    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null order by team_name`;
     result = await db.getDataFromDB(sqlTeamInfo);
   } catch (err) {
     console.log(err);
@@ -943,5 +974,7 @@ module.exports = {
   getUserTeamInfo,
   getSuperUsersByTeamId,
   isWelcomeMessageSend,
-  getUserInfoByUserAadObjId
+  getUserInfoByUserAadObjId,
+  getIncResponseMembers,
+  getIncSelectedMembers
 };

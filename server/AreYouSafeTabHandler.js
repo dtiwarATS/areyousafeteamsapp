@@ -6,6 +6,7 @@ const dbOperation = require("./db/dbOperations");
 const tab = require("./tab/AreYouSafeTab");
 
 const handlerForSafetyBotTab = (app) => {
+    const tabObj = new tab.AreYouSafeTab();
 
     app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
         const tabObj = new tab.AreYouSafeTab();
@@ -272,6 +273,21 @@ const handlerForSafetyBotTab = (app) => {
             console.log(err);
             res.send({ "error": "Error: Please try again" });
         }
+    });
+
+    app.get("/areyousafetabhandler/getIncDataToCopyInc", async (req, res) => {
+        const incId = req.query.incid;
+        if (incId && Number(incId) > 0) {
+            const incData = await tabObj.getIncDataToCopyInc(incId);
+            res.send(
+                incData
+            );
+        } else {
+            res.send(
+                null
+            );
+        }
+
     });
 }
 
