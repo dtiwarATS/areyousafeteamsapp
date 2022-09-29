@@ -5,80 +5,22 @@ const updateMainCard = (companyData) => {
     version: "1.4",
     body: [
       {
-        type: "RichTextBlock",
-        inlines: [
-          {
-            type: "TextRun",
-            text: `👋 Hello! I'm here to help you create new incident or view previous incident results.\nWould you like to?`,
-          },
-        ],
+        type: "TextBlock",
+        wrap: true,
+        text: `Hello! Click on the  **Dashboard** tab above to access all features. If you need help, you can read the user guide or email [help@safetybot.in](mailto:help@safetybot.in)`
       },
       {
         type: "ActionSet",
         actions: [
           {
-            type: "Action.Execute",
-            verb: "create_onetimeincident",
-            title: "Create Incident",
-            data: {
-              option: "Create Incident",
-              companyData: companyData,
-            },
-          },
-          {
-            type: "Action.Execute",
-            isEnabled: false,
-            verb: "list_inc",
-            title: "View Incident Dashboard",
-            data: {
-              option: "View Incident Dashboard",
-              companyData: companyData,
-            },
-          },
-          {
-            type: "Action.Execute",
-            verb: "list_delete_inc",
-            title: "Delete Incident",
-            data: {
-              option: "Delete Incident",
-              companyData: companyData,
-            },
-          },
-          {
-            type: "Action.Execute",
-            verb: "view_settings",
-            title: "Settings",
-            data: {
-              option: "settings",
-              companyData: companyData,
-            },
-          },
+            "type": "Action.OpenUrl",
+            "url": "https://safetybot.in/Safetybot-Teams_User_Guide.pdf",
+            "title": "User Guide",
+            "iconUrl": "https://safetybot.in/img/help.png"
+          }
         ],
-      },
-      {
-        type: "TextBlock",
-        wrap: true,
-        text: "Helpful Links",
-        separator: true
-      },
-    ],
-    actions: [
-      {
-        "type": "Action.OpenUrl",
-        "url": "https://safetybot.in/Safetybot-Teams_User_Guide.pdf",
-        "title": "User Guide",
-        "iconUrl": "https://safetybot.in/img/help.png"
-      },
-      {
-        type: "Action.Execute",
-        verb: "contact_us",
-        title: "Contact Us",
-        data: {
-          option: "Contact Us",
-          companyData: companyData,
-        },
       }
-    ],
+    ]
   };
 };
 const updateCard = (incidentTitle, members, text) => {

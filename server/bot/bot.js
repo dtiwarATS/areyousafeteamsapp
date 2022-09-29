@@ -243,7 +243,7 @@ const sendMsg = async (context) => {
       },
       {
         "type": "TextBlock",
-        "text": "Admins can **close**, **re-open** and **delete** incident from the dashboard tab",
+        "text": "Admins can **copy** incident from the dashboard tab",
         "wrap": true
       },
       {
