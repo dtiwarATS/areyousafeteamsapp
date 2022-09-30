@@ -71,7 +71,7 @@ const { AYSLog } = require("../utils/log");
           log.addLog(`Recurring inc error: ${err}`);
         } finally {
           if (saveLog) {
-            //log.saveLog();
+            await log.saveLog();
           }
         }
       })

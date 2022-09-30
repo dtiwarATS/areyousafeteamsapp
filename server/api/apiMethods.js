@@ -150,6 +150,7 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
   catch (err) {
     log.addLog("sendProactiveMessaageToUser error : ");
     log.addLog(JSON.stringify(err));
+    log.addLog(`Error occured for user: ${JSON.stringify(members)}`);
     console.log(err);
   }
   finally {

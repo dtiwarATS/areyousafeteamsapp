@@ -455,7 +455,8 @@ const saveLog = async (sqlLog) => {
   try {
     pool = await poolPromise;
     console.log("Sql log >> ", sqlLog);
-    await pool.request().query(sqlLog);
+    const result = await pool.request().query(sqlLog);
+    console.log(result);
   } catch (err) {
     console.log(err);
   }
