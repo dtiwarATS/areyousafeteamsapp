@@ -17,11 +17,9 @@ const { getCompaniesData, updateSuperUserDataByUserAadObjId } = require("../db/d
 
 require("dotenv").config({ path: ENV_FILE });
 
-
-
-
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 const { Promise } = require("mssql/lib/base");
+const { AYSLog } = require("../utils/log");
 
 class AreYouSafeTab {
 
@@ -412,8 +410,15 @@ class AreYouSafeTab {
   }
 
   sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
-    const safetyCheckSend = await bot.sendSafetyCheckMessage(incId, teamId, createdByUserInfo);
-    return Promise.resolve(safetyCheckSend);
+    const log = new AYSLog();
+    try {
+      const safetyCheckSend = await bot.sendSafetyCheckMessage(incId, teamId, createdByUserInfo, log);
+      return Promise.resolve(safetyCheckSend);
+    } catch (err) {
+      console.log(err);
+    } finally {
+      await log.saveLog(incId);
+    }
   }
 
   getUserTeamInfo = async (userAadObjId) => {
