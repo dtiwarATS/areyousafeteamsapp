@@ -10,6 +10,7 @@ const ENV_FILE = path.join(__dirname, "../.env");
 require("dotenv").config({ path: ENV_FILE });
 
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
+const { AYSLog } = require("../utils/log");
 
 const getAllTeamMembers = async (context, teamId) => {
   console.log({ teamId });
@@ -89,14 +90,12 @@ const sendDirectMessageCard = async (
     });
   });
 };
-const addLog = (log, message) => {
-  if (log != null) {
-    message = `<tr><td>${message}</td></tr>`;
-    log.push(message);
-  }
-}
+
 const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serviceUrl, tenantId, log) => {
-  addLog(log, "sendProactiveMessaageToUser start");
+  if (log == null) {
+    log = new AYSLog();
+  }
+  log.addLog("sendProactiveMessaageToUser start");
   let resp = {
     "conversationId": null,
     "activityId": null
@@ -110,6 +109,10 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
       tenantId = process.env.tenantId;
     }
 
+    const appId = process.env.MicrosoftAppId;
+    const appPass = process.env.MicrosoftAppPassword;
+    const botName = process.env.BotName;
+
     const conversationParameters = {
       isGroup: false,
       channelData: {
@@ -118,8 +121,8 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
         }
       },
       bot: {
-        id: process.env.MicrosoftAppId,
-        name: process.env.BotName
+        id: appId,
+        name: botName
       },
       members: members
     };
@@ -132,7 +135,7 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
     }
 
     if (activity != null) {
-      var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+      var credentials = new MicrosoftAppCredentials(appId, appPass);
       var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
       const response = await connectorClient.conversations.createConversation(conversationParameters);
@@ -141,16 +144,17 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
       resp.conversationId = response.id;
       resp.activityId = activityId.id;
 
-      addLog(log, `response object ${JSON.stringify(resp)}`);
+      log.addLog(`response object ${JSON.stringify(resp)}`);
     }
   }
   catch (err) {
-    addLog(log, "sendProactiveMessaageToUser error : ");
-    addLog(log, JSON.stringify(err));
+    log.addLog("sendProactiveMessaageToUser error : ");
+    log.addLog(JSON.stringify(err));
+    log.addLog(`Error occured for user: ${JSON.stringify(members)}`);
     console.log(err);
   }
   finally {
-    addLog(log, "sendProactiveMessaageToUser end");
+    log.addLog("sendProactiveMessaageToUser end");
   }
   return Promise.resolve(resp);
 }
@@ -175,6 +179,5 @@ module.exports = {
   sendDirectMessageCard,
   sendProactiveMessaageToUser,
   updateMessage,
-  addLog,
   getAllTeamMembersByConnectorClient
 };

@@ -68,22 +68,8 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (acvtivityData.text == "sendversionupdate") {
         await bot.sendMsg(context);
       }
-      // else if (acvtivityData.text == "dashboard") {
-      //   const card = {
-      //     "type": "AdaptiveCard",
-      //     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-      //     "version": "1.5",
-      //     "actions": [
-      //       {
-      //         "type": "Action.Execute",
-      //         "title": "Go to dashboard tab",
-      //         "verb": "add_user_info"
-      //       }
-      //     ]
-      //   };
-      //   await context.sendActivity({
-      //     attachments: [CardFactory.adaptiveCard(card)],
-      //   });
+      // else if (acvtivityData.text == "sendtestmessage") {
+      //   await bot.sendtestmessage();
       // }
       else {
         await context.sendActivities([{ type: "typing" }]);

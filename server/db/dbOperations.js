@@ -452,9 +452,14 @@ const addFeedbackData = async (feedbackDataObj) => {
 };
 
 const saveLog = async (sqlLog) => {
-  pool = await poolPromise;
-  console.log("Sql log >> ", sqlLog);
-  await pool.request().query(sqlLog);
+  try {
+    pool = await poolPromise;
+    console.log("Sql log >> ", sqlLog);
+    const result = await pool.request().query(sqlLog);
+    console.log(result);
+  } catch (err) {
+    console.log(err);
+  }
 }
 
 module.exports = {

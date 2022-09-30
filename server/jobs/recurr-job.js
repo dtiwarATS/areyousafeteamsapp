@@ -5,11 +5,14 @@ const db = require("../db");
 const { formatedDate } = require("../utils");
 const incidentService = require("../services/incidentService");
 const moment = require("moment-timezone");
+const { AYSLog } = require("../utils/log");
 
 (async () => {
   //get filter job from database
   //console.log("recurr job : start");
+  const log = new AYSLog();
   let currentDateTime = moment(new Date()).utc().format('YYYY-MM-DD HH:mm');
+  log.addLog(`recurr job : currentDateTime - ${currentDateTime}`);
   console.log("recurr job : currentDateTime - " + currentDateTime);
   let sqlJob = `SELECT A.ID AS INC_ID, B.ID AS SUB_EVENT_ID, B.CRON, B.TIMEZONE, A.INC_TYPE AS incType, A.INC_NAME, A.CREATED_BY AS createdById, ` +
     `A.CREATED_BY_NAME AS createdByName, A.TEAM_ID, A.CHANNEL_ID, A.EVENT_END_DATE eventEndDate, A.EVENT_END_TIME eventEndTime, B.RUN_AT runAt ` +
@@ -21,15 +24,17 @@ const moment = require("moment-timezone");
   let jobsToBeExecutedArr = await db.getDataFromDB(sqlJob);
   if (jobsToBeExecutedArr != null && jobsToBeExecutedArr.length > 0) {
     // send msgs
-    //console.log("recurr job : no of record -" + jobsToBeExecutedArr.length);
     await Promise.all(
       jobsToBeExecutedArr.map(async (job) => {
         // send teams msg and change the runAt time of the job to next interval
+        let saveLog = false;
         try {
 
           const { CRON: cron, TIMEZONE: timeZone, INC_ID: incId, SUB_EVENT_ID: subEventId, TEAM_ID: teamId, INC_NAME: incTitle, eventEndDate, eventEndTime } = job;
           const options = { tz: timeZone };
 
+          log.addLog(`incId: ${incId} subEventId: ${subEventId}`);
+          log.addLog(`incTitle: ${incTitle} start`);
           const endDateTime = new Date(eventEndDate + " " + eventEndTime);
 
           const usrTZCurrentTime = new Date(moment.tz(new Date().toUTCString(), timeZone).format('MM-DD-YYYY HH:mm'));
@@ -37,8 +42,7 @@ const moment = require("moment-timezone");
           if (usrTZCurrentTime > endDateTime) {
             return true;
           }
-
-          //console.log("recurr job : " + incTitle);
+          log.addLog(`usrTZCurrentTime: ${usrTZCurrentTime}`);
           let eventMembersSql = `select [id], [user_id] , [user_name]  from MSTeamsMemberResponses where inc_id = ${incId}`;
           let eventMembers = await db.getDataFromDB(eventMembersSql);
 
@@ -50,9 +54,9 @@ const moment = require("moment-timezone");
               eventMembers,
               companyData
             }
-
-            let allEventMsgDelivered = await bot.sendRecurrEventMsg(job, incId, incTitle);
-
+            log.addLog("send recurring safety message start");
+            let allEventMsgDelivered = await bot.sendRecurrEventMsg(job, incId, incTitle, log);
+            log.addLog("send recurring safety message end");
             if (allEventMsgDelivered) {
               let interval = parser.parseExpression(cron, options);
               let nextRunAtUTC = interval.next().toISOString();
@@ -60,10 +64,16 @@ const moment = require("moment-timezone");
               await db.updateDataIntoDB(sqlUpdate);
             }
           }
+          log.addLog(`incTitle: ${incTitle} end`);
+          saveLog = true;
         } catch (err) {
-          //console.log(`ERROR occured while executing the job \nError: ${err}`);
+          console.log(err);
+          log.addLog(`Recurring inc error: ${err}`);
+        } finally {
+          if (saveLog) {
+            await log.saveLog();
+          }
         }
-        //console.log("recurr job : " + incTitle + " end");
       })
     );
   }
