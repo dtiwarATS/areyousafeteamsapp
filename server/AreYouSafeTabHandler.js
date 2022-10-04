@@ -8,6 +8,27 @@ const tab = require("./tab/AreYouSafeTab");
 const handlerForSafetyBotTab = (app) => {
     const tabObj = new tab.AreYouSafeTab();
 
+    app.get("/areyousafetabhandler/getUserPermission", async (req, res) => {
+        const tabObj = new tab.AreYouSafeTab();
+        let isAdmin = false;
+        const userObjId = req.query.userId;
+        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
+        dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
+            isAdmin = safetyInitiatorObj.isAdmin;
+            const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+            const responseObj = {
+                safetyInitiator,
+                botUserInfo,
+                isAdmin
+            }
+            res.send(
+                responseObj
+            );
+        }).catch(err => {
+            console.log(err);
+        });
+    });
+
     app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
         const tabObj = new tab.AreYouSafeTab();
         let isAdmin = false;
