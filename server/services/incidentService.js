@@ -33,6 +33,7 @@ const parseEventData = async (result, updateRecurrMemebersResp = false) => {
                 member.response = recurrMemberResp.responseR;
                 member.response_value = recurrMemberResp.response_valueR;
                 member.comment = recurrMemberResp.commentR;
+                member.is_message_delivered = recurrMemberResp.is_message_deliveredR;
               } else {
                 member = {
                   ...member,
@@ -130,7 +131,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
 
   let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-  m.comment, m.timestamp, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, inc.INC_STATUS_ID, tu.userPrincipalName
+  m.comment, m.timestamp, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.is_message_delivered is_message_deliveredR, inc.INC_STATUS_ID, tu.userPrincipalName
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
@@ -440,7 +441,7 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
     let member = allMembers[i];
     let userId = member.id;
     const query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
-        values(${incId}, '${member.id}', '${member.name}', 1, 0, NULL, NULL, NULL)`;
+        values(${incId}, '${member.id}', '${member.name}', 0, 0, NULL, NULL, NULL)`;
 
     console.log("insert query => ", query);
     await pool.request().query(query);
@@ -935,6 +936,17 @@ const isWelcomeMessageSend = async (userObjId) => {
 
 }
 
+const updateMessageDeliveredStatus = async (incId, userId, isMessageDelivered) => {
+  let result = null;
+  try {
+    const sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered} where inc_id = ${incId} and user_id = '${userId}';`
+    result = await db.getDataFromDB(sqlUpdate);
+  } catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(result);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -976,5 +988,6 @@ module.exports = {
   isWelcomeMessageSend,
   getUserInfoByUserAadObjId,
   getIncResponseMembers,
-  getIncSelectedMembers
+  getIncSelectedMembers,
+  updateMessageDeliveredStatus
 };

@@ -1413,7 +1413,10 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
           id: allMembersArr[i].id,
           name: allMembersArr[i].name
         }];
-        await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
+        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
+        if (msgResp?.conversationId != null && msgResp?.activityId != null) {
+          await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 1);
+        }
       }
       log.addLog("Send Safety Check End");
       log.addLog(`onetime end`);
@@ -1897,15 +1900,17 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
           id: subEventObj.eventMembers[i].user_id,
           name: subEventObj.eventMembers[i].user_name
         }];
-        await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
+        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
 
-        const respDetailsObj = {
-          memberResponsesId: subEventObj.eventMembers[i].id,
-          runAt: subEventObj.runAt,
-          conversationId: dashboardResponse.conversationId,
-          activityId: dashboardResponse.activityId
+        if (msgResp?.conversationId != null && msgResp?.activityId != null) {
+          const respDetailsObj = {
+            memberResponsesId: subEventObj.eventMembers[i].id,
+            runAt: subEventObj.runAt,
+            conversationId: dashboardResponse.conversationId,
+            activityId: dashboardResponse.activityId
+          }
+          await incidentService.addMemberResponseDetails(respDetailsObj);
         }
-        await incidentService.addMemberResponseDetails(respDetailsObj);
       }
 
       const recurrCompletedCard = {
