@@ -20,6 +20,7 @@ require("dotenv").config({ path: ENV_FILE });
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 const { Promise } = require("mssql/lib/base");
 const { AYSLog } = require("../utils/log");
+const { processSafetyBotError, processBotError } = require("../models/processError");
 
 class AreYouSafeTab {
 
@@ -40,65 +41,82 @@ class AreYouSafeTab {
   };
 
   getAllTeamMembers = async (teamId, serviceUrl) => {
-    var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-    var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+    let allTeamMembers = null;
+    try {
+      var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
-    const allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
+      allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
+    } catch (err) {
+      processSafetyBotError(err, "", "");
+    }
     return Promise.resolve(allTeamMembers);
   };
 
   getStartDate = (startDate) => {
-    const startTime = startDate;
-    const createdDate = new Date(startTime);
-    const monthName = createdDate.toLocaleString("default", { month: "long" });
-    const creatdDate = createdDate.getDate();
-    const createdYear = createdDate.getFullYear();
-    return ` ${monthName} ${creatdDate}, ${createdYear}`;
+    try {
+      const startTime = startDate;
+      const createdDate = new Date(startTime);
+      const monthName = createdDate.toLocaleString("default", { month: "long" });
+      const creatdDate = createdDate.getDate();
+      const createdYear = createdDate.getFullYear();
+      return ` ${monthName} ${creatdDate}, ${createdYear}`;
+    } catch (err) {
+      processSafetyBotError(err, "", "");
+    }
   };
 
   getDurationInWeek = (startDate) => {
-    const currentDate = new Date();
-    const startDateTime = new Date(startDate);
-    let dateDiff = (currentDate.getTime() - startDateTime.getTime()) / 1000;
-    //let dateDiffInMonth = dateDiff / (60 * 60 * 24 * new Date(startDateTime.getFullYear(), startDateTime.getMonth(), 0).getDate());
-    let dateDiffInWeek = dateDiff / (60 * 60 * 24 * 7);
-    let dateDiffInDay = dateDiff / (60 * 60 * 24);
-    let dateDiffInHours = dateDiff / (60 * 60);
-    let dateDiffInMin = dateDiff / (60);
+    try {
+      const currentDate = new Date();
+      const startDateTime = new Date(startDate);
+      let dateDiff = (currentDate.getTime() - startDateTime.getTime()) / 1000;
+      //let dateDiffInMonth = dateDiff / (60 * 60 * 24 * new Date(startDateTime.getFullYear(), startDateTime.getMonth(), 0).getDate());
+      let dateDiffInWeek = dateDiff / (60 * 60 * 24 * 7);
+      let dateDiffInDay = dateDiff / (60 * 60 * 24);
+      let dateDiffInHours = dateDiff / (60 * 60);
+      let dateDiffInMin = dateDiff / (60);
 
-    if (Math.abs(parseInt(dateDiffInWeek)) >= 1)
-      return Math.abs(parseInt(dateDiffInWeek)) + 'w';
-    else if (Math.abs(parseInt(dateDiffInDay)) >= 1)
-      return Math.abs(parseInt(dateDiffInDay)) + 'd';
-    else if (Math.abs(parseInt(dateDiffInHours)) >= 1)
-      return Math.abs(parseInt(dateDiffInHours)) + 'h';
-    else if (Math.abs(parseInt(dateDiffInMin)) >= 1)
-      return Math.abs(parseInt(dateDiffInMin)) + 'm';
-    else
-      return Math.abs(parseInt(dateDiff)) + 's';
+      if (Math.abs(parseInt(dateDiffInWeek)) >= 1)
+        return Math.abs(parseInt(dateDiffInWeek)) + 'w';
+      else if (Math.abs(parseInt(dateDiffInDay)) >= 1)
+        return Math.abs(parseInt(dateDiffInDay)) + 'd';
+      else if (Math.abs(parseInt(dateDiffInHours)) >= 1)
+        return Math.abs(parseInt(dateDiffInHours)) + 'h';
+      else if (Math.abs(parseInt(dateDiffInMin)) >= 1)
+        return Math.abs(parseInt(dateDiffInMin)) + 'm';
+      else
+        return Math.abs(parseInt(dateDiff)) + 's';
+    } catch (err) {
+      processSafetyBotError(err, "", "");
+    }
   }
 
   sortMembers = (members) => {
-    const memberObj = {
-      membersSafe: [],
-      membersUnsafe: [],
-      membersNotResponded: [],
-    };
+    let memberObj = null;
+    try {
+      memberObj = {
+        membersSafe: [],
+        membersUnsafe: [],
+        membersNotResponded: [],
+      };
 
-    members.forEach((m) => {
-      const { response, responseValue } = m;
+      members.forEach((m) => {
+        const { response, responseValue } = m;
 
-      if (response === "na" || response === false) {
-        memberObj.membersNotResponded.push(m);
-      } else if (response === true) {
-        if (responseValue === true) {
-          memberObj.membersSafe.push(m);
-        } else if (responseValue === false || responseValue == null) {
-          memberObj.membersUnsafe.push(m);
+        if (response === "na" || response === false) {
+          memberObj.membersNotResponded.push(m);
+        } else if (response === true) {
+          if (responseValue === true) {
+            memberObj.membersSafe.push(m);
+          } else if (responseValue === false || responseValue == null) {
+            memberObj.membersUnsafe.push(m);
+          }
         }
-      }
-    });
-
+      });
+    } catch (err) {
+      processSafetyBotError(err, "", "");
+    }
     return memberObj;
   };
 
@@ -153,32 +171,37 @@ class AreYouSafeTab {
       }
     } catch (err) {
       console.log(err);
+      processSafetyBotError(err, "", "");
     }
     return incFormatedData;
   }
 
   getTeamMembers = async (teamId, userAadObjId) => {
     let teamsMembers = null;
-    let teamsMembersWithsUserUsersFlag = null;
-    if (teamId != null && teamId != "null") {
-      teamsMembers = await incidentService.getAllTeamMembersByTeamId(teamId);
-    } else if (userAadObjId != null && userAadObjId != "null") {
-      teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
-    }
-    const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
-    let superUsersArr = [];
-    if (superUsers.length > 0) {
-      superUsersArr = superUsers[0]["super_users"].split(",").map((sUser) => sUser);
-    }
-    if (superUsersArr.length > 0 && teamsMembers && teamsMembers.length > 0) {
-      teamsMembersWithsUserUsersFlag = teamsMembers.map((usr) => {
-        let isSuperUser = superUsersArr.includes(usr.userAadObjId);
-        usr.isSuperUser = isSuperUser;
-        return usr;
-      });
-    }
-    if (teamsMembersWithsUserUsersFlag && teamsMembersWithsUserUsersFlag.length > 0) {
-      return Promise.resolve(teamsMembersWithsUserUsersFlag);
+    try {
+      let teamsMembersWithsSuperUserFlag = null;
+      if (teamId != null && teamId != "null") {
+        teamsMembers = await incidentService.getAllTeamMembersByTeamId(teamId);
+      } else if (userAadObjId != null && userAadObjId != "null") {
+        teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
+      }
+      const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
+      let superUsersArr = [];
+      if (superUsers.length > 0) {
+        superUsersArr = superUsers[0]["super_users"].split(",").map((sUser) => sUser);
+      }
+      if (superUsersArr.length > 0 && teamsMembers && teamsMembers.length > 0) {
+        teamsMembersWithsSuperUserFlag = teamsMembers.map((usr) => {
+          let isSuperUser = superUsersArr.includes(usr.userAadObjId);
+          usr.isSuperUser = isSuperUser;
+          return usr;
+        });
+      }
+      if (teamsMembersWithsSuperUserFlag && teamsMembersWithsSuperUserFlag.length > 0) {
+        teamsMembers = teamsMembersWithsSuperUserFlag;
+      }
+    } catch (err) {
+      processSafetyBotError(err, teamId, "");
     }
     return Promise.resolve(teamsMembers);
   }
@@ -233,134 +256,147 @@ class AreYouSafeTab {
       }
     } catch (err) {
       console.log(err);
+      processSafetyBotError(err, "", "");
     }
     return isMessageSent;
   };
 
   saveAssistance = async (adminsData, user, ts) => {
     let res = null;
-    if (adminsData != null && adminsData.length > 0) {
-      let sentToIds = [];
-      let teamIds = "";
-      let sentToNames = "";
-      const userTemasArr = [];
-      const userTemasObj = {};
-      adminsData.forEach((element, index) => {
-        if (element.serviceUrl != null && element.user_tenant_id != null) {
-          const teamName = element.team_name;
-          if (userTemasObj[teamName] == null) {
-            userTemasArr.push(teamName);
-            userTemasObj[teamName] = [];
-            teamIds += (teamIds === "") ? element.team_id : ", " + element.team_id;
-          }
-          userTemasObj[teamName].push(element.user_name);
-          if (!sentToIds.includes(element.user_id)) {
-            sentToIds.push(element.user_id);
-          }
-        }
-      });
-
-      if (userTemasArr.length == 1) {
-        const teamName = userTemasArr[0];
-        const adminsArr = userTemasObj[teamName];
-        if (adminsArr && adminsArr.length > 0) {
-          adminsArr.forEach((usrName, index) => {
-            sentToNames += (index == 0 ? "" : (index == (adminsArr.length - 1)) ? " and " : ", ") + usrName;
-          });
-        }
-      } else if (userTemasArr.length > 1) {
-        const allAdmins = [];
-        userTemasArr.forEach((teamName, index) => {
-          const adminsArr = userTemasObj[teamName];
-          if (adminsArr && adminsArr.length > 0) {
-            const currentTeamAdminsArr = [];
-            let currentTeamsAdminsStr = "";
-            adminsArr.forEach((usrName, index) => {
-              if (!allAdmins.includes(usrName)) {
-                allAdmins.push(usrName);
-                currentTeamAdminsArr.push(usrName);
-                currentTeamsAdminsStr += (currentTeamsAdminsStr === "" ? "" : (index == (adminsArr.length - 1)) ? " and " : ", ") + usrName;
-              }
-            });
-
-            if (currentTeamAdminsArr.length > 0) {
-              sentToNames += "\n";
-              sentToNames += `${teamName + " - "}`;
-              sentToNames += currentTeamsAdminsStr;
+    try {
+      if (adminsData != null && adminsData.length > 0) {
+        let sentToIds = [];
+        let teamIds = "";
+        let sentToNames = "";
+        const userTemasArr = [];
+        const userTemasObj = {};
+        adminsData.forEach((element, index) => {
+          if (element.serviceUrl != null && element.user_tenant_id != null) {
+            const teamName = element.team_name;
+            if (userTemasObj[teamName] == null) {
+              userTemasArr.push(teamName);
+              userTemasObj[teamName] = [];
+              teamIds += (teamIds === "") ? element.team_id : ", " + element.team_id;
+            }
+            userTemasObj[teamName].push(element.user_name);
+            if (!sentToIds.includes(element.user_id)) {
+              sentToIds.push(element.user_id);
             }
           }
         });
-      }
 
-      if (sentToIds != "") {
-        res = await db.insertDataIntoDB("MSTeamsAssistance", [
-          user.user_id,
-          sentToIds.join(","),
-          sentToNames,
-          "",
-          ts,
-          "",
-          teamIds
-        ]);
+        if (userTemasArr.length == 1) {
+          const teamName = userTemasArr[0];
+          const adminsArr = userTemasObj[teamName];
+          if (adminsArr && adminsArr.length > 0) {
+            adminsArr.forEach((usrName, index) => {
+              sentToNames += (index == 0 ? "" : (index == (adminsArr.length - 1)) ? " and " : ", ") + usrName;
+            });
+          }
+        } else if (userTemasArr.length > 1) {
+          const allAdmins = [];
+          userTemasArr.forEach((teamName, index) => {
+            const adminsArr = userTemasObj[teamName];
+            if (adminsArr && adminsArr.length > 0) {
+              const currentTeamAdminsArr = [];
+              let currentTeamsAdminsStr = "";
+              adminsArr.forEach((usrName, index) => {
+                if (!allAdmins.includes(usrName)) {
+                  allAdmins.push(usrName);
+                  currentTeamAdminsArr.push(usrName);
+                  currentTeamsAdminsStr += (currentTeamsAdminsStr === "" ? "" : (index == (adminsArr.length - 1)) ? " and " : ", ") + usrName;
+                }
+              });
+
+              if (currentTeamAdminsArr.length > 0) {
+                sentToNames += "\n";
+                sentToNames += `${teamName + " - "}`;
+                sentToNames += currentTeamsAdminsStr;
+              }
+            }
+          });
+        }
+
+        if (sentToIds != "") {
+          res = await db.insertDataIntoDB("MSTeamsAssistance", [
+            user.user_id,
+            sentToIds.join(","),
+            sentToNames,
+            "",
+            ts,
+            "",
+            teamIds
+          ]);
+        }
       }
+    } catch (err) {
+      processSafetyBotError(err, "", "");
     }
     return res;
   };
 
   sendUserCommentToAdmin = async (data, userComment) => {
-    let admins = data[0];
-    let user = data[1][0];
-    if (admins != null && admins.length > 0) {
-      let mentionUserEntities = [];
-      dashboard.mentionUser(mentionUserEntities, user.user_id, user.user_name);
-      const approvalCardResponse = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: [
-          {
-            type: "TextBlock",
-            text: `User <at>${user.user_name}</at> has commented : ${userComment}`,
-            wrap: true,
-          },
-        ],
-        msteams: {
-          entities: mentionUserEntities,
-        },
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
-      const adminArr = [];
-      for (let i = 0; i < admins.length; i++) {
-        if (adminArr.includes(admins[i].user_id)) {
-          continue;
-        }
-        adminArr.push(admins[i].user_id);
-        if (admins[i].serviceUrl != null && admins[i].user_tenant_id != null) {
-          let memberArr = [
+    try {
+      let admins = data[0];
+      let user = data[1][0];
+      if (admins != null && admins.length > 0) {
+        let mentionUserEntities = [];
+        dashboard.mentionUser(mentionUserEntities, user.user_id, user.user_name);
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
             {
-              id: admins[i].user_id,
-              name: admins[i].user_name,
+              type: "TextBlock",
+              text: `User <at>${user.user_name}</at> has commented : ${userComment}`,
+              wrap: true,
             },
-          ];
-          const res = await sendProactiveMessaageToUser(
-            memberArr,
-            approvalCardResponse,
-            null,
-            admins[i].serviceurl,
-            admins[i].user_tenant_id
-          );
+          ],
+          msteams: {
+            entities: mentionUserEntities,
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+        const adminArr = [];
+        for (let i = 0; i < admins.length; i++) {
+          if (adminArr.includes(admins[i].user_id)) {
+            continue;
+          }
+          adminArr.push(admins[i].user_id);
+          if (admins[i].serviceUrl != null && admins[i].user_tenant_id != null) {
+            let memberArr = [
+              {
+                id: admins[i].user_id,
+                name: admins[i].user_name,
+              },
+            ];
+            const res = await sendProactiveMessaageToUser(
+              memberArr,
+              approvalCardResponse,
+              null,
+              admins[i].serviceurl,
+              admins[i].user_tenant_id
+            );
+          }
         }
       }
+    } catch (err) {
+      processSafetyBotError(err, "", "");
     }
   };
 
   checkDuplicateInc = async (incTitle, teamId, userAadObjId) => {
     let isDuplicate = false;
-    if (teamId == null || teamId == "null") {
-      teamId = await incidentService.getTeamIdByUserAadObjId(userAadObjId);
-    }
-    if (teamId != null && teamId != "null") {
-      isDuplicate = await incidentService.verifyDuplicateInc(teamId, incTitle);
+    try {
+      if (teamId == null || teamId == "null") {
+        teamId = await incidentService.getTeamIdByUserAadObjId(userAadObjId);
+      }
+      if (teamId != null && teamId != "null") {
+        isDuplicate = await incidentService.verifyDuplicateInc(teamId, incTitle);
+      }
+    } catch (err) {
+      processSafetyBotError(err, teamId, "");
     }
     return Promise.resolve(isDuplicate);
   }
@@ -375,6 +411,7 @@ class AreYouSafeTab {
         userInfo = await incidentService.getUserInfo(teamId, aadUserObjId);
       } catch (err) {
         console.log(err);
+        processSafetyBotError(err, teamId, "");
       }
     }
     return Promise.resolve(userInfo);
@@ -382,7 +419,6 @@ class AreYouSafeTab {
 
   createNewIncident = async (incObj) => {
     let newInc = null;
-
     try {
       if (incObj != null && incObj.incData != null) {
         let incData = incObj.incData;
@@ -405,6 +441,7 @@ class AreYouSafeTab {
       }
     } catch (err) {
       console.log(err);
+      processSafetyBotError(err, "", "");
     }
     return Promise.resolve(newInc);
   }
@@ -416,44 +453,72 @@ class AreYouSafeTab {
       return Promise.resolve(safetyCheckSend);
     } catch (err) {
       console.log(err);
+      processSafetyBotError(err, teamId, createdByUserInfo?.user_name);
     } finally {
       await log.saveLog(incId);
     }
   }
 
   getUserTeamInfo = async (userAadObjId) => {
-    const userTeamInfo = await incidentService.getUserTeamInfo(userAadObjId);
+    let userTeamInfo = null;
+    try {
+      userTeamInfo = await incidentService.getUserTeamInfo(userAadObjId);
+    } catch (err) {
+      processSafetyBotError(err, "", "");
+    }
     return Promise.resolve(userTeamInfo);
   }
 
   submitContactUs = async (email, msg, userId, userName) => {
-    const companyData = await getCompaniesData(userId);
-    if (companyData != null) {
-      bot.sendNewContactEmail(email, msg, companyData, userName);
+    try {
+      const companyData = await getCompaniesData(userId);
+      if (companyData != null) {
+        bot.sendNewContactEmail(email, msg, companyData, userName);
+      }
+    } catch (err) {
+      processSafetyBotError(err, "", userName);
     }
   }
 
   getSuperUsersByTeamId = async (teamId) => {
-    const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
+    let superUsers = null;
+    try {
+      superUsers = await incidentService.getSuperUsersByTeamId(teamId);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "");
+    }
     return Promise.resolve(superUsers);
   }
 
   saveUserSetting = async ({ teamId, superUsers, userAadObjId }) => {
-    const result = await updateSuperUserDataByUserAadObjId(userAadObjId, teamId, superUsers);
+    let result = null;
+    try {
+      result = await updateSuperUserDataByUserAadObjId(userAadObjId, teamId, superUsers);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "");
+    }
     return Promise.resolve(result);
   }
 
   getIncDataToCopyInc = async (incId) => {
-    let teamId = '', selectedUsers = "";
-    const incData = await incidentService.getInc(incId);
-    if (incData) {
-      teamId = incData.teamId;
-      selectedUsers = incData.selectedMembers;
-    }
+    try {
+      let teamId = '', selectedUsers = "";
+      const incData = await incidentService.getInc(incId);
+      if (incData) {
+        teamId = incData.teamId;
+        selectedUsers = incData.selectedMembers;
+      }
 
-    const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId);
-    const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId);
-    return { incData, incResponseMembersData, incSelectedMembersData };
+      const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId);
+      const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId);
+      return { incData, incResponseMembersData, incSelectedMembersData };
+    } catch (err) {
+      processSafetyBotError(err, "", "");
+    }
+  }
+
+  processError = async (reqBody) => {
+    processBotError(reqBody);
   }
 }
 

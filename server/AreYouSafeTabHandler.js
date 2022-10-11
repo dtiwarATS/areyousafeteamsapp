@@ -310,6 +310,16 @@ const handlerForSafetyBotTab = (app) => {
         }
 
     });
+
+    app.post("/areyousafetabhandler/processError", async (req, res) => {
+        try {
+            const reqBody = req.body;
+            const tabObj = new tab.AreYouSafeTab();
+            await tabObj.processError(reqBody);
+        } catch (err) {
+            console.log(err);
+        }
+    });
 }
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;

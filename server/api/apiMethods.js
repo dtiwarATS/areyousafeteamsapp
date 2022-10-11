@@ -11,6 +11,7 @@ require("dotenv").config({ path: ENV_FILE });
 
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 const { AYSLog } = require("../utils/log");
+const { processSafetyBotError } = require("../models/processError");
 
 const getAllTeamMembers = async (context, teamId) => {
   console.log({ teamId });
@@ -56,21 +57,25 @@ const sendDirectMessage = async (
   msg,
   mentionedUser = null
 ) => {
-  let topLevelMessage = MessageFactory.text(msg);
+  try {
+    let topLevelMessage = MessageFactory.text(msg);
 
-  if (mentionedUser) {
-    topLevelMessage.entities = [mentionedUser];
-  }
+    if (mentionedUser) {
+      topLevelMessage.entities = [mentionedUser];
+    }
 
-  let ref = TurnContext.getConversationReference(context.activity);
-  ref.user = teamMember;
+    let ref = TurnContext.getConversationReference(context.activity);
+    ref.user = teamMember;
 
-  await context.adapter.createConversation(ref, async (t1) => {
-    const ref2 = TurnContext.getConversationReference(t1.activity);
-    await t1.adapter.continueConversation(ref2, async (t2) => {
-      await t2.sendActivity(topLevelMessage);
+    await context.adapter.createConversation(ref, async (t1) => {
+      const ref2 = TurnContext.getConversationReference(t1.activity);
+      await t1.adapter.continueConversation(ref2, async (t2) => {
+        await t2.sendActivity(topLevelMessage);
+      });
     });
-  });
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
 };
 
 const sendDirectMessageCard = async (
@@ -78,18 +83,27 @@ const sendDirectMessageCard = async (
   teamMember,
   approvalCardResponse
 ) => {
-  let ref = TurnContext.getConversationReference(context.activity);
-  ref.user = teamMember;
+  try {
+    let ref = TurnContext.getConversationReference(context.activity);
+    ref.user = teamMember;
 
-  await context.adapter.createConversation(ref, async (t1) => {
-    const ref2 = TurnContext.getConversationReference(t1.activity);
-    await t1.adapter.continueConversation(ref2, async (t2) => {
-      await t2.sendActivity({
-        attachments: [CardFactory.adaptiveCard(approvalCardResponse)],
+    await context.adapter.createConversation(ref, async (t1) => {
+      const ref2 = TurnContext.getConversationReference(t1.activity);
+      await t1.adapter.continueConversation(ref2, async (t2) => {
+        await t2.sendActivity({
+          attachments: [CardFactory.adaptiveCard(approvalCardResponse)],
+        });
       });
     });
-  });
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
 };
+
+const checkValidStatus = (statusCode) => {
+  const validStatusCodeArr = [200, 201, 202, 204];
+  return validStatusCodeArr.includes(Number(statusCode));
+}
 
 const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serviceUrl, tenantId, log) => {
   if (log == null) {
@@ -138,13 +152,45 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
       var credentials = new MicrosoftAppCredentials(appId, appPass);
       var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
-      const response = await connectorClient.conversations.createConversation(conversationParameters);
-      const activityId = await connectorClient.conversations.sendToConversation(response.id, activity);
+      const conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
 
-      resp.conversationId = response.id;
-      resp.activityId = activityId.id;
+      // HTTP status code	      Meaning
+      // 200	                  The request succeeded.
+      // 201	                  The request succeeded.
+      // 202	                  The request was accepted for processing.
+      // 204	                  The request succeeded but no content was returned.
+      // 400	                  The request was malformed or otherwise incorrect.
+      // 401	                  The bot isn't yet authenticated.
+      // 403	                  The bot isn't authorized to perform the requested operation.
+      // 404	                  The requested resource wasn't found.
+      // 405	                  The channel does not support the requested operation.
+      // 500	                  An internal server error occurred.
+      // 503	                  The service is temporarily unavailable.
 
-      log.addLog(`response object ${JSON.stringify(resp)}`);
+      let activityResp = null;
+      if (conversationResp != null && conversationResp._response != null && conversationResp._response.status != null) {
+        const isValidStatus = checkValidStatus(conversationResp._response.status);
+        if (conversationResp.id != null && isValidStatus) {
+          activityResp = await connectorClient.conversations.sendToConversation(conversationResp.id, activity);
+          if (activityResp != null && activityResp._response != null && activityResp._response.status != null) {
+            const isValidActivityStatus = checkValidStatus(activityResp._response.status);
+            if (activityResp.id != null && isValidActivityStatus) {
+              resp.conversationId = conversationResp.id;
+              resp.activityId = activityResp.id;
+
+              log.addLog(`response object ${JSON.stringify(resp)}`);
+            } else {
+              log.addLog(`Invalid activity or staus : ${activityResp?.id}  ${activityResp?._response?.status}`);
+            }
+          } else {
+            log.addLog("activityResp not valid");
+          }
+        } else {
+          log.addLog(`Invalid conversation or staus : ${conversationResp?.id}  ${conversationResp?._response?.status}`);
+        }
+      } else {
+        log.addLog("conversationResp not valid");
+      }
     }
   }
   catch (err) {
@@ -152,6 +198,7 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
     log.addLog(JSON.stringify(err));
     log.addLog(`Error occured for user: ${JSON.stringify(members)}`);
     console.log(err);
+    processSafetyBotError(err, "", "");
   }
   finally {
     log.addLog("sendProactiveMessaageToUser end");

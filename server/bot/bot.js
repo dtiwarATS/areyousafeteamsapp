@@ -45,43 +45,53 @@ const SELECTED_USERS = "selectedusers";
 const db = require("../db");
 
 const newIncident = require("../view/newIncident");
+const { processSafetyBotError } = require("../models/processError");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
-  const emailBody =
-    "Hi,<br/> <br />" +
-    "Below user has successfully installed AreYouSafe app in Microsoft Teams: <br />" +
-    "<b>User Name: </b>" +
-    userName +
-    "<br />" +
-    "<b>User Email: </b>" +
-    userEmailId +
-    "<br />" +
-    "<br /><br />" +
-    "Thank you, <br />" +
-    "AreYouSafe Support";
+  try {
+    const emailBody =
+      "Hi,<br/> <br />" +
+      "Below user has successfully installed AreYouSafe app in Microsoft Teams: <br />" +
+      "<b>User Name: </b>" +
+      userName +
+      "<br />" +
+      "<b>User Email: </b>" +
+      userEmailId +
+      "<br />" +
+      "<br /><br />" +
+      "Thank you, <br />" +
+      "AreYouSafe Support";
 
-  const subject = "AreYouSafe? Teams Bot | New Installation Details";
-  if (process.env.IS_EMAIL_SEND == 'true')
-    await sendEmail(userEmailId, subject, emailBody);
+    const subject = "AreYouSafe? Teams Bot | New Installation Details";
+    if (process.env.IS_EMAIL_SEND == 'true') {
+      await sendEmail(userEmailId, subject, emailBody);
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", userName);
+  }
 };
 
 const sendUninstallationEmail = async (userEmailId, userName) => {
-  const emailBody =
-    "Hi,<br/> <br />" +
-    "Below user has uninstalled AreYouSafe app in Microsoft Teams: <br />" +
-    "<b>User Name: </b>" +
-    userName +
-    "<br />" +
-    "<b>User Email: </b>" +
-    userEmailId +
-    "<br />" +
-    "<br /><br />" +
-    "Thank you, <br />" +
-    "AreYouSafe Support";
+  try {
+    const emailBody =
+      "Hi,<br/> <br />" +
+      "Below user has uninstalled AreYouSafe app in Microsoft Teams: <br />" +
+      "<b>User Name: </b>" +
+      userName +
+      "<br />" +
+      "<b>User Email: </b>" +
+      userEmailId +
+      "<br />" +
+      "<br /><br />" +
+      "Thank you, <br />" +
+      "AreYouSafe Support";
 
-  const subject = "AreYouSafe? Teams Bot | New Uninstallation Details";
-  if (process.env.IS_EMAIL_SEND == 'true') {
-    await sendEmail(userEmailId, subject, emailBody);
+    const subject = "AreYouSafe? Teams Bot | New Uninstallation Details";
+    if (process.env.IS_EMAIL_SEND == 'true') {
+      await sendEmail(userEmailId, subject, emailBody);
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", userName);
   }
 };
 
@@ -1749,7 +1759,8 @@ const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName 
 
     await sendEmail(emailVal, subject, emailBody);
   } catch (err) {
-    console.log(error);
+    console.log(err);
+    processSafetyBotError(err, "", "");
   }
 }
 

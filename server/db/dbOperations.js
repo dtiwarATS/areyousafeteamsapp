@@ -3,6 +3,7 @@ const db = require("../db");
 const Company = require("../models/Company");
 const Incident = require("../models/Incident");
 // const Member = require("../models/Member");
+const { processSafetyBotError } = require("../models/processError");
 
 const parseCompanyData = async (result) => {
   let parsedCompanyObj = {};
@@ -154,6 +155,7 @@ const getCompaniesData = async (
     return Promise.resolve(companyData);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "");
   }
 };
 
@@ -176,6 +178,7 @@ const removeTeamMember = async (teamId, userId) => {
     await pool.request().query(sqlRemoveMember);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "");
   }
 }
 
@@ -219,6 +222,7 @@ const addTeamMember = async (teamId, teamMembers) => {
     }
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "");
   }
   return isUserInfoSaved;
 }
@@ -247,11 +251,12 @@ const addTeamMember = async (teamId, teamMembers) => {
 // }
 
 const insertCompanyData = async (companyDataObj, allMembersInfo, conversationType) => {
+  const teamId = (companyDataObj.teamId == null || companyDataObj.teamId == '') ? '' : companyDataObj.teamId;
   try {
     console.log("inside insertCompanyData start");
 
     let values = Object.keys(companyDataObj).map((key) => companyDataObj[key]);
-    const teamId = (companyDataObj.teamId == null || companyDataObj.teamId == '') ? '' : companyDataObj.teamId;
+
     ///const res = await db.insertDataIntoDB("MSTeamsInstallationDetails", values);
     let res = null;
     // if (conversationType == "personal") {
@@ -353,6 +358,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
     }
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "");
   }
 };
 
@@ -387,6 +393,7 @@ const deleteCompanyData = async (teamId, userObjId) => {
     //await removeAllTeamMember(teamId);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "");
   }
   return isDelete;
 };
@@ -419,6 +426,7 @@ const updateSuperUserDataByUserAadObjId = async (userId, teamId, selectedUserStr
   } catch (err) {
     console.log(err);
     isUpdated = false;
+    processSafetyBotError(err, teamId, "");
   }
   return Promise.resolve(isUpdated);
 };
