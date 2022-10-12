@@ -12,21 +12,37 @@ const handlerForSafetyBotTab = (app) => {
         const tabObj = new tab.AreYouSafeTab();
         let isAdmin = false;
         const userObjId = req.query.userId;
-        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
-        dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
-            isAdmin = safetyInitiatorObj.isAdmin;
-            const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+
+        const hasValidLicense = await incidentService.hasValidLicense(userObjId);
+
+        if (!hasValidLicense) {
             const responseObj = {
-                safetyInitiator,
-                botUserInfo,
-                isAdmin
+                hasValidLicense,
+                safetyInitiator: null,
+                botUserInfo: null,
+                isAdmin: false
             }
             res.send(
                 responseObj
             );
-        }).catch(err => {
-            console.log(err);
-        });
+        } else {
+            const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
+            dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
+                isAdmin = safetyInitiatorObj.isAdmin;
+                const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+                const responseObj = {
+                    hasValidLicense,
+                    safetyInitiator,
+                    botUserInfo,
+                    isAdmin
+                }
+                res.send(
+                    responseObj
+                );
+            }).catch(err => {
+                console.log(err);
+            });
+        }
     });
 
     app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {

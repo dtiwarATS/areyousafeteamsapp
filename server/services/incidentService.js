@@ -804,7 +804,7 @@ const updateUserInfoFlag = async (installationIds) => {
 }
 
 const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias = "title") => {
-  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} and hasLicense = 1 ORDER BY [USER_NAME]`;
 }
 
 const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
@@ -872,7 +872,7 @@ const getAllTeamMembersByUserAadObjId = async (userAadObjId) => {
 const getTeamIdByUserAadObjId = async (userAadObjId) => {
   let teamId = null;
   try {
-    const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc`;
+    const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' and hasLicense = 1 order by id desc`;
     const result = await db.getDataFromDB(teamIdSql);
     if (result != null && result.length > 0) {
       teamId = result[0]["team_id"];
@@ -887,7 +887,7 @@ const getTeamIdByUserAadObjId = async (userAadObjId) => {
 const getUserInfo = async (teamId, useraadObjId) => {
   let result = null;
   try {
-    const sqlUserInfo = `select * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'`;
+    const sqlUserInfo = `select * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'  and hasLicense = 1`;
     result = await db.getDataFromDB(sqlUserInfo);
   } catch (err) {
     console.log(err);
@@ -976,6 +976,18 @@ const addError = async (botName, errorMessage, errorDetails, teamName, userName,
   }
 }
 
+const hasValidLicense = async (aadUserObjId) => {
+  let hasLicense = false;
+  try {
+    const sqlCheckLicense = `select hasLicense From MSTeamsTeamsUsers where hasLicense = 1 and user_aadobject_id = '${aadUserObjId}'`;
+    const result = await db.getDataFromDB(sqlCheckLicense);
+    hasLicense = (result != null && Array.isArray(result) && result.length > 0);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+  return Promise.resolve(hasLicense);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1019,5 +1031,6 @@ module.exports = {
   getIncResponseMembers,
   getIncSelectedMembers,
   updateMessageDeliveredStatus,
-  addError
+  addError,
+  hasValidLicense
 };

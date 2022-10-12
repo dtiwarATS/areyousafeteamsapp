@@ -275,11 +275,7 @@ const sendMsg = async (context) => {
     catch (error) {
       console.log(error);
     }
-
   });
-  // await context.sendActivity({
-  //   attachments: [CardFactory.adaptiveCard(card)],
-  // });
 };
 
 const createRecurrInc = async (context, user, companyData) => {
@@ -2019,7 +2015,7 @@ const addUserInfoByTeamId = async (context) => {
     if (teamId != null) {
       const allMembers = await getAllTeamMembers(context, teamId);
       if (allMembers != null) {
-        addTeamMember(teamId, allMembers);
+        await addTeamMember(teamId, allMembers);
       }
     }
   } catch (err) {
