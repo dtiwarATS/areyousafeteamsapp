@@ -46,6 +46,7 @@ const db = require("../db");
 
 const newIncident = require("../view/newIncident");
 const { processSafetyBotError } = require("../models/processError");
+const { getAfterUsrSubscribedTypeOneCard, getAfterUsrSubscribedTypeTwoCard } = require("./subscriptionCard");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -157,26 +158,51 @@ const selectResponseCard = async (context, user) => {
       await copyInc(context, user, action);
     } else if (verb === "closeInc" && isAdminOrSuperuser) {
       await showIncStatusConfirmationCard(context, action, "Closed");
-
     } else if (verb === "reopenInc" && isAdminOrSuperuser) {
       await showIncStatusConfirmationCard(context, action, "In progress");
-
     } else if (verb === "updateIncStatus" && isAdminOrSuperuser) {
       const adaptiveCard = await updateIncStatus(context, action);
       return Promise.resolve(adaptiveCard);
     } else if (verb === "confirmDeleteInc" && isAdminOrSuperuser) {
       await showIncDeleteConfirmationCard(context, action);
-
     } else if (verb === "add_user_info") {
       await addUserInfoByTeamId(context);
+    } else if (verb === "newUsrSubscriptionType1" && isAdminOrSuperuser) {
+      await processnewUsrSubscriptionType1(context, action);
+    } else if (verb === "newUsrSubscriptionType2" && isAdminOrSuperuser) {
+      await processnewUsrSubscriptionType2(context, action);
     }
-
-
     return Promise.resolve(true);
   } catch (error) {
     console.log("ERROR: ", error);
   }
 };
+
+const processnewUsrSubscriptionType1 = async (context, action) => {
+  try {
+    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard());
+
+    const message = MessageFactory.attachment(card);
+    message.id = context.activity.replyToId;
+    await context.updateActivity(message);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const processnewUsrSubscriptionType2 = async (context, action) => {
+  try {
+    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeTwoCard(context?.activity?.from?.name));
+    const message = MessageFactory.attachment(card);
+    message.id = context.activity.replyToId;
+    await context.updateActivity(message);
+
+    const tenantId = context?.activity?.conversation?.tenantId;
+    await incidentService.updateSubscriptionType(2, tenantId);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
 
 const updateUserInfo = async (context, teams, tenantId) => {
   try {

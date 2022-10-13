@@ -6,10 +6,12 @@ const poolPromise = require("../db/dbConn");
 const db = require("../db");
 const { getCron } = require("../utils");
 const parser = require("cron-parser");
-
+const { formatedDate } = require("../utils/index");
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 
 const { processSafetyBotError } = require("../models/processError");
+
+
 
 const parseEventData = async (result, updateRecurrMemebersResp = false) => {
   let parsedDataArr = [];
@@ -988,6 +990,25 @@ const hasValidLicense = async (aadUserObjId) => {
   return Promise.resolve(hasLicense);
 }
 
+const updateSubscriptionType = async (licenseType, tenantId) => {
+  try {
+    if (Number(licenseType) === 2 && tenantId != null) {
+      let currentDate = new Date();
+      const startDate = formatedDate("mm/dd/yyyy", currentDate);
+      currentDate.setDate(currentDate.getDate() + 45);
+      const expiryDate = formatedDate("mm/dd/yyyy", new Date(currentDate));
+      const sqlUpdate = `Update MSTeamsSubscriptionDetails set SubscriptionType = 2, SubscriptionDate = '${startDate}', 
+                          ExpiryDate = '${expiryDate}' where TenantId = '${tenantId}';
+                          
+                          Update MSTeamsTeamsUsers set hasLicense = 1 where tenantid =  '${tenantId}';
+                          `;
+      await db.getDataFromDB(sqlUpdate);
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1032,5 +1053,6 @@ module.exports = {
   getIncSelectedMembers,
   updateMessageDeliveredStatus,
   addError,
-  hasValidLicense
+  hasValidLicense,
+  updateSubscriptionType
 };
