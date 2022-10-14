@@ -1,5 +1,5 @@
 const {
-    saveLog
+    saveLog: saveLoginDB
 } = require("../db/dbOperations");
 
 class AYSLog {
@@ -22,7 +22,7 @@ class AYSLog {
             let logMessage = this.log.toString();
             logMessage = `<table>${logMessage}</table>`;
             const logSql = `insert into MSTeamsLog ([inc_id], [log], [datetime]) values (${incId}, '${logMessage}', GETDATE())`;
-            await saveLog(logSql);
+            await saveLoginDB(logSql);
         } catch (err) {
             console.log(err);
         }

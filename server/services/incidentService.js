@@ -1009,6 +1009,45 @@ const updateSubscriptionType = async (licenseType, tenantId) => {
   }
 }
 
+const updateFiveDayBeforeMessageSentFlag = async (id) => {
+  try {
+    const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isFiveDayBeforeMessageSent = 1 where ID = ${id}`;
+    await db.getDataFromDB(sqlCheckLicense);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const updateAfterExpiryMessageSentFlag = async (subscriptionId) => {
+  try {
+    const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isAfterExpiryMessageSent = 1 where ID = ${subscriptionId}`;
+    await db.updateDataIntoDB(sqlCheckLicense);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId) => {
+  try {
+    const sqlUpdate = `update MSTeamsSubscriptionDetails set SubscriptionType = 1 where ID = ${subscriptionId};
+      update MSTeamsTeamsUsers set hasLicense = 0 where user_aadobject_id not in (
+      select top 10 user_aadobject_id from MSTeamsTeamsUsers where hasLicense = 1 and tenantid = '${tenantId}'
+      order by user_name) and tenantid = '${tenantId}'`;
+    await db.updateDataIntoDB(sqlUpdate);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const updateSubcriptionProcessFlag = async (subscriptionId) => {
+  try {
+    const sqlUpdate = `update MSTeamsSubscriptionDetails set isProcessed = 1 where ID = ${subscriptionId};`;
+    await db.updateDataIntoDB(sqlUpdate);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1054,5 +1093,9 @@ module.exports = {
   updateMessageDeliveredStatus,
   addError,
   hasValidLicense,
-  updateSubscriptionType
+  updateSubscriptionType,
+  updateFiveDayBeforeMessageSentFlag,
+  updateAfterExpiryMessageSentFlag,
+  updateSubscriptionTypeToTypeOne,
+  updateSubcriptionProcessFlag
 };

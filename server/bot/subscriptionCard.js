@@ -27,72 +27,50 @@ const getOldWelcomeMessageCard = () => {
     // };
 }
 
-const getContactUSLinkTextBlockJSON = () => {
+const getContactUsBtnJSON = () => {
     return {
-        "type": "TextBlock",
-        "text": "[Contact us](mailto:help@safetybot.in)",
-        "wrap": true,
-        "iconUrl": "https://safetybot.in/img/help.png",
-        "color": "Attention",
+        "type": "ActionSet",
+        "actions": [
+            {
+                "type": "Action.OpenUrl",
+                "title": "Contact us",
+                "url": "mailto:help@safetybot.in",
+            }
+        ]
     }
 }
-const getFAQLinkColumnJSON = () => {
-    return [
-        {
-            "type": "Column",
-            "width": "auto",
-            "items": [
-                {
-                    "type": "TextBlock",
-                    "text": "[Frequently Asked Questions](https://safetybot.in/img/help.png)",
-                    "wrap": true,
-                    "color": "Attention"
-                }
-            ]
-        },
-        {
-            "type": "Column",
-            "width": "auto",
-            "items": [
-                {
-                    "type": "Image",
-                    "url": "https://safetybot.in/img/help.png"
-                }
-            ]
-        }
-    ];
+
+const getFAQBtnJSON = () => {
+    return {
+        "type": "ActionSet",
+        "actions": [
+            {
+                "type": "Action.OpenUrl",
+                "title": "Frequently Asked Questions",
+                "url": "https://safetybot.in/img/help.png",
+                "iconUrl": "https://safetybot.in/img/help.png"
+            }
+        ]
+    }
 }
 
-const getManageLicenseColumnJSON = () => {
-    return [
-        {
-            "type": "Column",
-            "width": "auto",
-            "items": [
-                {
-                    "type": "TextBlock",
-                    "text": "[Manage Licenses](https://safetybot.in/img/help.png)",
-                    "wrap": true,
-                    "color": "Attention"
-                }
-            ]
-        },
-        {
-            "type": "Column",
-            "width": "auto",
-            "items": [
-                {
-                    "type": "Image",
-                    "url": "https://safetybot.in/img/help.png"
-                }
-            ]
-        }
-    ]
+const getManageLicenseBtnJSON = () => {
+    return {
+        "type": "ActionSet",
+        "actions": [
+            {
+                "type": "Action.OpenUrl",
+                "title": "Manage Licenses",
+                "url": "https://safetybot.in/img/help.png",
+                "iconUrl": "https://safetybot.in/img/help.png"
+            }
+        ]
+    }
 }
 
 const getFaqAndContactUsColumnSetJSON = () => {
-    const faqLinkColumnJSON = getFAQLinkColumnJSON();
-    const contactUSLinkTextBlockJSON = getContactUSLinkTextBlockJSON();
+    const faqBtnJSON = getFAQBtnJSON();
+    const contactUsBtnJSON = getContactUsBtnJSON();
     return {
         "type": "ColumnSet",
         "columns": [
@@ -100,28 +78,34 @@ const getFaqAndContactUsColumnSetJSON = () => {
                 "type": "Column",
                 "width": "auto",
                 "items": [
-                    {
-                        "type": "ColumnSet",
-                        "columns": faqLinkColumnJSON
-                    }
+                    faqBtnJSON
                 ]
             },
             {
                 "type": "Column",
-                "width": "stretch",
+                "width": "auto",
                 "items": [
-                    contactUSLinkTextBlockJSON
-                ]
+                    contactUsBtnJSON
+                ],
+                "verticalContentAlignment": "Center"
             }
         ]
     }
 }
 
 const getManageLicenseColumnSet = () => {
-    const manageLicenseColumnJSON = getManageLicenseColumnJSON();
+    const manageLicenseBtnJSON = getManageLicenseBtnJSON();
     return {
         "type": "ColumnSet",
-        "columns": manageLicenseColumnJSON
+        "columns": [
+            {
+                "type": "Column",
+                "width": "auto",
+                "items": [
+                    manageLicenseBtnJSON
+                ]
+            }
+        ]
     }
 }
 
@@ -159,7 +143,7 @@ const getWelcomeMessageCard = (teamMemberCount) => {
     };
 }
 
-getSelectionSubcriptionCard = (teamMemberCount) => {
+const getSubcriptionSelectionCard = (teamMemberCount) => {
     return {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -194,9 +178,23 @@ getSelectionSubcriptionCard = (teamMemberCount) => {
     }
 }
 
-getAfterUsrSubscribedTypeOneCard = () => {
+const getHelfullLinkJSON = () => {
     const faqAndContactUsColumnSetJSON = getFaqAndContactUsColumnSetJSON();
     const manageLicenseColumnSet = getManageLicenseColumnSet();
+    return [
+        {
+            "type": "TextBlock",
+            "text": "Helpful links",
+            "wrap": true,
+            "separator": true
+        },
+        faqAndContactUsColumnSetJSON,
+        manageLicenseColumnSet
+    ];
+}
+
+const getAfterUsrSubscribedTypeOneCard = () => {
+    const helfullLinkJSON = getHelfullLinkJSON();
     const card = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         type: "AdaptiveCard",
@@ -207,20 +205,13 @@ getAfterUsrSubscribedTypeOneCard = () => {
                 "text": "Hello! Click on the **Dashboard tab** above to access all features.",
                 "wrap": true
             },
-            {
-                "type": "TextBlock",
-                "text": "Helpful links",
-                "wrap": true,
-                "separator": true
-            },
-            faqAndContactUsColumnSetJSON,
-            manageLicenseColumnSet
+            ...helfullLinkJSON
         ]
     };
     return card;
 }
 
-getAfterUsrSubscribedTypeTwoCard = (userName) => {
+const getAfterUsrSubscribedTypeTwoCard = (userName) => {
     const currentDate = new Date();
     currentDate.setDate(currentDate.getDate() + 45);
     const faqAndContactUsColumnSetJSON = getFaqAndContactUsColumnSetJSON();
@@ -251,9 +242,185 @@ getAfterUsrSubscribedTypeTwoCard = (userName) => {
     return card;
 }
 
+const getTypeTwoFiveDayBeforeCard = (expiryDate) => {
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `**Hello, Your 45-day free trial of the AreYouSafe? bot premium version is about to expire on ${expiryDate}**. After the trial has ended, you will be on the free version. AreYouSafe? bot will work for 10 users.`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com).",
+                "wrap": true
+            }
+        ]
+    }
+}
+
+const getTypeTwoSubscriptionEndCard = (expiryDate) => {
+    const helfullLinkJSON = getHelfullLinkJSON();
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `**Hello, Your 45-day free trial of the AreYouSafe? bot premium version has ended on ${expiryDate}.** You are now on the free version. AreYouSafe? bot will work for 10 users.`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com). ",
+                "wrap": true
+            },
+            ...helfullLinkJSON
+        ]
+    }
+}
+
+const getTypeThreeSubscriptionStartedCard = (userCount, startDate, endDate, userObj) => {
+    const mentionUserEntities = [
+        {
+            type: "mention",
+            text: `<at>${userObj.name}</at>`,
+            mentioned: userObj
+        }
+    ]
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `Hello, <at>${userObj.name}</at>`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": `Your AreYouSafe? bot **premium subscription is activated on ${startDate} for ${userCount} users** and expires on ${endDate}! `,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Type **Help** in your chat window If you are not sure of what to do next",
+                "wrap": true
+            }
+        ],
+        "msteams": {
+            "entities": mentionUserEntities
+        }
+    }
+}
+
+const getTypeThreeFiveDayBeforeOneTimePaymentCard = (userCount, expiryDate) => {
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `**Your AreYouSafe? bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!**`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com).",
+                "wrap": true
+            }
+        ]
+    }
+}
+
+const getTypeThreeFiveDayBeforeRecurringPaymentCard = (userCount, expiryDate) => {
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `**Your AreYouSafe? bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!** After that, your credit card will be charged $0.5 per user/month to continue the AreYouSafe? bot premium version.                `,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com).",
+                "wrap": true
+            },
+            {
+                "type": "ActionSet",
+                "actions": [
+                    {
+                        "type": "Action.Execute",
+                        "title": "I want to cancel my subscription",
+                        "verb": "cancelRecurringPaymentSubcription"
+                    }
+                ]
+            }
+        ]
+    }
+}
+
+const getCancelRecurringSubcriptionStepCard = () => {
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": "Follow these steps to cancel your subscription",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "1. Log in with the Microsoft account you have used to purchase your subscription \n2. Click Here and click on the **Buy a subscription** button \n3. Click on the **Manage subscriptions** link \n4. You will be navigated to the Microsoft 365 admin center page >> Under the Subscription status, Click on the **Cancel Subscription** link",
+                "wrap": true
+            }
+        ]
+    }
+}
+
+const getTypeThreeSubscriptionEndCard = (expiryDate) => {
+    const helfullLinkJSON = getHelfullLinkJSON();
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `**Your AreYouSafe? bot premium subscription has ended on ${expiryDate}.** You are now on the free version. AreYouSafe? bot will work for 10 users.`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com). ",
+                "wrap": true
+            },
+            ...helfullLinkJSON
+        ]
+    }
+}
+
 module.exports = {
     getWelcomeMessageCard,
-    getSelectionSubcriptionCard,
+    getSubcriptionSelectionCard,
     getAfterUsrSubscribedTypeOneCard,
-    getAfterUsrSubscribedTypeTwoCard
+    getAfterUsrSubscribedTypeTwoCard,
+    getTypeTwoFiveDayBeforeCard,
+    getTypeTwoSubscriptionEndCard,
+    getTypeThreeSubscriptionStartedCard,
+    getTypeThreeFiveDayBeforeOneTimePaymentCard,
+    getTypeThreeFiveDayBeforeRecurringPaymentCard,
+    getCancelRecurringSubcriptionStepCard,
+    getTypeThreeSubscriptionEndCard
 }

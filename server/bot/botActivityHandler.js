@@ -45,7 +45,7 @@ const {
 } = require("../models/UpdateCards");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
-const { getWelcomeMessageCard, getSelectionSubcriptionCard } = require("./subscriptionCard");
+const { getWelcomeMessageCard, getSubcriptionSelectionCard } = require("./subscriptionCard");
 
 class BotActivityHandler extends TeamsActivityHandler {
   constructor() {
@@ -737,7 +737,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount);
         await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
 
-        const subcriptionSelectionCard = getSelectionSubcriptionCard(teamMemberCount);
+        const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount);
         await sendDirectMessageCard(context, acvtivityData.from, subcriptionSelectionCard);
 
         let teamName = "";

@@ -6,6 +6,7 @@ const { formatedDate } = require("../utils");
 const incidentService = require("../services/incidentService");
 const moment = require("moment-timezone");
 const { AYSLog } = require("../utils/log");
+const { processSafetyBotError } = require("../models/processError");
 
 (async () => {
   //get filter job from database
@@ -22,12 +23,13 @@ const { AYSLog } = require("../utils/log");
     `AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2`;
 
   let jobsToBeExecutedArr = await db.getDataFromDB(sqlJob);
+  log.addLog(`jobsToBeExecutedArr length - ${jobsToBeExecutedArr.length}`);
   if (jobsToBeExecutedArr != null && jobsToBeExecutedArr.length > 0) {
+    let saveLog = false;
     // send msgs
     await Promise.all(
       jobsToBeExecutedArr.map(async (job) => {
-        // send teams msg and change the runAt time of the job to next interval
-        let saveLog = false;
+        // send teams msg and change the runAt time of the job to next interval        
         try {
 
           const { CRON: cron, TIMEZONE: timeZone, INC_ID: incId, SUB_EVENT_ID: subEventId, TEAM_ID: teamId, INC_NAME: incTitle, eventEndDate, eventEndTime } = job;
@@ -69,13 +71,13 @@ const { AYSLog } = require("../utils/log");
         } catch (err) {
           console.log(err);
           log.addLog(`Recurring inc error: ${err}`);
-        } finally {
-          if (saveLog) {
-            await log.saveLog();
-          }
+          processSafetyBotError(err, "", "");
         }
       })
     );
+    if (saveLog) {
+      await log.saveLog();
+    }
   }
 
   //console.log("recurr job : end");
