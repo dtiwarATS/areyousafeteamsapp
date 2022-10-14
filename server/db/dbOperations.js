@@ -256,10 +256,17 @@ const updateUserLicenseStatus = async (teamId, tenantId) => {
     Declare @remaningLicense integer = (10 - @licenseCount);
     If (@remaningLicense <= 10)
     begin 
-    update MSTeamsTeamsUsers set hasLicense  = 1 where id in 
-    (select top (@remaningLicense) id from MSTeamsTeamsUsers 
-    where tenantid = '${tenantId}' order by [user_name])
-    and team_id = '${teamId}'
+
+    update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
+    select top (@remaningLicense) user_aadobject_id from MSTeamsTeamsUsers where user_aadobject_id not in (
+        select distinct user_aadobject_id 
+        from MSTeamsTeamsUsers 
+        where hasLicense = 1 and tenantid = '${tenantId}'
+      ) and tenantid = '${tenantId}' and team_id = '${teamId}' order by [user_name]
+    )
+    and tenantid = '${tenantId}'
+
+    
     end`;
     await pool.request().query(sqlUpdateLicenseStatus);
   } catch (err) {
