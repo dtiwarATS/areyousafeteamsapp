@@ -266,7 +266,11 @@ const updateUserLicenseStatus = async (teamId, tenantId) => {
     )
     and tenantid = '${tenantId}'
 
-    
+    --Update user license in other teams in same tenant
+    update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (select distinct user_aadobject_id 
+      from MSTeamsTeamsUsers 
+      where hasLicense = 1 and tenantid = '${tenantId}');
+
     end`;
     await pool.request().query(sqlUpdateLicenseStatus);
   } catch (err) {
@@ -307,7 +311,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
     BEGIN
       IF EXISTS (SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}')
       BEGIN
-        UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null WHERE user_obj_id = '${companyDataObj.userObjId}';
+        --UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null WHERE user_obj_id = '${companyDataObj.userObjId}';
         SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}';
       END
       ELSE 

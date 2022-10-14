@@ -737,8 +737,10 @@ class BotActivityHandler extends TeamsActivityHandler {
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount);
         await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
 
-        const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount);
-        await sendDirectMessageCard(context, acvtivityData.from, subcriptionSelectionCard);
+        if (teamMemberCount > 10) {
+          const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount);
+          await sendDirectMessageCard(context, acvtivityData.from, subcriptionSelectionCard);
+        }
 
         let teamName = "";
         if (acvtivityData.channelData != null && acvtivityData.channelData.team != null && acvtivityData.channelData.team.name != null) {
