@@ -1,4 +1,4 @@
-const { insertIncidentData } = require("../db/dbOperations");
+const { checkUserHasValidLicense } = require("../db/dbOperations");
 const Member = require("../models/Member");
 const Incident = require("../models/Incident");
 
@@ -981,9 +981,7 @@ const addError = async (botName, errorMessage, errorDetails, teamName, userName,
 const hasValidLicense = async (aadUserObjId) => {
   let hasLicense = false;
   try {
-    const sqlCheckLicense = `select hasLicense From MSTeamsTeamsUsers where hasLicense = 1 and user_aadobject_id = '${aadUserObjId}'`;
-    const result = await db.getDataFromDB(sqlCheckLicense);
-    hasLicense = (result != null && Array.isArray(result) && result.length > 0);
+    hasLicense = checkUserHasValidLicense(aadUserObjId);
   } catch (err) {
     processSafetyBotError(err, "", "");
   }

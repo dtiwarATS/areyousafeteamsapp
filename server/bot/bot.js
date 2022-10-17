@@ -270,26 +270,20 @@ const sendMsg = async (context) => {
     "type": "AdaptiveCard",
     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
     "version": "1.4",
-    "appId": process.env.MicrosoftAppId,
     "body": [
       {
         "type": "TextBlock",
-        "text": "Hello there, we have added a cool new features recently.",
+        "text": "Hello there, we have introduced AreYouSafe? bot premium subscription with unlimited user access starting from 1st November 2022. However, **you are getting 1-year free premium subscription** as a thank you for being our beta users and helping us improve AreYouSafe? Bot with your valuable feedback.",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "Admins can **copy** incident from the dashboard tab",
+        "text": "Type **Help** in your chat window to continue using AreYouSafe? bot premium for unlimited users.",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "To access this feature in: \n\n1. **Chat:** Go to the Chat section >> AreYouSafe? Bot >> Dashboard tab \n\n2. **Team:** Go to the Teams section >> Go to the General channel under the team for which AreYouSafe? Bot is installed >> AreYouSafe? tab",
-        "wrap": true
-      },
-      {
-        "type": "TextBlock",
-        "text": "**Contact us**: [help@safetybot.in](mailto:help@safetybot.in) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        "text": "**Contact us**: [help@safetybot.in](mailto:help@safetybot.in) \n\nWith Gratitude,\n\nAreYouSafe Support",
         "wrap": true
       }
     ]

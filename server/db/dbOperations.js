@@ -1,8 +1,6 @@
 const poolPromise = require("./dbConn");
 const db = require("../db");
 const Company = require("../models/Company");
-const Incident = require("../models/Incident");
-// const Member = require("../models/Member");
 const { processSafetyBotError } = require("../models/processError");
 
 const parseCompanyData = async (result) => {
@@ -125,6 +123,23 @@ const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false
     console.log(err);
   }
 };
+
+const getCheckUserLicenseQuery = (userAadObjId) => {
+  return `select top 1 hasLicense from msteamsteamsusers where user_aadobject_id = '${userAadObjId}' and isNull(hasLicense, 0) = 1`;
+}
+
+const checkUserHasValidLicense = async (userAadObjId) => {
+  let hasLicense = false;
+  try {
+    const checkUserLicenseQuery = getCheckUserLicenseQuery(userAadObjId);
+    const res = await db.getDataFromDB(checkUserLicenseQuery);
+    hasLicense = (res != null && res.length > 0 && res[0]["hasLicense"] != null && res[0]["hasLicense"] === true);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "");
+  }
+  return Promise.resolve(hasLicense);
+}
 
 const getCompaniesData = async (
   userObjId,
@@ -491,5 +506,6 @@ module.exports = {
   deleteCompanyDataByuserAadObjId,
   verifyAdminUserForDashboardTab,
   getCompanyDataByTeamId,
-  updateSuperUserDataByUserAadObjId
+  updateSuperUserDataByUserAadObjId,
+  checkUserHasValidLicense
 };

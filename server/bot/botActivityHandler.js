@@ -25,7 +25,8 @@ const {
   addTeamMember,
   removeTeamMember,
   removeAllTeamMember,
-  deleteCompanyDataByuserAadObjId
+  deleteCompanyDataByuserAadObjId,
+  checkUserHasValidLicense
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
@@ -65,19 +66,22 @@ class BotActivityHandler extends TeamsActivityHandler {
     // Registers an activity event handler for the message event, emitted for every incoming message activity.
     this.onMessage(async (context, next) => {
       let isSuperUser = false;
-      let isAdminOrSuperuser = false;
       const acvtivityData = context.activity;
       if (acvtivityData.text == "sendversionupdate") {
         await bot.sendMsg(context);
       }
-      // else if (acvtivityData.text == "sendtestmessage") {
-      //   await bot.sendtestmessage();
-      // }
       else {
         await context.sendActivities([{ type: "typing" }]);
         if (acvtivityData.conversation.conversationType === "channel") {
           await this.hanldeChannelUserMsg(context);
         } else if (acvtivityData.conversation.conversationType === "personal") {
+
+          const hasLicense = await checkUserHasValidLicense(acvtivityData.from.aadObjectId);
+          if (!hasLicense) {
+            await this.notifyUserForInvalidLicense(context);
+            return;
+          }
+
           let isInstalledInTeam = true;
           let companyData = await getCompaniesData(
             acvtivityData.from.aadObjectId
@@ -88,8 +92,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           }
 
           const isAdmin = await isAdminUser(
-            acvtivityData.from.aadObjectId,
-            companyData?.teamId
+            acvtivityData.from.aadObjectId
           );
 
           if (isAdmin && isInstalledInTeam) {
@@ -123,75 +126,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           } else {
             await this.hanldeNonAdminUserMsg(context);
           }
-          /*
-          let a = false;
-          let b = false;
-          let c = false;
-          let isInstalledInTeam = true;
-          // fetch  general channel id from db (ie same as team Id)
-          let companyData = await getCompaniesData(
-            acvtivityData.from.aadObjectId
-          );
-          if (!companyData.teamId?.length) {
-            isInstalledInTeam = false;
-          }
-          if (companyData.userId == undefined) {
-            a = true;
-            companyData = await getCompaniesDataBySuperUserId(
-              acvtivityData.from.aadObjectId
-            );
-            if (companyData.userId == undefined) {
-              b = true;
-            }
-          }
-          if (!companyData.teamId?.length) {
-            isInstalledInTeam = false;
-          }
-          const isAdmin = await isAdminUser(
-            acvtivityData.from.aadObjectId,
-            companyData?.teamId
-          );
-          if (
-            (companyData.userId != undefined && companyData.teamId?.length > 0) ||
-            (isAdmin && isInstalledInTeam)
-          ) {
-            isSuperUser =
-              (companyData.superUsers &&
-                companyData.superUsers.some(
-                  (su) => su === acvtivityData.from.aadObjectId
-                )) ||
-                isAdmin
-                ? true
-                : false;
-  
-            // check if from.id matches user id stored in DB then proceed
-            if (acvtivityData.from.id === companyData.userId || isSuperUser) {
-              isAdminOrSuperuser = true;
-              await this.hanldeAdminOrSuperUserMsg(context, companyData);
-            } else {
-              await this.hanldeNonAdminUserMsg(context);
-            }
-          } else if (a && b && !isAdmin) {
-            await this.hanldeNonAdminUserMsg(context);
-          } else {
-            // fetch  general channel id from db (ie same as team Id)
-            const companyData = await getCompaniesData(
-              acvtivityData.from.aadObjectId,
-              acvtivityData?.channelData?.tenant.id,
-              true
-            );
-            if (
-              companyData.userId != undefined &&
-              companyData.teamId?.length > 0 && companyData.superUsers.includes(acvtivityData.from.aadObjectId)
-            ) {
-              await this.hanldeNonAdminUserMsg(context);
-            } else {
-              bot.sendIntroductionMessage(context, acvtivityData.from);
-            }
-          }
-          */
         }
-
         await next();
       }
     });
@@ -324,6 +259,19 @@ class BotActivityHandler extends TeamsActivityHandler {
         await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
       }
     });
+  }
+
+  async notifyUserForInvalidLicense(context) {
+    try {
+      await context.sendActivity(
+        MessageFactory.text(
+          `It looks like you are on the FREE version of the AreYouSafe? bot. Please contact your safety initiator to get access.`
+        )
+      );
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(err, "", "");
+    }
   }
 
   async onInstallationUpdateActivity(context) {
