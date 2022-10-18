@@ -10,7 +10,6 @@ const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const {
     getTypeTwoFiveDayBeforeCard,
     getTypeThreeFiveDayBeforeOneTimePaymentCard,
-    getTypeThreeFiveDayBeforeRecurringPaymentCard,
     getTypeTwoSubscriptionEndCard,
     getTypeThreeSubscriptionEndCard
 } = require("../bot/subscriptionCard");
@@ -33,6 +32,7 @@ const { processSafetyBotError } = require("../models/processError");
                             const subscriptionType = job.SubscriptionType;
                             const memberCount = job.memberCount != null ? job.memberCount : 0;
                             const expiryDate = job.ExpiryDate;
+                            const teamId = job.team_id;
 
                             let card = null;
                             if (subscriptionType == 2) {
@@ -60,7 +60,7 @@ const { processSafetyBotError } = require("../models/processError");
                                 await incidentService.updateFiveDayBeforeMessageSentFlag(job.ID);
                             } else if (subcriptionMessage == "afterSubcriptionEnd") {
                                 if (job.tenantid != null) {
-                                    await incidentService.updateSubscriptionTypeToTypeOne(job.tenantid, job.ID);
+                                    await incidentService.updateSubscriptionTypeToTypeOne(job.tenantid, job.ID, teamId);
                                     await incidentService.updateAfterExpiryMessageSentFlag(job.ID);
                                 }
                             }
@@ -90,7 +90,7 @@ const { processSafetyBotError } = require("../models/processError");
     sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate,
     (select count (user_aadobject_id) from (
     select distinct user_aadobject_id from MSTeamsTeamsUsers where tenantid = usr.tenantid and hasLicense = 1
-    ) t) memberCount
+    ) t) memberCount, inst.team_id
     from MSTeamsSubscriptionDetails sd
     left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
     left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
@@ -99,7 +99,7 @@ const { processSafetyBotError } = require("../models/processError");
     await sendProactiveMessage(sqlFiveDayBeforeExpiry, "fiveDayBeforeExpiry");
 
     let sqlAfterSubcriptionEnd = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, usr.tenantid, inst.serviceUrl, sd.SubscriptionType, 
-    sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate
+    sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate, inst.team_id
     from MSTeamsSubscriptionDetails sd
     left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
     left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId

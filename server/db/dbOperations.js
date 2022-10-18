@@ -265,42 +265,47 @@ const addTeamMember = async (teamId, teamMembers) => {
 //   }
 // }
 
-const updateUserLicenseStatus = async (teamId, tenantId) => {
+const updateUserLicenseStatus = async (teamId, tenantId, userObjId) => {
   try {
-    const sqlUpdateLicenseStatus = `Declare @licenseCount integer = (select count(id) from MSTeamsTeamsUsers where tenantid = '${tenantId}' and hasLicense = 1 );
-    Declare @remaningLicense integer = (10 - @licenseCount);
-    If (@remaningLicense <= 10)
-    begin 
+    // const sqlUpdateLicenseStatus = `Declare @licenseCount integer = (select count(id) from MSTeamsTeamsUsers where tenantid = '${tenantId}' and team_id = '${teamId}' and hasLicense = 1 );
+    // Declare @remaningLicense integer = (10 - @licenseCount);
+    // If (@remaningLicense <= 10)
+    // begin 
 
-    update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
-    select top (@remaningLicense) user_aadobject_id from MSTeamsTeamsUsers where user_aadobject_id not in (
-        select distinct user_aadobject_id 
-        from MSTeamsTeamsUsers 
-        where hasLicense = 1 and tenantid = '${tenantId}'
-      ) and tenantid = '${tenantId}' and team_id = '${teamId}' order by [user_name]
-    )
-    and tenantid = '${tenantId}'
+    // update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
+    // select top (@remaningLicense) user_aadobject_id from MSTeamsTeamsUsers where user_aadobject_id not in (
+    //     select distinct user_aadobject_id 
+    //     from MSTeamsTeamsUsers 
+    //     where hasLicense = 1 and tenantid = '${tenantId}' and team_id = '${teamId}'
+    //   ) and tenantid = '${tenantId}' and team_id = '${teamId}' order by (case when user_aadobject_id = '${userObjId}' 
+    //   then 0 else 1 end), [user_name]
+    // )
+    // and tenantid = '${tenantId}' and team_id = '${teamId}'
 
-    --Update user license in other teams in same tenant
-    update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (select distinct user_aadobject_id 
-      from MSTeamsTeamsUsers 
-      where hasLicense = 1 and tenantid = '${tenantId}');
-
-    end`;
+    // end`;
+    const sqlUpdateLicenseStatus = `update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
+      select top 10 user_aadobject_id from MSTeamsTeamsUsers where user_aadobject_id not in (
+          select distinct user_aadobject_id 
+          from MSTeamsTeamsUsers 
+          where hasLicense = 1 and tenantid = '${tenantId}' and team_id = '${teamId}'
+        ) and tenantid = '${tenantId}' and team_id = '${teamId}' order by (case when user_aadobject_id = '${userObjId}' 
+        then 0 else 1 end), [user_name]
+      )
+      and tenantid = '${tenantId}' and team_id = '${teamId}'`;
     await pool.request().query(sqlUpdateLicenseStatus);
   } catch (err) {
     processSafetyBotError(err, teamId, "");
   }
 }
 
-const addSubscriptionDetails = async (subscriptionType, tenantId, userEmailId, userAadObjId) => {
+const addTypeOneSubscriptionDetails = async (tenantId, userEmailId, userAadObjId) => {
   try {
-    const sqlSubscriptionDetails = `If Not Exists (select ID from MSTeamsSubscriptionDetails where tenantId = '${tenantId}')
+    const sqlSubscriptionDetails = `If Not Exists (select ID from MSTeamsSubscriptionDetails where UserAadObjId = '${userAadObjId}')
     Begin
       Declare @pkId integer;
 
-      INSERT INTO MSTeamsSubscriptionDetails ([SubscriptionType], [TenantId], [UserEmailId], [UserAadObjId])
-      VALUES (${subscriptionType}, '${tenantId}', '${userEmailId}', '${userAadObjId}');
+      INSERT INTO MSTeamsSubscriptionDetails ([SubscriptionType], [TenantId], [UserEmailId], [UserAadObjId], [UserLimit], [isProcessed])
+      VALUES (1, '${tenantId}', '${userEmailId}', '${userAadObjId}', 10, 1);
 
       set @pkId = (SELECT SCOPE_IDENTITY());
 
@@ -364,8 +369,8 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
       if (isUserInfoSaved && Number(installationId) > 0) {
         const sqlUpdateUserInfo = `update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id in (${installationId})`;
         await db.updateDataIntoDB(sqlUpdateUserInfo);
-        await updateUserLicenseStatus(teamId, companyDataObj.userTenantId);
-        await addSubscriptionDetails(1, companyDataObj.userTenantId, companyDataObj.email, companyDataObj.userObjId);
+        await updateUserLicenseStatus(teamId, companyDataObj.userTenantId, companyDataObj.userObjId);
+        await addTypeOneSubscriptionDetails(companyDataObj.userTenantId, companyDataObj.email, companyDataObj.userObjId);
       }
     }
     console.log("inside insertCompanyData end");
