@@ -18,7 +18,8 @@ const {
   sendDirectMessageCard,
   sendProactiveMessaageToUser,
   updateMessage,
-  addLog
+  addLog,
+  getAllTeamMembersByConnectorClient
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
@@ -2040,6 +2041,39 @@ const addUserInfoByTeamId = async (context) => {
     }
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const addteamsusers = async (context) => {
+  try {
+    const allCompanyData = await incidentService.getAllCompanyData();
+    let sqlUpdateIsUserInfoSavedFlag = "";
+    if (allCompanyData != null && allCompanyData.length > 0) {
+      await Promise.all(
+        allCompanyData.forEach(async (cmpData) => {
+          try {
+            const { id, team_id: teamid, serviceUrl } = cmpData;
+            const allTeamMembers = await getAllTeamMembersByConnectorClient(teamid, serviceUrl);
+            if (allTeamMembers != null && allTeamMembers.length > 0) {
+              const isUserInfoSaved = await addTeamMember(teamid, allTeamMembers);
+              if (isUserInfoSaved) {
+                sqlUpdateIsUserInfoSavedFlag += ` update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id = ${id}; `;
+              }
+            }
+          } catch (err) {
+            console.log(err);
+            processSafetyBotError(err, "", "");
+          }
+        })
+      );
+      if (sqlUpdateIsUserInfoSavedFlag != "") {
+        await incidentService.updateDataIntoDB(sqlUpdateIsUserInfoSavedFlag);
+      }
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "");
   }
 }
 
@@ -2060,5 +2094,6 @@ module.exports = {
   sendSafetyCheckMessage,
   sendNewContactEmail,
   sendUninstallationEmail,
-  sendtestmessage
+  sendtestmessage,
+  addteamsusers
 };

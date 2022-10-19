@@ -1056,6 +1056,27 @@ const updateSubcriptionProcessFlag = async (subscriptionId) => {
   }
 }
 
+const getAllCompanyData = async () => {
+  let result = null;
+  try {
+    const sqlAllCompanyData = `SELECT * FROM MSTEAMSINSTALLATIONDETAILS WHERE (ISUSERINFOSAVED = 0 OR ISUSERINFOSAVED IS NULL) 
+                                and team_id is not null and team_id <> '' and email not like '%onmicrosoft.com%' 
+                                and uninstallation_date is null`;
+    result = await db.getDataFromDB(sqlAllCompanyData);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+  return Promise.resolve(result);
+}
+
+const updateDataIntoDB = async (sqlUpdate) => {
+  try {
+    await db.updateDataIntoDB(sqlUpdate);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1105,5 +1126,7 @@ module.exports = {
   updateFiveDayBeforeMessageSentFlag,
   updateAfterExpiryMessageSentFlag,
   updateSubscriptionTypeToTypeOne,
-  updateSubcriptionProcessFlag
+  updateSubcriptionProcessFlag,
+  getAllCompanyData,
+  updateDataIntoDB
 };

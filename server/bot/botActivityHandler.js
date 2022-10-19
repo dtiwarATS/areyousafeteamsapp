@@ -69,6 +69,11 @@ class BotActivityHandler extends TeamsActivityHandler {
       const acvtivityData = context.activity;
       if (acvtivityData.text == "sendversionupdate") {
         await bot.sendMsg(context);
+      } else if (acvtivityData.text == "addteamsusers") {
+        const tenantId = acvtivityData?.conversation?.tenantId;
+        if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
+          await bot.addteamsusers();
+        }
       }
       else {
         await context.sendActivities([{ type: "typing" }]);
