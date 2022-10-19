@@ -27,6 +27,14 @@ const getOldWelcomeMessageCard = () => {
     // };
 }
 
+const subscriptionLink = "https://teams.microsoft.com/l/app/884e521a-dadc-41e9-a8af-fcaa907e783e?source=app-details-dialog";
+
+const subcriptionLinkJSON = {
+    "type": "TextBlock",
+    "text": `If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](${subscriptionLink}).`,
+    "wrap": true
+}
+
 const getContactUsBtnJSON = () => {
     return {
         "type": "ActionSet",
@@ -256,11 +264,7 @@ const getTypeTwoFiveDayBeforeCard = (expiryDate) => {
                 "text": `**Hello, Your 45-day free trial of the AreYouSafe? bot premium version is about to expire on ${expiryDate}**. After the trial has ended, you will be on the free version. AreYouSafe? bot will work for 10 users.`,
                 "wrap": true
             },
-            {
-                "type": "TextBlock",
-                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com).",
-                "wrap": true
-            }
+            subcriptionLinkJSON
         ]
     }
 }
@@ -277,11 +281,7 @@ const getTypeTwoSubscriptionEndCard = (expiryDate, userEmailId) => {
                 "text": `**Hello, Your 45-day free trial of the AreYouSafe? bot premium version has ended on ${expiryDate}.** You are now on the free version. AreYouSafe? bot will work for 10 users.`,
                 "wrap": true
             },
-            {
-                "type": "TextBlock",
-                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com). ",
-                "wrap": true
-            },
+            subcriptionLinkJSON,
             ...helfullLinkJSON
         ]
     }
@@ -333,11 +333,7 @@ const getTypeThreeFiveDayBeforeOneTimePaymentCard = (userCount, expiryDate) => {
                 "text": `**Your AreYouSafe? bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!**`,
                 "wrap": true
             },
-            {
-                "type": "TextBlock",
-                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com).",
-                "wrap": true
-            }
+            subcriptionLinkJSON
         ]
     }
 }
@@ -353,11 +349,7 @@ const getTypeThreeFiveDayBeforeRecurringPaymentCard = (userCount, expiryDate) =>
                 "text": `**Your AreYouSafe? bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!** After that, your credit card will be charged $0.5 per user/month to continue the AreYouSafe? bot premium version.                `,
                 "wrap": true
             },
-            {
-                "type": "TextBlock",
-                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com).",
-                "wrap": true
-            },
+            subcriptionLinkJSON,
             {
                 "type": "ActionSet",
                 "actions": [
@@ -404,11 +396,7 @@ const getTypeThreeSubscriptionEndCard = (expiryDate, userEmailId) => {
                 "text": `**Your AreYouSafe? bot premium subscription has ended on ${expiryDate}.** You are now on the free version. AreYouSafe? bot will work for 10 users.`,
                 "wrap": true
             },
-            {
-                "type": "TextBlock",
-                "text": "If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](https://google.com). ",
-                "wrap": true
-            },
+            subcriptionLinkJSON,
             ...helfullLinkJSON
         ]
     }

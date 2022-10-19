@@ -1025,12 +1025,22 @@ const updateAfterExpiryMessageSentFlag = async (subscriptionId) => {
   }
 }
 
-const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId) => {
+const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId, userObjId) => {
   try {
     const sqlUpdate = `update MSTeamsSubscriptionDetails set SubscriptionType = 1 where ID = ${subscriptionId};
-      update MSTeamsTeamsUsers set hasLicense = 0 where user_aadobject_id not in (
-      select user_aadobject_id from MSTeamsTeamsUsers where hasLicense = 1 and tenantid = '${tenantId}' and team_id = '${teamId}'
-      order by user_name) and tenantid = '${tenantId}'`;
+
+    update MSTeamsTeamsUsers set hasLicense = 0 where user_aadobject_id in (
+      select user_aadobject_id from MSTeamsTeamsUsers where hasLicense = 1 
+      and tenantid = '${tenantId}' and team_id = '${teamId}'
+      ) and tenantid = '${tenantId}';
+    
+      update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
+      select top 10 user_aadobject_id from MSTeamsTeamsUsers where tenantid = '${tenantId}'
+      and team_id = '${teamId}'
+      order by (case when user_aadobject_id = '${userObjId}' 
+      then 0 else 1 end), user_name
+      ) and tenantid = '${tenantId}';
+      `;
     await db.updateDataIntoDB(sqlUpdate);
   } catch (err) {
     processSafetyBotError(err, "", "");

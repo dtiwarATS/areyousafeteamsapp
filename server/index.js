@@ -32,7 +32,6 @@ function initJob() {
         name: "subscription-job",
         path: path.join(__dirname, 'jobs', 'subscription-job.js'),
         cron: "*/1 * * * *"
-
       }
     ],
   });

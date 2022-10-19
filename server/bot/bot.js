@@ -273,7 +273,7 @@ const sendMsg = async (context) => {
     "body": [
       {
         "type": "TextBlock",
-        "text": "Hello there, we have introduced AreYouSafe? bot premium subscription with unlimited user access starting from 1st November 2022. However, **you are getting 1-year free premium subscription** as a thank you for being our beta users and helping us improve AreYouSafe? Bot with your valuable feedback.",
+        "text": `Hello there, we have introduced AreYouSafe? bot premium subscription with unlimited user access starting from ${formatedDate("mm/dd/yyyy", (new Date()))}. However, **you are getting 1-year free premium subscription** as a thank you for being our beta users and helping us improve AreYouSafe? bot with your valuable feedback.`,
         "wrap": true
       },
       {

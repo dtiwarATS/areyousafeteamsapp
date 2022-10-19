@@ -30,7 +30,8 @@ const { processSafetyBotError } = require("../models/processError");
                             log.addLog(`start subscription ID - ${job.ID}`);
                             log.addLog(`job obj - ${JSON.stringify(job)}`);
                             const memberCount = job.memberCount != null ? job.memberCount : 0;
-                            const { ExpiryDate: expiryDate, team_id: teamId, email: userEmailId, SubscriptionType: subscriptionType } = job;
+                            const { ExpiryDate: expiryDate, team_id: teamId, email: userEmailId, SubscriptionType: subscriptionType,
+                                user_aadobject_id: userAadObjId } = job;
 
                             let card = null;
                             if (subscriptionType == 2) {
@@ -58,7 +59,7 @@ const { processSafetyBotError } = require("../models/processError");
                                 await incidentService.updateFiveDayBeforeMessageSentFlag(job.ID);
                             } else if (subcriptionMessage == "afterSubcriptionEnd") {
                                 if (job.tenantid != null) {
-                                    await incidentService.updateSubscriptionTypeToTypeOne(job.tenantid, job.ID, teamId);
+                                    await incidentService.updateSubscriptionTypeToTypeOne(job.tenantid, job.ID, teamId, userAadObjId);
                                     await incidentService.updateAfterExpiryMessageSentFlag(job.ID);
                                 }
                             }

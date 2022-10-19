@@ -14,8 +14,8 @@ const updateMainCard = (companyData) => {
         actions: [
           {
             "type": "Action.OpenUrl",
-            "url": "https://safetybot.in/Safetybot-Teams_User_Guide.pdf",
-            "title": "User Guide",
+            "title": "Frequently Asked Questions",
+            "url": "https://safetybot.in/frequently_asked_questions.html",
             "iconUrl": "https://safetybot.in/img/help.png"
           }
         ],
