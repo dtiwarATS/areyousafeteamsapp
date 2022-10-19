@@ -168,7 +168,7 @@ const selectResponseCard = async (context, user) => {
     } else if (verb === "add_user_info") {
       await addUserInfoByTeamId(context);
     } else if (verb === "newUsrSubscriptionType1" && isAdminOrSuperuser) {
-      await processnewUsrSubscriptionType1(context, action);
+      await processnewUsrSubscriptionType1(context, action, companyData);
     } else if (verb === "newUsrSubscriptionType2" && isAdminOrSuperuser) {
       await processnewUsrSubscriptionType2(context, action);
     }
@@ -178,9 +178,9 @@ const selectResponseCard = async (context, user) => {
   }
 };
 
-const processnewUsrSubscriptionType1 = async (context, action) => {
+const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
   try {
-    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard());
+    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard(companyData.userEmail));
 
     const message = MessageFactory.attachment(card);
     message.id = context.activity.replyToId;

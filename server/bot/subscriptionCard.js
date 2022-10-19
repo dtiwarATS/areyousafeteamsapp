@@ -47,21 +47,21 @@ const getFAQBtnJSON = () => {
             {
                 "type": "Action.OpenUrl",
                 "title": "Frequently Asked Questions",
-                "url": "https://safetybot.in/img/help.png",
+                "url": "https://safetybot.in/frequently_asked_questions.html",
                 "iconUrl": "https://safetybot.in/img/help.png"
             }
         ]
     }
 }
 
-const getManageLicenseBtnJSON = () => {
+const getManageLicenseBtnJSON = (userEmailId) => {
     return {
         "type": "ActionSet",
         "actions": [
             {
                 "type": "Action.OpenUrl",
                 "title": "Manage Licenses",
-                "url": "https://safetybot.in/img/help.png",
+                "url": `https://areyousafesubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${userEmailId}`,
                 "iconUrl": "https://safetybot.in/img/help.png"
             }
         ]
@@ -93,8 +93,8 @@ const getFaqAndContactUsColumnSetJSON = () => {
     }
 }
 
-const getManageLicenseColumnSet = () => {
-    const manageLicenseBtnJSON = getManageLicenseBtnJSON();
+const getManageLicenseColumnSet = (userEmailId) => {
+    const manageLicenseBtnJSON = getManageLicenseBtnJSON(userEmailId);
     return {
         "type": "ColumnSet",
         "columns": [
@@ -109,7 +109,7 @@ const getManageLicenseColumnSet = () => {
     }
 }
 
-const getWelcomeMessageCard = (teamMemberCount) => {
+const getWelcomeMessageCard = (teamMemberCount, userEmailId) => {
     const faqAndContactUsColumnSetJSON = getFaqAndContactUsColumnSetJSON();
     const body = [
         {
@@ -132,7 +132,7 @@ const getWelcomeMessageCard = (teamMemberCount) => {
     ]
 
     if (teamMemberCount > 10) {
-        const manageLicenseColumnSet = getManageLicenseColumnSet();
+        const manageLicenseColumnSet = getManageLicenseColumnSet(userEmailId);
         body.push(manageLicenseColumnSet);
     }
     return {
@@ -143,7 +143,7 @@ const getWelcomeMessageCard = (teamMemberCount) => {
     };
 }
 
-const getSubcriptionSelectionCard = (teamMemberCount) => {
+const getSubcriptionSelectionCard = (teamMemberCount, companyData) => {
     return {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -160,7 +160,10 @@ const getSubcriptionSelectionCard = (teamMemberCount) => {
                     {
                         "type": "Action.Execute",
                         "title": "Continue with the free version (10 users)",
-                        "verb": "newUsrSubscriptionType1"
+                        "verb": "newUsrSubscriptionType1",
+                        "data": {
+                            companyData
+                        }
                     }
                 ]
             },
@@ -178,9 +181,9 @@ const getSubcriptionSelectionCard = (teamMemberCount) => {
     }
 }
 
-const getHelfullLinkJSON = () => {
+const getHelfullLinkJSON = (userEmailId) => {
     const faqAndContactUsColumnSetJSON = getFaqAndContactUsColumnSetJSON();
-    const manageLicenseColumnSet = getManageLicenseColumnSet();
+    const manageLicenseColumnSet = getManageLicenseColumnSet(userEmailId);
     return [
         {
             "type": "TextBlock",
@@ -193,8 +196,8 @@ const getHelfullLinkJSON = () => {
     ];
 }
 
-const getAfterUsrSubscribedTypeOneCard = () => {
-    const helfullLinkJSON = getHelfullLinkJSON();
+const getAfterUsrSubscribedTypeOneCard = (userEmailId) => {
+    const helfullLinkJSON = getHelfullLinkJSON(userEmailId);
     const card = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         type: "AdaptiveCard",
@@ -262,8 +265,8 @@ const getTypeTwoFiveDayBeforeCard = (expiryDate) => {
     }
 }
 
-const getTypeTwoSubscriptionEndCard = (expiryDate) => {
-    const helfullLinkJSON = getHelfullLinkJSON();
+const getTypeTwoSubscriptionEndCard = (expiryDate, userEmailId) => {
+    const helfullLinkJSON = getHelfullLinkJSON(userEmailId);
     return {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -389,8 +392,8 @@ const getCancelRecurringSubcriptionStepCard = () => {
     }
 }
 
-const getTypeThreeSubscriptionEndCard = (expiryDate) => {
-    const helfullLinkJSON = getHelfullLinkJSON();
+const getTypeThreeSubscriptionEndCard = (expiryDate, userEmailId) => {
+    const helfullLinkJSON = getHelfullLinkJSON(userEmailId);
     return {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",

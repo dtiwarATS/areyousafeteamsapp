@@ -29,23 +29,21 @@ const { processSafetyBotError } = require("../models/processError");
                         try {
                             log.addLog(`start subscription ID - ${job.ID}`);
                             log.addLog(`job obj - ${JSON.stringify(job)}`);
-                            const subscriptionType = job.SubscriptionType;
                             const memberCount = job.memberCount != null ? job.memberCount : 0;
-                            const expiryDate = job.ExpiryDate;
-                            const teamId = job.team_id;
+                            const { ExpiryDate: expiryDate, team_id: teamId, email: userEmailId, SubscriptionType: subscriptionType } = job;
 
                             let card = null;
                             if (subscriptionType == 2) {
                                 if (subcriptionMessage == "fiveDayBeforeExpiry") {
                                     card = getTypeTwoFiveDayBeforeCard(expiryDate);
                                 } else if (subcriptionMessage == "afterSubcriptionEnd") {
-                                    card = getTypeTwoSubscriptionEndCard(expiryDate);
+                                    card = getTypeTwoSubscriptionEndCard(expiryDate, userEmailId);
                                 }
                             } else if (subscriptionType == 3) {
                                 if (subcriptionMessage == "fiveDayBeforeExpiry") {
                                     card = getTypeThreeFiveDayBeforeOneTimePaymentCard(memberCount, expiryDate);
                                 } else if (subcriptionMessage == "afterSubcriptionEnd") {
-                                    card = getTypeThreeSubscriptionEndCard(expiryDate);
+                                    card = getTypeThreeSubscriptionEndCard(expiryDate, userEmailId);
                                 }
                             }
                             const member = [{
@@ -90,7 +88,7 @@ const { processSafetyBotError } = require("../models/processError");
     sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate,
     (select count (user_aadobject_id) from (
     select distinct user_aadobject_id from MSTeamsTeamsUsers where tenantid = usr.tenantid and hasLicense = 1
-    ) t) memberCount, inst.team_id
+    ) t) memberCount, inst.team_id, usr.email
     from MSTeamsSubscriptionDetails sd
     left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
     left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
@@ -99,7 +97,7 @@ const { processSafetyBotError } = require("../models/processError");
     await sendProactiveMessage(sqlFiveDayBeforeExpiry, "fiveDayBeforeExpiry");
 
     let sqlAfterSubcriptionEnd = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, usr.tenantid, inst.serviceUrl, sd.SubscriptionType, 
-    sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate, inst.team_id
+    sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate, inst.team_id, usr.email
     from MSTeamsSubscriptionDetails sd
     left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
     left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId

@@ -682,11 +682,11 @@ class BotActivityHandler extends TeamsActivityHandler {
       const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(acvtivityData.from.aadObjectId);
 
       if (!isWelcomeMessageSent) {
-        const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount);
+        const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, companyData.userEmail);
         await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
 
         if (teamMemberCount > 10) {
-          const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount);
+          const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount, companyData);
           await sendDirectMessageCard(context, acvtivityData.from, subcriptionSelectionCard);
         }
 
