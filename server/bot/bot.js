@@ -44,6 +44,7 @@ require("dotenv").config({ path: ENV_FILE });
 const ALL_USERS = "allusers";
 const SELECTED_USERS = "selectedusers";
 const db = require("../db");
+const { AYSLog } = require("../utils/log");
 
 const newIncident = require("../view/newIncident");
 const { processSafetyBotError } = require("../models/processError");
@@ -1988,7 +1989,7 @@ const sendIntroductionMessage = async (context, from) => {
       },
       {
         type: "TextBlock",
-        text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? Bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
+        text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
         wrap: true,
       },
       {
@@ -2046,24 +2047,31 @@ const addUserInfoByTeamId = async (context) => {
 }
 
 const addteamsusers = async (context) => {
+  const log = new AYSLog();
   try {
+    log.addLog(`addteamsusers Start`);
     const allCompanyData = await incidentService.getAllCompanyData();
     let sqlUpdateIsUserInfoSavedFlag = "";
     if (allCompanyData != null && allCompanyData.length > 0) {
       await Promise.all(
-        allCompanyData.forEach(async (cmpData) => {
+        allCompanyData.map(async (cmpData, index) => {
+          const { id, team_id: teamid, serviceUrl } = cmpData;
           try {
-            const { id, team_id: teamid, serviceUrl } = cmpData;
+            log.addLog(`Inside loop start teamid : ${JSON.stringify(teamid)}`);
+
             const allTeamMembers = await getAllTeamMembersByConnectorClient(teamid, serviceUrl);
             if (allTeamMembers != null && allTeamMembers.length > 0) {
               const isUserInfoSaved = await addTeamMember(teamid, allTeamMembers);
               if (isUserInfoSaved) {
                 sqlUpdateIsUserInfoSavedFlag += ` update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id = ${id}; `;
               }
+              log.addLog(`isUserInfoSaved: ${isUserInfoSaved}`);
             }
           } catch (err) {
-            console.log(err);
+            log.addLog(`addteamsusers Error inside loop error details: ${JSON.stringify(err)}`);
             processSafetyBotError(err, "", "");
+          } finally {
+            log.addLog(`Inside loop start teamid : ${JSON.stringify(teamid)}`);
           }
         })
       );
@@ -2072,8 +2080,12 @@ const addteamsusers = async (context) => {
       }
     }
   } catch (err) {
+    log.addLog(`addteamsusers Error ${JSON.stringify(err)}`);
     console.log(err);
     processSafetyBotError(err, "", "");
+  } finally {
+    log.addLog(`addteamsusers End`);
+    await log.saveLog();
   }
 }
 

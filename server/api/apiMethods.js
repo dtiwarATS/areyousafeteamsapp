@@ -33,7 +33,7 @@ const getAllTeamMembersByConnectorClient = async (teamId, serviceUrl) => {
     var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
     const allTeamMembersData = await connectorClient.conversations.getConversationMembers(teamId);
-    const allTeamsMembers = allTeamMembersData.filter((tm) => tm.aadObjectId);
+    const allTeamsMembers = allTeamMembersData.filter((tm) => tm.objectId);
     return Promise.resolve(allTeamsMembers);
   }
   catch (err) {

@@ -13,7 +13,8 @@ class Company {
     welcomeMessageSent,
     isUpdate,
     isUserInfoSaved,
-    serviceUrl
+    serviceUrl,
+    membersCount
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -29,6 +30,7 @@ class Company {
     this.isUpdate = (isUpdate == null) ? "false" : isUpdate;
     this.isUserInfoSaved = isUserInfoSaved;
     this.serviceUrl = serviceUrl;
+    this.membersCount = membersCount;
   }
 }
 
