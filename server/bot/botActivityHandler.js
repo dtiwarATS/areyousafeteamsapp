@@ -192,7 +192,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               (m) => m.id === membersAdded[i].id
             );
             const teamMembers = [teamMember];
-            await addTeamMember(teamId, teamMembers);
+            await addTeamMember(teamId, teamMembers, true);
           }
         }
       } // if bot/member is installed/added

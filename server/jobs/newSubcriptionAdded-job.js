@@ -64,9 +64,7 @@ const { processSafetyBotError } = require("../models/processError");
 
     let sqlNewSubcription = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, usr.tenantid, inst.serviceUrl, sd.SubscriptionType, 
     sd.TermUnit, convert(varchar, sd.SubscriptionDate, 101) SubscriptionDate, convert(varchar, sd.ExpiryDate, 101) ExpiryDate,
-    (select count (user_aadobject_id) from (
-    select distinct user_aadobject_id from MSTeamsTeamsUsers where tenantid = usr.tenantid and hasLicense = 1
-    ) t) memberCount
+    sd.UserLimit memberCount
     from MSTeamsSubscriptionDetails sd
     left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
     left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId

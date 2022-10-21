@@ -208,28 +208,49 @@ const removeAllTeamMember = async (teamId) => {
   }
 }
 
-const addTeamMember = async (teamId, teamMembers) => {
+const teamMemberInsertQuery = (teamId, m) => {
+  return `
+    IF NOT EXISTS (SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}')
+    BEGIN
+      INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [userPrincipalName], [email], [tenantid], [userRole])
+      VALUES ('${teamId}', '${m.objectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${m.email}', '${m.tenantId}', '${m.userRole}');
+    END
+    ELSE IF EXISTS (SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}' AND userPrincipalName is null)
+    BEGIN
+      UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${m.email}', tenantid = '${m.tenantId}', userRole = '${m.userRole}'
+      WHERE team_id = '${teamId}'
+    AND [user_aadobject_id] = '${m.objectId}'
+    END `;
+}
+
+const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
   let isUserInfoSaved = false;
   try {
     let sqlInserUsers = "";
     pool = await poolPromise;
-    await Promise.all(
-      teamMembers.map(
-        async (m) => {
-          sqlInserUsers += ` IF NOT EXISTS (SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}') ` +
-            ` BEGIN ` +
-            ` INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [userPrincipalName], [email], [tenantid], [userRole]) ` +
-            ` VALUES ('${teamId}', '${m.objectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${m.email}', '${m.tenantId}', '${m.userRole}'); ` +
-            ` END ` +
-            ` ELSE IF EXISTS (SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}' AND userPrincipalName is null) ` +
-            ` BEGIN ` +
-            ` UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${m.email}', tenantid = '${m.tenantId}', userRole = '${m.userRole}' ` +
-            ` WHERE team_id = '${teamId}' ` +
-            ` AND [user_aadobject_id] = '${m.objectId}' ` +
-            ` END `;
-        }
-      )
-    );
+
+    if (updateLicense) {
+      teamMembers.map((m, index) => {
+        sqlInserUsers += teamMemberInsertQuery(teamId, m);
+
+        sqlInserUsers += ` Declare @userLimit${index} int, @licensedUsed${index} int
+        select top 1 @userLimit${index} = UserLimit, @licensedUsed${index}= (select count(distinct user_aadobject_id) from MSTeamsTeamsUsers 
+        where tenantid = '${m.tenantId}' and hasLicense = 1)  from MSTeamsInstallationDetails A
+        left join MSTeamsSubscriptionDetails B on A.SubscriptionDetailsId = B.id
+        where team_id = '${teamId}'
+        
+        Declare @hasLicense bit  = (select case when  @userLimit${index} > 0 AND @licensedUsed${index} > 0 AND @licensedUsed${index} < @userLimit${index} then 1 else null end)
+        if (@hasLicense = 1) 
+        begin
+          update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id = '${m.objectId}'
+        end `;
+
+      });
+    } else {
+      teamMembers.map((m) => {
+        sqlInserUsers += teamMemberInsertQuery(teamId, m);
+      });
+    }
 
     if (sqlInserUsers != "") {
       console.log(sqlInserUsers);
