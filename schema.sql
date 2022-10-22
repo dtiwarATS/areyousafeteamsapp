@@ -436,3 +436,51 @@ BEGIN
 ALTER TABLE MSTeamsTeamsUsers ADD hasLicense BIT NULL
 END
 GO
+-----------------
+-----------------Paid version changes Start---------------------
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsSubscriptionDetails')
+BEGIN
+	CREATE TABLE MSTeamsSubscriptionDetails (
+	[ID] INT IDENTITY(100001,1) NOT NULL,	
+	[Timestamp] NVARCHAR(128) NULL,
+	[Action] NVARCHAR(128) NULL,
+	[SubscriptionDate] Date NULL,
+	[ExpiryDate] Date NULL,
+	[isProcessed] bit NULL,
+	[SubJson] NVARCHAR(max) NULL,	
+	[SubscriptionId] NVARCHAR(256) NULL,
+	[SubscriptionType] INTEGER NULL,
+	[TenantId] NVARCHAR(256) NULL,
+	[UserEmailId] NVARCHAR(256) NULL,
+	[UserLimit] INTEGER NULL,
+	[UserAadObjId] NVARCHAR(256) NULL,
+	[TermUnit] NVARCHAR(20) NULL,
+	[isFiveDayBeforeMessageSent] BIT NULL,
+	[isAfterExpiryMessageSent] BIT NULL
+
+	CONSTRAINT PK_MSTeamsSubscriptionDetails PRIMARY KEY CLUSTERED 
+	(
+		ID ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+	) ON [PRIMARY]
+END
+GO
+
+-------------------msteamsinstallationdetails-----------
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='SubscriptionDetailsId' AND TABLE_NAME='msteamsinstallationdetails')
+BEGIN
+ALTER TABLE msteamsinstallationdetails ADD [SubscriptionDetailsId] INTEGER NULL
+
+ALTER TABLE [DBO].msteamsinstallationdetails  WITH NOCHECK ADD  CONSTRAINT [FK_msteamsinstallationdetails_SubscriptionDetailsId] FOREIGN KEY(SubscriptionDetailsId)
+REFERENCES [DBO].MSTeamsSubscriptionDetails (ID)
+ALTER TABLE [DBO].msteamsinstallationdetails CHECK CONSTRAINT [FK_msteamsinstallationdetails_SubscriptionDetailsId]
+
+END
+GO
+-------------------MSTeamsAssistance-----------
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='hasLicense' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD hasLicense BIT NULL
+END
+GO
+-----------------Paid version changes End-----------------------

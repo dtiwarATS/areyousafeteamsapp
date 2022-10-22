@@ -163,6 +163,7 @@ const insertDataIntoDB = async (tableName, values) => {
 const updateDataIntoDB = async (query) => {
   try {
     // console.log("update query => ", query);
+    pool = await poolPromise;
     const res = await pool.request().query(query);
     return Promise.resolve(res);
   } catch (err) {

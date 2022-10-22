@@ -26,12 +26,15 @@ const {
   removeTeamMember,
   removeAllTeamMember,
   deleteCompanyDataByuserAadObjId,
-  checkUserHasValidLicense
+  checkUserHasValidLicense,
+  updateIsUserInfoSaved,
+  getCompanyDataByTenantId
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
   sendDirectMessageCard,
-  getAllTeamMembers
+  getAllTeamMembers,
+  getAllTeamMembersByConnectorClient
 } = require("../api/apiMethods");
 
 const {
@@ -91,6 +94,33 @@ class BotActivityHandler extends TeamsActivityHandler {
           let companyData = await getCompaniesData(
             acvtivityData.from.aadObjectId
           );
+
+          try {
+            if (companyData != null && acvtivityData != null && companyData.teamId != null) {
+              if (companyData.serviceUrl == null || companyData.serviceUrl == "") {
+                await bot.updateServiceUrl(context, companyData.userTenantId);
+              }
+
+              if (!companyData.isUserInfoSaved) {
+                const companyDataofSameTenantId = await getCompanyDataByTenantId(companyData.userTenantId, "and (isUserInfoSaved is null or isUserInfoSaved = 0)");
+                if (companyDataofSameTenantId != null && companyDataofSameTenantId.length > 0) {
+                  await Promise.all(
+                    companyDataofSameTenantId.map(async (cmpData) => {
+                      const allTeamMembers = await getAllTeamMembersByConnectorClient(cmpData.team_id, acvtivityData.serviceUrl);
+                      if (allTeamMembers != null && allTeamMembers.length > 0) {
+                        const isUserInfoSaved = await addTeamMember(cmpData.team_id, allTeamMembers, false);
+                        if (isUserInfoSaved) {
+                          await updateIsUserInfoSaved(cmpData.id, cmpData.team_id, cmpData.user_tenant_id, true);
+                        }
+                      }
+                    })
+                  );
+                }
+              }
+            }
+          } catch (err) {
+            processSafetyBotError(err, "", "");
+          }
 
           if (!companyData.teamId?.length) {
             isInstalledInTeam = false;

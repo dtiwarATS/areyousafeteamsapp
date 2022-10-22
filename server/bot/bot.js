@@ -227,8 +227,9 @@ const updateUserInfo = async (context, teams, tenantId) => {
   }
 }
 
-const updateServiceUrl = async (context, teams) => {
+const updateServiceUrl = async (context, tenantId) => {
   try {
+    const teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
     if (teams != null && teams.length > 0) {
       const serviceUrl = context.activity.serviceUrl;
       let installationids = [];
@@ -245,19 +246,12 @@ const updateServiceUrl = async (context, teams) => {
 }
 
 const invokeMainActivityBoard = async (context, companyData) => {
-  const tenantId = companyData.userTenantId;
-  let teams = null;
-  if (companyData != null && companyData.serviceUrl == null) {
-    teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
-    await updateServiceUrl(context, teams);
-  }
-
-  if (companyData != null && companyData.isUserInfoSaved == null) {
-    if (teams == null) {
-      teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
-    }
-    await updateUserInfo(context, teams);
-  }
+  // if (companyData != null && companyData.isUserInfoSaved == null) {
+  //   if (teams == null) {
+  //     teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
+  //   }
+  //   await updateUserInfo(context, teams);
+  // }
 
   return updateMainCard(companyData);
 };
@@ -2107,5 +2101,6 @@ module.exports = {
   sendNewContactEmail,
   sendUninstallationEmail,
   sendtestmessage,
-  addteamsusers
+  addteamsusers,
+  updateServiceUrl
 };
