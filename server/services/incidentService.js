@@ -38,6 +38,7 @@ const parseEventData = async (result, updateRecurrMemebersResp = false) => {
                 member.response_value = recurrMemberResp.response_valueR;
                 member.comment = recurrMemberResp.commentR;
                 member.is_message_delivered = recurrMemberResp.is_message_deliveredR;
+                member.msgStatus = recurrMemberResp.msgStatusR;
               } else {
                 member = {
                   ...member,
@@ -136,7 +137,8 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
 
   let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-  m.comment, m.timestamp, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.is_message_delivered is_message_deliveredR, inc.INC_STATUS_ID, tu.userPrincipalName
+  m.comment, m.timestamp, m.message_delivery_status msgStatus, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
+  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, inc.INC_STATUS_ID, tu.userPrincipalName
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
@@ -429,8 +431,8 @@ const deleteInc = async (incId) => {
 const addMemberResponseDetails = async (respDetailsObj) => {
   try {
     console.log("test addMemberResponseDetails");
-    const recurrRespQuery = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId) 
-          values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', 1, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}')`;
+    const recurrRespQuery = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
+          values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', ${respDetailsObj.isDelivered}, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}', ${respDetailsObj.status}, '${respDetailsObj.error}')`;
 
     console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
@@ -957,13 +959,21 @@ const isWelcomeMessageSend = async (userObjId) => {
 
 }
 
-const updateMessageDeliveredStatus = async (incId, userId, isMessageDelivered) => {
+const updateMessageDeliveredStatus = async (incId, userId, isMessageDelivered, msgResp) => {
   let result = null;
   try {
-    const sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered} where inc_id = ${incId} and user_id = '${userId}';`
+    let sqlUpdate = '';
+    if (isMessageDelivered == 1) {
+      sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 1 where inc_id = ${incId} and user_id = '${userId}';`;
+    } else {
+      const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+      const error = (msgResp?.error == null) ? null : msgResp?.error;
+      sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 0, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
+    }
     result = await db.getDataFromDB(sqlUpdate);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "");
   }
   return Promise.resolve(result);
 }

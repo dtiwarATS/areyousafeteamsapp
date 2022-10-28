@@ -112,7 +112,9 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
   log.addLog("sendProactiveMessaageToUser start");
   let resp = {
     "conversationId": null,
-    "activityId": null
+    "activityId": null,
+    "status": null,
+    "error": null
   };
   try {
     if (serviceUrl == null) {
@@ -175,18 +177,21 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
           if (activityResp != null && activityResp._response != null && activityResp._response.status != null) {
             const isValidActivityStatus = checkValidStatus(activityResp._response.status);
             if (activityResp.id != null && isValidActivityStatus) {
+              resp.status = activityResp?._response?.status;
               resp.conversationId = conversationResp.id;
               resp.activityId = activityResp.id;
 
               log.addLog(`response object ${JSON.stringify(resp)}`);
             } else {
               log.addLog(`Invalid activity or staus : ${activityResp?.id}  ${activityResp?._response?.status}`);
+              resp.status = activityResp?._response?.status;
             }
           } else {
             log.addLog("activityResp not valid");
           }
         } else {
           log.addLog(`Invalid conversation or staus : ${conversationResp?.id}  ${conversationResp?._response?.status}`);
+          resp.status = conversationResp?._response?.status;
         }
       } else {
         log.addLog("conversationResp not valid");
@@ -194,11 +199,18 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
     }
   }
   catch (err) {
+    if (err.code.toLowerCase() == "conversationblockedbyuser") {
+
+    }
+    if (err?.statusCode != null) {
+      resp.status = err.statusCode;
+    }
     log.addLog("sendProactiveMessaageToUser error : ");
     log.addLog(JSON.stringify(err));
     log.addLog(`Error occured for user: ${JSON.stringify(members)}`);
     console.log(err);
     processSafetyBotError(err, "", "");
+    resp.error = JSON.stringify(err);
   }
   finally {
     log.addLog("sendProactiveMessaageToUser end");

@@ -1437,7 +1437,9 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
         }];
         const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-          await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 1);
+          await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 1, msgResp);
+        } else {
+          await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 0, msgResp);
         }
       }
       log.addLog("Send Safety Check End");
@@ -1925,14 +1927,24 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
         }];
         const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
 
+        const conversationId = (msgResp?.conversationId == null) ? null : Number(msgResp?.conversationId);
+        const activityId = (msgResp?.activityId == null) ? null : Number(msgResp?.activityId);
+        const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+        const error = (msgResp?.error == null) ? null : msgResp?.error;
+        const isDelivered = (activityId != null) ? 1 : 0;
+        const respDetailsObj = {
+          memberResponsesId: subEventObj.eventMembers[i].id,
+          runAt: subEventObj.runAt,
+          conversationId: dashboardResponse.conversationId,
+          activityId: dashboardResponse.activityId,
+          status,
+          error,
+          isDelivered
+        }
+        await incidentService.addMemberResponseDetails(respDetailsObj);
+
         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-          const respDetailsObj = {
-            memberResponsesId: subEventObj.eventMembers[i].id,
-            runAt: subEventObj.runAt,
-            conversationId: dashboardResponse.conversationId,
-            activityId: dashboardResponse.activityId
-          }
-          await incidentService.addMemberResponseDetails(respDetailsObj);
+
         }
       }
 
@@ -1961,6 +1973,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
   } catch (err) {
     //successflag = false;
     console.log(err);
+    processSafetyBotError(err, "", "");
   }
   return successflag;
 }

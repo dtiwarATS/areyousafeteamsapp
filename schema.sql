@@ -466,6 +466,12 @@ BEGIN
 END
 GO
 
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isLicenseAssignedForExistingUser' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD isLicenseAssignedForExistingUser BIT NULL
+END
+GO
+
 -------------------msteamsinstallationdetails-----------
 IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='SubscriptionDetailsId' AND TABLE_NAME='msteamsinstallationdetails')
 BEGIN
@@ -484,3 +490,14 @@ ALTER TABLE MSTeamsTeamsUsers ADD hasLicense BIT NULL
 END
 GO
 -----------------Paid version changes End-----------------------
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='message_delivery_status' AND TABLE_NAME='MSTeamsMemberResponses')
+BEGIN
+ALTER TABLE MSTeamsMemberResponses ADD message_delivery_status int NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='message_delivery_error' AND TABLE_NAME='MSTeamsMemberResponses')
+BEGIN
+ALTER TABLE MSTeamsMemberResponses ADD message_delivery_error NVARCHAR(max) NULL
+END
+GO
