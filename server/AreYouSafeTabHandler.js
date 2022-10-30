@@ -13,36 +13,29 @@ const handlerForSafetyBotTab = (app) => {
         let isAdmin = false;
         const userObjId = req.query.userId;
 
-        const hasValidLicense = await incidentService.hasValidLicense(userObjId);
+        let responseObj = {
+            isInstalledInTeam: true
+        }
 
-        if (!hasValidLicense) {
-            const responseObj = {
-                hasValidLicense,
-                safetyInitiator: null,
-                botUserInfo: null,
-                isAdmin: false
-            }
+        const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
+        dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then(async (safetyInitiatorObj) => {
+            isAdmin = safetyInitiatorObj.isAdmin;
+            responseObj.isAdmin = isAdmin;
+            responseObj.hasValidLicense = await incidentService.hasValidLicense(userObjId);
+
+            let { isInstalledInTeam } = await incidentService.isBotInstalledInTeam(userObjId);
+
+            responseObj.isInstalledInTeam = isInstalledInTeam;
+            responseObj.safetyInitiator = safetyInitiatorObj.safetyInitiator;
+            responseObj.botUserInfo = botUserInfo;
+
             res.send(
                 responseObj
             );
-        } else {
-            const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
-            dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
-                isAdmin = safetyInitiatorObj.isAdmin;
-                const safetyInitiator = safetyInitiatorObj.safetyInitiator;
-                const responseObj = {
-                    hasValidLicense,
-                    safetyInitiator,
-                    botUserInfo,
-                    isAdmin
-                }
-                res.send(
-                    responseObj
-                );
-            }).catch(err => {
-                console.log(err);
-            });
-        }
+            return;
+        }).catch(err => {
+            console.log(err);
+        });
     });
 
     app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {

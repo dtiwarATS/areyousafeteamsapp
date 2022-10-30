@@ -1,4 +1,4 @@
-const { checkUserHasValidLicense } = require("../db/dbOperations");
+const { checkUserHasValidLicense, getCompaniesData, getCompaniesDataBySuperUserId } = require("../db/dbOperations");
 const Member = require("../models/Member");
 const Incident = require("../models/Incident");
 
@@ -991,7 +991,7 @@ const addError = async (botName, errorMessage, errorDetails, teamName, userName,
 const hasValidLicense = async (aadUserObjId) => {
   let hasLicense = false;
   try {
-    hasLicense = checkUserHasValidLicense(aadUserObjId);
+    hasLicense = await checkUserHasValidLicense(aadUserObjId);
   } catch (err) {
     processSafetyBotError(err, "", "");
   }
@@ -1087,6 +1087,33 @@ const updateDataIntoDB = async (sqlUpdate) => {
   }
 }
 
+const isBotInstalledInTeam = async (userAadObjId) => {
+  let companyData = null, isInstalledInTeam = true, isSuperUser = false;
+  try {
+    companyData = await getCompaniesData(
+      userAadObjId
+    );
+
+    if (!companyData.teamId?.length) {
+      isInstalledInTeam = false;
+    }
+
+    if (!isInstalledInTeam) {
+      companyData = await getCompaniesDataBySuperUserId(
+        userAadObjId, true
+      );
+      if (companyData != null && companyData !== undefined && companyData.teamId?.length > 0) {
+        isSuperUser = true;
+        isInstalledInTeam = true;
+      }
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "");
+  }
+  return { companyData, isInstalledInTeam, isSuperUser };
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1138,5 +1165,6 @@ module.exports = {
   updateSubscriptionTypeToTypeOne,
   updateSubcriptionProcessFlag,
   getAllCompanyData,
-  updateDataIntoDB
+  updateDataIntoDB,
+  isBotInstalledInTeam
 };

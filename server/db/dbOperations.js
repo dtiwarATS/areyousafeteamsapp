@@ -42,13 +42,13 @@ const isAdminUser = async (userObjId) => {
   try {
     selectQuery = "";
     let adminUserLogin = false;
-    selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}'`; //If bot is added using 'Add Me', team Id is always blank. Hence removed 'team-id' from where condition
+    selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and uninstallation_date is null`; //If bot is added using 'Add Me', team Id is always blank. Hence removed 'team-id' from where condition
 
     let res = await db.getDataFromDB(selectQuery);
     // check if the user is super user or not
     if (!res || res.length == 0) {
       res = await db.getDataFromDB(
-        `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%'`
+        `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%' and uninstallation_date is null`
       );
     }
 
@@ -67,8 +67,8 @@ const isAdminUser = async (userObjId) => {
 const getSafetyInitiatorOfNonAdminUser = async (userObjId) => {
   let safetyInitiator = null;
   try {
-    const sqlInitiator = `select top 1 user_name from MSTeamsInstallationDetails where team_id in ( ` +
-      ` select top 1 team_id from MSTeamsTeamsUsers where user_aadobject_id = '${userObjId}' )`;
+    const sqlInitiator = `select top 1 user_name from MSTeamsInstallationDetails where team_id in (
+      select top 1 team_id from MSTeamsTeamsUsers where user_aadobject_id = '${userObjId}' ) and uninstallation_date is null`;
 
     let safetyInitiatorData = await db.getDataFromDB(sqlInitiator);
 
@@ -96,7 +96,7 @@ const verifyAdminUserForDashboardTab = async (userObjId) => {
 const getInstallationData = async () => {
   try {
     selectQuery = `with distinct_email as( SELECT email, MIN(id) ID
-    FROM  MSTeamsInstallationDetails where email not like '%@M365x%' and  user_name!= 'MOD Administrator'
+    FROM  MSTeamsInstallationDetails where email not like '%@M365x%' and  user_name!= 'MOD Administrator' and uninstallation_date is null
     GROUP BY email  )
     
     select t.user_id 'id',t.user_name 'name',t.user_obj_id 'objectId',t.user_name 'givenName',t.email 'email',t.email 'userPrincipalName',t.user_tenant_id 'tenantId','user' 'userRole',t.user_obj_id 'aadObjectId' from distinct_email de left join  MSTeamsInstallationDetails t on t.id=de.id`; //If bot is added using 'Add Me', team Id is always blank. Hence removed 'team-id' from where condition
@@ -114,7 +114,7 @@ const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false
     selectQuery = "";
     let companyData = {};
     const filter = (filterByTeamId) ? ' and team_id is not null' : ' ';
-    selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${superUserId}%'  ${filter}`;
+    selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${superUserId}%'  ${filter} and uninstallation_date is null`;
 
     let res = await db.getDataFromDB(selectQuery);
     companyData = await parseCompanyData(res);
@@ -416,7 +416,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
         IF EXISTS(SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}' and (TEAM_ID is null OR TEAM_ID = ''))
         BEGIN
           UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null, team_id = '${teamId}',
-          team_name = '${companyDataObj.teamName.replace(/'/g, "''")}' WHERE user_id = '${companyDataObj.userId} and (TEAM_ID is null OR TEAM_ID = '')';
+          team_name = '${companyDataObj.teamName.replace(/'/g, "''")}' WHERE user_id = '${companyDataObj.userId}' and (TEAM_ID is null OR TEAM_ID = '');
 
           SELECT top 1 * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}';
         END

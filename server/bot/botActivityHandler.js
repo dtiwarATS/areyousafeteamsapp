@@ -84,16 +84,32 @@ class BotActivityHandler extends TeamsActivityHandler {
           await this.hanldeChannelUserMsg(context);
         } else if (acvtivityData.conversation.conversationType === "personal") {
 
-          const hasLicense = await checkUserHasValidLicense(acvtivityData.from.aadObjectId);
-          if (!hasLicense) {
-            await this.notifyUserForInvalidLicense(context);
+          let companyData = null, isInstalledInTeam = true;
+
+          ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(acvtivityData.from.aadObjectId));
+
+          const isAdmin = await isAdminUser(
+            acvtivityData.from.aadObjectId
+          );
+
+          if (!(isAdmin || isSuperUser)) {
+            await this.hanldeNonAdminUserMsg(context);
+            await next();
             return;
           }
 
-          let isInstalledInTeam = true;
-          let companyData = await getCompaniesData(
-            acvtivityData.from.aadObjectId
-          );
+          if (!isInstalledInTeam) {
+            bot.sendIntroductionMessage(context, acvtivityData.from);
+            await next();
+            return;
+          }
+
+          const hasLicense = await checkUserHasValidLicense(acvtivityData.from.aadObjectId);
+          if (!hasLicense) {
+            await this.notifyUserForInvalidLicense(context);
+            await next();
+            return;
+          }
 
           try {
             if (companyData != null && acvtivityData != null && companyData.teamId != null) {
@@ -122,15 +138,7 @@ class BotActivityHandler extends TeamsActivityHandler {
             processSafetyBotError(err, "", "");
           }
 
-          if (!companyData.teamId?.length) {
-            isInstalledInTeam = false;
-          }
-
-          const isAdmin = await isAdminUser(
-            acvtivityData.from.aadObjectId
-          );
-
-          if (isAdmin && isInstalledInTeam) {
+          if (isAdmin || isSuperUser) {
             await this.hanldeAdminOrSuperUserMsg(context, companyData);
             await next();
             return {
@@ -138,29 +146,19 @@ class BotActivityHandler extends TeamsActivityHandler {
             };
           }
 
-          if (!isInstalledInTeam) {
-            companyData = await getCompaniesDataBySuperUserId(
-              acvtivityData.from.aadObjectId, true
-            );
-            if (companyData != null && companyData !== undefined && companyData.teamId?.length > 0) {
-              isSuperUser = true;
-              isInstalledInTeam = true;
-            }
-          }
+          // if ((isAdmin || isSuperUser) && isInstalledInTeam) {
+          //   await this.hanldeAdminOrSuperUserMsg(context, companyData);
+          //   await next();
+          //   return;
+          // }
 
-          if ((isAdmin || isSuperUser) && isInstalledInTeam) {
-            await this.hanldeAdminOrSuperUserMsg(context, companyData);
-            await next();
-            return;
-          }
-
-          if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
-            bot.sendIntroductionMessage(context, acvtivityData.from);
-            await next();
-            return;
-          } else {
-            await this.hanldeNonAdminUserMsg(context);
-          }
+          // if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
+          //   bot.sendIntroductionMessage(context, acvtivityData.from);
+          //   await next();
+          //   return;
+          // } else {
+          //   await this.hanldeNonAdminUserMsg(context);
+          // }
         }
         await next();
       }
@@ -570,142 +568,6 @@ class BotActivityHandler extends TeamsActivityHandler {
       processSafetyBotError(err, "", "");
     }
   }
-
-  // getWelcomeMessageCard = (teamMemberCount) => {
-  //   // return {
-  //   //   $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-  //   //   type: "AdaptiveCard",
-  //   //   version: "1.0",
-  //   //   body: [
-  //   //     {
-  //   //       type: "TextBlock",
-  //   //       text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
-  //   //       \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
-  //   //       wrap: true
-  //   //     },
-  //   //     {
-  //   //       type: "TextBlock",
-  //   //       text: "You do not need any other software or service to use this app."
-  //   //     },
-  //   //     {
-  //   //       type: "TextBlock",
-  //   //       text: "Enter 'Hi' to start a conversation with the bot."
-  //   //     },
-  //   //     {
-  //   //       type: "TextBlock",
-  //   //       text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
-  //   //       wrap: true
-  //   //     }
-  //   //   ]
-  //   // };
-
-  //   const body = [
-  //     {
-  //       "type": "TextBlock",
-  //       "text": "**Hello, Thank you for installing AreYouSafe? bot. Your automated and personalized crisis management assistant is up and running.**",
-  //       "wrap": true
-  //     },
-  //     {
-  //       "type": "TextBlock",
-  //       "text": "Click on the Dashboard tab above to access all features. ",
-  //       "wrap": true
-  //     },
-  //     {
-  //       "type": "TextBlock",
-  //       "text": "Helpful links",
-  //       "wrap": true,
-  //       "separator": true
-  //     },
-  //     {
-  //       "type": "ColumnSet",
-  //       "columns": [
-  //         {
-  //           "type": "Column",
-  //           "width": "auto",
-  //           "items": [
-  //             {
-  //               "type": "ColumnSet",
-  //               "columns": [
-  //                 {
-  //                   "type": "Column",
-  //                   "width": "auto",
-  //                   "items": [
-  //                     {
-  //                       "type": "TextBlock",
-  //                       "text": "[Frequently Asked Questions](https://safetybot.in/img/help.png)",
-  //                       "wrap": true,
-  //                       "color": "Attention"
-  //                     }
-  //                   ]
-  //                 },
-  //                 {
-  //                   "type": "Column",
-  //                   "width": "auto",
-  //                   "items": [
-  //                     {
-  //                       "type": "Image",
-  //                       "url": "https://safetybot.in/img/help.png"
-  //                     }
-  //                   ]
-  //                 }
-  //               ]
-  //             }
-  //           ]
-  //         },
-  //         {
-  //           "type": "Column",
-  //           "width": "stretch",
-  //           "items": [
-  //             {
-  //               "type": "TextBlock",
-  //               "text": "[Contact us](mailto:help@safetybot.in)",
-  //               "wrap": true,
-  //               "iconUrl": "https://safetybot.in/img/help.png",
-  //               "color": "Attention",
-  //             }
-  //           ]
-  //         }
-  //       ]
-  //     }
-  //   ]
-
-  //   if (teamMemberCount > 10) {
-  //     const manageLicenseLnkObj = {
-  //       "type": "ColumnSet",
-  //       "columns": [
-  //         {
-  //           "type": "Column",
-  //           "width": "auto",
-  //           "items": [
-  //             {
-  //               "type": "TextBlock",
-  //               "text": "[Manage Licenses](https://safetybot.in/img/help.png)",
-  //               "wrap": true,
-  //               "color": "Attention"
-  //             }
-  //           ]
-  //         },
-  //         {
-  //           "type": "Column",
-  //           "width": "auto",
-  //           "items": [
-  //             {
-  //               "type": "Image",
-  //               "url": "https://safetybot.in/img/help.png"
-  //             }
-  //           ]
-  //         }
-  //       ]
-  //     }
-  //     body.push(manageLicenseLnkObj);
-  //   }
-  //   return {
-  //     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-  //     type: "AdaptiveCard",
-  //     version: "1.0",
-  //     body
-  //   };
-  // }  
 
   async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0) {
     try {
