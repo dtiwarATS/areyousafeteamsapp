@@ -398,6 +398,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
     let res = null;
 
     const insertSql = db.getInsertSql("MSTeamsInstallationDetails", values);
+    console.log(insertSql);
     const sqlAddCompanyData = `IF('personal' = '${conversationType}')
     BEGIN
       IF EXISTS(SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}')
@@ -431,7 +432,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
               SELECT * FROM MSTeamsInstallationDetails WHERE id = SCOPE_IDENTITY();
         END
     END`;
-
+    console.log(sqlAddCompanyData);
     res = await db.getDataFromDB(sqlAddCompanyData);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {

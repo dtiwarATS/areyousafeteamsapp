@@ -90,7 +90,6 @@ const parseValue = (value) => {
   if (typeof value === "string") {
     parsedValue = `'${value.replace(/'/g, "''")}'`;
   }
-
   return parsedValue;
 };
 

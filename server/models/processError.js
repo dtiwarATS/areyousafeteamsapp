@@ -3,6 +3,7 @@ const path = require("path");
 const ENV_FILE = path.join(__dirname, "../.env");
 require("dotenv").config({ path: ENV_FILE });
 const poolPromise = require("../db/dbConn");
+const axios = require("axios");
 
 const insertData = async (sqlInsertQuery) => {
     let result = null;
@@ -85,26 +86,31 @@ getSubject = () => {
 }
 
 processSafetyBotError = (err, teamId, userName) => {
-    //const { botName, subject, errorMessage, errorDetails, teamId, userName, date } = reqBody;
-    let errorMessage = "", errorDetails = "", botName = "AreYouSafeBot", subject = getSubject(), date = new Date();
-    if (err != null) {
-        if (err.message != null) {
-            errorMessage = err.message;
+    try {
+        let errorMessage = "", errorDetails = "", botName = "areyousafebot", subject = getSubject(), date = new Date();
+        if (err != null) {
+            if (err.message != null) {
+                errorMessage = err.message;
+            }
+            if (err.stack != null) {
+                errorDetails = err.stack;
+            }
         }
-        if (err.stack != null) {
-            errorDetails = err.stack;
+        const errObj = {
+            botName,
+            subject,
+            errorMessage,
+            errorDetails,
+            teamId,
+            userName,
+            date
         }
+        const url = `${process.env.botErrorHandlerApiUrl}/processError`;
+        axios.post(url, errObj);
+    } catch (err) {
+        console.log(err);
     }
-    const errObj = {
-        botName,
-        subject,
-        errorMessage,
-        errorDetails,
-        teamId,
-        userName,
-        date
-    }
-    processBotError(errObj);
+    //processBotError(errObj);
 }
 
 module.exports = {

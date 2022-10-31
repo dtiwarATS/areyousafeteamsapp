@@ -68,228 +68,237 @@ class BotActivityHandler extends TeamsActivityHandler {
         */
     // Registers an activity event handler for the message event, emitted for every incoming message activity.
     this.onMessage(async (context, next) => {
-      let isSuperUser = false;
-      const acvtivityData = context.activity;
-      if (acvtivityData.text == "sendversionupdate") {
-        await bot.sendMsg(context);
-      } else if (acvtivityData.text == "addteamsusers") {
-        const tenantId = acvtivityData?.conversation?.tenantId;
-        if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
-          await bot.addteamsusers();
+      try {
+        let b = test / 100;
+        let isSuperUser = false;
+        const acvtivityData = context.activity;
+        if (acvtivityData.text == "sendversionupdate") {
+          await bot.sendMsg(context);
+        } else if (acvtivityData.text == "addteamsusers") {
+          const tenantId = acvtivityData?.conversation?.tenantId;
+          if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
+            await bot.addteamsusers();
+          }
         }
-      }
-      else {
-        await context.sendActivities([{ type: "typing" }]);
-        if (acvtivityData.conversation.conversationType === "channel") {
-          await this.hanldeChannelUserMsg(context);
-        } else if (acvtivityData.conversation.conversationType === "personal") {
+        else {
+          await context.sendActivities([{ type: "typing" }]);
+          if (acvtivityData.conversation.conversationType === "channel") {
+            await this.hanldeChannelUserMsg(context);
+          } else if (acvtivityData.conversation.conversationType === "personal") {
 
-          let companyData = null, isInstalledInTeam = true;
+            let companyData = null, isInstalledInTeam = true;
 
-          ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(acvtivityData.from.aadObjectId));
+            ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(acvtivityData.from.aadObjectId));
 
-          const isAdmin = await isAdminUser(
-            acvtivityData.from.aadObjectId
-          );
+            const isAdmin = await isAdminUser(
+              acvtivityData.from.aadObjectId
+            );
 
-          if (!(isAdmin || isSuperUser)) {
-            await this.hanldeNonAdminUserMsg(context);
-            await next();
-            return;
-          }
+            if (!(isAdmin || isSuperUser)) {
+              await this.hanldeNonAdminUserMsg(context);
+              await next();
+              return;
+            }
 
-          if (!isInstalledInTeam) {
-            bot.sendIntroductionMessage(context, acvtivityData.from);
-            await next();
-            return;
-          }
+            if (!isInstalledInTeam) {
+              bot.sendIntroductionMessage(context, acvtivityData.from);
+              await next();
+              return;
+            }
 
-          const hasLicense = await checkUserHasValidLicense(acvtivityData.from.aadObjectId);
-          if (!hasLicense) {
-            await this.notifyUserForInvalidLicense(context);
-            await next();
-            return;
-          }
+            const hasLicense = await checkUserHasValidLicense(acvtivityData.from.aadObjectId);
+            if (!hasLicense) {
+              await this.notifyUserForInvalidLicense(context);
+              await next();
+              return;
+            }
 
-          try {
-            if (companyData != null && acvtivityData != null && companyData.teamId != null) {
-              if (companyData.serviceUrl == null || companyData.serviceUrl == "") {
-                await bot.updateServiceUrl(context, companyData.userTenantId);
-              }
+            try {
+              if (companyData != null && acvtivityData != null && companyData.teamId != null) {
+                if (companyData.serviceUrl == null || companyData.serviceUrl == "") {
+                  await bot.updateServiceUrl(context, companyData.userTenantId);
+                }
 
-              if (!companyData.isUserInfoSaved) {
-                const companyDataofSameTenantId = await getCompanyDataByTenantId(companyData.userTenantId, "and (isUserInfoSaved is null or isUserInfoSaved = 0)");
-                if (companyDataofSameTenantId != null && companyDataofSameTenantId.length > 0) {
-                  await Promise.all(
-                    companyDataofSameTenantId.map(async (cmpData) => {
-                      const allTeamMembers = await getAllTeamMembersByConnectorClient(cmpData.team_id, acvtivityData.serviceUrl);
-                      if (allTeamMembers != null && allTeamMembers.length > 0) {
-                        const isUserInfoSaved = await addTeamMember(cmpData.team_id, allTeamMembers, false);
-                        if (isUserInfoSaved) {
-                          await updateIsUserInfoSaved(cmpData.id, cmpData.team_id, cmpData.user_tenant_id, true);
+                if (!companyData.isUserInfoSaved) {
+                  const companyDataofSameTenantId = await getCompanyDataByTenantId(companyData.userTenantId, "and (isUserInfoSaved is null or isUserInfoSaved = 0)");
+                  if (companyDataofSameTenantId != null && companyDataofSameTenantId.length > 0) {
+                    await Promise.all(
+                      companyDataofSameTenantId.map(async (cmpData) => {
+                        const allTeamMembers = await getAllTeamMembersByConnectorClient(cmpData.team_id, acvtivityData.serviceUrl);
+                        if (allTeamMembers != null && allTeamMembers.length > 0) {
+                          const isUserInfoSaved = await addTeamMember(cmpData.team_id, allTeamMembers, false);
+                          if (isUserInfoSaved) {
+                            await updateIsUserInfoSaved(cmpData.id, cmpData.team_id, cmpData.user_tenant_id, true);
+                          }
                         }
-                      }
-                    })
-                  );
+                      })
+                    );
+                  }
                 }
               }
+            } catch (err) {
+              processSafetyBotError(err, "", "");
             }
-          } catch (err) {
-            processSafetyBotError(err, "", "");
+
+            if (isAdmin || isSuperUser) {
+              await this.hanldeAdminOrSuperUserMsg(context, companyData);
+              await next();
+              return {
+                status: StatusCodes.OK,
+              };
+            }
+
+            // if ((isAdmin || isSuperUser) && isInstalledInTeam) {
+            //   await this.hanldeAdminOrSuperUserMsg(context, companyData);
+            //   await next();
+            //   return;
+            // }
+
+            // if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
+            //   bot.sendIntroductionMessage(context, acvtivityData.from);
+            //   await next();
+            //   return;
+            // } else {
+            //   await this.hanldeNonAdminUserMsg(context);
+            // }
           }
-
-          if (isAdmin || isSuperUser) {
-            await this.hanldeAdminOrSuperUserMsg(context, companyData);
-            await next();
-            return {
-              status: StatusCodes.OK,
-            };
-          }
-
-          // if ((isAdmin || isSuperUser) && isInstalledInTeam) {
-          //   await this.hanldeAdminOrSuperUserMsg(context, companyData);
-          //   await next();
-          //   return;
-          // }
-
-          // if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
-          //   bot.sendIntroductionMessage(context, acvtivityData.from);
-          //   await next();
-          //   return;
-          // } else {
-          //   await this.hanldeNonAdminUserMsg(context);
-          // }
+          await next();
         }
-        await next();
+      } catch (err) {
+        processSafetyBotError(err, "", "");
       }
     });
 
     this.onConversationUpdate(async (context, next) => {
-      let addedBot = false;
-      const acvtivityData = context.activity;
+      try {
+        let addedBot = false;
+        const acvtivityData = context.activity;
 
-      const teamId = acvtivityData?.channelData?.team?.id;
-      const conversationType = context.activity.conversation.conversationType;
-      if (
-        acvtivityData &&
-        acvtivityData?.channelData?.eventType === "teamMemberAdded"
-      ) {
-        const { membersAdded } = acvtivityData;
-        const teamId = acvtivityData.channelData.team.id;
-        // retrive user info who installed the app from TeamsInfo.getTeamMembers(context, teamId);
-        const allMembersInfo = await TeamsInfo.getTeamMembers(
-          context,
-          teamId
-        );
-        let teamMemberCount = 0;
-        if (allMembersInfo != null && Array.isArray(allMembersInfo) && allMembersInfo.length > 0) {
-          teamMemberCount = allMembersInfo.length;
-        }
-        for (let i = 0; i < membersAdded.length; i++) {
-          // See if the member added was our bot
-          if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
-            addedBot = true;
+        const teamId = acvtivityData?.channelData?.team?.id;
+        const conversationType = context.activity.conversation.conversationType;
+        if (
+          acvtivityData &&
+          acvtivityData?.channelData?.eventType === "teamMemberAdded"
+        ) {
+          const { membersAdded } = acvtivityData;
+          const teamId = acvtivityData.channelData.team.id;
+          // retrive user info who installed the app from TeamsInfo.getTeamMembers(context, teamId);
+          const allMembersInfo = await TeamsInfo.getTeamMembers(
+            context,
+            teamId
+          );
+          let teamMemberCount = 0;
+          if (allMembersInfo != null && Array.isArray(allMembersInfo) && allMembersInfo.length > 0) {
+            teamMemberCount = allMembersInfo.length;
+          }
+          for (let i = 0; i < membersAdded.length; i++) {
+            // See if the member added was our bot
+            if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
+              addedBot = true;
 
-            const adminUserInfo = allMembersInfo.find(
-              (m) => m.id === acvtivityData.from.id
-            );
+              const adminUserInfo = allMembersInfo.find(
+                (m) => m.id === acvtivityData.from.id
+              );
 
-            if (adminUserInfo) {
-              //console.log("adminUserInfo >> ", adminUserInfo);
-              // then save from.id as userid and from.aadObjectId as userObjectId
-              // and channelData.team.id as teamsId and save the data to database
-              const companyDataObj = {
-                userId: acvtivityData.from.id,
-                userTenantId: adminUserInfo.tenantId,
-                userObjId: adminUserInfo.aadObjectId,
-                userName: adminUserInfo.name,
-                email: adminUserInfo.email,
-                teamId: teamId,
-                teamName: acvtivityData.channelData.team.name,
-                superUser: [],
-                createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 0,
-                serviceUrl: context.activity.serviceUrl
-              };
+              if (adminUserInfo) {
+                //console.log("adminUserInfo >> ", adminUserInfo);
+                // then save from.id as userid and from.aadObjectId as userObjectId
+                // and channelData.team.id as teamsId and save the data to database
+                const companyDataObj = {
+                  userId: acvtivityData.from.id,
+                  userTenantId: adminUserInfo.tenantId,
+                  userObjId: adminUserInfo.aadObjectId,
+                  userName: adminUserInfo.name,
+                  email: adminUserInfo.email == null ? "" : adminUserInfo.email,
+                  teamId: teamId,
+                  teamName: acvtivityData.channelData.team.name,
+                  superUser: [],
+                  createdDate: new Date(Date.now()).toISOString(),
+                  welcomeMessageSent: 0,
+                  serviceUrl: context.activity.serviceUrl
+                };
 
-              const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
-              await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
+                const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
+                await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
+              }
+            } else {
+              const teamMember = allMembersInfo.find(
+                (m) => m.id === membersAdded[i].id
+              );
+              const teamMembers = [teamMember];
+              await addTeamMember(teamId, teamMembers, true);
             }
-          } else {
-            const teamMember = allMembersInfo.find(
-              (m) => m.id === membersAdded[i].id
-            );
-            const teamMembers = [teamMember];
-            await addTeamMember(teamId, teamMembers, true);
           }
-        }
-      } // if bot/member is installed/added
-      else if (
-        (acvtivityData &&
-          acvtivityData?.channelData?.eventType === "teamDeleted") ||
-        acvtivityData?.channelData?.eventType === "teamMemberRemoved"
-      ) {
-        if (acvtivityData?.channelData?.eventType === "teamDeleted") {
-          const isDeleted = await deleteCompanyData(teamId, acvtivityData.from.aadObjectId);
-          if (isDeleted) {
-            await this.sendUninstallationEmail(acvtivityData.from.aadObjectId);
-          }
-        } else {
-          const { membersRemoved } = acvtivityData;
-
-          if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
-            const isDeleted = await deleteCompanyData(
-              acvtivityData?.channelData?.team.id, acvtivityData.from.aadObjectId
-            );
+        } // if bot/member is installed/added
+        else if (
+          (acvtivityData &&
+            acvtivityData?.channelData?.eventType === "teamDeleted") ||
+          acvtivityData?.channelData?.eventType === "teamMemberRemoved"
+        ) {
+          if (acvtivityData?.channelData?.eventType === "teamDeleted") {
+            const isDeleted = await deleteCompanyData(teamId, acvtivityData.from.aadObjectId);
             if (isDeleted) {
               await this.sendUninstallationEmail(acvtivityData.from.aadObjectId);
             }
           } else {
-            for (let i = 0; i < membersRemoved.length; i++) {
-              await removeTeamMember(teamId, membersRemoved[i].id);
+            const { membersRemoved } = acvtivityData;
+
+            if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
+              const isDeleted = await deleteCompanyData(
+                acvtivityData?.channelData?.team.id, acvtivityData.from.aadObjectId
+              );
+              if (isDeleted) {
+                await this.sendUninstallationEmail(acvtivityData.from.aadObjectId);
+              }
+            } else {
+              for (let i = 0; i < membersRemoved.length; i++) {
+                await removeTeamMember(teamId, membersRemoved[i].id);
+              }
+            }
+          }
+        } else if (teamId == null && acvtivityData) {
+          const { membersAdded } = acvtivityData;
+          for (let i = 0; i < membersAdded.length; i++) {
+            // See if the member added was our bot
+            if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
+              addedBot = true;
+              // retrive user info who installed the app
+              const adminUserInfo = await TeamsInfo.getMember(
+                context,
+                acvtivityData.from.id
+              );
+              if (adminUserInfo) {
+                const companyDataObj = {
+                  userId: adminUserInfo.id,
+                  userTenantId: adminUserInfo.tenantId,
+                  userObjId: adminUserInfo.aadObjectId,
+                  userName: adminUserInfo.name,
+                  email: adminUserInfo.email == null ? "" : adminUserInfo.email,
+                  teamId: "",
+                  teamName: "",
+                  superUser: [],
+                  createdDate: new Date(Date.now()).toISOString(),
+                  welcomeMessageSent: 0,
+                  serviceUrl: context.activity.serviceUrl
+                };
+                const companyData = await insertCompanyData(companyDataObj, null, conversationType);
+                await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
+              }
             }
           }
         }
-      } else if (teamId == null && acvtivityData) {
-        const { membersAdded } = acvtivityData;
-        for (let i = 0; i < membersAdded.length; i++) {
-          // See if the member added was our bot
-          if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
-            addedBot = true;
-            // retrive user info who installed the app
-            const adminUserInfo = await TeamsInfo.getMember(
-              context,
-              acvtivityData.from.id
-            );
-            if (adminUserInfo) {
-              const companyDataObj = {
-                userId: adminUserInfo.id,
-                userTenantId: adminUserInfo.tenantId,
-                userObjId: adminUserInfo.aadObjectId,
-                userName: adminUserInfo.name,
-                email: adminUserInfo.email,
-                teamId: "",
-                teamName: "",
-                superUser: [],
-                createdDate: new Date(Date.now()).toISOString(),
-                welcomeMessageSent: 0,
-                serviceUrl: context.activity.serviceUrl
-              };
-              const companyData = await insertCompanyData(companyDataObj, null, conversationType);
-              await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
-            }
-          }
+        else if (acvtivityData?.channelData?.eventType === "channelCreated" || acvtivityData?.channelData?.eventType === "channelDeleted") {
         }
-      }
-      else if (acvtivityData?.channelData?.eventType === "channelCreated" || acvtivityData?.channelData?.eventType === "channelDeleted") {
-      }
-      else {
-        const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+        else {
+          const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
              \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.
              
              \n\r\r\n\n Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
 
-        await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
+          await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
+        }
+      } catch (err) {
+        processSafetyBotError(err, "", "");
       }
     });
   }
