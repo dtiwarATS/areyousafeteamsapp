@@ -9,9 +9,9 @@ const handlerForSafetyBotTab = (app) => {
     const tabObj = new tab.AreYouSafeTab();
 
     app.get("/areyousafetabhandler/getUserPermission", async (req, res) => {
-        const tabObj = new tab.AreYouSafeTab();
-        let isAdmin = false;
         const userObjId = req.query.userId;
+        const tabObj = new tab.AreYouSafeTab(userObjId);
+        let isAdmin = false;
 
         let responseObj = {
             isInstalledInTeam: true
@@ -39,9 +39,10 @@ const handlerForSafetyBotTab = (app) => {
     });
 
     app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
-        const tabObj = new tab.AreYouSafeTab();
         let isAdmin = false;
         const userObjId = req.query.userId;
+        const tabObj = new tab.AreYouSafeTab(userObjId);
+
         const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
         const teamInfo = await incidentService.getUserTeamInfo(userObjId);
         dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
@@ -54,7 +55,7 @@ const handlerForSafetyBotTab = (app) => {
                 isAdmin
             }
             const sendRespData = (incData) => {
-                const formatedIncData = tabObj.getFormatedIncData(incData, teamInfo);
+                const formatedIncData = tabObj.getFormatedIncData(incData, teamInfo, userObjId);
                 responseObj.respData = formatedIncData;
                 res.send(
                     responseObj
@@ -63,7 +64,7 @@ const handlerForSafetyBotTab = (app) => {
             if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
                 if (req.query.teamId != null && req.query.teamId != "null") {
                     incidentService
-                        .getAllIncByTeamId(req.query.teamId, "desc")
+                        .getAllIncByTeamId(req.query.teamId, "desc", userObjId)
                         .then(incData => {
                             sendRespData(incData);
                         })
@@ -72,7 +73,7 @@ const handlerForSafetyBotTab = (app) => {
                         });
                 } else {
                     incidentService
-                        .getAllIncByUserId(req.query.userId, "desc")
+                        .getAllIncByUserId(userObjId, "desc")
                         .then(incData => {
                             sendRespData(incData);
                         })
@@ -91,8 +92,9 @@ const handlerForSafetyBotTab = (app) => {
     });
 
     app.delete("/areyousafetabhandler/deleteIncident", (req, res) => {
+        const userAadObjId = req.query.userAadObjId;
         incidentService
-            .deleteInc(req.query.incid)
+            .deleteInc(req.query.incid, userAadObjId)
             .then(incData => {
                 res.send(
                     incData !== null
@@ -106,8 +108,9 @@ const handlerForSafetyBotTab = (app) => {
     app.put("/areyousafetabhandler/updateincstatus", (req, res) => {
         const incId = req.query.incid;
         const incStatus = req.query.incstatus;
+        const userAadObjId = req.query.userAadObjId;
         incidentService
-            .updateIncStatus(incId, incStatus)
+            .updateIncStatus(incId, incStatus, userAadObjId)
             .then(incData => {
                 res.send(
                     incData
@@ -141,11 +144,13 @@ const handlerForSafetyBotTab = (app) => {
 
     app.get("/areyousafetabhandler/requestAssistance", (req, res) => {
         console.log("came in request");
+        const userAadObjId = req.query.userId;
         incidentService
-            .getAdmins(req.query.userId, "desc")
+            .getAdmins(userAadObjId, "desc")
             .then(async (incData) => {
-                if (incData === null) {
-                    res.send(null);
+                if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
+                    res.send("no safety officers");
+                    return;
                 }
                 let admins = incData[0];
                 let user = incData[1][0];
@@ -157,7 +162,7 @@ const handlerForSafetyBotTab = (app) => {
                     if (ts != null) {
                         ts = ts.replace(/-/g, "/");
                     }
-                    assistanceData = await tabObj.saveAssistance(admins, user, ts);
+                    assistanceData = await tabObj.saveAssistance(admins, user, ts, userAadObjId);
                 }
                 console.log(assistanceData);
                 if (assistanceData != null && assistanceData.length > 0) {
@@ -174,11 +179,12 @@ const handlerForSafetyBotTab = (app) => {
 
     app.get("/areyousafetabhandler/sendNeedAssistanceProactiveMessage", (req, res) => {
         console.log("came in request");
+        const userAadObjId = req.query.userId;
         incidentService
-            .getAdmins(req.query.userId, "desc")
+            .getAdmins(userAadObjId, "desc")
             .then(async (incData) => {
                 const tabObj = new tab.AreYouSafeTab();
-                const isProactiveMessageSent = await tabObj.requestAssistance(incData);
+                const isProactiveMessageSent = await tabObj.requestAssistance(incData, userAadObjId);
                 res.send(isProactiveMessageSent);
             })
             .catch((err) => {
@@ -189,19 +195,20 @@ const handlerForSafetyBotTab = (app) => {
     app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
         const data = req.query;
         const reqBody = req.body;
+        const userAadObjId = data.userAadObjId;
         if (reqBody && reqBody.comment != null && reqBody.comment != "") {
             let ts = req.query.ts;
             if (ts != null) {
                 ts = ts.replace(/-/g, "/");
             }
             incidentService
-                .addComment(data.assistId, reqBody.comment, ts)
+                .addComment(data.assistId, reqBody.comment, ts, userAadObjId)
                 .then((respData) => {
                     incidentService
-                        .getAdmins(data.userAadObjId, "desc")
+                        .getAdmins(userAadObjId, "desc")
                         .then((userData) => {
                             const tabObj = new tab.AreYouSafeTab();
-                            tabObj.sendUserCommentToAdmin(userData, reqBody.comment);
+                            tabObj.sendUserCommentToAdmin(userData, reqBody.comment, userAadObjId);
                         });
 
                     res.send(true);
@@ -228,8 +235,10 @@ const handlerForSafetyBotTab = (app) => {
     app.post("/areyousafetabhandler/createnewincident", async (req, res) => {
         try {
             const reqBody = req.body;
+            const qs = req.query;
+            const userAadObjId = qs.userAadObjId;
             const tabObj = new tab.AreYouSafeTab();
-            const newInc = await tabObj.createNewIncident(reqBody);
+            const newInc = await tabObj.createNewIncident(reqBody, userAadObjId);
             res.send(newInc);
         } catch (err) {
             console.log(err);
@@ -243,8 +252,9 @@ const handlerForSafetyBotTab = (app) => {
             const incId = qs.incId;
             const teamId = qs.teamId;
             const createdByUserInfo = req.body;
+            const userAadObjId = qs.userAadObjId;
             const tabObj = new tab.AreYouSafeTab();
-            const safetyCheckSend = await tabObj.sendSafetyCheckMessage(incId, teamId, createdByUserInfo);
+            const safetyCheckSend = await tabObj.sendSafetyCheckMessage(incId, teamId, createdByUserInfo, userAadObjId);
             res.send(safetyCheckSend);
         } catch (err) {
             console.log(err);
@@ -307,8 +317,9 @@ const handlerForSafetyBotTab = (app) => {
 
     app.get("/areyousafetabhandler/getIncDataToCopyInc", async (req, res) => {
         const incId = req.query.incid;
+        const userAadObjId = req.query.userAadObjId;
         if (incId && Number(incId) > 0) {
-            const incData = await tabObj.getIncDataToCopyInc(incId);
+            const incData = await tabObj.getIncDataToCopyInc(incId, userAadObjId);
             res.send(
                 incData
             );

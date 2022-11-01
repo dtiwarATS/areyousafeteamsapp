@@ -1275,7 +1275,7 @@ const updateIncResponseOfSelectedMembers = async (incId, runAt, dashboardCard, s
   }
 }
 
-const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, contextServiceUrl, userTenantId, log) => {
+const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, contextServiceUrl, userTenantId, log, userAadObjId) => {
   if (log == null) {
     log = new AYSLog();
   }
@@ -1284,14 +1284,14 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
     log.addLog("sendIncResponseToSelectedMembers start. ");
 
     runAt = (runAt == null) ? '' : runAt;
-    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId, userAadObjId);
     let serviceUrl = null;
     let tenantId = null;
     if (contextServiceUrl != null && contextServiceUrl != "" && userTenantId != null && userTenantId != "") {
       serviceUrl = contextServiceUrl;
       tenantId = userTenantId;
     } else {
-      const userTenantDetails = await incidentService.getUserTenantDetails(incId);
+      const userTenantDetails = await incidentService.getUserTenantDetails(incId, userAadObjId);
 
       if (userTenantDetails != null) {
         serviceUrl = userTenantDetails.serviceUrl;
@@ -1309,7 +1309,7 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
             id: u.user_id,
             name: u.user_name
           }];
-          const result = await sendProactiveMessaageToUser(memberArr, dashboardCard, null, serviceUrl, tenantId, log);
+          const result = await sendProactiveMessaageToUser(memberArr, dashboardCard, null, serviceUrl, tenantId, log, userAadObjId);
           log.addLog(` activityId :  ${result.activityId} `);
           if (result.activityId != null) {
             sql += `INSERT INTO MSTeamsIncResponseUserTS(incResponseSelectedUserId, runAt, conversationId, activityId) VALUES(${u.id}, '${runAt}', '${result.conversationId}', '${result.activityId}');`;
@@ -1319,13 +1319,14 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
     }
     if (sql != "") {
       log.addLog(` sql Insert saveIncResponseUserTS start`);
-      await incidentService.saveIncResponseUserTS(sql);
+      await incidentService.saveIncResponseUserTS(sql, userAadObjId);
       log.addLog(` sql Inser saveIncResponseUserTS end`);
     }
   }
   catch (err) {
     log.addLog(` An Error occured: ${JSON.stringify(err)}`);
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   finally {
     log.addLog(` sendIncResponseToSelectedMembers end.`);
@@ -1367,14 +1368,14 @@ const sendtestmessage = async () => {
   console.log("End sendtestmessage");
 }
 
-const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => {
+const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, userAadObjId) => {
   let safetyCheckSend = false;
   log.addLog("sendSafetyCheckMessage start");
   log.addLog(`sendSafetyCheckMessage incId: ${incId}`);
   try {
-    const companyData = await getCompanyDataByTeamId(teamId);
-    const incData = await incidentService.getInc(incId);
-    let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "id", "name");
+    const companyData = await getCompanyDataByTeamId(teamId, userAadObjId);
+    const incData = await incidentService.getInc(incId, null, userAadObjId);
+    let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "id", "name", userAadObjId);
     const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
     const { serviceUrl, userTenantId } = companyData;
 
@@ -1399,7 +1400,8 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
     const incWithAddedMembers = await incidentService.addMembersIntoIncData(
       incId,
       allMembersArr,
-      incCreatedBy
+      incCreatedBy,
+      userAadObjId
     );
     log.addLog(`incType: ${incType}`);
     if (incType == "onetime") {
@@ -1413,8 +1415,8 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
 
       log.addLog("Send Dashboard Resp Start");
       const dashboardCard = await getOneTimeDashboardCard(incId);
-      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log);
-      await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log);
+      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
+      await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
       log.addLog("Send Dashboard Resp End");
       let incObj = {
         incId,
@@ -1460,6 +1462,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
   } catch (err) {
     log.addLog(`sendSafetyCheckMessage error: ${err.toString()}`);
     console.log(`sendSafetyCheckMessage error: ${err}`);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   log.addLog(`sendSafetyCheckMessage end`);
   return Promise.resolve(safetyCheckSend);

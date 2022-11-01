@@ -105,7 +105,7 @@ const checkValidStatus = (statusCode) => {
   return validStatusCodeArr.includes(Number(statusCode));
 }
 
-const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serviceUrl, tenantId, log) => {
+const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serviceUrl, tenantId, log, userAadObjId) => {
   if (log == null) {
     log = new AYSLog();
   }
@@ -209,7 +209,7 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
     log.addLog(JSON.stringify(err));
     log.addLog(`Error occured for user: ${JSON.stringify(members)}`);
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userAadObjId);
     resp.error = JSON.stringify(err);
   }
   finally {

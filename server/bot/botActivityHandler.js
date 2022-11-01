@@ -69,7 +69,6 @@ class BotActivityHandler extends TeamsActivityHandler {
     // Registers an activity event handler for the message event, emitted for every incoming message activity.
     this.onMessage(async (context, next) => {
       try {
-        let b = test / 100;
         let isSuperUser = false;
         const acvtivityData = context.activity;
         if (acvtivityData.text == "sendversionupdate") {

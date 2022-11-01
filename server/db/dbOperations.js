@@ -6,35 +6,40 @@ const { processSafetyBotError } = require("../models/processError");
 const parseCompanyData = async (result) => {
   let parsedCompanyObj = {};
   // console.log("result >>", result);
-  if (result.length > 0) {
-    let resultObj;
-    if (result.length > 1) {
-      for (i = 0; i < result.length; i++) {
-        if (result[i].team_id != "") {
-          resultObj = result[i];
-        }
-        else {
-          resultObj = result[i];
+  try {
+    if (result.length > 0) {
+      let resultObj;
+      if (result.length > 1) {
+        for (i = 0; i < result.length; i++) {
+          if (result[i].team_id != "") {
+            resultObj = result[i];
+          }
+          else {
+            resultObj = result[i];
+          }
         }
       }
+      else {
+        resultObj = result[0];
+      }
+
+
+      // return empty array if value of super_users is ''
+      let superUsers = resultObj.super_users
+        .split(",")
+        .filter((word) => /\w/.test(word));
+
+      resultObj = {
+        ...resultObj,
+        super_users: superUsers,
+      };
+
+      parsedCompanyObj = new Company(resultObj);
     }
-    else {
-      resultObj = result[0];
-    }
-
-
-    // return empty array if value of super_users is ''
-    let superUsers = resultObj.super_users
-      .split(",")
-      .filter((word) => /\w/.test(word));
-
-    resultObj = {
-      ...resultObj,
-      super_users: superUsers,
-    };
-
-    parsedCompanyObj = new Company(resultObj);
+  } catch (err) {
+    processSafetyBotError(err, "", "", null);
   }
+
   return Promise.resolve(parsedCompanyObj);
 };
 
@@ -61,6 +66,7 @@ const isAdminUser = async (userObjId) => {
     return Promise.resolve(adminUserLogin);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userObjId);
   }
 };
 
@@ -77,16 +83,25 @@ const getSafetyInitiatorOfNonAdminUser = async (userObjId) => {
     }
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userObjId);
   }
   return safetyInitiator;
 }
 
 const verifyAdminUserForDashboardTab = async (userObjId) => {
-  const isAdmin = await isAdminUser(userObjId);
   let safetyInitiator = null;
-  if (!isAdmin) {
-    safetyInitiator = await getSafetyInitiatorOfNonAdminUser(userObjId);
+  let isAdmin = false;
+
+  try {
+    isAdmin = await isAdminUser(userObjId);
+    if (!isAdmin) {
+      safetyInitiator = await getSafetyInitiatorOfNonAdminUser(userObjId);
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userObjId);
   }
+
   return {
     isAdmin,
     safetyInitiator
@@ -121,6 +136,7 @@ const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false
     return Promise.resolve(companyData);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", superUserId);
   }
 };
 
@@ -136,7 +152,7 @@ const checkUserHasValidLicense = async (userAadObjId) => {
     hasLicense = (res != null && res.length > 0 && res[0]["hasLicense"] != null && res[0]["hasLicense"] === true);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   return Promise.resolve(hasLicense);
 }
@@ -149,7 +165,7 @@ const checkUserHasValidLicense = async (userAadObjId) => {
 //     await pool.request().query(sqlAddServiceUrl);
 //   } catch (err) {
 //     console.log(err);
-//     processSafetyBotError(err, teamId, "");
+//     processSafetyBotError(err, "", "");
 //   }
 // }
 
@@ -183,11 +199,11 @@ const getCompaniesData = async (
     return Promise.resolve(companyData);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, teamId, "", userObjId);
   }
 };
 
-const getCompanyDataByTeamId = async (teamId) => {
+const getCompanyDataByTeamId = async (teamId, userAadObjId) => {
   let companyData = null;
   try {
     const selectQuery = `SELECT * FROM MSTeamsInstallationDetails where team_id = '${teamId}'`;
@@ -195,6 +211,7 @@ const getCompanyDataByTeamId = async (teamId) => {
     companyData = await parseCompanyData(res);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "", userAadObjId);
   }
   return Promise.resolve(companyData);
 }
@@ -206,7 +223,7 @@ const removeTeamMember = async (teamId, userId) => {
     await pool.request().query(sqlRemoveMember);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, teamId, "", userId);
   }
 }
 
@@ -217,6 +234,7 @@ const removeAllTeamMember = async (teamId) => {
     await pool.request().query(sqlRemoveMember);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "", null);
   }
 }
 
@@ -454,7 +472,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, teamId, "", companyDataObj.userObjId);
   }
 };
 
@@ -522,7 +540,7 @@ const updateSuperUserDataByUserAadObjId = async (userId, teamId, selectedUserStr
   } catch (err) {
     console.log(err);
     isUpdated = false;
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, teamId, "", userId);
   }
   return Promise.resolve(isUpdated);
 };

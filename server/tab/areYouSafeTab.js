@@ -24,6 +24,10 @@ const { processSafetyBotError, processBotError } = require("../models/processErr
 
 class AreYouSafeTab {
 
+  constructor(userAadObjId) {
+    this.userAadObjId = userAadObjId;
+  }
+
   getConversationParameters = (members, tenantId) => {
     return {
       isGroup: false,
@@ -120,7 +124,7 @@ class AreYouSafeTab {
     return memberObj;
   };
 
-  getFormatedIncData = (incData, teamInfo) => {
+  getFormatedIncData = (incData, teamInfo, userObjId) => {
     let incFormatedData = null;
     try {
       if (incData != null && incData.length > 0) {
@@ -171,7 +175,7 @@ class AreYouSafeTab {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", userObjId);
     }
     return incFormatedData;
   }
@@ -201,12 +205,12 @@ class AreYouSafeTab {
         teamsMembers = teamsMembersWithsSuperUserFlag;
       }
     } catch (err) {
-      processSafetyBotError(err, teamId, "");
+      processSafetyBotError(err, teamId, "", userAadObjId);
     }
     return Promise.resolve(teamsMembers);
   }
 
-  requestAssistance = async (data) => {
+  requestAssistance = async (data, userAadObjId) => {
     let isMessageSent = false;
     try {
       let admins = data[0];
@@ -256,12 +260,12 @@ class AreYouSafeTab {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", userAadObjId);
     }
     return isMessageSent;
   };
 
-  saveAssistance = async (adminsData, user, ts) => {
+  saveAssistance = async (adminsData, user, ts, userAadObjId) => {
     let res = null;
     try {
       if (adminsData != null && adminsData.length > 0) {
@@ -330,12 +334,12 @@ class AreYouSafeTab {
         }
       }
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", userAadObjId);
     }
     return res;
   };
 
-  sendUserCommentToAdmin = async (data, userComment) => {
+  sendUserCommentToAdmin = async (data, userComment, userAadObjId) => {
     try {
       let admins = data[0];
       let user = data[1][0];
@@ -382,7 +386,7 @@ class AreYouSafeTab {
         }
       }
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", userAadObjId);
     }
   };
 
@@ -396,7 +400,7 @@ class AreYouSafeTab {
         isDuplicate = await incidentService.verifyDuplicateInc(teamId, incTitle);
       }
     } catch (err) {
-      processSafetyBotError(err, teamId, "");
+      processSafetyBotError(err, teamId, "", userAadObjId);
     }
     return Promise.resolve(isDuplicate);
   }
@@ -411,13 +415,13 @@ class AreYouSafeTab {
         userInfo = await incidentService.getUserInfo(teamId, aadUserObjId);
       } catch (err) {
         console.log(err);
-        processSafetyBotError(err, teamId, "");
+        processSafetyBotError(err, teamId, "", aadUserObjId);
       }
     }
     return Promise.resolve(userInfo);
   }
 
-  createNewIncident = async (incObj) => {
+  createNewIncident = async (incObj, userAadObjId) => {
     let newInc = null;
     try {
       if (incObj != null && incObj.incData != null) {
@@ -437,23 +441,23 @@ class AreYouSafeTab {
           responseSelectedMembers = incObj.responseSelectedMembers;
         }
         incData.guidance = incData.guidance.toString().replace(/\\n/g, "\n\n");
-        newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises);
+        newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises, userAadObjId);
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", userAadObjId);
     }
     return Promise.resolve(newInc);
   }
 
-  sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo) => {
+  sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, userAadObjId) => {
     const log = new AYSLog();
     try {
-      const safetyCheckSend = await bot.sendSafetyCheckMessage(incId, teamId, createdByUserInfo, log);
+      const safetyCheckSend = await bot.sendSafetyCheckMessage(incId, teamId, createdByUserInfo, log, userAadObjId);
       return Promise.resolve(safetyCheckSend);
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, teamId, createdByUserInfo?.user_name);
+      processSafetyBotError(err, teamId, createdByUserInfo?.user_name, userAadObjId);
     } finally {
       await log.saveLog(incId);
     }
@@ -476,7 +480,7 @@ class AreYouSafeTab {
         bot.sendNewContactEmail(email, msg, companyData, userName);
       }
     } catch (err) {
-      processSafetyBotError(err, "", userName);
+      processSafetyBotError(err, "", userName, userId);
     }
   }
 
@@ -485,7 +489,7 @@ class AreYouSafeTab {
     try {
       superUsers = await incidentService.getSuperUsersByTeamId(teamId);
     } catch (err) {
-      processSafetyBotError(err, teamId, "");
+      processSafetyBotError(err, teamId, "", null);
     }
     return Promise.resolve(superUsers);
   }
@@ -495,22 +499,22 @@ class AreYouSafeTab {
     try {
       result = await updateSuperUserDataByUserAadObjId(userAadObjId, teamId, superUsers);
     } catch (err) {
-      processSafetyBotError(err, teamId, "");
+      processSafetyBotError(err, teamId, "", userAadObjId);
     }
     return Promise.resolve(result);
   }
 
-  getIncDataToCopyInc = async (incId) => {
+  getIncDataToCopyInc = async (incId, userAadObjId) => {
     try {
       let teamId = '', selectedUsers = "";
-      const incData = await incidentService.getInc(incId);
+      const incData = await incidentService.getInc(incId, userAadObjId);
       if (incData) {
         teamId = incData.teamId;
         selectedUsers = incData.selectedMembers;
       }
 
-      const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId);
-      const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId);
+      const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId, userAadObjId);
+      const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId, userAadObjId);
       return { incData, incResponseMembersData, incSelectedMembersData };
     } catch (err) {
       processSafetyBotError(err, "", "");
