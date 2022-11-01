@@ -1436,11 +1436,15 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
           name: allMembersArr[i].name
         }];
         const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
+        let isMessageDelivered = 1;
         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-          await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 1, msgResp);
+          isMessageDelivered = 1;
+          // await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 1, msgResp);
         } else {
-          await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 0, msgResp);
+          isMessageDelivered = 0;
+          // await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 0, msgResp);
         }
+        await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, isMessageDelivered, msgResp);
       }
       log.addLog("Send Safety Check End");
       log.addLog(`onetime end`);

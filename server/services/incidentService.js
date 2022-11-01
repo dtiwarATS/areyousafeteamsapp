@@ -963,13 +963,16 @@ const updateMessageDeliveredStatus = async (incId, userId, isMessageDelivered, m
   let result = null;
   try {
     let sqlUpdate = '';
-    if (isMessageDelivered == 1) {
-      sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 1 where inc_id = ${incId} and user_id = '${userId}';`;
-    } else {
-      const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
-      const error = (msgResp?.error == null) ? null : msgResp?.error;
-      sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 0, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
-    }
+    // if (isMessageDelivered == 1) {
+    //   sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 1 where inc_id = ${incId} and user_id = '${userId}';`;
+    // } else {
+    //   const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+    //   const error = (msgResp?.error == null) ? null : msgResp?.error;
+    //   sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 0, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
+    // }
+    const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+    const error = (msgResp?.error == null) ? null : msgResp?.error;
+    sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
     result = await db.getDataFromDB(sqlUpdate);
   } catch (err) {
     console.log(err);
