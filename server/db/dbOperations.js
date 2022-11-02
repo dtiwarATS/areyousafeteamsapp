@@ -148,7 +148,9 @@ const checkUserHasValidLicense = async (userAadObjId) => {
   let hasLicense = false;
   try {
     const checkUserLicenseQuery = getCheckUserLicenseQuery(userAadObjId);
+    console.log(checkUserLicenseQuery);
     const res = await db.getDataFromDB(checkUserLicenseQuery);
+    console.log(res);
     hasLicense = (res != null && res.length > 0 && res[0]["hasLicense"] != null && res[0]["hasLicense"] === true);
   } catch (err) {
     console.log(err);

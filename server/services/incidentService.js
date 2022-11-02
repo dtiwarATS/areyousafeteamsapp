@@ -1041,21 +1041,21 @@ const updateSubscriptionType = async (licenseType, tenantId) => {
   }
 }
 
-const updateFiveDayBeforeMessageSentFlag = async (id) => {
+const updateFiveDayBeforeMessageSentFlag = async (id, userAadObjId) => {
   try {
     const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isFiveDayBeforeMessageSent = 1 where ID = ${id}`;
     await db.getDataFromDB(sqlCheckLicense);
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 }
 
-const updateAfterExpiryMessageSentFlag = async (subscriptionId) => {
+const updateAfterExpiryMessageSentFlag = async (subscriptionId, userAadObjId) => {
   try {
     const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isAfterExpiryMessageSent = 1 where ID = ${subscriptionId}`;
     await db.updateDataIntoDB(sqlCheckLicense);
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 }
 
@@ -1077,16 +1077,16 @@ const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId,
       `;
     await db.updateDataIntoDB(sqlUpdate);
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userObjId);
   }
 }
 
-const updateSubcriptionProcessFlag = async (subscriptionId) => {
+const updateSubcriptionProcessFlag = async (subscriptionId, userAadObjId) => {
   try {
     const sqlUpdate = `update MSTeamsSubscriptionDetails set isProcessed = 1 where ID = ${subscriptionId};`;
     await db.updateDataIntoDB(sqlUpdate);
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 }
 

@@ -38,15 +38,15 @@ const { processSafetyBotError } = require("../models/processError");
 
                             const member = [userObj];
                             log.addLog(`send  ${subcriptionMessage} type-${subscriptionType} to ${job.user_id} start`);
-                            await sendProactiveMessaageToUser(member, card, null, job.serviceUrl, job.tenantid, log);
+                            await sendProactiveMessaageToUser(member, card, null, job.serviceUrl, job.tenantid, log, job.user_aadobject_id);
                             log.addLog(`send  ${subcriptionMessage} type-${subscriptionType} proactive messaage to ${job.user_id} successfully`);
-                            await incidentService.updateSubcriptionProcessFlag(job.ID);
+                            await incidentService.updateSubcriptionProcessFlag(job.ID, job.user_aadobject_id);
                             saveLog = true;
                             log.addLog(`End subscription ID - ${job.ID}`);
                         } catch (err) {
                             console.log(err);
                             log.addLog(`Error occured: ${err}`);
-                            processSafetyBotError(err, "", "");
+                            processSafetyBotError(err, "", "", job.user_aadobject_id);
                         }
                     })
                 );

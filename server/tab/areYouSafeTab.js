@@ -23,11 +23,6 @@ const { AYSLog } = require("../utils/log");
 const { processSafetyBotError, processBotError } = require("../models/processError");
 
 class AreYouSafeTab {
-
-  constructor(userAadObjId) {
-    this.userAadObjId = userAadObjId;
-  }
-
   getConversationParameters = (members, tenantId) => {
     return {
       isGroup: false,

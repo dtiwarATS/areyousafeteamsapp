@@ -52,15 +52,15 @@ const { processSafetyBotError } = require("../models/processError");
                                 name: job.user_name
                             }];
                             log.addLog(`send  ${subcriptionMessage} type-${subscriptionType} to ${job.user_id} start`);
-                            await sendProactiveMessaageToUser(member, card, null, job.serviceUrl, job.tenantid, log);
+                            await sendProactiveMessaageToUser(member, card, null, job.serviceUrl, job.tenantid, log, userAadObjId);
                             log.addLog(`send  ${subcriptionMessage} type-${subscriptionType} proactive messaage to ${job.user_id} successfully`);
 
                             if (subcriptionMessage == "fiveDayBeforeExpiry") {
-                                await incidentService.updateFiveDayBeforeMessageSentFlag(job.ID);
+                                await incidentService.updateFiveDayBeforeMessageSentFlag(job.ID, userAadObjId);
                             } else if (subcriptionMessage == "afterSubcriptionEnd") {
                                 if (job.tenantid != null) {
                                     await incidentService.updateSubscriptionTypeToTypeOne(job.tenantid, job.ID, teamId, userAadObjId);
-                                    await incidentService.updateAfterExpiryMessageSentFlag(job.ID);
+                                    await incidentService.updateAfterExpiryMessageSentFlag(job.ID, userAadObjId);
                                 }
                             }
 
@@ -69,7 +69,7 @@ const { processSafetyBotError } = require("../models/processError");
                         } catch (err) {
                             console.log(err);
                             log.addLog(`Error occured: ${err}`);
-                            processSafetyBotError(err, "", "");
+                            processSafetyBotError(err, "", "", job.user_aadobject_id);
                         }
                     })
                 );

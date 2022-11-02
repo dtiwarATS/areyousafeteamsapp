@@ -41,7 +41,10 @@ function initJob() {
 
   bree.start();
 }
-//initJob();
+if (!process.env.isLocal) {
+  initJob();
+}
+
 //======================= BREE JS END ========================
 
 const closeConnectionPool = async () => {
