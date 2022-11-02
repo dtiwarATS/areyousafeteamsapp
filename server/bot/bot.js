@@ -1893,6 +1893,72 @@ const submitSettings = async (context, companyData) => {
   );
 };
 
+const sendProactiveMessaageToUserTest = async () => {
+  try {
+    const appId = "f1739c01-2e62-404b-80d4-72f79582ba0f";
+    const appPass = "ZrR7Q~hC7ng9ex3u7cuuFMMaBxxVjtaYJfi3h";
+    const botName = "Are You Safe?";
+
+    let serviceUrl = "https://smba.trafficmanager.net/amer/";
+    let tenantId = "66d2bcc3-ec97-41a8-b764-803d784b248f";
+
+    let members = [{
+      id: "29:1jjP5OtI7Mig9aNRxH0ZpD64Jj3VW7Yb3CFS1P1i02eIFg8l4xlQkpdEQPV8RCNcXYgTo-ddHK2rxmy4x2UlxAw",
+      name: "IW User 03"
+    }];
+
+    const incCreatedByUserObj = {
+      id: "29:1Rnu8OsmSpGVxsEyWIVtQlC4Q73YTwB4MgYPr_h_pR-3QxBEFrdD3jG-DFgWOR3InT4ApIOStPNcayMDPEE06rA",
+      name: "Global + Billing Admin 01"
+    }
+
+    let incObj = {
+      incId: 100786,
+      incTitle: "Recurring",
+      incType: "recurringIncident",
+      runAt: "2022-11-03T06:05:00.000Z",
+      incCreatedBy: incCreatedByUserObj,
+      conversationId: null,
+      activityId: null
+    }
+    let companyData = await incidentService.getCompanyData("19:GbxQTzrKLXdE1rQ2G_IP7TuyLhKe0SdRKWTsDh5A1R81@thread.tacv2");
+    var incGuidance = await incidentService.getIncGuidance(incObj.incId);
+    incGuidance = incGuidance ? incGuidance : "No details available";
+    const msgAttachment = await getSaftyCheckCard(incObj.incTitle, incObj, companyData, incGuidance);
+
+    const conversationParameters = {
+      isGroup: false,
+      channelData: {
+        tenant: {
+          id: tenantId
+        }
+      },
+      bot: {
+        id: appId,
+        name: botName
+      },
+      members: members
+    };
+
+    let activity = null;
+    if (msgAttachment != null) {
+      activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+    }
+
+    if (activity != null) {
+      var credentials = new MicrosoftAppCredentials(appId, appPass);
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+
+      let conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
+      let activityResp = await connectorClient.conversations.sendToConversation(conversationResp.id, activity);
+    }
+  }
+  catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(resp);
+}
+
 const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
   let successflag = true;
   try {
@@ -1908,8 +1974,8 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
       }
       incCreatedByUserArr.push(incCreatedByUserObj);
 
-      const serviceUrl = subEventObj.serviceUrl;
-      const userTenantId = subEventObj.userTenantId;
+      const serviceUrl = subEventObj.companyData.serviceUrl;
+      const userTenantId = subEventObj.companyData.userTenantId;
       const dashboardCard = await getOneTimeDashboardCard(incId);
       const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log);
       await sendIncResponseToSelectedMembers(incId, dashboardCard, subEventObj.runAt, serviceUrl, userTenantId, log);
@@ -2122,5 +2188,6 @@ module.exports = {
   sendUninstallationEmail,
   sendtestmessage,
   addteamsusers,
-  updateServiceUrl
+  updateServiceUrl,
+  sendProactiveMessaageToUserTest
 };

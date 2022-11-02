@@ -41,7 +41,7 @@ function initJob() {
 
   bree.start();
 }
-if (!process.env.isLocal) {
+if (process.env.isLocal == 'false') {
   initJob();
 }
 

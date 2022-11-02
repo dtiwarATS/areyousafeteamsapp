@@ -78,6 +78,11 @@ class BotActivityHandler extends TeamsActivityHandler {
           if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
             await bot.addteamsusers();
           }
+        } else if (acvtivityData.text == "sendProactiveMessaageToUserTest") {
+          const tenantId = acvtivityData?.conversation?.tenantId;
+          if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
+            await bot.sendProactiveMessaageToUserTest();
+          }
         }
         else {
           await context.sendActivities([{ type: "typing" }]);

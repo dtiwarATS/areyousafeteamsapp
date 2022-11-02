@@ -117,14 +117,6 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
     "error": null
   };
   try {
-    if (serviceUrl == null) {
-      serviceUrl = process.env.serviceUrl;
-    }
-
-    if (tenantId == null) {
-      tenantId = process.env.tenantId;
-    }
-
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
     const botName = process.env.BotName;
