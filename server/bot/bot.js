@@ -1360,7 +1360,7 @@ const sendtestmessage = async () => {
       id: "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
       name: "Sandesh Sawant"
     }];
-    const response = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId);
+    const response = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, incCreatedByUserObj.id);
     console.log(response);
   } catch (err) {
     console.log(err);
@@ -1437,7 +1437,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
           id: allMembersArr[i].id,
           name: allMembersArr[i].name
         }];
-        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
+        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId);
         let isMessageDelivered = 1;
         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
           isMessageDelivered = 1;
@@ -1977,7 +1977,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
       const serviceUrl = subEventObj.companyData.serviceUrl;
       const userTenantId = subEventObj.companyData.userTenantId;
       const dashboardCard = await getOneTimeDashboardCard(incId);
-      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log);
+      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
       await sendIncResponseToSelectedMembers(incId, dashboardCard, subEventObj.runAt, serviceUrl, userTenantId, log);
 
       let incObj = {
@@ -1998,7 +1998,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
           id: subEventObj.eventMembers[i].user_id,
           name: subEventObj.eventMembers[i].user_name
         }];
-        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
+        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
 
         const conversationId = (msgResp?.conversationId == null) ? null : Number(msgResp?.conversationId);
         const activityId = (msgResp?.activityId == null) ? null : Number(msgResp?.activityId);
@@ -2040,7 +2040,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
         ]
       }
 
-      await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard, null, serviceUrl, userTenantId, log);
+      await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
       successflag = true;
     }
   } catch (err) {

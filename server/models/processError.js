@@ -85,7 +85,7 @@ getSubject = () => {
     return `AreYouSafeBot | MSTeams App | Error Notification | ${errorDate.toDateString()} ${errorDate.toLocaleTimeString()}`
 }
 
-processSafetyBotError = (err, teamId, userName, userAadObjId) => {
+processSafetyBotError = (err, teamId, userName, userAadObjId, otherDetails) => {
     try {
         let errorMessage = "", errorDetails = "", botName = "areyousafebot", subject = getSubject(), date = new Date();
         if (err != null) {
@@ -96,6 +96,11 @@ processSafetyBotError = (err, teamId, userName, userAadObjId) => {
                 errorDetails = err.stack;
             }
         }
+
+        if (otherDetails == null) {
+            otherDetails = "";
+        }
+
         const errObj = {
             botName,
             subject,
@@ -104,7 +109,8 @@ processSafetyBotError = (err, teamId, userName, userAadObjId) => {
             teamId,
             userName,
             date,
-            userAadObjId
+            userAadObjId,
+            otherDetails
         }
         const url = `${process.env.botErrorHandlerApiUrl}/processError`;
         axios.post(url, errObj);

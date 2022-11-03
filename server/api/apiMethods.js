@@ -191,9 +191,6 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
     }
   }
   catch (err) {
-    if (err.code.toLowerCase() == "conversationblockedbyuser") {
-
-    }
     if (err?.statusCode != null) {
       resp.status = err.statusCode;
     }
@@ -201,7 +198,7 @@ const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serv
     log.addLog(JSON.stringify(err));
     log.addLog(`Error occured for user: ${JSON.stringify(members)}`);
     console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId);
+    processSafetyBotError(err, "", "", userAadObjId, JSON.stringify(members));
     resp.error = JSON.stringify(err);
   }
   finally {

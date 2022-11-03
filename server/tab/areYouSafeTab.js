@@ -247,7 +247,9 @@ class AreYouSafeTab {
               approvalCardResponse,
               null,
               admins[i].serviceUrl,
-              admins[i].user_tenant_id
+              admins[i].user_tenant_id,
+              null,
+              userAadObjId
             );
           }
         }
@@ -374,7 +376,7 @@ class AreYouSafeTab {
               memberArr,
               approvalCardResponse,
               null,
-              admins[i].serviceurl,
+              admins[i].serviceUrl,
               admins[i].user_tenant_id,
               null,
               userAadObjId
