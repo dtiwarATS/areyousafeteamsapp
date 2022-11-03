@@ -97,6 +97,14 @@ processSafetyBotError = (err, teamId, userName, userAadObjId, otherDetails) => {
             }
         }
 
+        if (errorMessage == "") {
+            errorMessage = "Unknown error";
+        }
+
+        if (errorDetails == "") {
+            errorDetails = JSON.stringify(err);
+        }
+
         if (otherDetails == null) {
             otherDetails = "";
         }
