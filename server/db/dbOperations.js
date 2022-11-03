@@ -49,11 +49,11 @@ const isAdminUser = async (userObjId) => {
     let adminUserLogin = false;
     selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and uninstallation_date is null`; //If bot is added using 'Add Me', team Id is always blank. Hence removed 'team-id' from where condition
 
-    let res = await db.getDataFromDB(selectQuery);
+    let res = await db.getDataFromDB(selectQuery, userObjId);
     // check if the user is super user or not
     if (!res || res.length == 0) {
       res = await db.getDataFromDB(
-        `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%' and uninstallation_date is null`
+        `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%' and uninstallation_date is null`, userObjId
       );
     }
 
@@ -76,7 +76,7 @@ const getSafetyInitiatorOfNonAdminUser = async (userObjId) => {
     const sqlInitiator = `select top 1 user_name from MSTeamsInstallationDetails where team_id in (
       select top 1 team_id from MSTeamsTeamsUsers where user_aadobject_id = '${userObjId}' ) and uninstallation_date is null`;
 
-    let safetyInitiatorData = await db.getDataFromDB(sqlInitiator);
+    let safetyInitiatorData = await db.getDataFromDB(sqlInitiator, userObjId);
 
     if (safetyInitiatorData != null && safetyInitiatorData.length > 0) {
       safetyInitiator = safetyInitiatorData[0]["user_name"];
@@ -131,7 +131,7 @@ const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false
     const filter = (filterByTeamId) ? ' and team_id is not null' : ' ';
     selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${superUserId}%'  ${filter} and uninstallation_date is null`;
 
-    let res = await db.getDataFromDB(selectQuery);
+    let res = await db.getDataFromDB(selectQuery, superUserId);
     companyData = await parseCompanyData(res);
     return Promise.resolve(companyData);
   } catch (err) {
@@ -149,7 +149,7 @@ const checkUserHasValidLicense = async (userAadObjId) => {
   try {
     const checkUserLicenseQuery = getCheckUserLicenseQuery(userAadObjId);
     console.log(checkUserLicenseQuery);
-    const res = await db.getDataFromDB(checkUserLicenseQuery);
+    const res = await db.getDataFromDB(checkUserLicenseQuery, userAadObjId);
     console.log(res);
     hasLicense = (res != null && res.length > 0 && res[0]["hasLicense"] != null && res[0]["hasLicense"] === true);
   } catch (err) {
@@ -189,12 +189,12 @@ const getCompaniesData = async (
     } else {
       selectQuery = `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and uninstallation_date is null`;
     }
-    let res = await db.getDataFromDB(selectQuery);
+    let res = await db.getDataFromDB(selectQuery, userObjId);
 
     // check if the user is super user or not
     if (res.length == 0) {
       res = await db.getDataFromDB(
-        `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails where super_users like '%${userObjId}%' and uninstallation_date is null`
+        `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails where super_users like '%${userObjId}%' and uninstallation_date is null`, userObjId
       );
     }
     companyData = await parseCompanyData(res);
@@ -209,7 +209,7 @@ const getCompanyDataByTeamId = async (teamId, userAadObjId) => {
   let companyData = null;
   try {
     const selectQuery = `SELECT * FROM MSTeamsInstallationDetails where team_id = '${teamId}'`;
-    let res = await db.getDataFromDB(selectQuery);
+    let res = await db.getDataFromDB(selectQuery, userAadObjId);
     companyData = await parseCompanyData(res);
   } catch (err) {
     console.log(err);
@@ -453,7 +453,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
         END
     END`;
     console.log(sqlAddCompanyData);
-    res = await db.getDataFromDB(sqlAddCompanyData);
+    res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
       const isUserInfoSaved = await addTeamMember(teamId, allMembersInfo);
