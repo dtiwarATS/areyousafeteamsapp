@@ -1,5 +1,5 @@
 const {
-    saveLog
+    saveLog: saveLoginDB
 } = require("../db/dbOperations");
 
 class AYSLog {
@@ -19,10 +19,10 @@ class AYSLog {
             if (incId == null || Number(incId) <= 0) {
                 incId = -1;
             }
-            let logMessage = this.log.toString();
+            let logMessage = this.log.toString().replace(/'/g, "''");
             logMessage = `<table>${logMessage}</table>`;
             const logSql = `insert into MSTeamsLog ([inc_id], [log], [datetime]) values (${incId}, '${logMessage}', GETDATE())`;
-            await saveLog(logSql);
+            await saveLoginDB(logSql);
         } catch (err) {
             console.log(err);
         }

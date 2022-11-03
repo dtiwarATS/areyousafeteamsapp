@@ -372,3 +372,132 @@ BEGIN
 ALTER TABLE msteamsinstallationdetails ADD uninstallation_user_aadObjid varchar(100) NULL
 END
 GO
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'SYS_ERROR_LOGGER')
+BEGIN
+	CREATE TABLE SYS_ERROR_LOGGER (
+	ID INT IDENTITY(100001,1) NOT NULL,
+	BOT_NAME NVARCHAR(256) NOT NULL,
+	ERROR_MESSAGE NVARCHAR(MAX) NOT NULL,
+	ERROR_DETAILS NVARCHAR(MAX) NULL,
+	USER_NAME NVARCHAR(256) NULL,
+	TEAM_NAME NVARCHAR(512) NULL,
+	ERROR_DATE NVARCHAR(100) NULL	
+	CONSTRAINT PK_SYS_ERROR_LOGGER PRIMARY KEY CLUSTERED 
+	(
+		ID ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+	) ON [PRIMARY]
+END
+GO
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsSubscriptionDetails')
+BEGIN
+	CREATE TABLE MSTeamsSubscriptionDetails (
+	[ID] INT IDENTITY(100001,1) NOT NULL,	
+	[Timestamp] NVARCHAR(128) NULL,
+	[Action] NVARCHAR(128) NULL,
+	[SubscriptionDate] Date NULL,
+	[ExpiryDate] Date NULL,
+	[isProcessed] bit NULL,
+	[SubJson] NVARCHAR(max) NULL,	
+	[SubscriptionId] NVARCHAR(256) NULL,
+	[SubscriptionType] INTEGER NULL,
+	[TenantId] NVARCHAR(256) NULL,
+	[UserEmailId] NVARCHAR(256) NULL,
+	[UserLimit] INTEGER NULL,
+	[UserAadObjId] NVARCHAR(256) NULL,
+	[TermUnit] NVARCHAR(20) NULL,
+	[isFiveDayBeforeMessageSent] BIT NULL,
+	[isAfterExpiryMessageSent] BIT NULL
+
+	CONSTRAINT PK_MSTeamsSubscriptionDetails PRIMARY KEY CLUSTERED 
+	(
+		ID ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+	) ON [PRIMARY]
+END
+GO
+
+-------------------msteamsinstallationdetails-----------
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='SubscriptionDetailsId' AND TABLE_NAME='msteamsinstallationdetails')
+BEGIN
+ALTER TABLE msteamsinstallationdetails ADD [SubscriptionDetailsId] INTEGER NULL
+
+ALTER TABLE [DBO].msteamsinstallationdetails  WITH NOCHECK ADD  CONSTRAINT [FK_msteamsinstallationdetails_SubscriptionDetailsId] FOREIGN KEY(SubscriptionDetailsId)
+REFERENCES [DBO].MSTeamsSubscriptionDetails (ID)
+ALTER TABLE [DBO].msteamsinstallationdetails CHECK CONSTRAINT [FK_msteamsinstallationdetails_SubscriptionDetailsId]
+
+END
+GO
+-------------------MSTeamsAssistance-----------
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='hasLicense' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD hasLicense BIT NULL
+END
+GO
+-----------------
+-----------------Paid version changes Start---------------------
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsSubscriptionDetails')
+BEGIN
+	CREATE TABLE MSTeamsSubscriptionDetails (
+	[ID] INT IDENTITY(100001,1) NOT NULL,	
+	[Timestamp] NVARCHAR(128) NULL,
+	[Action] NVARCHAR(128) NULL,
+	[SubscriptionDate] Date NULL,
+	[ExpiryDate] Date NULL,
+	[isProcessed] bit NULL,
+	[SubJson] NVARCHAR(max) NULL,	
+	[SubscriptionId] NVARCHAR(256) NULL,
+	[SubscriptionType] INTEGER NULL,
+	[TenantId] NVARCHAR(256) NULL,
+	[UserEmailId] NVARCHAR(256) NULL,
+	[UserLimit] INTEGER NULL,
+	[UserAadObjId] NVARCHAR(256) NULL,
+	[TermUnit] NVARCHAR(20) NULL,
+	[isFiveDayBeforeMessageSent] BIT NULL,
+	[isAfterExpiryMessageSent] BIT NULL
+
+	CONSTRAINT PK_MSTeamsSubscriptionDetails PRIMARY KEY CLUSTERED 
+	(
+		ID ASC
+	)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON) ON [PRIMARY]
+	) ON [PRIMARY]
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isLicenseAssignedForExistingUser' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD isLicenseAssignedForExistingUser BIT NULL
+END
+GO
+
+-------------------msteamsinstallationdetails-----------
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='SubscriptionDetailsId' AND TABLE_NAME='msteamsinstallationdetails')
+BEGIN
+ALTER TABLE msteamsinstallationdetails ADD [SubscriptionDetailsId] INTEGER NULL
+
+ALTER TABLE [DBO].msteamsinstallationdetails  WITH NOCHECK ADD  CONSTRAINT [FK_msteamsinstallationdetails_SubscriptionDetailsId] FOREIGN KEY(SubscriptionDetailsId)
+REFERENCES [DBO].MSTeamsSubscriptionDetails (ID)
+ALTER TABLE [DBO].msteamsinstallationdetails CHECK CONSTRAINT [FK_msteamsinstallationdetails_SubscriptionDetailsId]
+
+END
+GO
+-------------------MSTeamsAssistance-----------
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='hasLicense' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD hasLicense BIT NULL
+END
+GO
+-----------------Paid version changes End-----------------------
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='message_delivery_status' AND TABLE_NAME='MSTeamsMemberResponses')
+BEGIN
+ALTER TABLE MSTeamsMemberResponses ADD message_delivery_status int NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='message_delivery_error' AND TABLE_NAME='MSTeamsMemberResponses')
+BEGIN
+ALTER TABLE MSTeamsMemberResponses ADD message_delivery_error NVARCHAR(max) NULL
+END
+GO

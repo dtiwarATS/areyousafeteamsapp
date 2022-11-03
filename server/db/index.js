@@ -1,4 +1,5 @@
 const poolPromise = require("./dbConn");
+const { processSafetyBotError } = require("../models/processError");
 
 const getColumns = (tableName) => {
   // For now we have hard-coded the column names but in future if table increases
@@ -89,7 +90,6 @@ const parseValue = (value) => {
   if (typeof value === "string") {
     parsedValue = `'${value.replace(/'/g, "''")}'`;
   }
-
   return parsedValue;
 };
 
@@ -107,6 +107,7 @@ const getDataFromDB = async (sqlQuery, isSingleQuery = true) => {
     return isSingleQuery ? data.recordset : data.recordsets;
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "");
   }
 };
 
@@ -153,6 +154,7 @@ const insertDataIntoDB = async (tableName, values) => {
     return result.recordset;
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "");
     return null;
   }
 };
@@ -160,11 +162,27 @@ const insertDataIntoDB = async (tableName, values) => {
 const updateDataIntoDB = async (query) => {
   try {
     // console.log("update query => ", query);
+    pool = await poolPromise;
     const res = await pool.request().query(query);
     return Promise.resolve(res);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "");
   }
+};
+
+const insertData = async (sqlInsertQuery) => {
+  let result = null;
+  if (sqlInsertQuery != null) {
+    try {
+      pool = await poolPromise;
+      console.log("insert query => ", sqlInsertQuery);
+      result = await pool.request().query(sqlInsertQuery);
+    } catch (err) {
+      console.log(err);
+    }
+  }
+  return result;
 };
 
 const db = {
@@ -172,7 +190,8 @@ const db = {
   getDataFromDB,
   updateDataIntoDB,
   insertOrUpdateDataIntoDB,
-  getInsertSql
+  getInsertSql,
+  insertData
 };
 
 module.exports = db;

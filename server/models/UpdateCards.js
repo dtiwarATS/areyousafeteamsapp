@@ -1,5 +1,18 @@
 const updateMainCard = (companyData) => {
-  return {
+  const cardActions = [
+    {
+      "type": "Action.OpenUrl",
+      "title": "Frequently Asked Questions",
+      "url": "https://safetybot.in/frequently_asked_questions.html",
+      "iconUrl": "https://safetybot.in/img/help.png"
+    },
+    {
+      "type": "Action.OpenUrl",
+      "title": "Contact us",
+      "url": "mailto:help@safetybot.in",
+    }
+  ];
+  const card = {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     version: "1.4",
@@ -7,21 +20,24 @@ const updateMainCard = (companyData) => {
       {
         type: "TextBlock",
         wrap: true,
-        text: `Hello! Click on the  **Dashboard** tab above to access all features. If you need help, you can read the user guide or email [help@safetybot.in](mailto:help@safetybot.in)`
+        "text": "Hello! Click on the **Dashboard tab** above to access all features.",
       },
       {
         type: "ActionSet",
-        actions: [
-          {
-            "type": "Action.OpenUrl",
-            "url": "https://safetybot.in/Safetybot-Teams_User_Guide.pdf",
-            "title": "User Guide",
-            "iconUrl": "https://safetybot.in/img/help.png"
-          }
-        ],
+        actions: cardActions,
       }
     ]
   };
+  if (companyData != null && companyData.membersCount != null && Number(companyData.membersCount) > 0 && companyData.userEmail != null) {
+    const manageSubscriptionBtnJSON = {
+      "type": "Action.OpenUrl",
+      "title": "Manage Licenses",
+      "url": `https://areyousafesubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${companyData.userEmail}`,
+      "iconUrl": "https://safetybot.in/img/help.png"
+    }
+    cardActions.push(manageSubscriptionBtnJSON);
+  }
+  return card;
 };
 const updateCard = (incidentTitle, members, text) => {
   return {

@@ -1,4 +1,4 @@
-const { insertIncidentData } = require("../db/dbOperations");
+const { checkUserHasValidLicense, getCompaniesData, getCompaniesDataBySuperUserId } = require("../db/dbOperations");
 const Member = require("../models/Member");
 const Incident = require("../models/Incident");
 
@@ -6,8 +6,12 @@ const poolPromise = require("../db/dbConn");
 const db = require("../db");
 const { getCron } = require("../utils");
 const parser = require("cron-parser");
-
+const { formatedDate } = require("../utils/index");
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
+
+const { processSafetyBotError } = require("../models/processError");
+
+
 
 const parseEventData = async (result, updateRecurrMemebersResp = false) => {
   let parsedDataArr = [];
@@ -34,6 +38,7 @@ const parseEventData = async (result, updateRecurrMemebersResp = false) => {
                 member.response_value = recurrMemberResp.response_valueR;
                 member.comment = recurrMemberResp.commentR;
                 member.is_message_delivered = recurrMemberResp.is_message_deliveredR;
+                member.msgStatus = recurrMemberResp.msgStatusR;
               } else {
                 member = {
                   ...member,
@@ -73,7 +78,7 @@ const parseEventData = async (result, updateRecurrMemebersResp = false) => {
   return Promise.resolve(parsedDataArr);
 };
 
-const getInc = async (incId, runAt = null) => {
+const getInc = async (incId, runAt = null, userAadObjId = null) => {
   try {
     let eventData = {};
     let selectQuery = "";
@@ -109,6 +114,7 @@ const getInc = async (incId, runAt = null) => {
     return Promise.resolve(eventData);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 };
 
@@ -131,7 +137,8 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
 
   let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-  m.comment, m.timestamp, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.is_message_delivered is_message_deliveredR, inc.INC_STATUS_ID, tu.userPrincipalName
+  m.comment, m.timestamp, m.message_delivery_status msgStatus, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
+  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, inc.INC_STATUS_ID, tu.userPrincipalName
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
@@ -144,7 +151,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   return selectQuery;
 }
 
-const getAllIncByTeamId = async (teamId, orderBy) => {
+const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
   try {
     const selectQuery = getAllIncQuery(teamId, null, orderBy);
     const result = await db.getDataFromDB(selectQuery);
@@ -152,6 +159,7 @@ const getAllIncByTeamId = async (teamId, orderBy) => {
     return Promise.resolve(parsedResult);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "", userObjId);
   }
 };
 
@@ -226,13 +234,19 @@ const getAdmins = async (aadObjuserId) => {
     return Promise.resolve(adminData);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", aadObjuserId);
   }
 };
 
-const addComment = async (assistanceId, comment, ts) => {
-  let sqlUpdate = `UPDATE MSTeamsAssistance SET comments = '${comment}', comment_date = '${ts}' WHERE id = ${assistanceId}`;
-  let res = await db.updateDataIntoDB(sqlUpdate);
-  console.log(res);
+const addComment = async (assistanceId, comment, ts, aadObjuserId) => {
+  try {
+    let sqlUpdate = `UPDATE MSTeamsAssistance SET comments = '${comment}', comment_date = '${ts}' WHERE id = ${assistanceId}`;
+    let res = await db.updateDataIntoDB(sqlUpdate);
+    console.log(res);
+  } catch (err) {
+    processSafetyBotError(err, "", "", aadObjuserId);
+  }
+
 };
 
 const getAssistanceData = async (aadObjuserId) => {
@@ -243,6 +257,7 @@ const getAssistanceData = async (aadObjuserId) => {
     return Promise.resolve(result);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", aadObjuserId);
   }
 };
 
@@ -254,6 +269,7 @@ const getAllIncByUserId = async (aadObjuserId, orderBy) => {
     return Promise.resolve(parsedResult);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", aadObjuserId);
   }
 };
 
@@ -274,25 +290,28 @@ const getIncGuidance = async (incId) => {
   }
 };
 
-const createNewInc = async (incObj, selectedMembersResp, memberChoises) => {
+const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadObjId) => {
   let newInc = {};
-  if (incObj.selectedMembers.length === 0 && memberChoises && memberChoises.length > 0) {
-    const selectedMembers = memberChoises.map((m) => {
-      return m.value;
-    });
-    incObj.selectedMembers = selectedMembers;
-  }
-  let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
-  const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
-
-  if (res && res.length > 0) {
-    newInc = new Incident(res[0]);
-    if (selectedMembersResp && selectedMembersResp != "") {
-      await saveIncResponseSelectedUsers(newInc.incId, selectedMembersResp, memberChoises);
-      incObj.responseSelectedUsers = selectedMembersResp;
+  try {
+    if (incObj.selectedMembers.length === 0 && memberChoises && memberChoises.length > 0) {
+      const selectedMembers = memberChoises.map((m) => {
+        return m.value;
+      });
+      incObj.selectedMembers = selectedMembers;
     }
-  }
+    let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
+    const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
 
+    if (res && res.length > 0) {
+      newInc = new Incident(res[0]);
+      if (selectedMembersResp && selectedMembersResp != "") {
+        await saveIncResponseSelectedUsers(newInc.incId, selectedMembersResp, memberChoises, userAadObjId);
+        incObj.responseSelectedUsers = selectedMembersResp;
+      }
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId);
+  }
   return Promise.resolve(newInc);
 }
 
@@ -400,7 +419,8 @@ const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
   return Promise.resolve(newInc);
 };
 
-const deleteInc = async (incId) => {
+const deleteInc = async (incId, userAadObjId) => {
+
   let incName = null;
   try {
     pool = await poolPromise;
@@ -414,6 +434,7 @@ const deleteInc = async (incId) => {
     }
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   return Promise.resolve(incName);
 };
@@ -421,8 +442,8 @@ const deleteInc = async (incId) => {
 const addMemberResponseDetails = async (respDetailsObj) => {
   try {
     console.log("test addMemberResponseDetails");
-    const recurrRespQuery = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId) 
-          values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', 1, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}')`;
+    const recurrRespQuery = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
+          values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', ${respDetailsObj.isDelivered}, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}', ${respDetailsObj.status}, '${respDetailsObj.error}')`;
 
     console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
@@ -432,34 +453,40 @@ const addMemberResponseDetails = async (respDetailsObj) => {
   }
 }
 
-const addMembersIntoIncData = async (incId, allMembers, requesterId) => {
+const addMembersIntoIncData = async (incId, allMembers, requesterId, userAadObjId) => {
   let incData = {};
-  pool = await poolPromise;
+  try {
+    pool = await poolPromise;
 
-  // TODO: use bulk insert instead inseting data one by one
-  for (let i = 0; i < allMembers.length; i++) {
-    let member = allMembers[i];
-    let userId = member.id;
-    const query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
-        values(${incId}, '${member.id}', '${member.name}', 0, 0, NULL, NULL, NULL)`;
+    // TODO: use bulk insert instead inseting data one by one
+    for (let i = 0; i < allMembers.length; i++) {
+      let member = allMembers[i];
+      let userId = member.id;
+      const query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
+          values(${incId}, '${member.id}', '${member.name}', 0, 0, NULL, NULL, NULL)`;
 
-    console.log("insert query => ", query);
-    await pool.request().query(query);
+      console.log("insert query => ", query);
+      await pool.request().query(query);
+    }
+
+    const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by, 
+      m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+      m.comment, m.timestamp FROM MSTeamsIncidents inc
+      LEFT JOIN MSTeamsMemberResponses m
+      ON inc.id = m.inc_id
+      where inc.id = ${incId}
+      FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+
+    const result = await db.getDataFromDB(selectQuery);
+    let parsedResult = await parseEventData(result);
+    if (parsedResult.length > 0) {
+      incData = parsedResult[0];
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 
-  const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by, 
-    m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-    m.comment, m.timestamp FROM MSTeamsIncidents inc
-    LEFT JOIN MSTeamsMemberResponses m
-    ON inc.id = m.inc_id
-    where inc.id = ${incId}
-    FOR JSON AUTO , INCLUDE_NULL_VALUES`;
-
-  const result = await db.getDataFromDB(selectQuery);
-  let parsedResult = await parseEventData(result);
-  if (parsedResult.length > 0) {
-    incData = parsedResult[0];
-  }
   return Promise.resolve(incData);
 };
 
@@ -565,15 +592,19 @@ const getLastRunAt = async (incId) => {
 }
 
 const verifyDuplicateInc = async (teamId, incTitle) => {
-  if (teamId != null && teamId != '') {
-    const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle}' AND TEAM_ID = '${teamId}'`;
-    const result = await db.getDataFromDB(sqlLastRunAt);
-    return (result != null && result.length > 0);
+  try {
+    if (teamId != null && teamId != '') {
+      const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle}' AND TEAM_ID = '${teamId}'`;
+      const result = await db.getDataFromDB(sqlLastRunAt);
+      return (result != null && result.length > 0);
+    }
+  } catch (err) {
+    processSafetyBotError(err, teamId, "");
   }
   return false;
 }
 
-const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises) => {
+const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises, userAadObjId) => {
   try {
     if (incId != null && userIds != null && userIds != '' && userIds.split(',').length > 0) {
       let query = "";
@@ -595,10 +626,11 @@ const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises) => {
   }
   catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 }
 
-const saveIncResponseUserTS = async (respUserTSquery) => {
+const saveIncResponseUserTS = async (respUserTSquery, userAadObjId) => {
   try {
     if (respUserTSquery != null && respUserTSquery != "") {
       console.log("insert query => ", respUserTSquery);
@@ -607,10 +639,11 @@ const saveIncResponseUserTS = async (respUserTSquery) => {
   }
   catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 }
 
-const getIncResponseSelectedUsersList = async (incId) => {
+const getIncResponseSelectedUsersList = async (incId, userAadObjId) => {
   try {
     const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});`;
     const result = await db.getDataFromDB(sql);
@@ -618,10 +651,11 @@ const getIncResponseSelectedUsersList = async (incId) => {
   }
   catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 }
 
-const getUserTenantDetails = async (incId) => {
+const getUserTenantDetails = async (incId, userAadObjId) => {
   try {
     const sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id ` +
       ` in (select team_id from MSTeamsIncidents where id = ${incId})`;
@@ -634,6 +668,7 @@ const getUserTenantDetails = async (incId) => {
   }
   catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 }
 
@@ -680,7 +715,7 @@ const getRecurrenceMembersResponse = async (incId) => {
   }
 }
 
-const updateIncStatus = async (incId, incStatus) => {
+const updateIncStatus = async (incId, incStatus, userAadObjId) => {
   let isupdated = false;
   try {
     pool = await poolPromise;
@@ -694,6 +729,7 @@ const updateIncStatus = async (incId, incStatus) => {
   }
   catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   return Promise.resolve(isupdated);
 };
@@ -793,7 +829,7 @@ const updateUserInfoFlag = async (installationIds) => {
 }
 
 const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias = "title") => {
-  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} ORDER BY [USER_NAME]`;
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} and hasLicense = 1 ORDER BY [USER_NAME]`;
 }
 
 const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
@@ -807,17 +843,18 @@ const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", use
   return getTeamMemeberSqlQuery(whereSql, userIdAlias, userNameAlias);
 }
 
-const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title") => {
+const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title", userAadObjId) => {
   try {
     const sqlTeamMembers = getAllTeamMembersQuery(teamId, null, userIdAlias, userNameAlias);
     const result = await db.getDataFromDB(sqlTeamMembers);
     return Promise.resolve(result);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "", userAadObjId);
   }
 }
 
-const getIncResponseMembers = async (incId, teamId) => {
+const getIncResponseMembers = async (incId, teamId, userAadObjId) => {
   let result = null;
   try {
     const sqlWhere = ` team_id = '${teamId}' and user_id in (select user_id from MSTeamsIncResponseSelectedUsers where inc_id = ${incId})`;
@@ -825,11 +862,12 @@ const getIncResponseMembers = async (incId, teamId) => {
     result = await db.getDataFromDB(sqlTeamMembers);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "", userAadObjId);
   }
   return Promise.resolve(result);
 }
 
-const getIncSelectedMembers = async (selectedUsers, teamId) => {
+const getIncSelectedMembers = async (selectedUsers, teamId, userAadObjId) => {
   let result = null;
   try {
     if (selectedUsers && selectedUsers.length > 0) {
@@ -840,6 +878,7 @@ const getIncSelectedMembers = async (selectedUsers, teamId) => {
     result = await db.getDataFromDB(sqlTeamMembers);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "", userAadObjId);
   }
   return Promise.resolve(result);
 }
@@ -851,19 +890,21 @@ const getAllTeamMembersByUserAadObjId = async (userAadObjId) => {
     return Promise.resolve(result);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
 }
 
 const getTeamIdByUserAadObjId = async (userAadObjId) => {
   let teamId = null;
   try {
-    const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc`;
+    const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' and hasLicense = 1 order by id desc`;
     const result = await db.getDataFromDB(teamIdSql);
     if (result != null && result.length > 0) {
       teamId = result[0]["team_id"];
     }
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   return Promise.resolve(teamId);
 }
@@ -871,10 +912,11 @@ const getTeamIdByUserAadObjId = async (userAadObjId) => {
 const getUserInfo = async (teamId, useraadObjId) => {
   let result = null;
   try {
-    const sqlUserInfo = `select * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'`;
+    const sqlUserInfo = `select * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'  and hasLicense = 1`;
     result = await db.getDataFromDB(sqlUserInfo);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "", useraadObjId);
   }
   return Promise.resolve(result);
 }
@@ -897,6 +939,7 @@ const getUserTeamInfo = async (userAadObjId) => {
     result = await db.getDataFromDB(sqlTeamInfo);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   return Promise.resolve(result);
 }
@@ -908,6 +951,7 @@ const getSuperUsersByTeamId = async (teamId) => {
     result = await db.getDataFromDB(sqlSuperUsers);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, teamId, "", null);
   }
   return Promise.resolve(result);
 }
@@ -936,15 +980,162 @@ const isWelcomeMessageSend = async (userObjId) => {
 
 }
 
-const updateMessageDeliveredStatus = async (incId, userId, isMessageDelivered) => {
+const updateMessageDeliveredStatus = async (incId, userId, isMessageDelivered, msgResp) => {
   let result = null;
   try {
-    const sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered} where inc_id = ${incId} and user_id = '${userId}';`
+    let sqlUpdate = '';
+    // if (isMessageDelivered == 1) {
+    //   sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 1 where inc_id = ${incId} and user_id = '${userId}';`;
+    // } else {
+    //   const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+    //   const error = (msgResp?.error == null) ? null : msgResp?.error;
+    //   sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 0, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
+    // }
+    const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+    const error = (msgResp?.error == null) ? null : msgResp?.error;
+    sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
     result = await db.getDataFromDB(sqlUpdate);
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "");
   }
   return Promise.resolve(result);
+}
+
+const addError = async (botName, errorMessage, errorDetails, teamName, userName, date) => {
+  try {
+    const sqlInsert = `INSERT INTO SYS_ERROR_LOGGER (BOT_NAME, ERROR_MESSAGE, ERROR_DETAILS, USER_NAME, TEAM_NAME, ERROR_DATE) VALUES
+    ('${botName}', '${errorMessage}', '${errorDetails}', '${userName}', '${teamName}','${date}')`;
+    await db.insertData(sqlInsert);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+const hasValidLicense = async (aadUserObjId) => {
+  let hasLicense = false;
+  try {
+    hasLicense = await checkUserHasValidLicense(aadUserObjId);
+  } catch (err) {
+    processSafetyBotError(err, "", "", aadUserObjId);
+  }
+  return Promise.resolve(hasLicense);
+}
+
+const updateSubscriptionType = async (licenseType, tenantId) => {
+  try {
+    if (Number(licenseType) === 2 && tenantId != null) {
+      let currentDate = new Date();
+      const startDate = formatedDate("mm/dd/yyyy", currentDate);
+      currentDate.setDate(currentDate.getDate() + 45);
+      const expiryDate = formatedDate("mm/dd/yyyy", new Date(currentDate));
+      const sqlUpdate = `Update MSTeamsSubscriptionDetails set SubscriptionType = 2, SubscriptionDate = '${startDate}', 
+                          ExpiryDate = '${expiryDate}' where TenantId = '${tenantId}';
+                          
+                          Update MSTeamsTeamsUsers set hasLicense = 1 where tenantid =  '${tenantId}';
+                          `;
+      await db.getDataFromDB(sqlUpdate);
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const updateFiveDayBeforeMessageSentFlag = async (id, userAadObjId) => {
+  try {
+    const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isFiveDayBeforeMessageSent = 1 where ID = ${id}`;
+    await db.getDataFromDB(sqlCheckLicense);
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId);
+  }
+}
+
+const updateAfterExpiryMessageSentFlag = async (subscriptionId, userAadObjId) => {
+  try {
+    const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isAfterExpiryMessageSent = 1 where ID = ${subscriptionId}`;
+    await db.updateDataIntoDB(sqlCheckLicense);
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId);
+  }
+}
+
+const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId, userObjId) => {
+  try {
+    const sqlUpdate = `update MSTeamsSubscriptionDetails set SubscriptionType = 1 where ID = ${subscriptionId};
+
+    update MSTeamsTeamsUsers set hasLicense = 0 where user_aadobject_id in (
+      select user_aadobject_id from MSTeamsTeamsUsers where hasLicense = 1 
+      and tenantid = '${tenantId}' and team_id = '${teamId}'
+      ) and tenantid = '${tenantId}';
+    
+      update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
+      select top 10 user_aadobject_id from MSTeamsTeamsUsers where tenantid = '${tenantId}'
+      and team_id = '${teamId}'
+      order by (case when user_aadobject_id = '${userObjId}' 
+      then 0 else 1 end), user_name
+      ) and tenantid = '${tenantId}';
+      `;
+    await db.updateDataIntoDB(sqlUpdate);
+  } catch (err) {
+    processSafetyBotError(err, "", "", userObjId);
+  }
+}
+
+const updateSubcriptionProcessFlag = async (subscriptionId, userAadObjId) => {
+  try {
+    const sqlUpdate = `update MSTeamsSubscriptionDetails set isProcessed = 1 where ID = ${subscriptionId};`;
+    await db.updateDataIntoDB(sqlUpdate);
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId);
+  }
+}
+
+const getAllCompanyData = async () => {
+  let result = null;
+  try {
+    const sqlAllCompanyData = `SELECT * FROM MSTEAMSINSTALLATIONDETAILS WHERE (ISUSERINFOSAVED = 0 OR ISUSERINFOSAVED IS NULL) 
+                                and team_id is not null and team_id <> '' and email not like '%onmicrosoft.com%' 
+                                and uninstallation_date is null`;
+    result = await db.getDataFromDB(sqlAllCompanyData);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+  return Promise.resolve(result);
+}
+
+const updateDataIntoDB = async (sqlUpdate) => {
+  try {
+    await db.updateDataIntoDB(sqlUpdate);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const isBotInstalledInTeam = async (userAadObjId) => {
+  let companyData = null, isInstalledInTeam = true, isSuperUser = false;
+  try {
+    companyData = await getCompaniesData(
+      userAadObjId
+    );
+
+    if (!companyData.teamId?.length) {
+      isInstalledInTeam = false;
+    }
+
+    if (!isInstalledInTeam) {
+      companyData = await getCompaniesDataBySuperUserId(
+        userAadObjId, true
+      );
+      if (companyData != null && companyData !== undefined && companyData.teamId?.length > 0) {
+        isSuperUser = true;
+        isInstalledInTeam = true;
+      }
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
+  }
+  return { companyData, isInstalledInTeam, isSuperUser };
 }
 
 module.exports = {
@@ -989,5 +1180,15 @@ module.exports = {
   getUserInfoByUserAadObjId,
   getIncResponseMembers,
   getIncSelectedMembers,
-  updateMessageDeliveredStatus
+  updateMessageDeliveredStatus,
+  addError,
+  hasValidLicense,
+  updateSubscriptionType,
+  updateFiveDayBeforeMessageSentFlag,
+  updateAfterExpiryMessageSentFlag,
+  updateSubscriptionTypeToTypeOne,
+  updateSubcriptionProcessFlag,
+  getAllCompanyData,
+  updateDataIntoDB,
+  isBotInstalledInTeam
 };

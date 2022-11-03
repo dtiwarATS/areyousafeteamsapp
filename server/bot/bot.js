@@ -18,7 +18,8 @@ const {
   sendDirectMessageCard,
   sendProactiveMessaageToUser,
   updateMessage,
-  addLog
+  addLog,
+  getAllTeamMembersByConnectorClient
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
@@ -43,45 +44,57 @@ require("dotenv").config({ path: ENV_FILE });
 const ALL_USERS = "allusers";
 const SELECTED_USERS = "selectedusers";
 const db = require("../db");
+const { AYSLog } = require("../utils/log");
 
 const newIncident = require("../view/newIncident");
+const { processSafetyBotError } = require("../models/processError");
+const { getAfterUsrSubscribedTypeOneCard, getAfterUsrSubscribedTypeTwoCard } = require("./subscriptionCard");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
-  const emailBody =
-    "Hi,<br/> <br />" +
-    "Below user has successfully installed AreYouSafe app in Microsoft Teams: <br />" +
-    "<b>User Name: </b>" +
-    userName +
-    "<br />" +
-    "<b>User Email: </b>" +
-    userEmailId +
-    "<br />" +
-    "<br /><br />" +
-    "Thank you, <br />" +
-    "AreYouSafe Support";
+  try {
+    const emailBody =
+      "Hi,<br/> <br />" +
+      "Below user has successfully installed AreYouSafe app in Microsoft Teams: <br />" +
+      "<b>User Name: </b>" +
+      userName +
+      "<br />" +
+      "<b>User Email: </b>" +
+      userEmailId +
+      "<br />" +
+      "<br /><br />" +
+      "Thank you, <br />" +
+      "AreYouSafe Support";
 
-  const subject = "AreYouSafe? Teams Bot | New Installation Details";
-  if (process.env.IS_EMAIL_SEND == 'true')
-    await sendEmail(userEmailId, subject, emailBody);
+    const subject = "AreYouSafe? Teams Bot | New Installation Details";
+    if (process.env.IS_EMAIL_SEND == 'true') {
+      await sendEmail(userEmailId, subject, emailBody);
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", userName);
+  }
 };
 
 const sendUninstallationEmail = async (userEmailId, userName) => {
-  const emailBody =
-    "Hi,<br/> <br />" +
-    "Below user has uninstalled AreYouSafe app in Microsoft Teams: <br />" +
-    "<b>User Name: </b>" +
-    userName +
-    "<br />" +
-    "<b>User Email: </b>" +
-    userEmailId +
-    "<br />" +
-    "<br /><br />" +
-    "Thank you, <br />" +
-    "AreYouSafe Support";
+  try {
+    const emailBody =
+      "Hi,<br/> <br />" +
+      "Below user has uninstalled AreYouSafe app in Microsoft Teams: <br />" +
+      "<b>User Name: </b>" +
+      userName +
+      "<br />" +
+      "<b>User Email: </b>" +
+      userEmailId +
+      "<br />" +
+      "<br /><br />" +
+      "Thank you, <br />" +
+      "AreYouSafe Support";
 
-  const subject = "AreYouSafe? Teams Bot | New Uninstallation Details";
-  if (process.env.IS_EMAIL_SEND == 'true') {
-    await sendEmail(userEmailId, subject, emailBody);
+    const subject = "AreYouSafe? Teams Bot | New Uninstallation Details";
+    if (process.env.IS_EMAIL_SEND == 'true') {
+      await sendEmail(userEmailId, subject, emailBody);
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", userName);
   }
 };
 
@@ -147,26 +160,51 @@ const selectResponseCard = async (context, user) => {
       await copyInc(context, user, action);
     } else if (verb === "closeInc" && isAdminOrSuperuser) {
       await showIncStatusConfirmationCard(context, action, "Closed");
-
     } else if (verb === "reopenInc" && isAdminOrSuperuser) {
       await showIncStatusConfirmationCard(context, action, "In progress");
-
     } else if (verb === "updateIncStatus" && isAdminOrSuperuser) {
       const adaptiveCard = await updateIncStatus(context, action);
       return Promise.resolve(adaptiveCard);
     } else if (verb === "confirmDeleteInc" && isAdminOrSuperuser) {
       await showIncDeleteConfirmationCard(context, action);
-
     } else if (verb === "add_user_info") {
       await addUserInfoByTeamId(context);
+    } else if (verb === "newUsrSubscriptionType1" && isAdminOrSuperuser) {
+      await processnewUsrSubscriptionType1(context, action, companyData);
+    } else if (verb === "newUsrSubscriptionType2" && isAdminOrSuperuser) {
+      await processnewUsrSubscriptionType2(context, action);
     }
-
-
     return Promise.resolve(true);
   } catch (error) {
     console.log("ERROR: ", error);
   }
 };
+
+const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
+  try {
+    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard(companyData.userEmail));
+
+    const message = MessageFactory.attachment(card);
+    message.id = context.activity.replyToId;
+    await context.updateActivity(message);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const processnewUsrSubscriptionType2 = async (context, action) => {
+  try {
+    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeTwoCard(context?.activity?.from?.name));
+    const message = MessageFactory.attachment(card);
+    message.id = context.activity.replyToId;
+    await context.updateActivity(message);
+
+    const tenantId = context?.activity?.conversation?.tenantId;
+    await incidentService.updateSubscriptionType(2, tenantId);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+}
 
 const updateUserInfo = async (context, teams, tenantId) => {
   try {
@@ -189,8 +227,9 @@ const updateUserInfo = async (context, teams, tenantId) => {
   }
 }
 
-const updateServiceUrl = async (context, teams) => {
+const updateServiceUrl = async (context, tenantId) => {
   try {
+    const teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
     if (teams != null && teams.length > 0) {
       const serviceUrl = context.activity.serviceUrl;
       let installationids = [];
@@ -207,19 +246,12 @@ const updateServiceUrl = async (context, teams) => {
 }
 
 const invokeMainActivityBoard = async (context, companyData) => {
-  const tenantId = companyData.userTenantId;
-  let teams = null;
-  if (companyData != null && companyData.serviceUrl == null) {
-    teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
-    await updateServiceUrl(context, teams);
-  }
-
-  if (companyData != null && companyData.isUserInfoSaved == null) {
-    if (teams == null) {
-      teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
-    }
-    await updateUserInfo(context, teams);
-  }
+  // if (companyData != null && companyData.isUserInfoSaved == null) {
+  //   if (teams == null) {
+  //     teams = await incidentService.getAllTeamsIdByTenantId(tenantId);
+  //   }
+  //   await updateUserInfo(context, teams);
+  // }
 
   return updateMainCard(companyData);
 };
@@ -234,26 +266,20 @@ const sendMsg = async (context) => {
     "type": "AdaptiveCard",
     "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
     "version": "1.4",
-    "appId": process.env.MicrosoftAppId,
     "body": [
       {
         "type": "TextBlock",
-        "text": "Hello there, we have added a cool new features recently.",
+        "text": `Hello there, we have introduced AreYouSafe? bot premium subscription with unlimited user access starting from ${formatedDate("mm/dd/yyyy", (new Date()))}. However, **you are getting 1-year free premium subscription** as a thank you for being our beta users and helping us improve AreYouSafe? bot with your valuable feedback.`,
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "Admins can **copy** incident from the dashboard tab",
+        "text": "Type **Help** in your chat window to continue using AreYouSafe? bot premium for unlimited users.",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "To access this feature in: \n\n1. **Chat:** Go to the Chat section >> AreYouSafe? Bot >> Dashboard tab \n\n2. **Team:** Go to the Teams section >> Go to the General channel under the team for which AreYouSafe? Bot is installed >> AreYouSafe? tab",
-        "wrap": true
-      },
-      {
-        "type": "TextBlock",
-        "text": "**Contact us**: [help@safetybot.in](mailto:help@safetybot.in) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        "text": "**Contact us**: [help@safetybot.in](mailto:help@safetybot.in) \n\nWith Gratitude,\n\nAreYouSafe Support",
         "wrap": true
       }
     ]
@@ -265,11 +291,7 @@ const sendMsg = async (context) => {
     catch (error) {
       console.log(error);
     }
-
   });
-  // await context.sendActivity({
-  //   attachments: [CardFactory.adaptiveCard(card)],
-  // });
 };
 
 const createRecurrInc = async (context, user, companyData) => {
@@ -1253,7 +1275,7 @@ const updateIncResponseOfSelectedMembers = async (incId, runAt, dashboardCard, s
   }
 }
 
-const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, contextServiceUrl, userTenantId, log) => {
+const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, contextServiceUrl, userTenantId, log, userAadObjId) => {
   if (log == null) {
     log = new AYSLog();
   }
@@ -1262,14 +1284,14 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
     log.addLog("sendIncResponseToSelectedMembers start. ");
 
     runAt = (runAt == null) ? '' : runAt;
-    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId, userAadObjId);
     let serviceUrl = null;
     let tenantId = null;
     if (contextServiceUrl != null && contextServiceUrl != "" && userTenantId != null && userTenantId != "") {
       serviceUrl = contextServiceUrl;
       tenantId = userTenantId;
     } else {
-      const userTenantDetails = await incidentService.getUserTenantDetails(incId);
+      const userTenantDetails = await incidentService.getUserTenantDetails(incId, userAadObjId);
 
       if (userTenantDetails != null) {
         serviceUrl = userTenantDetails.serviceUrl;
@@ -1287,7 +1309,7 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
             id: u.user_id,
             name: u.user_name
           }];
-          const result = await sendProactiveMessaageToUser(memberArr, dashboardCard, null, serviceUrl, tenantId, log);
+          const result = await sendProactiveMessaageToUser(memberArr, dashboardCard, null, serviceUrl, tenantId, log, userAadObjId);
           log.addLog(` activityId :  ${result.activityId} `);
           if (result.activityId != null) {
             sql += `INSERT INTO MSTeamsIncResponseUserTS(incResponseSelectedUserId, runAt, conversationId, activityId) VALUES(${u.id}, '${runAt}', '${result.conversationId}', '${result.activityId}');`;
@@ -1297,13 +1319,14 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
     }
     if (sql != "") {
       log.addLog(` sql Insert saveIncResponseUserTS start`);
-      await incidentService.saveIncResponseUserTS(sql);
+      await incidentService.saveIncResponseUserTS(sql, userAadObjId);
       log.addLog(` sql Inser saveIncResponseUserTS end`);
     }
   }
   catch (err) {
     log.addLog(` An Error occured: ${JSON.stringify(err)}`);
     console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   finally {
     log.addLog(` sendIncResponseToSelectedMembers end.`);
@@ -1337,7 +1360,7 @@ const sendtestmessage = async () => {
       id: "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
       name: "Sandesh Sawant"
     }];
-    const response = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId);
+    const response = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, incCreatedByUserObj.id);
     console.log(response);
   } catch (err) {
     console.log(err);
@@ -1345,14 +1368,14 @@ const sendtestmessage = async () => {
   console.log("End sendtestmessage");
 }
 
-const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => {
+const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, userAadObjId) => {
   let safetyCheckSend = false;
   log.addLog("sendSafetyCheckMessage start");
   log.addLog(`sendSafetyCheckMessage incId: ${incId}`);
   try {
-    const companyData = await getCompanyDataByTeamId(teamId);
-    const incData = await incidentService.getInc(incId);
-    let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "id", "name");
+    const companyData = await getCompanyDataByTeamId(teamId, userAadObjId);
+    const incData = await incidentService.getInc(incId, null, userAadObjId);
+    let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "id", "name", userAadObjId);
     const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
     const { serviceUrl, userTenantId } = companyData;
 
@@ -1377,7 +1400,8 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
     const incWithAddedMembers = await incidentService.addMembersIntoIncData(
       incId,
       allMembersArr,
-      incCreatedBy
+      incCreatedBy,
+      userAadObjId
     );
     log.addLog(`incType: ${incType}`);
     if (incType == "onetime") {
@@ -1391,8 +1415,8 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
 
       log.addLog("Send Dashboard Resp Start");
       const dashboardCard = await getOneTimeDashboardCard(incId);
-      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log);
-      await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log);
+      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
+      await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
       log.addLog("Send Dashboard Resp End");
       let incObj = {
         incId,
@@ -1413,10 +1437,16 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
           id: allMembersArr[i].id,
           name: allMembersArr[i].name
         }];
-        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
+        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId);
+        let isMessageDelivered = 1;
         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-          await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 1);
+          isMessageDelivered = 1;
+          // await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 1, msgResp);
+        } else {
+          isMessageDelivered = 0;
+          // await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 0, msgResp);
         }
+        await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, isMessageDelivered, msgResp);
       }
       log.addLog("Send Safety Check End");
       log.addLog(`onetime end`);
@@ -1432,6 +1462,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log) => 
   } catch (err) {
     log.addLog(`sendSafetyCheckMessage error: ${err.toString()}`);
     console.log(`sendSafetyCheckMessage error: ${err}`);
+    processSafetyBotError(err, "", "", userAadObjId);
   }
   log.addLog(`sendSafetyCheckMessage end`);
   return Promise.resolve(safetyCheckSend);
@@ -1749,7 +1780,8 @@ const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName 
 
     await sendEmail(emailVal, subject, emailBody);
   } catch (err) {
-    console.log(error);
+    console.log(err);
+    processSafetyBotError(err, "", "");
   }
 }
 
@@ -1861,6 +1893,72 @@ const submitSettings = async (context, companyData) => {
   );
 };
 
+const sendProactiveMessaageToUserTest = async () => {
+  try {
+    const appId = "f1739c01-2e62-404b-80d4-72f79582ba0f";
+    const appPass = "ZrR7Q~hC7ng9ex3u7cuuFMMaBxxVjtaYJfi3h";
+    const botName = "Are You Safe?";
+
+    let serviceUrl = "https://smba.trafficmanager.net/amer/";
+    let tenantId = "66d2bcc3-ec97-41a8-b764-803d784b248f";
+
+    let members = [{
+      id: "29:1jjP5OtI7Mig9aNRxH0ZpD64Jj3VW7Yb3CFS1P1i02eIFg8l4xlQkpdEQPV8RCNcXYgTo-ddHK2rxmy4x2UlxAw",
+      name: "IW User 03"
+    }];
+
+    const incCreatedByUserObj = {
+      id: "29:1Rnu8OsmSpGVxsEyWIVtQlC4Q73YTwB4MgYPr_h_pR-3QxBEFrdD3jG-DFgWOR3InT4ApIOStPNcayMDPEE06rA",
+      name: "Global + Billing Admin 01"
+    }
+
+    let incObj = {
+      incId: 100786,
+      incTitle: "Recurring",
+      incType: "recurringIncident",
+      runAt: "2022-11-03T06:05:00.000Z",
+      incCreatedBy: incCreatedByUserObj,
+      conversationId: null,
+      activityId: null
+    }
+    let companyData = await incidentService.getCompanyData("19:GbxQTzrKLXdE1rQ2G_IP7TuyLhKe0SdRKWTsDh5A1R81@thread.tacv2");
+    var incGuidance = await incidentService.getIncGuidance(incObj.incId);
+    incGuidance = incGuidance ? incGuidance : "No details available";
+    const msgAttachment = await getSaftyCheckCard(incObj.incTitle, incObj, companyData, incGuidance);
+
+    const conversationParameters = {
+      isGroup: false,
+      channelData: {
+        tenant: {
+          id: tenantId
+        }
+      },
+      bot: {
+        id: appId,
+        name: botName
+      },
+      members: members
+    };
+
+    let activity = null;
+    if (msgAttachment != null) {
+      activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+    }
+
+    if (activity != null) {
+      var credentials = new MicrosoftAppCredentials(appId, appPass);
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+
+      let conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
+      let activityResp = await connectorClient.conversations.sendToConversation(conversationResp.id, activity);
+    }
+  }
+  catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(resp);
+}
+
 const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
   let successflag = true;
   try {
@@ -1876,10 +1974,10 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
       }
       incCreatedByUserArr.push(incCreatedByUserObj);
 
-      const serviceUrl = subEventObj.serviceUrl;
-      const userTenantId = subEventObj.userTenantId;
+      const serviceUrl = subEventObj.companyData.serviceUrl;
+      const userTenantId = subEventObj.companyData.userTenantId;
       const dashboardCard = await getOneTimeDashboardCard(incId);
-      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log);
+      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
       await sendIncResponseToSelectedMembers(incId, dashboardCard, subEventObj.runAt, serviceUrl, userTenantId, log);
 
       let incObj = {
@@ -1900,16 +1998,26 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
           id: subEventObj.eventMembers[i].user_id,
           name: subEventObj.eventMembers[i].user_name
         }];
-        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log);
+        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
+
+        const conversationId = (msgResp?.conversationId == null) ? null : Number(msgResp?.conversationId);
+        const activityId = (msgResp?.activityId == null) ? null : Number(msgResp?.activityId);
+        const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+        const error = (msgResp?.error == null) ? null : msgResp?.error;
+        const isDelivered = (activityId != null) ? 1 : 0;
+        const respDetailsObj = {
+          memberResponsesId: subEventObj.eventMembers[i].id,
+          runAt: subEventObj.runAt,
+          conversationId: dashboardResponse.conversationId,
+          activityId: dashboardResponse.activityId,
+          status,
+          error,
+          isDelivered
+        }
+        await incidentService.addMemberResponseDetails(respDetailsObj);
 
         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-          const respDetailsObj = {
-            memberResponsesId: subEventObj.eventMembers[i].id,
-            runAt: subEventObj.runAt,
-            conversationId: dashboardResponse.conversationId,
-            activityId: dashboardResponse.activityId
-          }
-          await incidentService.addMemberResponseDetails(respDetailsObj);
+
         }
       }
 
@@ -1932,12 +2040,13 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
         ]
       }
 
-      await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard, null, serviceUrl, userTenantId, log);
+      await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
       successflag = true;
     }
   } catch (err) {
     //successflag = false;
     console.log(err);
+    processSafetyBotError(err, "", "");
   }
   return successflag;
 }
@@ -1960,7 +2069,7 @@ const sendIntroductionMessage = async (context, from) => {
       },
       {
         type: "TextBlock",
-        text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? Bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
+        text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
         wrap: true,
       },
       {
@@ -2008,11 +2117,55 @@ const addUserInfoByTeamId = async (context) => {
     if (teamId != null) {
       const allMembers = await getAllTeamMembers(context, teamId);
       if (allMembers != null) {
-        addTeamMember(teamId, allMembers);
+        await addTeamMember(teamId, allMembers);
       }
     }
   } catch (err) {
     console.log(err);
+    processSafetyBotError(err, "", "");
+  }
+}
+
+const addteamsusers = async (context) => {
+  const log = new AYSLog();
+  try {
+    log.addLog(`addteamsusers Start`);
+    const allCompanyData = await incidentService.getAllCompanyData();
+    let sqlUpdateIsUserInfoSavedFlag = "";
+    if (allCompanyData != null && allCompanyData.length > 0) {
+      await Promise.all(
+        allCompanyData.map(async (cmpData, index) => {
+          const { id, team_id: teamid, serviceUrl } = cmpData;
+          try {
+            log.addLog(`Inside loop start teamid : ${JSON.stringify(teamid)}`);
+
+            const allTeamMembers = await getAllTeamMembersByConnectorClient(teamid, serviceUrl);
+            if (allTeamMembers != null && allTeamMembers.length > 0) {
+              const isUserInfoSaved = await addTeamMember(teamid, allTeamMembers);
+              if (isUserInfoSaved) {
+                sqlUpdateIsUserInfoSavedFlag += ` update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id = ${id}; `;
+              }
+              log.addLog(`isUserInfoSaved: ${isUserInfoSaved}`);
+            }
+          } catch (err) {
+            log.addLog(`addteamsusers Error inside loop error details: ${JSON.stringify(err)}`);
+            processSafetyBotError(err, "", "");
+          } finally {
+            log.addLog(`Inside loop start teamid : ${JSON.stringify(teamid)}`);
+          }
+        })
+      );
+      if (sqlUpdateIsUserInfoSavedFlag != "") {
+        await incidentService.updateDataIntoDB(sqlUpdateIsUserInfoSavedFlag);
+      }
+    }
+  } catch (err) {
+    log.addLog(`addteamsusers Error ${JSON.stringify(err)}`);
+    console.log(err);
+    processSafetyBotError(err, "", "");
+  } finally {
+    log.addLog(`addteamsusers End`);
+    await log.saveLog();
   }
 }
 
@@ -2033,5 +2186,8 @@ module.exports = {
   sendSafetyCheckMessage,
   sendNewContactEmail,
   sendUninstallationEmail,
-  sendtestmessage
+  sendtestmessage,
+  addteamsusers,
+  updateServiceUrl,
+  sendProactiveMessaageToUserTest
 };
