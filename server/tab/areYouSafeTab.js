@@ -506,7 +506,7 @@ class AreYouSafeTab {
   getIncDataToCopyInc = async (incId, userAadObjId) => {
     try {
       let teamId = '', selectedUsers = "";
-      const incData = await incidentService.getInc(incId, userAadObjId);
+      const incData = await incidentService.getInc(incId, null, userAadObjId);
       if (incData) {
         teamId = incData.teamId;
         selectedUsers = incData.selectedMembers;
