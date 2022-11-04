@@ -16,7 +16,7 @@ const { processSafetyBotError } = require("../models/processError");
 const parseEventData = async (result, updateRecurrMemebersResp = false) => {
   let parsedDataArr = [];
   // console.log("result >>", result);
-  if (result.length > 0) {
+  if (result != null && result.length > 0) {
     let resultObj = result[0];
     // TODO: need to improve this logic of parsing
     Object.keys(resultObj).forEach((rootKey) => {
@@ -106,7 +106,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     }
 
-    const result = await db.getDataFromDB(selectQuery);
+    const result = await db.getDataFromDB(selectQuery, userAadObjId);
     let parsedResult = await parseEventData(result);
     if (parsedResult.length > 0) {
       eventData = parsedResult[0];
@@ -154,7 +154,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
 const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
   try {
     const selectQuery = getAllIncQuery(teamId, null, orderBy);
-    const result = await db.getDataFromDB(selectQuery);
+    const result = await db.getDataFromDB(selectQuery, userObjId);
     let parsedResult = await parseEventData(result, true);
     return Promise.resolve(parsedResult);
   } catch (err) {
@@ -169,7 +169,7 @@ const getAdmins = async (aadObjuserId) => {
 
     const userSql = `select user_obj_id, super_users, team_id, team_name from msteamsinstallationdetails where team_id in
     (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') order by team_name`;
-    const userResult = await db.getDataFromDB(userSql);
+    const userResult = await db.getDataFromDB(userSql, aadObjuserId);
     const teamsIds = [];
     if (userResult != null && userResult.length > 0) {
       userResult.map((usr) => {
@@ -216,7 +216,7 @@ const getAdmins = async (aadObjuserId) => {
               (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');`;
             }
 
-            const result = await db.getDataFromDB(selectQuery);
+            const result = await db.getDataFromDB(selectQuery, aadObjuserId);
             //console.log(result);
             if (result && result.length > 0) {
               allTeamsAdminsData = allTeamsAdminsData.concat(result);
@@ -227,7 +227,7 @@ const getAdmins = async (aadObjuserId) => {
         })
       );
       const usersQuery = ` select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'; `;
-      const userResult = await db.getDataFromDB(usersQuery);
+      const userResult = await db.getDataFromDB(usersQuery, aadObjuserId);
       adminData.push(allTeamsAdminsData);
       adminData.push(userResult);
     }
@@ -253,7 +253,7 @@ const getAssistanceData = async (aadObjuserId) => {
   try {
     let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id desc`;
 
-    const result = await db.getDataFromDB(selectQuery);
+    const result = await db.getDataFromDB(selectQuery, aadObjuserId);
     return Promise.resolve(result);
   } catch (err) {
     console.log(err);
@@ -264,7 +264,7 @@ const getAssistanceData = async (aadObjuserId) => {
 const getAllIncByUserId = async (aadObjuserId, orderBy) => {
   try {
     const selectQuery = getAllIncQuery(null, aadObjuserId, orderBy);
-    const result = await db.getDataFromDB(selectQuery);
+    const result = await db.getDataFromDB(selectQuery, aadObjuserId);
     let parsedResult = await parseEventData(result, true);
     return Promise.resolve(parsedResult);
   } catch (err) {
@@ -477,7 +477,7 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId, userAadObjI
       where inc.id = ${incId}
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
-    const result = await db.getDataFromDB(selectQuery);
+    const result = await db.getDataFromDB(selectQuery, userAadObjId);
     let parsedResult = await parseEventData(result);
     if (parsedResult.length > 0) {
       incData = parsedResult[0];
@@ -646,7 +646,7 @@ const saveIncResponseUserTS = async (respUserTSquery, userAadObjId) => {
 const getIncResponseSelectedUsersList = async (incId, userAadObjId) => {
   try {
     const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});`;
-    const result = await db.getDataFromDB(sql);
+    const result = await db.getDataFromDB(sql, userAadObjId);
     return Promise.resolve(result);
   }
   catch (err) {
@@ -659,7 +659,7 @@ const getUserTenantDetails = async (incId, userAadObjId) => {
   try {
     const sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id ` +
       ` in (select team_id from MSTeamsIncidents where id = ${incId})`;
-    const result = await db.getDataFromDB(sql);
+    const result = await db.getDataFromDB(sql, userAadObjId);
     let tenantDetails = null;
     if (result != null && result.length > 0) {
       tenantDetails = result[0];
@@ -778,17 +778,17 @@ const getUserTenantDetailsByUserAadObjectId = async (userAadObjectId) => {
   try {
     let sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id  in ` +
       ` (select team_id from MSTeamsTeamsUsers where user_aadobject_id = ${userAadObjectId})`;
-    let result = await db.getDataFromDB(sql);
+    let result = await db.getDataFromDB(sql, userAadObjectId);
     if (result != null && result.length > 0) {
       tenantDetails = result[0];
     } else {
       sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where user_obj_id  = '${userAadObjectId}' `;
-      result = await db.getDataFromDB(sql);
+      result = await db.getDataFromDB(sql, userAadObjectId);
       if (result != null && result.length > 0) {
         tenantDetails = result[0];
       } else {
         sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where super_users  like '%${userAadObjectId}%' `;
-        result = await db.getDataFromDB(sql);
+        result = await db.getDataFromDB(sql, userAadObjectId);
         if (result != null && result.length > 0) {
           tenantDetails = result[0];
         }
@@ -846,7 +846,7 @@ const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", use
 const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title", userAadObjId) => {
   try {
     const sqlTeamMembers = getAllTeamMembersQuery(teamId, null, userIdAlias, userNameAlias);
-    const result = await db.getDataFromDB(sqlTeamMembers);
+    const result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
     return Promise.resolve(result);
   } catch (err) {
     console.log(err);
@@ -859,7 +859,7 @@ const getIncResponseMembers = async (incId, teamId, userAadObjId) => {
   try {
     const sqlWhere = ` team_id = '${teamId}' and user_id in (select user_id from MSTeamsIncResponseSelectedUsers where inc_id = ${incId})`;
     const sqlTeamMembers = getTeamMemeberSqlQuery(sqlWhere);
-    result = await db.getDataFromDB(sqlTeamMembers);
+    result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", userAadObjId);
@@ -875,7 +875,7 @@ const getIncSelectedMembers = async (selectedUsers, teamId, userAadObjId) => {
     }
     const sqlWhere = ` team_id = '${teamId}' and user_id in (${selectedUsers})`;
     const sqlTeamMembers = getTeamMemeberSqlQuery(sqlWhere);
-    result = await db.getDataFromDB(sqlTeamMembers);
+    result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", userAadObjId);
@@ -886,7 +886,7 @@ const getIncSelectedMembers = async (selectedUsers, teamId, userAadObjId) => {
 const getAllTeamMembersByUserAadObjId = async (userAadObjId) => {
   try {
     const sqlTeamMembers = getAllTeamMembersQuery(null, userAadObjId);
-    const result = await db.getDataFromDB(sqlTeamMembers);
+    const result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
     return Promise.resolve(result);
   } catch (err) {
     console.log(err);
@@ -898,7 +898,7 @@ const getTeamIdByUserAadObjId = async (userAadObjId) => {
   let teamId = null;
   try {
     const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' and hasLicense = 1 order by id desc`;
-    const result = await db.getDataFromDB(teamIdSql);
+    const result = await db.getDataFromDB(teamIdSql, userAadObjId);
     if (result != null && result.length > 0) {
       teamId = result[0]["team_id"];
     }
@@ -913,7 +913,7 @@ const getUserInfo = async (teamId, useraadObjId) => {
   let result = null;
   try {
     const sqlUserInfo = `select * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'  and hasLicense = 1`;
-    result = await db.getDataFromDB(sqlUserInfo);
+    result = await db.getDataFromDB(sqlUserInfo, useraadObjId);
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", useraadObjId);
@@ -925,7 +925,7 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
   let result = null;
   try {
     const sqlUserInfo = `select * from MSTeamsTeamsUsers where user_aadobject_id = '${useraadObjId}'`;
-    result = await db.getDataFromDB(sqlUserInfo);
+    result = await db.getDataFromDB(sqlUserInfo, useraadObjId);
   } catch (err) {
     console.log(err);
   }
@@ -936,7 +936,7 @@ const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
     const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null order by team_name`;
-    result = await db.getDataFromDB(sqlTeamInfo);
+    result = await db.getDataFromDB(sqlTeamInfo, userAadObjId);
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, "", "", userAadObjId);
@@ -969,7 +969,7 @@ const isWelcomeMessageSend = async (userObjId) => {
       `UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; ` +
       `SELECT cast('0' as bit) AS isWelcomeMessageSent; ` +
       `END `;
-    result = await db.getDataFromDB(sqlIsMessageSent);
+    result = await db.getDataFromDB(sqlIsMessageSent, userObjId);
     if (result && result.length > 0) {
       isWelcomeMessageSent = result[0]["isWelcomeMessageSent"];
     }
@@ -994,7 +994,7 @@ const updateMessageDeliveredStatus = async (incId, userId, isMessageDelivered, m
     const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
     const error = (msgResp?.error == null) ? null : msgResp?.error;
     sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
-    result = await db.getDataFromDB(sqlUpdate);
+    result = await db.getDataFromDB(sqlUpdate, userId);
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, "", "");
@@ -1044,7 +1044,7 @@ const updateSubscriptionType = async (licenseType, tenantId) => {
 const updateFiveDayBeforeMessageSentFlag = async (id, userAadObjId) => {
   try {
     const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isFiveDayBeforeMessageSent = 1 where ID = ${id}`;
-    await db.getDataFromDB(sqlCheckLicense);
+    await db.getDataFromDB(sqlCheckLicense, userAadObjId);
   } catch (err) {
     processSafetyBotError(err, "", "", userAadObjId);
   }

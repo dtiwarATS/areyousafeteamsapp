@@ -8,6 +8,8 @@ const ENV_FILE = path.join(__dirname, "../.env");
 const areYouSafeTabHandler = require("./AreYouSafeTabHandler");
 require("dotenv").config({ path: ENV_FILE });
 
+const { processSafetyBotError } = require("./models/processError");
+
 const PORT = process.env.PORT || 3978;
 const app = express();
 
@@ -90,3 +92,17 @@ function shutDown() {
     });
   });
 }
+
+// app.use((err, req, res, next) => {
+//   if (!err) {
+//     return next();
+//   }
+
+//   processSafetyBotError(err, "", "", "");
+//   res.status(500);
+//   res.send('500: Internal server error');
+// });
+
+process.on('uncaughtException', function (err) {
+  processSafetyBotError(err, "", "", "");
+});

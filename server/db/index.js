@@ -99,7 +99,7 @@ const processValues = (values) => {
   return processedValues;
 };
 
-const getDataFromDB = async (sqlQuery, isSingleQuery = true) => {
+const getDataFromDB = async (sqlQuery, userObjId = "", isSingleQuery = true) => {
   try {
     pool = await poolPromise;
     const data = await pool.request().query(sqlQuery);
@@ -107,7 +107,7 @@ const getDataFromDB = async (sqlQuery, isSingleQuery = true) => {
     return isSingleQuery ? data.recordset : data.recordsets;
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userObjId, sqlQuery);
   }
 };
 
