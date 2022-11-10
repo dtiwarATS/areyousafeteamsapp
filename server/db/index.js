@@ -159,7 +159,7 @@ const insertDataIntoDB = async (tableName, values) => {
   }
 };
 
-const updateDataIntoDB = async (query) => {
+const updateDataIntoDB = async (query, userObjId) => {
   try {
     // console.log("update query => ", query);
     pool = await poolPromise;
@@ -167,19 +167,52 @@ const updateDataIntoDB = async (query) => {
     return Promise.resolve(res);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userObjId);
   }
 };
 
-const insertData = async (sqlInsertQuery) => {
+const updateDataIntoDBAsync = async (query, userObjId) => {
+  try {
+    return new Promise((resolve, reject) => {
+      try {
+        // pool = await poolPromise;
+        poolPromise
+          .then((pool) => {
+            return pool;
+          })
+          .then((pool) => {
+            return pool.request().query(query);
+          })
+          .then((resp) => {
+            resolve(resp);
+          })
+          .catch((err) => {
+            console.log(err);
+            processSafetyBotError(err, "", "", userObjId);
+            reject(err);
+          });
+
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(err, "", "", userObjId);
+      }
+    });
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userObjId);
+  }
+};
+
+const insertData = async (sqlInsertQuery, userObjId) => {
   let result = null;
   if (sqlInsertQuery != null) {
     try {
       pool = await poolPromise;
-      console.log("insert query => ", sqlInsertQuery);
-      result = await pool.request().query(sqlInsertQuery);
+      //console.log("insert query => ", sqlInsertQuery);
+      result = await pool.request().query(sqlInsertQuery, userObjId);
     } catch (err) {
       console.log(err);
+      processSafetyBotError(err, "", "", userObjId);
     }
   }
   return result;
@@ -191,7 +224,8 @@ const db = {
   updateDataIntoDB,
   insertOrUpdateDataIntoDB,
   getInsertSql,
-  insertData
+  insertData,
+  updateDataIntoDBAsync
 };
 
 module.exports = db;

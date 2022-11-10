@@ -241,15 +241,16 @@ const removeAllTeamMember = async (teamId) => {
 }
 
 const teamMemberInsertQuery = (teamId, m) => {
+  const userEmail = m.email != null ? m.email : m.userPrincipalName;
   return `
     IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND[user_aadobject_id] = '${m.objectId}')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [userPrincipalName], [email], [tenantid], [userRole])
-    VALUES('${teamId}', '${m.objectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${m.email}', '${m.tenantId}', '${m.userRole}');
+    VALUES('${teamId}', '${m.objectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${userEmail}', '${m.tenantId}', '${m.userRole}');
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND[user_aadobject_id] = '${m.objectId}' AND userPrincipalName is null)
     BEGIN
-      UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${m.email}', tenantid = '${m.tenantId}', userRole = '${m.userRole}'
+      UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${userEmail}', tenantid = '${m.tenantId}', userRole = '${m.userRole}'
       WHERE team_id = '${teamId}'
     AND[user_aadobject_id] = '${m.objectId}'
     END `;
@@ -578,7 +579,7 @@ const addFeedbackData = async (feedbackDataObj) => {
 const saveLog = async (sqlLog) => {
   try {
     pool = await poolPromise;
-    console.log("Sql log >> ", sqlLog);
+    //console.log("Sql log >> ", sqlLog);
     const result = await pool.request().query(sqlLog);
   } catch (err) {
     console.log(err);

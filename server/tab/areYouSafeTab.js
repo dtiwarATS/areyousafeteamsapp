@@ -452,7 +452,7 @@ class AreYouSafeTab {
   sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, userAadObjId) => {
     const log = new AYSLog();
     try {
-      const safetyCheckSend = await bot.sendSafetyCheckMessage(incId, teamId, createdByUserInfo, log, userAadObjId);
+      const safetyCheckSend = await bot.sendSafetyCheckMessageAsync(incId, teamId, createdByUserInfo, log, userAadObjId);
       return Promise.resolve(safetyCheckSend);
     } catch (err) {
       console.log(err);

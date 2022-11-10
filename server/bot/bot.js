@@ -19,7 +19,8 @@ const {
   sendProactiveMessaageToUser,
   updateMessage,
   addLog,
-  getAllTeamMembersByConnectorClient
+  getAllTeamMembersByConnectorClient,
+  sendProactiveMessaageToUserAsync
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
@@ -1368,6 +1369,137 @@ const sendtestmessage = async () => {
   console.log("End sendtestmessage");
 }
 
+const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log, userAadObjId) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const startTime = (new Date()).getTime();
+      console.log({ startTime });
+      const companyData = await getCompanyDataByTeamId(teamId, userAadObjId);
+      const incData = await incidentService.getInc(incId, null, userAadObjId);
+      let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "id", "name", userAadObjId);
+      const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
+      const { serviceUrl, userTenantId } = companyData;
+
+      let selectedMembersArr = [];
+      if (selectedMembers != null && selectedMembers.split(",").length > 0) {
+        selectedMembersArr = selectedMembers.split(",");
+      }
+
+      let allMembersArr = [];
+      if (selectedMembersArr != null && selectedMembersArr.length > 0) {
+        allMembers.forEach((tm) => {
+          if (selectedMembersArr.includes(tm.id)) {
+            const tmObj = {
+              ...tm,
+              messageDelivered: "na",
+              response: "na",
+              responseValue: "na",
+            }
+            allMembersArr.push(tmObj);
+          }
+        });
+      } else {
+        allMembers.forEach((tm) => {
+          const tmObj = {
+            ...tm,
+            messageDelivered: "na",
+            response: "na",
+            responseValue: "na",
+          }
+          allMembersArr.push(tmObj);
+        });
+      }
+
+      const incWithAddedMembers = await incidentService.addMembersIntoIncData(
+        incId,
+        allMembersArr,
+        incCreatedBy,
+        userAadObjId
+      );
+      if (incType == "onetime") {
+        const incCreatedByUserArr = [];
+        const incCreatedByUserObj = {
+          id: createdByUserInfo.user_id,
+          name: createdByUserInfo.user_name
+        }
+        incCreatedByUserArr.push(incCreatedByUserObj);
+
+        const dashboardCard = await getOneTimeDashboardCard(incId);
+        const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
+
+        let incObj = {
+          incId,
+          incTitle,
+          incType,
+          runAt: null,
+          incCreatedBy: incCreatedByUserObj,
+          conversationId: dashboardResponse.conversationId,
+          activityId: dashboardResponse.activityId
+        }
+        let incGuidance = await incidentService.getIncGuidance(incId);
+        incGuidance = incGuidance ? incGuidance : "No details available";
+
+        const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, incGuidance);
+        const appId = process.env.MicrosoftAppId;
+        const appPass = process.env.MicrosoftAppPassword;
+
+        var credentials = new MicrosoftAppCredentials(appId, appPass);
+        var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+
+        let messageCount = 0;
+        let sqlUpdateMsgStatus = '';
+        const callbackFn = (msgResp, index) => {
+          messageCount += 1;
+          console.log({ "end i ": index, messageCount });
+
+          let isMessageDelivered = 0;
+          if (msgResp?.conversationId != null && msgResp?.activityId != null) {
+            isMessageDelivered = 1;
+          }
+          const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+          const error = (msgResp?.error == null) ? null : msgResp?.error;
+          const sqlUpdateMsgStatus = ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${msgResp.userId}'; `;
+          if (sqlUpdateMsgStatus != "") {
+            db.updateDataIntoDBAsync(sqlUpdateMsgStatus, userAadObjId);
+          }
+          if (messageCount == allMembersArr.length) {
+            const endTime = (new Date()).getTime();
+            console.log({ endTime });
+            var seconds = (endTime - startTime) / 1000;
+            console.log({ seconds });
+
+            sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
+            resolve(true);
+          }
+        }
+        allMembersArr.map((member, index) => {
+          try {
+            let memberArr = [{
+              id: member.id,
+              name: member.name
+            }];
+            console.log({ "start i ": index });
+            const conversationId = member.conversationId;
+            sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index);
+          } catch (err) {
+            processSafetyBotError(err, "", "", userAadObjId);
+          }
+        })
+      }
+      else if (incType == "recurringIncident") {
+        const userTimeZone = createdByUserInfo.userTimeZone;
+        const actionData = { incident: incData };
+        await incidentService.saveRecurrSubEventInc(actionData, companyData, userTimeZone);
+        resolve(true);
+      }
+    } catch (err) {
+      console.log(`sendSafetyCheckMessage error: ${err}`);
+      processSafetyBotError(err, "", "", userAadObjId);
+      resolve(false);
+    }
+  });
+}
+
 const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, userAadObjId) => {
   let safetyCheckSend = false;
   log.addLog("sendSafetyCheckMessage start");
@@ -2189,5 +2321,6 @@ module.exports = {
   sendtestmessage,
   addteamsusers,
   updateServiceUrl,
-  sendProactiveMessaageToUserTest
+  sendProactiveMessaageToUserTest,
+  sendSafetyCheckMessageAsync
 };

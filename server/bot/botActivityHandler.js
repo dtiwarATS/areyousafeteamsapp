@@ -71,17 +71,23 @@ class BotActivityHandler extends TeamsActivityHandler {
       try {
         let isSuperUser = false;
         const acvtivityData = context.activity;
+        const tenantId = acvtivityData?.conversation?.tenantId;
+
+        const isValidTenant = () => { (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") };
+
         if (acvtivityData.text == "sendversionupdate") {
           await bot.sendMsg(context);
         } else if (acvtivityData.text == "addteamsusers") {
-          const tenantId = acvtivityData?.conversation?.tenantId;
-          if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
+          if (isValidTenant) {
             await bot.addteamsusers();
           }
         } else if (acvtivityData.text == "sendProactiveMessaageToUserTest") {
-          const tenantId = acvtivityData?.conversation?.tenantId;
-          if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
+          if (isValidTenant) {
             await bot.sendProactiveMessaageToUserTest();
+          }
+        } else if (acvtivityData.text == "updateConversationId") {
+          if (isValidTenant) {
+            await incidentService.updateConversationId();
           }
         }
         else {

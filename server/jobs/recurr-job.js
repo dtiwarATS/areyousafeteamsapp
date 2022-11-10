@@ -63,7 +63,7 @@ const { processSafetyBotError } = require("../models/processError");
               let interval = parser.parseExpression(cron, options);
               let nextRunAtUTC = interval.next().toISOString();
               let sqlUpdate = `UPDATE MSTEAMS_SUB_EVENT SET LAST_RUN_AT = '${job.runAt}', RUN_AT = '${nextRunAtUTC}', COMPLETED = 1 WHERE ID = ${subEventId}`;
-              await db.updateDataIntoDB(sqlUpdate);
+              await db.updateDataIntoDB(sqlUpdate, job?.createdById);
             }
           }
           log.addLog(`incTitle: ${incTitle} end`);
@@ -71,7 +71,7 @@ const { processSafetyBotError } = require("../models/processError");
         } catch (err) {
           console.log(err);
           log.addLog(`Recurring inc error: ${err}`);
-          processSafetyBotError(err, "", "");
+          processSafetyBotError(err, "", "", job.createdById);
         }
       })
     );

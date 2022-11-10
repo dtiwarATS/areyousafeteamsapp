@@ -8,9 +8,8 @@ const { getCron } = require("../utils");
 const parser = require("cron-parser");
 const { formatedDate } = require("../utils/index");
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
-
 const { processSafetyBotError } = require("../models/processError");
-
+const { getUsersConversationId } = require("../api/apiMethods");
 
 
 const parseEventData = async (result, updateRecurrMemebersResp = false) => {
@@ -168,7 +167,7 @@ const getAdmins = async (aadObjuserId) => {
   try {
 
     const userSql = `select user_obj_id, super_users, team_id, team_name from msteamsinstallationdetails where team_id in
-    (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') order by team_name`;
+    (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name`;
     const userResult = await db.getDataFromDB(userSql, aadObjuserId);
     const teamsIds = [];
     if (userResult != null && userResult.length > 0) {
@@ -210,10 +209,10 @@ const getAdmins = async (aadObjuserId) => {
               selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
-                            WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null;`;
+                            WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join("','")}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
             } else {
               selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
-              (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');`;
+              (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null;`;
             }
 
             const result = await db.getDataFromDB(selectQuery, aadObjuserId);
@@ -241,7 +240,7 @@ const getAdmins = async (aadObjuserId) => {
 const addComment = async (assistanceId, comment, ts, aadObjuserId) => {
   try {
     let sqlUpdate = `UPDATE MSTeamsAssistance SET comments = '${comment}', comment_date = '${ts}' WHERE id = ${assistanceId}`;
-    let res = await db.updateDataIntoDB(sqlUpdate);
+    let res = await db.updateDataIntoDB(sqlUpdate, aadObjuserId);
     console.log(res);
   } catch (err) {
     processSafetyBotError(err, "", "", aadObjuserId);
@@ -454,34 +453,32 @@ const addMemberResponseDetails = async (respDetailsObj) => {
 }
 
 const addMembersIntoIncData = async (incId, allMembers, requesterId, userAadObjId) => {
-  let incData = {};
+  let incData = null;
   try {
-    pool = await poolPromise;
-
-    // TODO: use bulk insert instead inseting data one by one
+    let insertMembersQuery = "";
     for (let i = 0; i < allMembers.length; i++) {
       let member = allMembers[i];
-      let userId = member.id;
-      const query = `insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
-          values(${incId}, '${member.id}', '${member.name}', 0, 0, NULL, NULL, NULL)`;
-
-      console.log("insert query => ", query);
-      await pool.request().query(query);
+      insertMembersQuery += ` insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
+          values(${incId}, '${member.id}', '${member.name}', 0, 0, NULL, NULL, NULL); `;
     }
 
-    const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by, 
-      m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-      m.comment, m.timestamp FROM MSTeamsIncidents inc
-      LEFT JOIN MSTeamsMemberResponses m
-      ON inc.id = m.inc_id
-      where inc.id = ${incId}
-      FOR JSON AUTO , INCLUDE_NULL_VALUES`;
-
-    const result = await db.getDataFromDB(selectQuery, userAadObjId);
-    let parsedResult = await parseEventData(result);
-    if (parsedResult.length > 0) {
-      incData = parsedResult[0];
+    if (insertMembersQuery != "") {
+      await db.insertData(insertMembersQuery, userAadObjId);
     }
+
+    // const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by, 
+    //   m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+    //   m.comment, m.timestamp FROM MSTeamsIncidents inc
+    //   LEFT JOIN MSTeamsMemberResponses m
+    //   ON inc.id = m.inc_id
+    //   where inc.id = ${incId}
+    //   FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+
+    // const result = await db.getDataFromDB(selectQuery, userAadObjId);
+    // let parsedResult = await parseEventData(result);
+    // if (parsedResult.length > 0) {
+    //   incData = parsedResult[0];
+    // }
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, "", "", userAadObjId);
@@ -620,7 +617,7 @@ const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises, userA
         }
         query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${userName}');`;
       }
-      console.log("insert query => ", query);
+      //console.log("insert query => ", query);
       await pool.request().query(query);
     }
   }
@@ -724,7 +721,7 @@ const updateIncStatus = async (incId, incStatus, userAadObjId) => {
       incStatusId = 2;
     }
     const query = `UPDATE MSTEAMSINCIDENTS SET INC_STATUS_ID = ${incStatusId} WHERE ID = ${incId}`;
-    const updateResult = await db.updateDataIntoDB(query);
+    const updateResult = await db.updateDataIntoDB(query, userAadObjId);
     isupdated = (updateResult != null && updateResult.rowsAffected.length > 0);
   }
   catch (err) {
@@ -829,7 +826,7 @@ const updateUserInfoFlag = async (installationIds) => {
 }
 
 const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias = "title") => {
-  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} and hasLicense = 1 ORDER BY [USER_NAME]`;
+  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser, conversationId FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} and hasLicense = 1 ORDER BY [USER_NAME]`;
 }
 
 const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
@@ -981,25 +978,16 @@ const isWelcomeMessageSend = async (userObjId) => {
 }
 
 const updateMessageDeliveredStatus = async (incId, userId, isMessageDelivered, msgResp) => {
-  let result = null;
   try {
     let sqlUpdate = '';
-    // if (isMessageDelivered == 1) {
-    //   sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 1 where inc_id = ${incId} and user_id = '${userId}';`;
-    // } else {
-    //   const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
-    //   const error = (msgResp?.error == null) ? null : msgResp?.error;
-    //   sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = 0, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
-    // }
     const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
     const error = (msgResp?.error == null) ? null : msgResp?.error;
-    sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = '${status}', message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
-    result = await db.getDataFromDB(sqlUpdate, userId);
+    sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
+    db.getDataFromDB(sqlUpdate, userId);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userId);
   }
-  return Promise.resolve(result);
 }
 
 const addError = async (botName, errorMessage, errorDetails, teamName, userName, date) => {
@@ -1053,7 +1041,7 @@ const updateFiveDayBeforeMessageSentFlag = async (id, userAadObjId) => {
 const updateAfterExpiryMessageSentFlag = async (subscriptionId, userAadObjId) => {
   try {
     const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isAfterExpiryMessageSent = 1 where ID = ${subscriptionId}`;
-    await db.updateDataIntoDB(sqlCheckLicense);
+    await db.updateDataIntoDB(sqlCheckLicense, userAadObjId);
   } catch (err) {
     processSafetyBotError(err, "", "", userAadObjId);
   }
@@ -1075,7 +1063,7 @@ const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId,
       then 0 else 1 end), user_name
       ) and tenantid = '${tenantId}';
       `;
-    await db.updateDataIntoDB(sqlUpdate);
+    await db.updateDataIntoDB(sqlUpdate, userObjId);
   } catch (err) {
     processSafetyBotError(err, "", "", userObjId);
   }
@@ -1084,7 +1072,7 @@ const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId,
 const updateSubcriptionProcessFlag = async (subscriptionId, userAadObjId) => {
   try {
     const sqlUpdate = `update MSTeamsSubscriptionDetails set isProcessed = 1 where ID = ${subscriptionId};`;
-    await db.updateDataIntoDB(sqlUpdate);
+    await db.updateDataIntoDB(sqlUpdate, userAadObjId);
   } catch (err) {
     processSafetyBotError(err, "", "", userAadObjId);
   }
@@ -1136,6 +1124,38 @@ const isBotInstalledInTeam = async (userAadObjId) => {
     processSafetyBotError(err, "", "", userAadObjId);
   }
   return { companyData, isInstalledInTeam, isSuperUser };
+}
+
+const updateConversationId = async () => {
+  try {
+    const sqlTeamMembers = `select distinct a.serviceUrl, a.user_tenant_id tenantId, b.user_id userId, b.user_name userName from MSTeamsInstallationDetails a
+    left join MSTeamsTeamsUsers b on a.team_id = b.team_id
+    where a.serviceUrl is not null and b.conversationId is null`;
+    const result = await db.getDataFromDB(sqlTeamMembers);
+    if (result != null && Array.isArray(result)) {
+      let sqlUpdate = "";
+      await Promise.all(
+        result.map(async (item, index) => {
+          const { serviceUrl, tenantId, userId, userName } = item;
+          const memberArr = [{
+            id: userId,
+            name: userName
+          }];
+          const conversationId = await getUsersConversationId(tenantId, memberArr, serviceUrl);
+          console.log({ index, conversationId });
+          if (conversationId != null) {
+            sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
+          }
+        })
+      );
+
+      if (sqlUpdate != "") {
+        await db.updateDataIntoDB(sqlUpdate);
+      }
+    }
+  } catch (err) {
+    console.log(err);
+  }
 }
 
 module.exports = {
@@ -1190,5 +1210,6 @@ module.exports = {
   updateSubcriptionProcessFlag,
   getAllCompanyData,
   updateDataIntoDB,
-  isBotInstalledInTeam
+  isBotInstalledInTeam,
+  updateConversationId
 };
