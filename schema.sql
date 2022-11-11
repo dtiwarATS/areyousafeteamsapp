@@ -501,3 +501,9 @@ BEGIN
 ALTER TABLE MSTeamsMemberResponses ADD message_delivery_error NVARCHAR(max) NULL
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='conversationId' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD conversationId nvarchar(max) NULL
+END
+GO

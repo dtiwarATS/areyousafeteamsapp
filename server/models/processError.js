@@ -109,6 +109,8 @@ processSafetyBotError = (err, teamId, userName, userAadObjId, otherDetails) => {
             otherDetails = "";
         }
 
+        const build = process.env.build;
+
         const errObj = {
             botName,
             subject,
@@ -118,7 +120,8 @@ processSafetyBotError = (err, teamId, userName, userAadObjId, otherDetails) => {
             userName,
             date,
             userAadObjId,
-            otherDetails
+            otherDetails,
+            build
         }
         const url = `${process.env.botErrorHandlerApiUrl}/processError`;
         axios.post(url, errObj);

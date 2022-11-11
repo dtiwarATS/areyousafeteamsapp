@@ -169,11 +169,7 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
       }
 
       if (conversationId == null) {
-        const conversationParameters = getUsersConversationId(tenantId, members, serviceUrl, userAadObjId);
-        // const conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
-        // if (conversationResp?.id != null) {
-        //   conversationId = conversationResp.id;
-        // }
+        conversationId = await getUsersConversationId(tenantId, members, serviceUrl, userAadObjId);
       }
 
       if (conversationId != null) {

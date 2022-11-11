@@ -1,4 +1,4 @@
-const { checkUserHasValidLicense, getCompaniesData, getCompaniesDataBySuperUserId } = require("../db/dbOperations");
+const { checkUserHasValidLicense, getCompaniesData, getCompaniesDataBySuperUserId, parseCompanyData } = require("../db/dbOperations");
 const Member = require("../models/Member");
 const Incident = require("../models/Incident");
 
@@ -12,7 +12,7 @@ const { processSafetyBotError } = require("../models/processError");
 const { getUsersConversationId } = require("../api/apiMethods");
 
 
-const parseEventData = async (result, updateRecurrMemebersResp = false) => {
+const parseEventData = (result, updateRecurrMemebersResp = false) => {
   let parsedDataArr = [];
   // console.log("result >>", result);
   if (result != null && result.length > 0) {
@@ -74,7 +74,7 @@ const parseEventData = async (result, updateRecurrMemebersResp = false) => {
     });
   }
 
-  return Promise.resolve(parsedDataArr);
+  return parsedDataArr;
 };
 
 const getInc = async (incId, runAt = null, userAadObjId = null) => {
@@ -275,11 +275,9 @@ const getAllIncByUserId = async (aadObjuserId, orderBy) => {
 const getIncGuidance = async (incId) => {
   try {
     let eventData = {};
-    let selectQuery = `SELECT Guidance  FROM MSTeamsIncidents inc
-      where inc.id = ${incId}`;
+    let selectQuery = `SELECT Guidance  FROM MSTeamsIncidents inc where inc.id = ${incId}`;
 
     const result = await db.getDataFromDB(selectQuery);
-    // let parsedResult = await parseEventData(result);
     if (result.length > 0) {
       eventData = result[0].Guidance;
     }
@@ -444,7 +442,7 @@ const addMemberResponseDetails = async (respDetailsObj) => {
     const recurrRespQuery = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
           values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', ${respDetailsObj.isDelivered}, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}', ${respDetailsObj.status}, '${respDetailsObj.error}')`;
 
-    console.log("insert query => ", recurrRespQuery);
+    //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
   }
   catch (err) {
@@ -1158,6 +1156,74 @@ const updateConversationId = async () => {
   }
 }
 
+const getRequiredDataToSendMessage = async (incId, teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
+  const result = {
+    companyData: null,
+    incData: null,
+    allMembers: null
+  }
+
+  try {
+
+    const sqlTeamMembers = getAllTeamMembersQuery(teamId, null, userIdAlias, userNameAlias);
+
+    const sql = ` SELECT top 1 * FROM MSTeamsInstallationDetails where team_id = '${teamId}';
+    
+    SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
+    inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, m.is_message_delivered, 
+    m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
+    inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
+    FROM MSTeamsIncidents inc
+    LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+    LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
+    where inc.id = ${incId}
+    FOR JSON AUTO , INCLUDE_NULL_VALUES;
+
+    ${sqlTeamMembers};
+
+    SELECT Guidance FROM MSTeamsIncidents inc where inc.id = ${incId};
+
+    select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} 
+    and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});
+    `;
+
+    const data = await db.getDataFromDB(sql, userAadObjId, false);
+
+    if (data != null && Array.isArray(data) && data.length == 5) {
+      let companyData = data[0];
+      companyData = parseCompanyData(companyData);
+
+      let incData = data[1];
+      let parsedResult = parseEventData(incData);
+      if (parsedResult.length > 0) {
+        incData = parsedResult[0];
+      }
+
+      let allMembers = data[2];
+
+      let incGuidance = data[3];
+      if (incGuidance.length > 0) {
+        incGuidance = incGuidance[0].Guidance;
+      }
+
+      let incResponseSelectedUsersList = data[4];
+
+      return {
+        companyData,
+        incData,
+        allMembers,
+        incGuidance,
+        incResponseSelectedUsersList
+      }
+    }
+
+  } catch (err) {
+    processSafetyBotError(err, teamId, "", userAadObjId);
+  }
+
+  return result;
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1211,5 +1277,6 @@ module.exports = {
   getAllCompanyData,
   updateDataIntoDB,
   isBotInstalledInTeam,
-  updateConversationId
+  updateConversationId,
+  getRequiredDataToSendMessage
 };

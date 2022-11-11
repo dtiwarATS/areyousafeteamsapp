@@ -123,7 +123,7 @@ const insertOrUpdateDataIntoDB = async (tableName, values, sqlWhere, sqlUpdate) 
       ' ELSE ' +
       ` BEGIN insert into ${tableName}(${columnsStr}) values(${valuesStr}); SELECT * FROM ${tableName} WHERE id = SCOPE_IDENTITY(); END `;
 
-    console.log("insert or update query => ", query);
+    //console.log("insert or update query => ", query);
     const result = await pool.request().query(query);
     return result.recordset;
   } catch (err) {
@@ -149,7 +149,7 @@ const insertDataIntoDB = async (tableName, values) => {
 
     let query = `insert into ${tableName}(${columnsStr}) values(${valuesStr}) SELECT * FROM ${tableName} WHERE id = SCOPE_IDENTITY();`;
 
-    console.log("insert query => ", query);
+    //console.log("insert query => ", query);
     const result = await pool.request().query(query);
     return result.recordset;
   } catch (err) {
@@ -171,19 +171,23 @@ const updateDataIntoDB = async (query, userObjId) => {
   }
 };
 
-const updateDataIntoDBAsync = async (query, userObjId) => {
+const getPoolPromise = async (userObjId) => {
+  let pool = null;
+  try {
+    pool = await poolPromise;
+  } catch (err) {
+    processSafetyBotError(err, "", "", userObjId);
+  }
+  return pool;
+}
+
+const updateDataIntoDBAsync = async (query, pool, userObjId) => {
   try {
     return new Promise((resolve, reject) => {
       try {
-        // pool = await poolPromise;
-        poolPromise
-          .then((pool) => {
-            return pool;
-          })
-          .then((pool) => {
-            return pool.request().query(query);
-          })
+        pool.request().query(query)
           .then((resp) => {
+            //console.log("saved");
             resolve(resp);
           })
           .catch((err) => {
@@ -191,7 +195,6 @@ const updateDataIntoDBAsync = async (query, userObjId) => {
             processSafetyBotError(err, "", "", userObjId);
             reject(err);
           });
-
       } catch (err) {
         console.log(err);
         processSafetyBotError(err, "", "", userObjId);
@@ -225,7 +228,8 @@ const db = {
   insertOrUpdateDataIntoDB,
   getInsertSql,
   insertData,
-  updateDataIntoDBAsync
+  updateDataIntoDBAsync,
+  getPoolPromise
 };
 
 module.exports = db;

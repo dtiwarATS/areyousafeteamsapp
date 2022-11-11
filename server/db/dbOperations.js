@@ -3,7 +3,7 @@ const db = require("../db");
 const Company = require("../models/Company");
 const { processSafetyBotError } = require("../models/processError");
 
-const parseCompanyData = async (result) => {
+const parseCompanyData = (result) => {
   let parsedCompanyObj = {};
   // console.log("result >>", result);
   try {
@@ -40,7 +40,7 @@ const parseCompanyData = async (result) => {
     processSafetyBotError(err, "", "", null);
   }
 
-  return Promise.resolve(parsedCompanyObj);
+  return parsedCompanyObj;
 };
 
 const isAdminUser = async (userObjId) => {
@@ -618,5 +618,6 @@ module.exports = {
   updateSuperUserDataByUserAadObjId,
   checkUserHasValidLicense,
   updateIsUserInfoSaved,
-  getCompanyDataByTenantId
+  getCompanyDataByTenantId,
+  parseCompanyData
 };
