@@ -185,6 +185,7 @@ const updateDataIntoDBAsync = async (query, pool, userObjId) => {
   try {
     return new Promise((resolve, reject) => {
       try {
+        //console.log(`updateDataIntoDBAsync ${query}`);
         pool.request().query(query)
           .then((resp) => {
             //console.log("saved");

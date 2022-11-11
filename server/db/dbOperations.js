@@ -285,7 +285,7 @@ const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
     }
 
     if (sqlInserUsers != "") {
-      console.log(sqlInserUsers);
+      //console.log(sqlInserUsers);
       await pool.request().query(sqlInserUsers);
       isUserInfoSaved = true;
     }

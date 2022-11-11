@@ -173,32 +173,34 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
       }
 
       if (conversationId != null) {
-        connectorClient.conversations.sendToConversation(conversationId, activity)
-          .then((activityResp) => {
-            if (activityResp != null && activityResp._response != null && activityResp._response.status != null) {
-              resp.status = activityResp?._response?.status;
-              const isValidActivityStatus = checkValidStatus(activityResp._response.status);
-              if (activityResp.id != null && isValidActivityStatus) {
-                resp.conversationId = conversationId;
-                resp.activityId = activityResp.id;
+        setTimeout(() => {
+          connectorClient.conversations.sendToConversation(conversationId, activity)
+            .then((activityResp) => {
+              if (activityResp != null && activityResp._response != null && activityResp._response.status != null) {
+                resp.status = activityResp?._response?.status;
+                const isValidActivityStatus = checkValidStatus(activityResp._response.status);
+                if (activityResp.id != null && isValidActivityStatus) {
+                  resp.conversationId = conversationId;
+                  resp.activityId = activityResp.id;
+                }
+                if (callbackFn != null && typeof callbackFn === "function") {
+                  callbackFn(resp, index);
+                }
               }
+            })
+            .catch((err) => {
               if (callbackFn != null && typeof callbackFn === "function") {
+                if (err?.statusCode != null) {
+                  resp.status = err.statusCode;
+                } else {
+                  resp.status = 500;
+                }
+                resp.error = err.message;
+                console.log(`Error: sendToConversation ${err}`);
                 callbackFn(resp, index);
               }
-            }
-          })
-          .catch((err) => {
-            if (callbackFn != null && typeof callbackFn === "function") {
-              if (err?.statusCode != null) {
-                resp.status = err.statusCode;
-              } else {
-                resp.status = 500;
-              }
-              resp.error = err.message;
-              console.log(`Error: sendToConversation ${err}`);
-              callbackFn(resp, index);
-            }
-          });
+            });
+        }, 5);
       }
     }
   }

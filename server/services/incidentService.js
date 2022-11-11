@@ -1124,11 +1124,20 @@ const isBotInstalledInTeam = async (userAadObjId) => {
   return { companyData, isInstalledInTeam, isSuperUser };
 }
 
-const updateConversationId = async () => {
+const updateConversationId = async (teamId, userObjId) => {
   try {
-    const sqlTeamMembers = `select distinct a.serviceUrl, a.user_tenant_id tenantId, b.user_id userId, b.user_name userName from MSTeamsInstallationDetails a
+    let sqlTeamMembers = `select distinct a.serviceUrl, a.user_tenant_id tenantId, b.user_id userId, b.user_name userName from MSTeamsInstallationDetails a
     left join MSTeamsTeamsUsers b on a.team_id = b.team_id
     where a.serviceUrl is not null and b.conversationId is null`;
+
+    if (teamId != null) {
+      sqlTeamMembers += ` and b.team_id='${teamId}' `;
+    }
+
+    if (userObjId != null) {
+      sqlTeamMembers += ` and b.user_aadobject_id='${userObjId}' `;
+    }
+
     const result = await db.getDataFromDB(sqlTeamMembers);
     if (result != null && Array.isArray(result)) {
       let sqlUpdate = "";
@@ -1140,7 +1149,7 @@ const updateConversationId = async () => {
             name: userName
           }];
           const conversationId = await getUsersConversationId(tenantId, memberArr, serviceUrl);
-          console.log({ index, conversationId });
+          //console.log({ index, conversationId });
           if (conversationId != null) {
             sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
           }

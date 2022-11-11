@@ -230,13 +230,21 @@ class BotActivityHandler extends TeamsActivityHandler {
 
                 const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
                 await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
+                if (teamId != null) {
+                  await incidentService.updateConversationId(teamId);
+                }
               }
             } else {
               const teamMember = allMembersInfo.find(
                 (m) => m.id === membersAdded[i].id
               );
-              const teamMembers = [teamMember];
-              await addTeamMember(teamId, teamMembers, true);
+              if (teamMember != null) {
+                const teamMembers = [teamMember];
+                await addTeamMember(teamId, teamMembers, true);
+                if (teamMember.aadObjectId != null) {
+                  await incidentService.updateConversationId(null, teamMember.aadObjectId);
+                }
+              }
             }
           }
         } // if bot/member is installed/added
