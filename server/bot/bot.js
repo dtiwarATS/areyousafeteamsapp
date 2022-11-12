@@ -1447,8 +1447,8 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           incType,
           runAt: null,
           incCreatedBy: incCreatedByUserObj,
-          conversationId: dashboardResponse.conversationId,
-          activityId: dashboardResponse.activityId
+          conversationId: dashboardResponse?.conversationId,
+          activityId: dashboardResponse?.activityId
         }
         incGuidance = incGuidance ? incGuidance : "No details available";
 
@@ -1468,6 +1468,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         const dbPool = await db.getPoolPromise(userAadObjId);
         let sqlUpdateMsgDeliveryStatus = "";
         let updateStartTime = null;
+
         const updateMsgDeliveryStatus = (sql) => {
           if (sql != "") {
             sqlUpdateMsgDeliveryStatus = "";
@@ -1481,46 +1482,70 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           }
         }
 
+        let respTime = (new Date()).getTime();
+        const respTimeInterval = setInterval(() => {
+          try {
+            const currentTime = (new Date()).getTime();
+            if ((currentTime - respTime) / 1000 >= 100) {
+              clearInterval(respTimeInterval);
+              resolve(true);
+            }
+          } catch (err) {
+
+          }
+        }, 100000);
+
 
 
 
         const callbackFn = (msgResp, index) => {
-          messageCount += 1;
-          //console.log({ "end i ": index, messageCount });
+          try {
+            respTime = (new Date()).getTime();
+            messageCount += 1;
+            //console.log({ "end i ": index, messageCount });
 
-          let isMessageDelivered = 0;
-          if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-            isMessageDelivered = 1;
-          }
-          const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
-          const error = (msgResp?.error == null) ? null : msgResp?.error;
-          sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${msgResp.userId}'; `;
+            let isMessageDelivered = 0;
+            if (msgResp?.conversationId != null && msgResp?.activityId != null) {
+              isMessageDelivered = 1;
+            }
+            const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+            const error = (msgResp?.error == null) ? null : msgResp?.error;
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${msgResp.userId}'; `;
 
-          if (updateStartTime == null) {
-            updateStartTime = (new Date()).getTime();
-          }
-          let updateEndTime = (new Date()).getTime();
-          updateEndTime = (updateEndTime - updateStartTime) / 1000;
+            if (updateStartTime == null) {
+              updateStartTime = (new Date()).getTime();
+            }
+            let updateEndTime = (new Date()).getTime();
+            updateEndTime = (updateEndTime - updateStartTime) / 1000;
 
-          if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
-            updateStartTime = null;
-            updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-          }
-
-          if (messageCount == allMembersArr.length) {
-            logTimeInSeconds(startTime, `Sent all message end`);
-            logTimeInSeconds(initStartTime, `TotalTime`);
-            if (sqlUpdateMsgDeliveryStatus != "") {
+            if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
+              updateStartTime = null;
               updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
             }
-            sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId)
-              .then((resp) => {
 
-              })
-              .catch((err) => {
-                processSafetyBotError(err, "", "", userAadObjId);
-              });
-            resolve(true);
+            if (messageCount == allMembersArr.length) {
+              if (respTimeInterval != null) {
+                clearInterval(respTimeInterval);
+              }
+
+              logTimeInSeconds(startTime, `Sent all message end`);
+              logTimeInSeconds(initStartTime, `TotalTime`);
+              if (sqlUpdateMsgDeliveryStatus != "") {
+                setTimeout(() => {
+                  updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+                }, 5000);
+              }
+              sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId)
+                .then((resp) => {
+
+                })
+                .catch((err) => {
+                  processSafetyBotError(err, "", "", userAadObjId);
+                });
+              resolve(true);
+            }
+          } catch (err) {
+            processSafetyBotError(err, "", "", userAadObjId);
           }
         }
 
