@@ -1525,7 +1525,12 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
 
             if (messageCount == allMembersArr.length) {
               if (respTimeInterval != null) {
-                clearInterval(respTimeInterval);
+                try {
+                  clearInterval(respTimeInterval);
+                } catch (err) {
+                  console.log(err);
+                  processSafetyBotError(err, "", "", userAadObjId);
+                }
               }
 
               logTimeInSeconds(startTime, `Sent all message end`);
