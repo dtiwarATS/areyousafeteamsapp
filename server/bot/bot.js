@@ -37,8 +37,9 @@ const {
   updateMainCard,
   updateCard
 } = require("../models/UpdateCards");
-const dashboard = require("../models/dashboard")
-const { Console } = require("console");
+const dashboard = require("../models/dashboard");
+const axios = require("axios");
+const https = require("https");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
@@ -1483,17 +1484,17 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         }
 
         let respTime = (new Date()).getTime();
-        const respTimeInterval = setInterval(() => {
-          try {
-            const currentTime = (new Date()).getTime();
-            if ((currentTime - respTime) / 1000 >= 100) {
-              clearInterval(respTimeInterval);
-              resolve(true);
-            }
-          } catch (err) {
+        // const respTimeInterval = setInterval(() => {
+        //   try {
+        //     const currentTime = (new Date()).getTime();
+        //     if ((currentTime - respTime) / 1000 >= 100) {
+        //       clearInterval(respTimeInterval);
+        //       resolve(true);
+        //     }
+        //   } catch (err) {
 
-          }
-        }, 100000);
+        //   }
+        // }, 100000);
 
 
 
@@ -1524,14 +1525,14 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
             }
 
             if (messageCount == allMembersArr.length) {
-              if (respTimeInterval != null) {
-                try {
-                  clearInterval(respTimeInterval);
-                } catch (err) {
-                  console.log(err);
-                  processSafetyBotError(err, "", "", userAadObjId);
-                }
-              }
+              // if (respTimeInterval != null) {
+              //   try {
+              //     clearInterval(respTimeInterval);
+              //   } catch (err) {
+              //     console.log(err);
+              //     processSafetyBotError(err, "", "", userAadObjId);
+              //   }
+              // }
 
               logTimeInSeconds(startTime, `Sent all message end`);
               logTimeInSeconds(initStartTime, `TotalTime`);
@@ -1554,21 +1555,52 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           }
         }
 
-        allMembersArr.map((member, index) => {
-          try {
-            let memberArr = [{
-              id: member.id,
-              name: member.name
-            }];
-            //console.log({ "start i ": index });
-            const conversationId = member.conversationId;
+        if (process.env.NODE_ENV === 'development') {
+          const httpsAgent = new https.Agent({
+            rejectUnauthorized: false,
+          })
+          axios.defaults.httpsAgent = httpsAgent;
+        }
 
-            sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index);
+        const url = `${process.env.sendMessageAPI}/SendSafetyCheckMessage`;
+        const data = {
+          incId,
+          serviceUrl,
+          userTenantId,
+          userAadObjId,
+          allMembersArr: JSON.stringify(allMembersArr),
+          safetyCheckCard: JSON.stringify(approvalCard)
+        };
 
-          } catch (err) {
-            processSafetyBotError(err, "", "", userAadObjId);
+        axios.post(url, data, {
+          headers: {
+            'Content-Type': 'application/json'
           }
         })
+          .then((resp) => {
+            logTimeInSeconds(initStartTime, `TotalTime`);
+            resolve(true);
+          })
+          .catch((err) => {
+            logTimeInSeconds(initStartTime, `TotalTime`);
+            resolve(false);
+          });
+        const b = "";
+        // allMembersArr.map((member, index) => {
+        //   try {
+        //     let memberArr = [{
+        //       id: member.id,
+        //       name: member.name
+        //     }];
+        //     //console.log({ "start i ": index });
+        //     const conversationId = member.conversationId;
+
+        //     sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index);
+
+        //   } catch (err) {
+        //     processSafetyBotError(err, "", "", userAadObjId);
+        //   }
+        // })
       }
       else if (incType == "recurringIncident") {
         const userTimeZone = createdByUserInfo.userTimeZone;
@@ -1577,7 +1609,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         resolve(true);
       }
     } catch (err) {
-      console.log(`sendSafetyCheckMessage error: ${err}`);
+      console.log(`sendSafetyCheckMessage error: ${err} `);
       processSafetyBotError(err, "", "", userAadObjId);
       resolve(false);
     }
@@ -1587,7 +1619,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
 const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, userAadObjId) => {
   let safetyCheckSend = false;
   log.addLog("sendSafetyCheckMessage start");
-  log.addLog(`sendSafetyCheckMessage incId: ${incId}`);
+  log.addLog(`sendSafetyCheckMessage incId: ${incId} `);
   try {
     const companyData = await getCompanyDataByTeamId(teamId, userAadObjId);
     const incData = await incidentService.getInc(incId, null, userAadObjId);
@@ -1611,7 +1643,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
       );
     }
 
-    log.addLog(`allMembersArr ${JSON.stringify(allMembersArr)}`);
+    log.addLog(`allMembersArr ${JSON.stringify(allMembersArr)} `);
 
     const incWithAddedMembers = await incidentService.addMembersIntoIncData(
       incId,
@@ -1619,7 +1651,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
       incCreatedBy,
       userAadObjId
     );
-    log.addLog(`incType: ${incType}`);
+    log.addLog(`incType: ${incType} `);
     if (incType == "onetime") {
       log.addLog(`onetime start`);
       const incCreatedByUserArr = [];
@@ -1676,8 +1708,8 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
     }
     safetyCheckSend = true;
   } catch (err) {
-    log.addLog(`sendSafetyCheckMessage error: ${err.toString()}`);
-    console.log(`sendSafetyCheckMessage error: ${err}`);
+    log.addLog(`sendSafetyCheckMessage error: ${err.toString()} `);
+    console.log(`sendSafetyCheckMessage error: ${err} `);
     processSafetyBotError(err, "", "", userAadObjId);
   }
   log.addLog(`sendSafetyCheckMessage end`);
@@ -1779,7 +1811,7 @@ const sendIncStatusValidation = async (context, incStatusId) => {
         body: [
           {
             type: "TextBlock",
-            text: `The **${incTitle}** is closed. Please contact <at>${incCreatedBy.name}</at>`,
+            text: `The ** ${incTitle}** is closed.Please contact < at > ${incCreatedBy.name}</at > `,
             wrap: true,
           },
         ],
@@ -1816,7 +1848,7 @@ const sendApprovalResponse = async (user, context) => {
         body: [
           {
             type: "TextBlock",
-            text: `User <at>${user.name}</at> needs assistance for Incident: **${incTitle}**`,
+            text: `User < at > ${user.name}</at > needs assistance for Incident: ** ${incTitle}** `,
             wrap: true,
           },
         ],
@@ -1824,7 +1856,7 @@ const sendApprovalResponse = async (user, context) => {
           entities: [
             {
               type: "mention",
-              text: `<at>${user.name}</at>`,
+              text: `< at > ${user.name}</at > `,
               mentioned: user,
             },
           ],
@@ -1855,16 +1887,16 @@ const submitComment = async (context, user, companyData) => {
       const mentionedUser = {
         type: "mention",
         mentioned: user,
-        text: `<at>${user.name}</at>`,
+        text: `< at > ${user.name}</at > `,
       };
-      msgText = `The user <at>${user.name}</at> has commented for incident **${incTitle}**:\n${commentVal}`;
+      msgText = `The user < at > ${user.name}</at > has commented for incident ** ${incTitle} **: \n${commentVal} `;
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
         body: [
           {
             type: "TextBlock",
-            text: `User <at>${user.name}</at> has commented for incident **${incTitle}**:\n${commentVal}`,
+            text: `User < at > ${user.name}</at > has commented for incident ** ${incTitle} **: \n${commentVal} `,
             wrap: true,
           },
         ],
@@ -1872,7 +1904,7 @@ const submitComment = async (context, user, companyData) => {
           entities: [
             {
               type: "mention",
-              text: `<at>${user.name}</at>`,
+              text: `< at > ${user.name}</at > `,
               mentioned: user,
             },
           ],
@@ -1981,7 +2013,7 @@ const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName 
       "Hi,<br/> <br />" +
       "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
       "<br />" +
-      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "}` +
+      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "} ` +
       "<b>Email: </b>" +
       emailVal +
       "<br />" +
@@ -2250,7 +2282,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
           },
           {
             "type": "TextBlock",
-            "text": `Your safety check message for **${incTitle}** has been sent to all the users`,
+            "text": `Your safety check message for ** ${incTitle} ** has been sent to all the users`,
             "wrap": true
           }
         ]
@@ -2353,7 +2385,7 @@ const addteamsusers = async (context) => {
         allCompanyData.map(async (cmpData, index) => {
           const { id, team_id: teamid, serviceUrl } = cmpData;
           try {
-            log.addLog(`Inside loop start teamid : ${JSON.stringify(teamid)}`);
+            log.addLog(`Inside loop start teamid: ${JSON.stringify(teamid)} `);
 
             const allTeamMembers = await getAllTeamMembersByConnectorClient(teamid, serviceUrl);
             if (allTeamMembers != null && allTeamMembers.length > 0) {
@@ -2361,13 +2393,13 @@ const addteamsusers = async (context) => {
               if (isUserInfoSaved) {
                 sqlUpdateIsUserInfoSavedFlag += ` update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id = ${id}; `;
               }
-              log.addLog(`isUserInfoSaved: ${isUserInfoSaved}`);
+              log.addLog(`isUserInfoSaved: ${isUserInfoSaved} `);
             }
           } catch (err) {
-            log.addLog(`addteamsusers Error inside loop error details: ${JSON.stringify(err)}`);
+            log.addLog(`addteamsusers Error inside loop error details: ${JSON.stringify(err)} `);
             processSafetyBotError(err, "", "");
           } finally {
-            log.addLog(`Inside loop start teamid : ${JSON.stringify(teamid)}`);
+            log.addLog(`Inside loop start teamid: ${JSON.stringify(teamid)} `);
           }
         })
       );
@@ -2376,7 +2408,7 @@ const addteamsusers = async (context) => {
       }
     }
   } catch (err) {
-    log.addLog(`addteamsusers Error ${JSON.stringify(err)}`);
+    log.addLog(`addteamsusers Error ${JSON.stringify(err)} `);
     console.log(err);
     processSafetyBotError(err, "", "");
   } finally {

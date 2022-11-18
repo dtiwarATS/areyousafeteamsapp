@@ -192,7 +192,7 @@ const getCompaniesData = async (
     let res = await db.getDataFromDB(selectQuery, userObjId);
 
     // check if the user is super user or not
-    if (res.length == 0) {
+    if (res == null || res.length == 0) {
       res = await db.getDataFromDB(
         `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails where super_users like '%${userObjId}%' and uninstallation_date is null`, userObjId
       );
