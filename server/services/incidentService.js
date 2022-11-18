@@ -123,18 +123,21 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
     orderBySql = " order by inc.INC_STATUS_ID,  inc.id desc";
   }
 
+  let createdByVar = "";
   let whereSql = "", userPrincipalleftJoin = "";
   if (teamId != null) {
     whereSql = ` where inc.team_id = '${teamId}' `;
-    userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers where team_id = '${teamId}') tu on tu.user_id = m.user_id `;
+    //userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers where team_id = '${teamId}') tu on tu.user_id = m.user_id `;
   }
 
   if (aadObjuserId != null) {
-    whereSql = ` where inc.created_by in (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}') `;
-    userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id `;
+    createdByVar = `Declare @createdByUser NVARCHAR(MAX) = (select top 1 user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}'); `;
+    whereSql = ` where inc.created_by = @createdByUser `;
+    //userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id `;
   }
 
-  let selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
+  let selectQuery = ` ${createdByVar}
+  SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
   m.comment, m.timestamp, m.message_delivery_status msgStatus, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
   , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, inc.INC_STATUS_ID, tu.userPrincipalName
@@ -142,8 +145,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
   Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
-  ${userPrincipalleftJoin}
-  LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
+  LEFT JOIN MSTeamsTeamsUsers tu on tu.user_id = m.user_id and inc.team_id = tu.team_id
   ${whereSql} ${orderBySql}
   FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
