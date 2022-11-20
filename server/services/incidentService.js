@@ -618,7 +618,9 @@ const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises, userA
         query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${userName}');`;
       }
       //console.log("insert query => ", query);
-      await pool.request().query(query);
+      if (query != "") {
+        await pool.request().query(query);
+      }
     }
   }
   catch (err) {
@@ -642,7 +644,7 @@ const saveIncResponseUserTS = async (respUserTSquery, userAadObjId) => {
 
 const getIncResponseSelectedUsersList = async (incId, userAadObjId) => {
   try {
-    const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});`;
+    const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId};`;
     const result = await db.getDataFromDB(sql, userAadObjId);
     return Promise.resolve(result);
   }

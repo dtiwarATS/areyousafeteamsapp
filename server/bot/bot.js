@@ -965,142 +965,158 @@ const viewAllInc = async (context, companyData) => {
   }
 };
 
-const getOneTimeDashboardCard = async (incidentId, runAt = null) => {
-  let inc = await incidentService.getInc(incidentId, runAt);
+const getOneTimeDashboardCard = async (incidentId, runAt = null, userObjId = null) => {
+  let card = null;
+  try {
+    let inc = await incidentService.getInc(incidentId, runAt);
 
-  let result = {
-    eventName: inc.incTitle,
-    membersSafe: [],
-    membersUnsafe: [],
-    membersNotResponded: [],
-  };
-
-  const mentionUserEntities = [];
-
-  // process result for event dashboard
-  inc.members.forEach((m) => {
-    const { userId, userName, response, responseValue } = m;
-
-    if (response == "na" || response == false) {
-      result.membersNotResponded.push(`<at>${userName}</at>`);
-    }
-    if (response == true) {
-      if (responseValue == true) {
-        result.membersSafe.push(`<at>${userName}</at>`);
-      } else if (responseValue == false || responseValue == null) {
-        result.membersUnsafe.push(`<at>${userName}</at>`);
-      }
-    }
-
-    const mention = {
-      type: "mention",
-      text: `<at>${userName}</at>`,
-      mentioned: {
-        id: userId,
-        name: userName,
-      },
+    let result = {
+      eventName: inc.incTitle,
+      membersSafe: [],
+      membersUnsafe: [],
+      membersNotResponded: [],
     };
 
-    mentionUserEntities.push(mention);
-  });
+    const mentionUserEntities = [];
 
-  let membersUnsafeStr = result.membersUnsafe.join(", ");
-  let membersNotRespondedStr = result.membersNotResponded.join(", ");
-  let membersSafeStr = result.membersSafe.join(", ");
+    // process result for event dashboard
+    inc.members.forEach((m) => {
+      const { userId, userName, response, responseValue } = m;
 
-  //console.log("membersNotRespondedStr", membersNotRespondedStr);
-
-  const card = {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    type: "AdaptiveCard",
-    version: "1.4",
-    body: [
-      {
-        type: "TextBlock",
-        text: `👋 Incident Name: ${inc.incTitle}`,
-        size: "Large",
-        weight: "Bolder",
-        wrap: true,
-      },
-      {
-        type: "ColumnSet",
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                wrap: true,
-                text: `**Need Assistance: ${result.membersUnsafe.length}**`,
-                color: "attention",
-              },
-              {
-                type: "TextBlock",
-                wrap: true,
-                text: membersUnsafeStr,
-                isSubtle: true,
-                spacing: "none",
-              },
-            ],
-          },
-        ],
-        separator: true,
-      },
-      {
-        type: "ColumnSet",
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                wrap: true,
-                text: `**Not Responded: ${result.membersNotResponded.length}**`,
-                color: "default",
-              },
-              {
-                type: "TextBlock",
-                wrap: true,
-                text: membersNotRespondedStr,
-                isSubtle: true,
-                spacing: "none",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        type: "ColumnSet",
-        spacing: "medium",
-        columns: [
-          {
-            type: "Column",
-            width: 4,
-            items: [
-              {
-                type: "TextBlock",
-                text: `**Safe: ${result.membersSafe.length}**`,
-                color: "good",
-              },
-              {
-                type: "TextBlock",
-                wrap: true,
-                text: membersSafeStr,
-                isSubtle: true,
-                spacing: "none",
-              },
-            ],
-          },
-        ],
+      if (response == "na" || response == false) {
+        result.membersNotResponded.push(`<at>${userName}</at>`);
       }
-    ],
-    msteams: {
-      entities: mentionUserEntities,
-    },
-  };
+      if (response == true) {
+        if (responseValue == true) {
+          result.membersSafe.push(`<at>${userName}</at>`);
+        } else if (responseValue == false || responseValue == null) {
+          result.membersUnsafe.push(`<at>${userName}</at>`);
+        }
+      }
+
+      const mention = {
+        type: "mention",
+        text: `<at>${userName}</at>`,
+        mentioned: {
+          id: userId,
+          name: userName,
+        },
+      };
+
+      mentionUserEntities.push(mention);
+    });
+
+    let membersUnsafeStr = result.membersUnsafe.join(", ");
+    let membersNotRespondedStr = result.membersNotResponded.join(", ");
+    let membersSafeStr = result.membersSafe.join(", ");
+
+    //console.log("membersNotRespondedStr", membersNotRespondedStr);
+
+    card = {
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      type: "AdaptiveCard",
+      version: "1.4",
+      body: [
+        {
+          type: "TextBlock",
+          text: `👋 Incident Name: ${inc.incTitle}`,
+          size: "Large",
+          weight: "Bolder",
+          wrap: true,
+        },
+        {
+          type: "ColumnSet",
+          columns: [
+            {
+              type: "Column",
+              width: 4,
+              items: [
+                {
+                  type: "TextBlock",
+                  wrap: true,
+                  text: `**Need Assistance: ${result.membersUnsafe.length}**`,
+                  color: "attention",
+                },
+                {
+                  type: "TextBlock",
+                  wrap: true,
+                  text: membersUnsafeStr,
+                  isSubtle: true,
+                  spacing: "none",
+                },
+              ],
+            },
+          ],
+          separator: true,
+        },
+        {
+          type: "ColumnSet",
+          columns: [
+            {
+              type: "Column",
+              width: 4,
+              items: [
+                {
+                  type: "TextBlock",
+                  wrap: true,
+                  text: `**Not Responded: ${result.membersNotResponded.length}**`,
+                  color: "default",
+                },
+                {
+                  type: "TextBlock",
+                  wrap: true,
+                  text: membersNotRespondedStr,
+                  isSubtle: true,
+                  spacing: "none",
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: "ColumnSet",
+          spacing: "medium",
+          columns: [
+            {
+              type: "Column",
+              width: 4,
+              items: [
+                {
+                  type: "TextBlock",
+                  text: `**Safe: ${result.membersSafe.length}**`,
+                  color: "good",
+                },
+                {
+                  type: "TextBlock",
+                  wrap: true,
+                  text: membersSafeStr,
+                  isSubtle: true,
+                  spacing: "none",
+                },
+              ],
+            },
+          ],
+        }
+      ],
+      msteams: {
+        entities: mentionUserEntities,
+      },
+    };
+  } catch (err) {
+    processSafetyBotError(err, "", "", userObjId);
+  }
   return card;
+}
+
+const getOneTimeDashboardCardAsync = async (incidentId, runAt = null, userAadObjId = null) => {
+  return new Promise(async (resolve, reject) => {
+    const dashboardCard = await getOneTimeDashboardCard(incidentId, runAt, userAadObjId);
+    if (dashboardCard != null) {
+      resolve(dashboardCard);
+    } else {
+      reject(dashboardCard);
+    }
+  });
 }
 
 const viewIncResult = async (incidentId, context, companyData, incData, runAt = null, dashboardCard = null, serviceUrl = null) => {
@@ -1438,8 +1454,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         }
         incCreatedByUserArr.push(incCreatedByUserObj);
 
-        const dashboardCard = await getOneTimeDashboardCard(incId);
-        const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
+        //const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
         logTimeInSeconds(startTime, `send dashboard to safety initiator users end`);
         startTime = (new Date()).getTime();
         let incObj = {
@@ -1448,8 +1463,6 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           incType,
           runAt: null,
           incCreatedBy: incCreatedByUserObj,
-          conversationId: dashboardResponse?.conversationId,
-          activityId: dashboardResponse?.activityId
         }
         incGuidance = incGuidance ? incGuidance : "No details available";
 
@@ -1579,10 +1592,23 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         })
           .then((resp) => {
             logTimeInSeconds(initStartTime, `TotalTime`);
+            getOneTimeDashboardCardAsync(incId, null, userAadObjId)
+              .then((dashboardCard) => {
+                return dashboardCard;
+              }).then((dashboardCard) => {
+                return sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
+              })
+              .then((resp) => {
+                const abc = "a";
+              })
+              .catch((err) => {
+                processSafetyBotError(err, "", "", userAadObjId);
+              });
             resolve(true);
           })
           .catch((err) => {
             logTimeInSeconds(initStartTime, `TotalTime`);
+            processSafetyBotError(err, "", "", userAadObjId);
             resolve(false);
           });
         const b = "";
