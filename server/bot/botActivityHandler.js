@@ -179,19 +179,38 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
     });
 
-    this.onConversationUpdate(async (context, next) => {
-      try {
-        let addedBot = false;
-        const acvtivityData = context.activity;
+    const getCompaniesDataJSON = (context, adminUserInfo, teamId, teamName) => {
+      let userEmail = adminUserInfo.email;
+      if (userEmail == null) {
+        userEmail = adminUserInfo?.userPrincipalName;
+      }
+      return {
+        userId: adminUserInfo.id,
+        userTenantId: adminUserInfo.tenantId,
+        userObjId: adminUserInfo.aadObjectId,
+        userName: adminUserInfo.name,
+        email: userEmail == null ? "" : userEmail,
+        teamId: teamId,
+        teamName: teamName,
+        superUser: [],
+        createdDate: new Date(Date.now()).toISOString(),
+        welcomeMessageSent: 0,
+        serviceUrl: context.activity.serviceUrl
+      };
+    }
 
-        const teamId = acvtivityData?.channelData?.team?.id;
+    this.onConversationUpdate(async (context, next) => {
+      let addedBot = false;
+      const acvtivityData = context.activity;
+      const teamId = acvtivityData?.channelData?.team?.id;
+      const userAadObjectId = acvtivityData?.from?.aadObjectId;
+      try {
         const conversationType = context.activity.conversation.conversationType;
-        if (
-          acvtivityData &&
+        if (acvtivityData &&
           acvtivityData?.channelData?.eventType === "teamMemberAdded"
         ) {
           const { membersAdded } = acvtivityData;
-          const teamId = acvtivityData.channelData.team.id;
+          // const teamId = acvtivityData.channelData.team.id;
           // retrive user info who installed the app from TeamsInfo.getTeamMembers(context, teamId);
           const allMembersInfo = await TeamsInfo.getTeamMembers(
             context,
@@ -214,20 +233,25 @@ class BotActivityHandler extends TeamsActivityHandler {
                 //console.log("adminUserInfo >> ", adminUserInfo);
                 // then save from.id as userid and from.aadObjectId as userObjectId
                 // and channelData.team.id as teamsId and save the data to database
-                const companyDataObj = {
-                  userId: acvtivityData.from.id,
-                  userTenantId: adminUserInfo.tenantId,
-                  userObjId: adminUserInfo.aadObjectId,
-                  userName: adminUserInfo.name,
-                  email: adminUserInfo.email == null ? "" : adminUserInfo.email,
-                  teamId: teamId,
-                  teamName: acvtivityData.channelData.team.name,
-                  superUser: [],
-                  createdDate: new Date(Date.now()).toISOString(),
-                  welcomeMessageSent: 0,
-                  serviceUrl: context.activity.serviceUrl
-                };
 
+                // let userEmail = adminUserInfo.email;
+                // if (userEmail == null) {
+                //   userEmail = adminUserInfo.userPrincipalName;
+                // }
+                // const companyDataObj = {
+                //   userId: acvtivityData.from.id,
+                //   userTenantId: adminUserInfo.tenantId,
+                //   userObjId: adminUserInfo.aadObjectId,
+                //   userName: adminUserInfo.name,
+                //   email: userEmail == null ? "" : userEmail,
+                //   teamId: teamId,
+                //   teamName: acvtivityData.channelData.team.name,
+                //   superUser: [],
+                //   createdDate: new Date(Date.now()).toISOString(),
+                //   welcomeMessageSent: 0,
+                //   serviceUrl: context.activity.serviceUrl
+                // };
+                const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, teamId, acvtivityData.channelData.team.name);
                 const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
                 await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
                 if (teamId != null) {
@@ -286,19 +310,20 @@ class BotActivityHandler extends TeamsActivityHandler {
                 acvtivityData.from.id
               );
               if (adminUserInfo) {
-                const companyDataObj = {
-                  userId: adminUserInfo.id,
-                  userTenantId: adminUserInfo.tenantId,
-                  userObjId: adminUserInfo.aadObjectId,
-                  userName: adminUserInfo.name,
-                  email: adminUserInfo.email == null ? "" : adminUserInfo.email,
-                  teamId: "",
-                  teamName: "",
-                  superUser: [],
-                  createdDate: new Date(Date.now()).toISOString(),
-                  welcomeMessageSent: 0,
-                  serviceUrl: context.activity.serviceUrl
-                };
+                // const companyDataObj = {
+                //   userId: adminUserInfo.id,
+                //   userTenantId: adminUserInfo.tenantId,
+                //   userObjId: adminUserInfo.aadObjectId,
+                //   userName: adminUserInfo.name,
+                //   email: adminUserInfo.email == null ? "" : adminUserInfo.email,
+                //   teamId: "",
+                //   teamName: "",
+                //   superUser: [],
+                //   createdDate: new Date(Date.now()).toISOString(),
+                //   welcomeMessageSent: 0,
+                //   serviceUrl: context.activity.serviceUrl
+                // };
+                const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
                 const companyData = await insertCompanyData(companyDataObj, null, conversationType);
                 await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
               }
@@ -316,7 +341,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
         }
       } catch (err) {
-        processSafetyBotError(err, "", "");
+        processSafetyBotError(err, teamId, "", userAadObjectId, JSON.stringify(acvtivityData));
       }
     });
   }
