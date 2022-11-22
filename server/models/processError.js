@@ -58,18 +58,10 @@ const processBotError = async (reqBody) => {
                 "Thank you, <br />" +
                 botName + " bot";
             if (botName.toLowerCase() == "areyousafe") {
-                const auth = {
-                    user: process.env.AUTH_USER,
-                    pass: process.env.AUTH_PASS,
-                }
-                transportParam = new mail.EmailTransportParam(process.env.HOST_NAME, process.env.PORTS, true, auth);
+                transportParam = new mail.EmailTransportParam(process.env.HOST_NAME, process.env.PORTS, true, process.env.AUTH_USER, process.env.AUTH_PASS);
                 emailOption = new mail.EmailOption(process.env.ADMIN_EMAIL, process.env.ADMIN_EMAIL, subject, emailBody);
             } else {
-                const auth = {
-                    user: process.env.AB_AUTH_USER,
-                    pass: process.env.AB_AUTH_PASS,
-                }
-                transportParam = new mail.EmailTransportParam(process.env.AB_HOST_NAME, process.env.AB_PORTS, true, auth);
+                transportParam = new mail.EmailTransportParam(process.env.AB_HOST_NAME, process.env.AB_PORTS, true, process.env.AUTH_USER, process.env.AUTH_PASS);
                 emailOption = new mail.EmailOption(process.env.AB_ADMIN_EMAIL, process.env.AB_ADMIN_EMAIL, subject, emailBody);
             }
             mail.sendEmail(transportParam, emailOption);

@@ -507,3 +507,15 @@ BEGIN
 ALTER TABLE MSTeamsTeamsUsers ADD conversationId nvarchar(max) NULL
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isThreeDayBeforeMessageSent' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD isThreeDayBeforeMessageSent BIT NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isSevenDayBeforeMessageSent' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD isSevenDayBeforeMessageSent BIT NULL
+END
+GO

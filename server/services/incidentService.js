@@ -1031,9 +1031,17 @@ const updateSubscriptionType = async (licenseType, tenantId) => {
   }
 }
 
-const updateFiveDayBeforeMessageSentFlag = async (id, userAadObjId) => {
+const updateBeforeMessageSentFlag = async (id, userAadObjId, subcriptionMessage) => {
   try {
-    const sqlCheckLicense = `update MSTeamsSubscriptionDetails set isFiveDayBeforeMessageSent = 1 where ID = ${id}`;
+    let columnName = "";
+    if (subcriptionMessage == "threeDayBeforeExpiry") {
+      columnName = "isThreeDayBeforeMessageSent";
+    } else if (subcriptionMessage == "fiveDayBeforeExpiry") {
+      columnName = "isFiveDayBeforeMessageSent";
+    } else if (subcriptionMessage == "sevenDayBeforeExpiry") {
+      columnName = "isSevenDayBeforeMessageSent";
+    }
+    const sqlCheckLicense = `update MSTeamsSubscriptionDetails set ${columnName} = 1 where ID = ${id}`;
     await db.getDataFromDB(sqlCheckLicense, userAadObjId);
   } catch (err) {
     processSafetyBotError(err, "", "", userAadObjId);
@@ -1283,7 +1291,7 @@ module.exports = {
   addError,
   hasValidLicense,
   updateSubscriptionType,
-  updateFiveDayBeforeMessageSentFlag,
+  updateBeforeMessageSentFlag,
   updateAfterExpiryMessageSentFlag,
   updateSubscriptionTypeToTypeOne,
   updateSubcriptionProcessFlag,

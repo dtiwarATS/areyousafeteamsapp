@@ -50,6 +50,7 @@ const {
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const { getWelcomeMessageCard, getSubcriptionSelectionCard } = require("./subscriptionCard");
+const PersonalEmail = require("../Email/personalEmail");
 
 class BotActivityHandler extends TeamsActivityHandler {
   constructor() {
@@ -205,7 +206,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       const teamId = acvtivityData?.channelData?.team?.id;
       const userAadObjectId = acvtivityData?.from?.aadObjectId;
       try {
-        const conversationType = context.activity.conversation.conversationType;
+        const conversationType = acvtivityData.conversation.conversationType;
         if (acvtivityData &&
           acvtivityData?.channelData?.eventType === "teamMemberAdded"
         ) {
@@ -230,27 +231,6 @@ class BotActivityHandler extends TeamsActivityHandler {
               );
 
               if (adminUserInfo) {
-                //console.log("adminUserInfo >> ", adminUserInfo);
-                // then save from.id as userid and from.aadObjectId as userObjectId
-                // and channelData.team.id as teamsId and save the data to database
-
-                // let userEmail = adminUserInfo.email;
-                // if (userEmail == null) {
-                //   userEmail = adminUserInfo.userPrincipalName;
-                // }
-                // const companyDataObj = {
-                //   userId: acvtivityData.from.id,
-                //   userTenantId: adminUserInfo.tenantId,
-                //   userObjId: adminUserInfo.aadObjectId,
-                //   userName: adminUserInfo.name,
-                //   email: userEmail == null ? "" : userEmail,
-                //   teamId: teamId,
-                //   teamName: acvtivityData.channelData.team.name,
-                //   superUser: [],
-                //   createdDate: new Date(Date.now()).toISOString(),
-                //   welcomeMessageSent: 0,
-                //   serviceUrl: context.activity.serviceUrl
-                // };
                 const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, teamId, acvtivityData.channelData.team.name);
                 const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
                 await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
@@ -310,19 +290,6 @@ class BotActivityHandler extends TeamsActivityHandler {
                 acvtivityData.from.id
               );
               if (adminUserInfo) {
-                // const companyDataObj = {
-                //   userId: adminUserInfo.id,
-                //   userTenantId: adminUserInfo.tenantId,
-                //   userObjId: adminUserInfo.aadObjectId,
-                //   userName: adminUserInfo.name,
-                //   email: adminUserInfo.email == null ? "" : adminUserInfo.email,
-                //   teamId: "",
-                //   teamName: "",
-                //   superUser: [],
-                //   createdDate: new Date(Date.now()).toISOString(),
-                //   welcomeMessageSent: 0,
-                //   serviceUrl: context.activity.serviceUrl
-                // };
                 const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
                 const companyData = await insertCompanyData(companyDataObj, null, conversationType);
                 await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
@@ -622,15 +589,23 @@ class BotActivityHandler extends TeamsActivityHandler {
   }
 
   async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0) {
+    const userAadObjId = acvtivityData.from.aadObjectId;
     try {
       console.log({ "sendWelcomeMessage": companyData });
       if (companyData == null) {
         return;
       }
 
-      const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(acvtivityData.from.aadObjectId);
+      const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(userAadObjId);
 
       if (!isWelcomeMessageSent) {
+
+        (new PersonalEmail.PersonalEmail()).sendWelcomEmail(companyData.userEmail, userAadObjId)
+          .then(() => { })
+          .catch((err) => {
+            console.log(err);
+          });
+
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, companyData.userEmail);
         await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
 
@@ -651,7 +626,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         );
       }
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", userAadObjId);
     }
   }
 
@@ -660,6 +635,12 @@ class BotActivityHandler extends TeamsActivityHandler {
       userAadObjId
     );
     if (userInfo && userInfo.length > 0) {
+      (new PersonalEmail.PersonalEmail()).sendUninstallationEmail(userInfo[0].email, userAadObjId)
+        .then(() => { })
+        .catch((err) => {
+          console.log(err);
+        });
+
       await bot.sendUninstallationEmail(
         userInfo[0].email, userInfo[0].user_name
       );

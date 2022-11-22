@@ -1,11 +1,14 @@
 const nodemailer = require("nodemailer");
 
 class EmailTransportParam {
-    constructor(host, port, secure, auth) {
+    constructor(host, port, secure, user, pass) {
         this.host = host;
         this.port = port;
         this.secure = secure;
-        this.auth = auth;
+        this.auth = {
+            user,
+            pass
+        };
     }
 }
 
