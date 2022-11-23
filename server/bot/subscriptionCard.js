@@ -435,7 +435,7 @@ const getTypeTwoSevenDayBeforeCard = (userId, userName) => {
             },
             {
                 "type": "TextBlock",
-                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select annual or monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
                 "wrap": true
             },
             {
@@ -490,7 +490,7 @@ const getTypeTwoThreeDayBeforeCard = (userId, userName) => {
             },
             {
                 "type": "TextBlock",
-                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select annual or monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
                 "wrap": true
             },
             {
@@ -540,7 +540,7 @@ const getTypeTwoSubscriptionEndCard = (userId, userName, teamName) => {
             },
             {
                 "type": "TextBlock",
-                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select annual or monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
                 "wrap": true
             },
             {
