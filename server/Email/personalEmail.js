@@ -1,20 +1,19 @@
 const email = require("../utils/mail");
 const { processSafetyBotError } = require("../models/processError");
 class PersonalEmail {
-    host = 'safetybot.in';
-    port = 465;
-    secure = true;
-    user = 'help@safetybot.in';
-    pass = '!ntrack01';
-    from = 'help@safetybot.in';
+    host = process.env.PERSONAL_HOST_NAME;
+    port = process.env.PERSONAL_PORTS;
+    secure = process.env.SSL;
+    user = process.env.PERSONAL_AUTH_USER;
+    pass = process.env.PERSONAL_AUTH_PASS;
     constructor() {
-        if (process.env.build = "Local") {
-            this.host = 'ats360.com';
-            this.port = 465;
-            this.secure = true;
-            this.user = 'ssawant@ats360.com';
-            this.pass = 'D3v1lmayCry!@dmin';
-        }
+        // if (process.env.build == "Local") {
+        //     this.host = process.env.LOCAL_HOST_NAME;
+        //     this.port = process.env.LOCAL_PORTS;
+        //     this.secure = process.env.SSL;
+        //     this.user = process.env.LOCAL_AUTH_USER;
+        //     this.pass = process.env.LOCAL_AUTH_PASS;
+        // }
     }
     sendWelcomEmail = (toUserEmailId, userAadObjId) => {
         return new Promise((resolve, reject) => {
@@ -35,7 +34,7 @@ class PersonalEmail {
                     "<a href='mailto:vipassana.mahale@safetybot.in'>vipassana.mahale@safetybot.in</a><br />" +
                     "<a href='https://safetybot.in/'>https://safetybot.in/</a>"
 
-                const emailTransportParam = new email.EmailTransportParam(this.host, this.port, this.secure, this.user, this.pass, this.from);
+                const emailTransportParam = new email.EmailTransportParam(this.host, this.port, this.secure, this.user, this.pass);
                 const emailOption = new email.EmailOption(this.user, toUserEmailId, subject, emailBody);
                 email.sendEmail(emailTransportParam, emailOption);
                 resolve(true);
@@ -48,7 +47,7 @@ class PersonalEmail {
     sendUninstallationEmail = (toUserEmailId, userAadObjId) => {
         return new Promise((resolve, reject) => {
             try {
-                const subject = "Uninstallation AreYouSafe!";
+                const subject = "AreYouSafe | I am sorry to see you go";
 
                 const emailBody = "Hi, <br />" +
                     "I am sorry to see you go. I want to learn more about how using the AreYouSafe bot went for you and what made you say goodbye." +
