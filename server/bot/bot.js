@@ -202,7 +202,7 @@ const processnewUsrSubscriptionType2 = async (context, action) => {
     await context.updateActivity(message);
 
     const tenantId = context?.activity?.conversation?.tenantId;
-    await incidentService.updateSubscriptionType(2, tenantId);
+    await incidentService.updateSubscriptionType(2, tenantId, "1");
   } catch (err) {
     processSafetyBotError(err, "", "");
   }
@@ -1496,144 +1496,124 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           }
         }
 
-        let respTime = (new Date()).getTime();
-        const respTimeInterval = setInterval(() => {
-          try {
-            const currentTime = (new Date()).getTime();
-            if ((currentTime - respTime) / 1000 >= 100) {
-              clearInterval(respTimeInterval);
-              resolve(true);
-            }
-          } catch (err) {
+        // let respTime = (new Date()).getTime();
+        // const respTimeInterval = setInterval(() => {
+        //   try {
+        //     const currentTime = (new Date()).getTime();
+        //     if ((currentTime - respTime) / 1000 >= 100) {
+        //       clearInterval(respTimeInterval);
+        //       resolve(true);
+        //     }
+        //   } catch (err) {
 
-          }
-        }, 100000);
-
-
-
-
-        const callbackFn = (msgResp, index) => {
-          try {
-            respTime = (new Date()).getTime();
-            messageCount += 1;
-            //console.log({ "end i ": index, messageCount });
-
-            let isMessageDelivered = 0;
-            if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-              isMessageDelivered = 1;
-            }
-            const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
-            const error = (msgResp?.error == null) ? null : msgResp?.error;
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${msgResp.userId}'; `;
-
-            if (updateStartTime == null) {
-              updateStartTime = (new Date()).getTime();
-            }
-            let updateEndTime = (new Date()).getTime();
-            updateEndTime = (updateEndTime - updateStartTime) / 1000;
-
-            if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
-              updateStartTime = null;
-              updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-            }
-
-            if (messageCount == allMembersArr.length) {
-              if (respTimeInterval != null) {
-                try {
-                  clearInterval(respTimeInterval);
-                } catch (err) {
-                  console.log(err);
-                  processSafetyBotError(err, "", "", userAadObjId);
-                }
-              }
-
-              logTimeInSeconds(startTime, `Sent all message end`);
-              logTimeInSeconds(initStartTime, `TotalTime`);
-              if (sqlUpdateMsgDeliveryStatus != "") {
-                setTimeout(() => {
-                  updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-                }, 5000);
-              }
-              getOneTimeDashboardCardAsync(incId, null, userAadObjId)
-                .then((dashboardCard) => sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId))
-                .then((resp) => {
-                })
-                .catch((err) => {
-                  processSafetyBotError(err, "", "", userAadObjId);
-                });
-              resolve(true);
-            }
-          } catch (err) {
-            processSafetyBotError(err, "", "", userAadObjId);
-          }
-        }
-
-        allMembersArr.map((member, index) => {
-          try {
-            let memberArr = [{
-              id: member.id,
-              name: member.name
-            }];
-            const conversationId = member.conversationId;
-            sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index);
-          } catch (err) {
-            processSafetyBotError(err, "", "", userAadObjId);
-          }
-        });
-
-        // if (process.env.NODE_ENV === 'development') {
-        //   const httpsAgent = new https.Agent({
-        //     rejectUnauthorized: false,
-        //   })
-        //   axios.defaults.httpsAgent = httpsAgent;
-        // }
-        // const url = `${process.env.sendMessageAPI}/SendSafetyCheckMessage`;
-        // const data = {
-        //   incId,
-        //   serviceUrl,
-        //   userTenantId,
-        //   userAadObjId,
-        //   allMembersArr: JSON.stringify(allMembersArr),
-        //   safetyCheckCard: JSON.stringify(approvalCard)
-        // };
-        // axios.post(url, data, {
-        //   headers: {
-        //     'Content-Type': 'application/json'
         //   }
-        // })
-        //   .then((resp) => {
-        //     logTimeInSeconds(initStartTime, `TotalTime`);
+        // }, 100000);
 
+        // const callbackFn = (msgResp, index) => {
+        //   try {
+        //     respTime = (new Date()).getTime();
+        //     messageCount += 1;
+        //     //console.log({ "end i ": index, messageCount });
 
-        // getOneTimeDashboardCardAsync(incId, null, userAadObjId)
+        //     let isMessageDelivered = 0;
+        //     if (msgResp?.conversationId != null && msgResp?.activityId != null) {
+        //       isMessageDelivered = 1;
+        //     }
+        //     const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+        //     const error = (msgResp?.error == null) ? null : msgResp?.error;
+        //     sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${msgResp.userId}'; `;
+
+        //     if (updateStartTime == null) {
+        //       updateStartTime = (new Date()).getTime();
+        //     }
+        //     let updateEndTime = (new Date()).getTime();
+        //     updateEndTime = (updateEndTime - updateStartTime) / 1000;
+
+        //     if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
+        //       updateStartTime = null;
+        //       updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+        //     }
+
+        //     if (messageCount == allMembersArr.length) {
+        //       if (respTimeInterval != null) {
+        //         try {
+        //           clearInterval(respTimeInterval);
+        //         } catch (err) {
+        //           console.log(err);
+        //           processSafetyBotError(err, "", "", userAadObjId);
+        //         }
+        //       }
+
+        //       logTimeInSeconds(startTime, `Sent all message end`);
+        //       logTimeInSeconds(initStartTime, `TotalTime`);
+        //       if (sqlUpdateMsgDeliveryStatus != "") {
+        //         setTimeout(() => {
+        //           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+        //         }, 5000);
+        //       }
+        //       getOneTimeDashboardCardAsync(incId, null, userAadObjId)
         //         .then((dashboardCard) => sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId))
         //         .then((resp) => {
         //         })
         //         .catch((err) => {
         //           processSafetyBotError(err, "", "", userAadObjId);
         //         });
-
-
-        //     getOneTimeDashboardCardAsync(incId, null, userAadObjId)
-        //       .then((dashboardCard) => {
-        //         return dashboardCard;
-        //       }).then((dashboardCard) => {
-        //         return sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
-        //       })
-        //       .then((resp) => {
-
-        //       })
-        //       .catch((err) => {
-        //         processSafetyBotError(err, "", "", userAadObjId);
-        //       });
-        //     resolve(true);
-        //   })
-        //   .catch((err) => {
-        //     logTimeInSeconds(initStartTime, `TotalTime`);
+        //       resolve(true);
+        //     }
+        //   } catch (err) {
         //     processSafetyBotError(err, "", "", userAadObjId);
-        //     resolve(false);
-        //   });
+        //   }
+        // }
 
+        // allMembersArr.map((member, index) => {
+        //   try {
+        //     let memberArr = [{
+        //       id: member.id,
+        //       name: member.name
+        //     }];
+        //     const conversationId = member.conversationId;
+        //     sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index);
+        //   } catch (err) {
+        //     processSafetyBotError(err, "", "", userAadObjId);
+        //   }
+        // });
+
+
+
+        if (process.env.NODE_ENV === 'development') {
+          const httpsAgent = new https.Agent({
+            rejectUnauthorized: false,
+          })
+          axios.defaults.httpsAgent = httpsAgent;
+        }
+        const url = `${process.env.sendMessageAPI}/SendSafetyCheckMessage`;
+        const data = {
+          incId,
+          serviceUrl,
+          userTenantId,
+          userAadObjId,
+          allMembersArr: JSON.stringify(allMembersArr),
+          safetyCheckCard: JSON.stringify(approvalCard)
+        };
+        axios.post(url, data, {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+          .then((resp) => {
+            logTimeInSeconds(initStartTime, `TotalTime`);
+            return getOneTimeDashboardCardAsync(incId, null, userAadObjId);
+          })
+          .then((dashboardCard) => {
+            return sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId)
+          })
+          .then((resp) => {
+            resolve(true);
+          })
+          .catch((err) => {
+            processSafetyBotError(err, "", "", userAadObjId);
+            resolve(true);
+          });
       }
       else if (incType == "recurringIncident") {
         const userTimeZone = createdByUserInfo.userTimeZone;

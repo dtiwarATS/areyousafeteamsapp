@@ -140,23 +140,38 @@ const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false
   }
 };
 
-const getCheckUserLicenseQuery = (userAadObjId) => {
-  return `select top 1 hasLicense from msteamsteamsusers where user_aadobject_id = '${userAadObjId}' and isNull(hasLicense, 0) = 1`;
+const getCheckUserLicenseQuery = (userAadObjId, teamId = null) => {
+  let selTeamIdWhere = ""
+  if (teamId != null) {
+    selTeamIdWhere = ` and team_id='${teamId}'`;
+  }
+  return `select top 1 * from msteamsteamsusers where user_aadobject_id = '${userAadObjId}' ${selTeamIdWhere}`;
 }
 
-const checkUserHasValidLicense = async (userAadObjId) => {
-  let hasLicense = false;
+const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
+  let hasLicense = false, isTrialExpired = false, previousSubscriptionType = null, userName = null, userId = null;
   try {
-    const checkUserLicenseQuery = getCheckUserLicenseQuery(userAadObjId);
-    console.log(checkUserLicenseQuery);
+    const checkUserLicenseQuery = getCheckUserLicenseQuery(userAadObjId, teamId);
     const res = await db.getDataFromDB(checkUserLicenseQuery, userAadObjId);
-    console.log(res);
-    hasLicense = (res != null && res.length > 0 && res[0]["hasLicense"] != null && res[0]["hasLicense"] === true);
+    if (res != null && res.length > 0) {
+      hasLicense = (res[0]["hasLicense"] != null && res[0]["hasLicense"] === true);
+      isTrialExpired = (res[0]["isTrialExpired"] != null && res[0]["isTrialExpired"] === true);
+      previousSubscriptionType = res[0]["previousSubscriptionType"];
+      userName = res[0]["user_name"];
+      userId = res[0]["user_id"];
+    }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId);
+    processSafetyBotError(err, teamId, "", userAadObjId);
   }
-  return Promise.resolve(hasLicense);
+  return Promise.resolve({
+    hasLicense,
+    isTrialExpired,
+    previousSubscriptionType,
+    userName,
+    userId,
+    userAadObjId
+  });
 }
 
 // const addServiceUrl = async (companyData, acvtivityData) => {
@@ -616,7 +631,7 @@ module.exports = {
   verifyAdminUserForDashboardTab,
   getCompanyDataByTeamId,
   updateSuperUserDataByUserAadObjId,
-  checkUserHasValidLicense,
+  getUserLicenseDetails,
   updateIsUserInfoSaved,
   getCompanyDataByTenantId,
   parseCompanyData

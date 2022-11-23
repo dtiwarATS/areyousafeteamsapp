@@ -1,4 +1,4 @@
-const { checkUserHasValidLicense, getCompaniesData, getCompaniesDataBySuperUserId, parseCompanyData } = require("../db/dbOperations");
+const { getUserLicenseDetails, getCompaniesData, getCompaniesDataBySuperUserId, parseCompanyData } = require("../db/dbOperations");
 const Member = require("../models/Member");
 const Incident = require("../models/Incident");
 
@@ -1005,14 +1005,15 @@ const addError = async (botName, errorMessage, errorDetails, teamName, userName,
 const hasValidLicense = async (aadUserObjId) => {
   let hasLicense = false;
   try {
-    hasLicense = await checkUserHasValidLicense(aadUserObjId);
+    const licenseDetails = await getUserLicenseDetails(aadUserObjId);
+    hasLicense = (licenseDetails?.hasLicense === true);
   } catch (err) {
     processSafetyBotError(err, "", "", aadUserObjId);
   }
   return Promise.resolve(hasLicense);
 }
 
-const updateSubscriptionType = async (licenseType, tenantId) => {
+const updateSubscriptionType = async (licenseType, tenantId, previousSubscriptionType) => {
   try {
     if (Number(licenseType) === 2 && tenantId != null) {
       let currentDate = new Date();
@@ -1022,7 +1023,7 @@ const updateSubscriptionType = async (licenseType, tenantId) => {
       const sqlUpdate = `Update MSTeamsSubscriptionDetails set SubscriptionType = 2, SubscriptionDate = '${startDate}', 
                           ExpiryDate = '${expiryDate}' where TenantId = '${tenantId}';
                           
-                          Update MSTeamsTeamsUsers set hasLicense = 1 where tenantid =  '${tenantId}';
+                          Update MSTeamsTeamsUsers set hasLicense = 1, isTrialExpired = null, previousSubscriptionType = '1'  where tenantid =  '${tenantId}';
                           `;
       await db.getDataFromDB(sqlUpdate);
     }
@@ -1057,11 +1058,11 @@ const updateAfterExpiryMessageSentFlag = async (subscriptionId, userAadObjId) =>
   }
 }
 
-const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId, userObjId) => {
+const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId, userObjId, previousSubscriptionType) => {
   try {
     const sqlUpdate = `update MSTeamsSubscriptionDetails set SubscriptionType = 1 where ID = ${subscriptionId};
 
-    update MSTeamsTeamsUsers set hasLicense = 0 where user_aadobject_id in (
+    update MSTeamsTeamsUsers set hasLicense = 0, isTrialExpired = 1, previousSubscriptionType = '${previousSubscriptionType}' where user_aadobject_id in (
       select user_aadobject_id from MSTeamsTeamsUsers where hasLicense = 1 
       and tenantid = '${tenantId}' and team_id = '${teamId}'
       ) and tenantid = '${tenantId}';

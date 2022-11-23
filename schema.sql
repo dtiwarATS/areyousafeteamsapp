@@ -519,3 +519,15 @@ BEGIN
 ALTER TABLE MSTeamsSubscriptionDetails ADD isSevenDayBeforeMessageSent BIT NULL
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isTrialExpired' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD isTrialExpired bit NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='previousSubscriptionType' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD previousSubscriptionType varchar(2) NULL
+END
+GO

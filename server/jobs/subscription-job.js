@@ -37,9 +37,6 @@ const { processSafetyBotError } = require("../models/processError");
 
                             let card = null;
                             if (subscriptionType == 2) {
-                                // if (subcriptionMessage == "fiveDayBeforeExpiry") {
-                                //     card = getTypeTwoFiveDayBeforeCard(expiryDate);
-                                // } 
                                 if (subcriptionMessage == "sevenDayBeforeExpiry") {
                                     card = getTypeTwoSevenDayBeforeCard(userId, userName);
                                 } else if (subcriptionMessage == "threeDayBeforeExpiry") {
@@ -66,7 +63,7 @@ const { processSafetyBotError } = require("../models/processError");
                                 await incidentService.updateBeforeMessageSentFlag(job.ID, userAadObjId, subcriptionMessage);
                             } else if (subcriptionMessage == "afterSubcriptionEnd") {
                                 if (job.tenantid != null) {
-                                    await incidentService.updateSubscriptionTypeToTypeOne(job.tenantid, job.ID, teamId, userAadObjId);
+                                    await incidentService.updateSubscriptionTypeToTypeOne(job.tenantid, job.ID, teamId, userAadObjId, subscriptionType);
                                     await incidentService.updateAfterExpiryMessageSentFlag(job.ID, userAadObjId);
                                 }
                             }
@@ -119,16 +116,7 @@ const { processSafetyBotError } = require("../models/processError");
         left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
         ${sqlWhere}`;
     }
-    // let sqlFiveDayBeforeExpiry = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, usr.tenantid, inst.serviceUrl, sd.SubscriptionType, 
-    // sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate,
-    // (select count (user_aadobject_id) from (
-    // select distinct user_aadobject_id from MSTeamsTeamsUsers where tenantid = usr.tenantid and hasLicense = 1
-    // ) t) memberCount, inst.team_id, usr.email
-    // from MSTeamsSubscriptionDetails sd
-    // left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
-    // left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
-    // where sd.SubscriptionType in (3)
-    // and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 5 and ISNULL(sd.isFiveDayBeforeMessageSent, 0) <> 1`;
+
     let sqlFiveDayBeforeExpiry = beforeExpiryQuery(true, 5);
     await sendProactiveMessage(sqlFiveDayBeforeExpiry, "fiveDayBeforeExpiry");
 
@@ -138,13 +126,6 @@ const { processSafetyBotError } = require("../models/processError");
     let sqlThreeDayBeforeExpiry = beforeExpiryQuery(true, 3);
     await sendProactiveMessage(sqlThreeDayBeforeExpiry, "threeDayBeforeExpiry");
 
-    // let sqlAfterSubcriptionEnd = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, usr.tenantid, inst.serviceUrl, sd.SubscriptionType, 
-    // sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpirDate, inst.team_id, usr.email
-    // from MSTeamsSubscriptionDetails sd
-    // left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
-    // left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
-    // where sd.SubscriptionType in (2,3) and GETDATE() > sd.ExpiryDate and ISNULL(sd.isAfterExpiryMessageSent, 0) <> 1
-    // `;
     let sqlAfterSubcriptionEnd = beforeExpiryQuery(false, -1);
     await sendProactiveMessage(sqlAfterSubcriptionEnd, "afterSubcriptionEnd");
 

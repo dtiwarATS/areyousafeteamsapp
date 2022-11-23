@@ -26,7 +26,7 @@ const {
   removeTeamMember,
   removeAllTeamMember,
   deleteCompanyDataByuserAadObjId,
-  checkUserHasValidLicense,
+  getUserLicenseDetails,
   updateIsUserInfoSaved,
   getCompanyDataByTenantId
 } = require("../db/dbOperations");
@@ -117,9 +117,9 @@ class BotActivityHandler extends TeamsActivityHandler {
               return;
             }
 
-            const hasLicense = await checkUserHasValidLicense(acvtivityData.from.aadObjectId);
-            if (!hasLicense) {
-              await this.notifyUserForInvalidLicense(context);
+            const userLicenseDetails = await getUserLicenseDetails(acvtivityData.from.aadObjectId, companyData.teamId);
+            if (userLicenseDetails?.hasLicense === false) {
+              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData);
               await next();
               return;
             }
@@ -158,20 +158,6 @@ class BotActivityHandler extends TeamsActivityHandler {
                 status: StatusCodes.OK,
               };
             }
-
-            // if ((isAdmin || isSuperUser) && isInstalledInTeam) {
-            //   await this.hanldeAdminOrSuperUserMsg(context, companyData);
-            //   await next();
-            //   return;
-            // }
-
-            // if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
-            //   bot.sendIntroductionMessage(context, acvtivityData.from);
-            //   await next();
-            //   return;
-            // } else {
-            //   await this.hanldeNonAdminUserMsg(context);
-            // }
           }
           await next();
         }
@@ -313,13 +299,63 @@ class BotActivityHandler extends TeamsActivityHandler {
     });
   }
 
-  async notifyUserForInvalidLicense(context) {
+  async notifyUserForInvalidLicense(context, userLicenseDetails, companyData) {
     try {
-      await context.sendActivity(
-        MessageFactory.text(
-          `It looks like you are on the FREE version of the AreYouSafe? bot. Please contact your safety initiator to get access.`
-        )
-      );
+      if (userLicenseDetails && userLicenseDetails.isTrialExpired == true && userLicenseDetails.previousSubscriptionType == "2") {
+        const { userName, userId } = userLicenseDetails;
+        const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
+        const cardJSON = {
+          "type": "AdaptiveCard",
+          "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+          "version": "1.4",
+          "body": [
+            {
+              "type": "TextBlock",
+              "text": `Hello <at>${userName}</at>,`,
+              "wrap": true
+            },
+            {
+              "type": "TextBlock",
+              "text": `Your license has been deactivated since the AreYouSafe bot free trial period for your ${teamName} team has ended. Please contact your admin <at>${adminUserName}</at> to upgrade to a premium subscription plan.`,
+              "wrap": true
+            },
+            {
+              "type": "TextBlock",
+              "text": "With Gratitude,\n\nTeam AreYouSafe",
+              "wrap": true
+            }
+          ],
+          "msteams": {
+            "entities": [
+              {
+                "type": "mention",
+                "text": `<at>${userName}</at>`,
+                "mentioned": {
+                  "id": userId,
+                  "name": userName,
+                }
+              },
+              {
+                "type": "mention",
+                "text": `<at>${adminUserName}</at>`,
+                "mentioned": {
+                  "id": adminUserId,
+                  "name": adminUserName,
+                }
+              }
+            ]
+          }
+        }
+        await context.sendActivity({
+          attachments: [CardFactory.adaptiveCard(cardJSON)],
+        });
+      } else {
+        await context.sendActivity(
+          MessageFactory.text(
+            `It looks like you are on the FREE version of the AreYouSafe? bot. Please contact your safety initiator to get access.`
+          )
+        );
+      }
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, "", "");
