@@ -38,6 +38,7 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
                 member.comment = recurrMemberResp.commentR;
                 member.is_message_delivered = recurrMemberResp.is_message_deliveredR;
                 member.msgStatus = recurrMemberResp.msgStatusR;
+                member.timestamp = recurrMemberResp.timestampR;
               } else {
                 member = {
                   ...member,
@@ -120,7 +121,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
 const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let orderBySql = "";
   if (orderBy != null && orderBy == "desc") {
-    orderBySql = " order by inc.INC_STATUS_ID,  inc.id desc";
+    orderBySql = " order by inc.INC_STATUS_ID,  inc.id desc, m.[timestamp] desc, m.user_name";
   }
 
   let createdByVar = "";
@@ -139,8 +140,8 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let selectQuery = ` ${createdByVar}
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-  m.comment, m.timestamp, m.message_delivery_status msgStatus, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
-  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, inc.INC_STATUS_ID, tu.userPrincipalName
+  m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
+  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID, tu.userPrincipalName
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
@@ -491,12 +492,12 @@ const updateIncResponseData = async (incidentId, userId, responseValue, incData)
   pool = await poolPromise;
   let updateRespRecurrQuery = null;
   if (incData != null && incData.incType == "recurringIncident" && incData.runAt != null) {
-    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue} WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = GETDATE() WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   }
   else {
-    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue} WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = GETDATE() WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
   if (updateRespRecurrQuery != null) {

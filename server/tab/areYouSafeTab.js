@@ -149,9 +149,9 @@ class AreYouSafeTab {
           if (inc.members != null && inc.members.length > 0) {
             const memberObj = this.sortMembers(inc.members);
             if (memberObj != null) {
-              safe = memberObj.membersSafe.sort();
-              needAssistance = memberObj.membersUnsafe.sort();
-              notResponded = memberObj.membersNotResponded.sort();
+              safe = memberObj.membersSafe;
+              needAssistance = memberObj.membersUnsafe;
+              notResponded = memberObj.membersNotResponded;
               safeCount = memberObj.membersSafe.length;
               needAssistanceCount = memberObj.membersUnsafe.length;
               notRespondedCount = memberObj.membersNotResponded.length;

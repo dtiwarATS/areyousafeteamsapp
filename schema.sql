@@ -43,7 +43,7 @@ BEGIN
 	response bit,
 	response_value bit,
 	comment varchar(max),
-	timestamp VARCHAR(100),
+	[timestamp] datetime,
 	--CONSTRAINT fk_event_member_response FOREIGN KEY(event_id) REFERENCES event(id)
 	);
 END
@@ -529,5 +529,13 @@ GO
 IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='previousSubscriptionType' AND TABLE_NAME='MSTeamsTeamsUsers')
 BEGIN
 ALTER TABLE MSTeamsTeamsUsers ADD previousSubscriptionType varchar(2) NULL
+END
+GO
+
+--alter table MSTeamsMemberResponses alter column [timestamp] datetime
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='timestamp' AND TABLE_NAME='MSTeamsMemberResponsesRecurr')
+BEGIN
+ALTER TABLE MSTeamsMemberResponsesRecurr ADD [timestamp] datetime NULL
 END
 GO

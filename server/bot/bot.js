@@ -38,8 +38,6 @@ const {
   updateCard
 } = require("../models/UpdateCards");
 const dashboard = require("../models/dashboard");
-const axios = require("axios");
-const https = require("https");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
