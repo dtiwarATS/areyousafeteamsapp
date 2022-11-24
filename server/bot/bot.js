@@ -1238,6 +1238,7 @@ const sendCardToIndividualUser = async (context, userId, approvalCard) => {
 const sendCommentToSelectedMembers = async (incId, context, approvalCardResponse) => {
   try {
     const serviceUrl = context?.activity?.serviceUrl;
+    const tenantId = context?.activity?.conversation?.tenantId;
     const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
     if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
       for (let i = 0; i < incRespSelectedUsers.length; i++) {
@@ -1245,7 +1246,7 @@ const sendCommentToSelectedMembers = async (incId, context, approvalCardResponse
           id: incRespSelectedUsers[i].user_id,
           name: incRespSelectedUsers[i].user_name
         }];
-        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse, null, serviceUrl);
+        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse, null, serviceUrl, tenantId);
       }
     }
   }
@@ -1902,19 +1903,13 @@ const submitComment = async (context, user, companyData) => {
     const { userId, incId, incTitle, incCreatedBy, eventResponse, commentVal, inc } = action.data;
 
     if (commentVal) {
-      const mentionedUser = {
-        type: "mention",
-        mentioned: user,
-        text: `< at > ${user.name}</at > `,
-      };
-      msgText = `The user < at > ${user.name}</at > has commented for incident ** ${incTitle} **: \n${commentVal} `;
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
         body: [
           {
             type: "TextBlock",
-            text: `User < at > ${user.name}</at > has commented for incident ** ${incTitle} **: \n${commentVal} `,
+            text: `User <at>${user.name}</at> has commented for incident **${incTitle}**: \n${commentVal} `,
             wrap: true,
           },
         ],
@@ -1922,8 +1917,11 @@ const submitComment = async (context, user, companyData) => {
           entities: [
             {
               type: "mention",
-              text: `< at > ${user.name}</at > `,
-              mentioned: user,
+              text: `<at>${user.name}</at>`,
+              mentioned: {
+                id: user.id,
+                name: user.name
+              },
             },
           ],
         },
@@ -1931,7 +1929,7 @@ const submitComment = async (context, user, companyData) => {
         version: "1.4",
       };
       //send new msg just to emulate msg is being updated
-      await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
       await incidentService.updateIncResponseComment(incId, userId, commentVal, inc);
     }
