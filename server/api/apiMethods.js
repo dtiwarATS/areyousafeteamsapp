@@ -96,7 +96,7 @@ const sendDirectMessageCard = async (
       });
     });
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", "", JSON.stringify(teamMember));
   }
 };
 

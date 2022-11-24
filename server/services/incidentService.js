@@ -911,7 +911,7 @@ const getTeamIdByUserAadObjId = async (userAadObjId) => {
 const getUserInfo = async (teamId, useraadObjId) => {
   let result = null;
   try {
-    const sqlUserInfo = `select * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'  and hasLicense = 1`;
+    const sqlUserInfo = `select top 1 * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'  and hasLicense = 1`;
     result = await db.getDataFromDB(sqlUserInfo, useraadObjId);
   } catch (err) {
     console.log(err);
