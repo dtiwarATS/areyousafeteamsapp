@@ -1679,7 +1679,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
 
       log.addLog("Send Dashboard Resp Start");
       const dashboardCard = await getOneTimeDashboardCard(incId);
-      const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
+      //const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
       await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
       log.addLog("Send Dashboard Resp End");
       let incObj = {
@@ -1687,9 +1687,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
         incTitle,
         incType,
         runAt: null,
-        incCreatedBy: incCreatedByUserObj,
-        conversationId: dashboardResponse.conversationId,
-        activityId: dashboardResponse.activityId
+        incCreatedBy: incCreatedByUserObj
       }
       let incGuidance = await incidentService.getIncGuidance(incId);
       incGuidance = incGuidance ? incGuidance : "No details available";
@@ -2270,8 +2268,6 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
         const respDetailsObj = {
           memberResponsesId: subEventObj.eventMembers[i].id,
           runAt: subEventObj.runAt,
-          conversationId: dashboardResponse.conversationId,
-          activityId: dashboardResponse.activityId,
           status,
           error,
           isDelivered
