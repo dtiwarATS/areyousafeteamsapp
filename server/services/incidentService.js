@@ -1023,7 +1023,7 @@ const updateSubscriptionType = async (licenseType, tenantId, previousSubscriptio
       currentDate.setDate(currentDate.getDate() + 45);
       const expiryDate = formatedDate("mm/dd/yyyy", new Date(currentDate));
       const sqlUpdate = `Update MSTeamsSubscriptionDetails set SubscriptionType = 2, SubscriptionDate = '${startDate}', 
-                          ExpiryDate = '${expiryDate}' where TenantId = '${tenantId}';
+                          ExpiryDate = '${expiryDate}', TrialStartDate =  getDate() where TenantId = '${tenantId}';
                           
                           Update MSTeamsTeamsUsers set hasLicense = 1, isTrialExpired = null, previousSubscriptionType = '1'  where tenantid =  '${tenantId}';
                           `;
@@ -1084,7 +1084,7 @@ const updateSubscriptionTypeToTypeOne = async (tenantId, subscriptionId, teamId,
 
 const updateSubcriptionProcessFlag = async (subscriptionId, userAadObjId) => {
   try {
-    const sqlUpdate = `update MSTeamsSubscriptionDetails set isProcessed = 1 where ID = ${subscriptionId};`;
+    const sqlUpdate = `update MSTeamsSubscriptionDetails set isProcessed = 1, SubcriptionStartDate = getDate() where ID = ${subscriptionId};`;
     await db.updateDataIntoDB(sqlUpdate, userAadObjId);
   } catch (err) {
     processSafetyBotError(err, "", "", userAadObjId);

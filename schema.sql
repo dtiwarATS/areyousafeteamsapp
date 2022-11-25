@@ -539,3 +539,21 @@ BEGIN
 ALTER TABLE MSTeamsMemberResponsesRecurr ADD [timestamp] datetime NULL
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='InitData' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD InitData dateTime NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='TrialStartDate' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD TrialStartDate dateTime NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='SubcriptionStartDate' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD SubcriptionStartDate dateTime NULL
+END
+GO
