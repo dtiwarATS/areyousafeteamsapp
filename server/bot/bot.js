@@ -1498,89 +1498,89 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           }
         }
 
-        {
-          let respTime = (new Date()).getTime();
-          const respTimeInterval = setInterval(() => {
-            try {
-              const currentTime = (new Date()).getTime();
-              if ((currentTime - respTime) / 1000 >= 100) {
-                clearInterval(respTimeInterval);
-                resolve(true);
-              }
-            } catch (err) {
-
+        // {
+        let respTime = (new Date()).getTime();
+        const respTimeInterval = setInterval(() => {
+          try {
+            const currentTime = (new Date()).getTime();
+            if ((currentTime - respTime) / 1000 >= 100) {
+              clearInterval(respTimeInterval);
+              resolve(true);
             }
-          }, 100000);
+          } catch (err) {
 
-          const callbackFn = (msgResp, index) => {
-            try {
-              respTime = (new Date()).getTime();
-              messageCount += 1;
-              //console.log({ "end i ": index, messageCount });
-
-              let isMessageDelivered = 0;
-              if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-                isMessageDelivered = 1;
-              }
-              const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
-              const error = (msgResp?.error == null) ? null : msgResp?.error;
-              sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${msgResp.userId}'; `;
-
-              if (updateStartTime == null) {
-                updateStartTime = (new Date()).getTime();
-              }
-              let updateEndTime = (new Date()).getTime();
-              updateEndTime = (updateEndTime - updateStartTime) / 1000;
-
-              if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
-                updateStartTime = null;
-                updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-              }
-
-              if (messageCount == allMembersArr.length) {
-                if (respTimeInterval != null) {
-                  try {
-                    clearInterval(respTimeInterval);
-                  } catch (err) {
-                    console.log(err);
-                    processSafetyBotError(err, "", "", userAadObjId);
-                  }
-                }
-
-                logTimeInSeconds(startTime, `Sent all message end`);
-                logTimeInSeconds(initStartTime, `TotalTime`);
-                if (sqlUpdateMsgDeliveryStatus != "") {
-                  setTimeout(() => {
-                    updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-                  }, 5000);
-                }
-                getOneTimeDashboardCardAsync(incId, null, userAadObjId)
-                  .then((dashboardCard) => sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId))
-                  .then((resp) => {
-                  })
-                  .catch((err) => {
-                    processSafetyBotError(err, "", "", userAadObjId);
-                  });
-                resolve(true);
-              }
-            } catch (err) {
-              processSafetyBotError(err, "", "", userAadObjId);
-            }
           }
+        }, 100000);
 
-          allMembersArr.map((member, index) => {
-            try {
-              let memberArr = [{
-                id: member.id,
-                name: member.name
-              }];
-              const conversationId = member.conversationId;
-              sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index);
-            } catch (err) {
-              processSafetyBotError(err, "", "", userAadObjId);
+        const callbackFn = (msgResp, index) => {
+          try {
+            respTime = (new Date()).getTime();
+            messageCount += 1;
+            //console.log({ "end i ": index, messageCount });
+
+            let isMessageDelivered = 0;
+            if (msgResp?.conversationId != null && msgResp?.activityId != null) {
+              isMessageDelivered = 1;
             }
-          });
+            const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
+            const error = (msgResp?.error == null) ? null : msgResp?.error;
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${msgResp.userId}'; `;
+
+            if (updateStartTime == null) {
+              updateStartTime = (new Date()).getTime();
+            }
+            let updateEndTime = (new Date()).getTime();
+            updateEndTime = (updateEndTime - updateStartTime) / 1000;
+
+            if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
+              updateStartTime = null;
+              updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+            }
+
+            if (messageCount == allMembersArr.length) {
+              if (respTimeInterval != null) {
+                try {
+                  clearInterval(respTimeInterval);
+                } catch (err) {
+                  console.log(err);
+                  processSafetyBotError(err, "", "", userAadObjId);
+                }
+              }
+
+              logTimeInSeconds(startTime, `Sent all message end`);
+              logTimeInSeconds(initStartTime, `TotalTime`);
+              if (sqlUpdateMsgDeliveryStatus != "") {
+                setTimeout(() => {
+                  updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+                }, 5000);
+              }
+              getOneTimeDashboardCardAsync(incId, null, userAadObjId)
+                .then((dashboardCard) => sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId))
+                .then((resp) => {
+                })
+                .catch((err) => {
+                  processSafetyBotError(err, "", "", userAadObjId);
+                });
+              resolve(true);
+            }
+          } catch (err) {
+            processSafetyBotError(err, "", "", userAadObjId);
+          }
         }
+
+        allMembersArr.map((member, index) => {
+          try {
+            let memberArr = [{
+              id: member.id,
+              name: member.name
+            }];
+            const conversationId = member.conversationId;
+            sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index);
+          } catch (err) {
+            processSafetyBotError(err, "", "", userAadObjId);
+          }
+        });
+        // }
 
         // {
         //   if (process.env.NODE_ENV === 'development') {

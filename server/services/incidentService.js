@@ -897,7 +897,7 @@ const getAllTeamMembersByUserAadObjId = async (userAadObjId) => {
 const getTeamIdByUserAadObjId = async (userAadObjId) => {
   let teamId = null;
   try {
-    const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' and hasLicense = 1 order by id desc`;
+    const teamIdSql = `SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc`;
     const result = await db.getDataFromDB(teamIdSql, userAadObjId);
     if (result != null && result.length > 0) {
       teamId = result[0]["team_id"];
@@ -912,7 +912,8 @@ const getTeamIdByUserAadObjId = async (userAadObjId) => {
 const getUserInfo = async (teamId, useraadObjId) => {
   let result = null;
   try {
-    const sqlUserInfo = `select top 1 * from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id = '${useraadObjId}'  and hasLicense = 1`;
+    const sqlUserInfo = `select top 1 tu.*, inst.user_name adminName,  inst.team_name teamName from MSTeamsTeamsUsers tu
+                        left join msteamsinstallationdetails inst on inst.team_id = tu.team_id where tu.team_id = '${teamId}' and tu.user_aadobject_id = '${useraadObjId}'`;
     result = await db.getDataFromDB(sqlUserInfo, useraadObjId);
   } catch (err) {
     console.log(err);
