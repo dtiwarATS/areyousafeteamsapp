@@ -305,7 +305,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       //const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
       let blockMessage = `You do not have the **AreYouSafe** bot license assigned for your **${teamName}** team. Please contact your admin <at>${adminUsrName}</at> to assign you the license.`;
       if (userLicenseDetails && userLicenseDetails.isTrialExpired == true && userLicenseDetails.previousSubscriptionType == "2") {
-        blockMessage = `Your license has been deactivated since the **AreYouSafe* bot free trial period for your **${teamName}** team has ended. Please contact your admin <at>${adminUsrName}</at> to upgrade to a premium subscription plan.`;
+        blockMessage = `Your license has been deactivated since the **AreYouSafe** bot free trial period for your **${teamName}** team has ended. Please contact your admin <at>${adminUsrName}</at> to upgrade to a premium subscription plan.`;
       }
 
       const cardJSON = {

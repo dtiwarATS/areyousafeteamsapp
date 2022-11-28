@@ -138,6 +138,8 @@ class AreYouSafeTab {
           const createdBy = inc.incCreatedByName;
           const startDate = this.getStartDate(inc.incCreatedDate);
           const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
+          const membersCount = inc.membersCount;
+          const messageDeliveredCount = inc.messageDeliveredCount;
           let safe = null;
           let needAssistance = null;
           let notResponded = null;
@@ -165,7 +167,10 @@ class AreYouSafeTab {
           }
           const teamName = (teamObj && teamObj[inc.teamId]) ? teamObj[inc.teamId] : "";
 
-          return { incId, status, title, createdBy, startDate, duration, safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount, responsePercentage, teamName };
+          return {
+            incId, status, title, createdBy, startDate, duration, safe, needAssistance, notResponded, safeCount, needAssistanceCount,
+            notRespondedCount, responsePercentage, teamName, membersCount, messageDeliveredCount
+          };
         });
       }
     } catch (err) {

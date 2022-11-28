@@ -28,6 +28,8 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
           .split(",")
           .filter((word) => /\w/.test(word));
 
+        const membersCount = (parsedData?.m?.length != null) ? parsedData.m.length : 0;
+        let messageDeliveredCount = 0;
         let memberResponseData = parsedData.m.map(
           (member) => {
             if (member.mRecurr != null && member.mRecurr.length == 1 && parsedData.inc_type === 'recurringIncident') {
@@ -45,6 +47,10 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
                   ...member.mRecurr[0]
                 }
               }
+            }
+
+            if (member.is_message_delivered) {
+              messageDeliveredCount++;
             }
 
             try {
@@ -67,6 +73,8 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
           ...parsedData,
           selectedMembers: selectedMembers,
           m: memberResponseData,
+          membersCount,
+          messageDeliveredCount
         };
 
         parsedDataArr.push(new Incident(parsedData));
