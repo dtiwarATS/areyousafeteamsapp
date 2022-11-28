@@ -101,25 +101,25 @@ class BotActivityHandler extends TeamsActivityHandler {
 
             ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(acvtivityData.from.aadObjectId));
 
+            const userLicenseDetails = await getUserLicenseDetails(acvtivityData.from.aadObjectId, companyData.teamId);
+            if (userLicenseDetails?.hasLicense === false) {
+              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData);
+              await next();
+              return;
+            }
+
             const isAdmin = await isAdminUser(
               acvtivityData.from.aadObjectId
             );
 
             if (!(isAdmin || isSuperUser)) {
-              await this.hanldeNonAdminUserMsg(context);
+              await this.hanldeNonAdminUserMsg(context, userLicenseDetails);
               await next();
               return;
             }
 
             if (!isInstalledInTeam) {
               bot.sendIntroductionMessage(context, acvtivityData.from);
-              await next();
-              return;
-            }
-
-            const userLicenseDetails = await getUserLicenseDetails(acvtivityData.from.aadObjectId, companyData.teamId);
-            if (userLicenseDetails?.hasLicense === false) {
-              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData);
               await next();
               return;
             }
@@ -301,61 +301,58 @@ class BotActivityHandler extends TeamsActivityHandler {
 
   async notifyUserForInvalidLicense(context, userLicenseDetails, companyData) {
     try {
+      const { userName, userId, adminUsrId, adminUsrName, teamName } = userLicenseDetails;
+      //const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
+      let blockMessage = `You do not have the **AreYouSafe** bot license assigned for your **${teamName}** team. Please contact your admin <at>${adminUsrName}</at> to assign you the license.`;
       if (userLicenseDetails && userLicenseDetails.isTrialExpired == true && userLicenseDetails.previousSubscriptionType == "2") {
-        const { userName, userId } = userLicenseDetails;
-        const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
-        const cardJSON = {
-          "type": "AdaptiveCard",
-          "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-          "version": "1.4",
-          "body": [
-            {
-              "type": "TextBlock",
-              "text": `Hello <at>${userName}</at>,`,
-              "wrap": true
-            },
-            {
-              "type": "TextBlock",
-              "text": `Your license has been deactivated since the AreYouSafe bot free trial period for your ${teamName} team has ended. Please contact your admin <at>${adminUserName}</at> to upgrade to a premium subscription plan.`,
-              "wrap": true
-            },
-            {
-              "type": "TextBlock",
-              "text": "With Gratitude,\n\nTeam AreYouSafe",
-              "wrap": true
-            }
-          ],
-          "msteams": {
-            "entities": [
-              {
-                "type": "mention",
-                "text": `<at>${userName}</at>`,
-                "mentioned": {
-                  "id": userId,
-                  "name": userName,
-                }
-              },
-              {
-                "type": "mention",
-                "text": `<at>${adminUserName}</at>`,
-                "mentioned": {
-                  "id": adminUserId,
-                  "name": adminUserName,
-                }
-              }
-            ]
-          }
-        }
-        await context.sendActivity({
-          attachments: [CardFactory.adaptiveCard(cardJSON)],
-        });
-      } else {
-        await context.sendActivity(
-          MessageFactory.text(
-            `It looks like you are on the FREE version of the AreYouSafe? bot. Please contact your safety initiator to get access.`
-          )
-        );
+        blockMessage = `Your license has been deactivated since the **AreYouSafe* bot free trial period for your **${teamName}** team has ended. Please contact your admin <at>${adminUsrName}</at> to upgrade to a premium subscription plan.`;
       }
+
+      const cardJSON = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+          {
+            "type": "TextBlock",
+            "text": `Hello <at>${userName}</at>,`,
+            "wrap": true
+          },
+          {
+            "type": "TextBlock",
+            "text": blockMessage,
+            "wrap": true
+          },
+          {
+            "type": "TextBlock",
+            "text": "With Gratitude,\n\nTeam AreYouSafe",
+            "wrap": true
+          }
+        ],
+        "msteams": {
+          "entities": [
+            {
+              "type": "mention",
+              "text": `<at>${userName}</at>`,
+              "mentioned": {
+                "id": userId,
+                "name": userName,
+              }
+            },
+            {
+              "type": "mention",
+              "text": `<at>${adminUsrName}</at>`,
+              "mentioned": {
+                "id": adminUsrId,
+                "name": adminUsrName,
+              }
+            }
+          ]
+        }
+      }
+      await context.sendActivity({
+        attachments: [CardFactory.adaptiveCard(cardJSON)],
+      });
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, "", "");
@@ -599,13 +596,50 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
-  async hanldeNonAdminUserMsg(context) {
+  async hanldeNonAdminUserMsg(context, userLicenseDetails) {
     try {
-      await context.sendActivity(
-        MessageFactory.text(
-          `👋 Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
-        )
-      );
+      const { userName, adminUsrId, adminUsrName } = userLicenseDetails;
+
+      const cardJSON = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+          {
+            "type": "TextBlock",
+            "text": `Hello <at>${userName}</at>,`,
+            "wrap": true
+          },
+          {
+            "type": "TextBlock",
+            "text": `Unfortunately, you do not have permission to initiate a safety check. Please contact your admin <at>${adminUsrName}</at> to give you admin access.`,
+            "wrap": true
+          }
+        ],
+        "msteams": {
+          "entities": [
+            {
+              "type": "mention",
+              "text": `<at>${userName}</at>`,
+              "mentioned": {
+                "id": userId,
+                "name": userName,
+              }
+            },
+            {
+              "type": "mention",
+              "text": `<at>${adminUsrName}</at>`,
+              "mentioned": {
+                "id": adminUsrId,
+                "name": adminUsrName,
+              }
+            }
+          ]
+        }
+      }
+      await context.sendActivity({
+        attachments: [CardFactory.adaptiveCard(cardJSON)],
+      });
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, "", "");

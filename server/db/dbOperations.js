@@ -145,11 +145,15 @@ const getCheckUserLicenseQuery = (userAadObjId, teamId = null) => {
   if (teamId != null) {
     selTeamIdWhere = ` and team_id='${teamId}'`;
   }
-  return `select top 1 * from msteamsteamsusers where user_aadobject_id = '${userAadObjId}' ${selTeamIdWhere}`;
+  return `select top 1 usr.*, inst.user_id adminUsrId, inst.user_name adminUsrName, inst.team_name teamName from 
+          msteamsteamsusers usr
+          left join MSTeamsInstallationDetails inst on usr.team_id = inst.team_id
+          where usr.user_aadobject_id = '${userAadObjId}' ${selTeamIdWhere}`;
 }
 
 const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
   let hasLicense = false, isTrialExpired = false, previousSubscriptionType = null, userName = null, userId = null;
+  let adminUsrId = null, adminUsrName = null, teamName = null;
   try {
     const checkUserLicenseQuery = getCheckUserLicenseQuery(userAadObjId, teamId);
     const res = await db.getDataFromDB(checkUserLicenseQuery, userAadObjId);
@@ -159,6 +163,7 @@ const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
       previousSubscriptionType = res[0]["previousSubscriptionType"];
       userName = res[0]["user_name"];
       userId = res[0]["user_id"];
+      ({ adminUsrId, adminUsrName, teamName } = res[0]);
     }
   } catch (err) {
     console.log(err);
@@ -170,7 +175,10 @@ const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
     previousSubscriptionType,
     userName,
     userId,
-    userAadObjId
+    userAadObjId,
+    adminUsrId,
+    adminUsrName,
+    teamName
   });
 }
 

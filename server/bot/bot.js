@@ -1554,13 +1554,13 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
                   updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
                 }, 5000);
               }
-              getOneTimeDashboardCardAsync(incId, null, userAadObjId)
-                .then((dashboardCard) => sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId))
-                .then((resp) => {
-                })
-                .catch((err) => {
-                  processSafetyBotError(err, "", "", userAadObjId);
-                });
+              // getOneTimeDashboardCardAsync(incId, null, userAadObjId)
+              //   .then((dashboardCard) => sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId))
+              //   .then((resp) => {
+              //   })
+              //   .catch((err) => {
+              //     processSafetyBotError(err, "", "", userAadObjId);
+              //   });
               resolve(true);
             }
           } catch (err) {
@@ -1682,7 +1682,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
       log.addLog("Send Dashboard Resp Start");
       const dashboardCard = await getOneTimeDashboardCard(incId);
       //const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
-      await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
+      //await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
       log.addLog("Send Dashboard Resp End");
       let incObj = {
         incId,
@@ -1783,7 +1783,7 @@ const sendApproval = async (context) => {
 
       await sendCardToIndividualUser(context, teamMember, approvalCard);
     });
-    await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
+    //await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
   }
   else if (action.data.incType == "recurringIncident") {
     const userTimeZone = context.activity.entities[0].timezone;
@@ -1827,7 +1827,7 @@ const sendIncStatusValidation = async (context, incStatusId) => {
         body: [
           {
             type: "TextBlock",
-            text: `The ** ${incTitle}** is closed.Please contact < at > ${incCreatedBy.name}</at > `,
+            text: `The **${incTitle}** is closed.Please contact < at > ${incCreatedBy.name}</at > `,
             wrap: true,
           },
         ],
@@ -2242,7 +2242,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
       const userTenantId = subEventObj.companyData.userTenantId;
       const dashboardCard = await getOneTimeDashboardCard(incId);
       //const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
-      await sendIncResponseToSelectedMembers(incId, dashboardCard, subEventObj.runAt, serviceUrl, userTenantId, log);
+      //await sendIncResponseToSelectedMembers(incId, dashboardCard, subEventObj.runAt, serviceUrl, userTenantId, log);
 
       let incObj = {
         incId,
@@ -2294,7 +2294,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
           },
           {
             "type": "TextBlock",
-            "text": `Your safety check message for ** ${incTitle} ** has been sent to all the users`,
+            "text": `Your safety check message for **${incTitle}** has been sent to all the users`,
             "wrap": true
           }
         ]
