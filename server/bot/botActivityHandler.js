@@ -598,7 +598,7 @@ class BotActivityHandler extends TeamsActivityHandler {
 
   async hanldeNonAdminUserMsg(context, userLicenseDetails) {
     try {
-      const { userName, adminUsrId, adminUsrName } = userLicenseDetails;
+      const { userName, userId, adminUsrId, adminUsrName } = userLicenseDetails;
 
       const cardJSON = {
         "type": "AdaptiveCard",

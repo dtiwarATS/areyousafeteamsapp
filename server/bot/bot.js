@@ -1532,7 +1532,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
             let updateEndTime = (new Date()).getTime();
             updateEndTime = (updateEndTime - updateStartTime) / 1000;
 
-            if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
+            if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 1) {
               updateStartTime = null;
               updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
             }
@@ -1552,7 +1552,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
               if (sqlUpdateMsgDeliveryStatus != "") {
                 setTimeout(() => {
                   updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-                }, 5000);
+                }, 500);
               }
               // getOneTimeDashboardCardAsync(incId, null, userAadObjId)
               //   .then((dashboardCard) => sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId))

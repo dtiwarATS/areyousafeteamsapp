@@ -23,7 +23,7 @@ const { processSafetyBotError } = require("../models/processError");
     `AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2`;
 
   let jobsToBeExecutedArr = await db.getDataFromDB(sqlJob);
-  log.addLog(`jobsToBeExecutedArr length - ${jobsToBeExecutedArr.length}`);
+  log.addLog(`jobsToBeExecutedArr length - ${jobsToBeExecutedArr?.length}`);
   if (jobsToBeExecutedArr != null && jobsToBeExecutedArr.length > 0) {
     let saveLog = false;
     // send msgs

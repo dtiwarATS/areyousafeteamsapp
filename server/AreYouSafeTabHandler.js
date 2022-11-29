@@ -406,6 +406,27 @@ const handlerForSafetyBotTab = (app) => {
             console.log(err);
         }
     });
+
+    app.get("/areyousafetabhandler/getSafetyCheckProgress", (req, res) => {
+        const { incid, incType, teamId, userAadObjId } = req.query;
+
+        try {
+            incidentService
+                .getSafetyCheckProgress(incid, incType, teamId, userAadObjId)
+                .then((progress) => {
+                    res.send({ progress, "respIncId": incid });
+                    // res.send(23);
+                })
+                .catch((err) => {
+                    console.log(err);
+                    processSafetyBotError(err, "", "", userAadObjId);
+                    res.send(0);
+                });
+        } catch (err) {
+            processSafetyBotError(err, "", "", userAadObjId);
+            res.send(0);
+        }
+    });
 }
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;

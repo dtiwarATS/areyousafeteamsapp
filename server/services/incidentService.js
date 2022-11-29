@@ -1256,6 +1256,39 @@ const getRequiredDataToSendMessage = async (incId, teamId, userAadObjId, userIdA
   return result;
 }
 
+const getSafetyCheckProgress = async (incId, incType, teamId, userAadObjId) => {
+  let result = 0;
+  try {
+    let sql = "";
+    if (incType == "onetime") {
+      sql = `Select (select count(*) from MSTeamsMemberResponses where inc_id = ${incId}) MessageCount, 
+      (select count(*) from MSTeamsMemberResponses where inc_id = ${incId} and message_delivery_status is not null) DeliveredMessageCount`;
+    } else {
+      sql = `with selects as
+      (
+      select a.id, a.message_delivery_status from MSTeamsMemberResponsesRecurr a
+      left join MSTeamsMemberResponses b on a.memberResponsesId = b.id
+      left join MSTEAMS_SUB_EVENT c on a.runAt = c.RUN_AT and b.inc_id = c.INC_ID
+      where b.inc_id = ${incId}
+      )
+      Select (select count(*)from selects) MessageCount, 
+      (select count(*) from selects where message_delivery_status is not null) DeliveredMessageCount`;
+    }
+    if (sql != "") {
+      const data = await db.getDataFromDB(sql, userAadObjId);
+      if (data != null && data.length > 0) {
+        const { MessageCount, DeliveredMessageCount } = data[0];
+        if (Number(DeliveredMessageCount) > 0 && Number(MessageCount) > 0) {
+          result = Math.round(((Number(DeliveredMessageCount) / Number(MessageCount)) * 100));
+        }
+      }
+    }
+  } catch (err) {
+    processSafetyBotError(err, teamId, "", userAadObjId);
+  }
+  return Promise.resolve(result);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1310,5 +1343,6 @@ module.exports = {
   updateDataIntoDB,
   isBotInstalledInTeam,
   updateConversationId,
-  getRequiredDataToSendMessage
+  getRequiredDataToSendMessage,
+  getSafetyCheckProgress
 };
