@@ -540,9 +540,9 @@ ALTER TABLE MSTeamsMemberResponsesRecurr ADD [timestamp] datetime NULL
 END
 GO
 
-IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='InitData' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='InitDate' AND TABLE_NAME='MSTeamsSubscriptionDetails')
 BEGIN
-ALTER TABLE MSTeamsSubscriptionDetails ADD InitData dateTime NULL
+ALTER TABLE MSTeamsSubscriptionDetails ADD InitDate dateTime NULL
 END
 GO
 

@@ -143,7 +143,7 @@ const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false
 const getCheckUserLicenseQuery = (userAadObjId, teamId = null) => {
   let selTeamIdWhere = ""
   if (teamId != null) {
-    selTeamIdWhere = ` and team_id='${teamId}'`;
+    selTeamIdWhere = ` and usr.team_id='${teamId}'`;
   }
   return `select top 1 usr.*, inst.user_id adminUsrId, inst.user_name adminUsrName, inst.team_name teamName from 
           msteamsteamsusers usr
@@ -393,7 +393,7 @@ const addTypeOneSubscriptionDetails = async (tenantId, userEmailId, userAadObjId
     Begin
       Declare @pkId integer;
 
-      INSERT INTO MSTeamsSubscriptionDetails([Timestamp], [SubscriptionDate], [SubscriptionType], [TenantId], [UserEmailId], [UserAadObjId], [UserLimit], [isProcessed], [InitData])
+      INSERT INTO MSTeamsSubscriptionDetails([Timestamp], [SubscriptionDate], [SubscriptionType], [TenantId], [UserEmailId], [UserAadObjId], [UserLimit], [isProcessed], [InitDate])
       VALUES(getDate(), CONVERT(VARCHAR(10), getDate(), 101), 1, '${tenantId}', '${userEmailId}', '${userAadObjId}', 10, 1, getDate());
 
       set @pkId = (SELECT SCOPE_IDENTITY());
