@@ -414,8 +414,8 @@ const handlerForSafetyBotTab = (app) => {
             incidentService
                 .getSafetyCheckProgress(incid, incType, teamId, userAadObjId)
                 .then((progress) => {
-                    res.send({ progress, "respIncId": incid });
-                    // res.send(23);
+                    progress.respIncId = incid;
+                    res.send(progress);
                 })
                 .catch((err) => {
                     console.log(err);

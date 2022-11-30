@@ -1257,12 +1257,16 @@ const getRequiredDataToSendMessage = async (incId, teamId, userAadObjId, userIdA
 }
 
 const getSafetyCheckProgress = async (incId, incType, teamId, userAadObjId) => {
-  let result = 0;
+  let result = {
+    progress: 0,
+    deliveredMessageCount: 0,
+    messageCount: 0
+  };
   try {
     let sql = "";
     if (incType == "onetime") {
-      sql = `Select (select count(*) from MSTeamsMemberResponses where inc_id = ${incId}) MessageCount, 
-      (select count(*) from MSTeamsMemberResponses where inc_id = ${incId} and message_delivery_status is not null) DeliveredMessageCount`;
+      sql = `Select (select count(*) from MSTeamsMemberResponses where inc_id = ${incId}) messageCount, 
+      (select count(*) from MSTeamsMemberResponses where inc_id = ${incId} and message_delivery_status is not null) deliveredMessageCount`;
     } else {
       sql = `with selects as
       (
@@ -1271,15 +1275,20 @@ const getSafetyCheckProgress = async (incId, incType, teamId, userAadObjId) => {
       left join MSTEAMS_SUB_EVENT c on a.runAt = c.RUN_AT and b.inc_id = c.INC_ID
       where b.inc_id = ${incId}
       )
-      Select (select count(*)from selects) MessageCount, 
-      (select count(*) from selects where message_delivery_status is not null) DeliveredMessageCount`;
+      Select (select count(*)from selects) messageCount, 
+      (select count(*) from selects where message_delivery_status is not null) deliveredMessageCount`;
     }
     if (sql != "") {
       const data = await db.getDataFromDB(sql, userAadObjId);
       if (data != null && data.length > 0) {
-        const { MessageCount, DeliveredMessageCount } = data[0];
-        if (Number(DeliveredMessageCount) > 0 && Number(MessageCount) > 0) {
-          result = Math.round(((Number(DeliveredMessageCount) / Number(MessageCount)) * 100));
+        const { messageCount, deliveredMessageCount } = data[0];
+        if (Number(deliveredMessageCount) > 0 && Number(messageCount) > 0) {
+          result.progress = Math.round(((Number(deliveredMessageCount) / Number(messageCount)) * 100));
+        }
+        result = {
+          ...result,
+          deliveredMessageCount,
+          messageCount
         }
       }
     }
