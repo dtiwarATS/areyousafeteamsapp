@@ -33,11 +33,11 @@ function initJob() {
       {
         name: "subscription-job",
         path: path.join(__dirname, 'jobs', 'subscription-job.js'),
-        cron: "*/1 * * * *"
+        cron: "0 0 * * *"
       }
     ],
   });
-  //cron1: "0 0 * * *"
+  //cron1: "*/1 * * * *"
   const graceful = new Graceful({ brees: [bree] });
   graceful.listen();
 

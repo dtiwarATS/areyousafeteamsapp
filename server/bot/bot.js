@@ -1457,8 +1457,8 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         incCreatedByUserArr.push(incCreatedByUserObj);
 
         //const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
-        logTimeInSeconds(startTime, `send dashboard to safety initiator users end`);
-        startTime = (new Date()).getTime();
+        //logTimeInSeconds(startTime, `send dashboard to safety initiator users end`);
+        //startTime = (new Date()).getTime();
         let incObj = {
           incId,
           incTitle,
@@ -1473,6 +1473,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         logTimeInSeconds(startTime, `getSaftyCheckCard end`);
         startTime = (new Date()).getTime();
 
+        // {
         const appId = process.env.MicrosoftAppId;
         const appPass = process.env.MicrosoftAppPassword;
 
@@ -1498,7 +1499,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           }
         }
 
-        // {
+
         let respTime = (new Date()).getTime();
         const respTimeInterval = setInterval(() => {
           try {
@@ -1583,40 +1584,34 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         // }
 
         // {
-        //   if (process.env.NODE_ENV === 'development') {
-        //     const httpsAgent = new https.Agent({
-        //       rejectUnauthorized: false,
-        //     })
-        //     axios.defaults.httpsAgent = httpsAgent;
-        //   }
-        //   const url = `${process.env.sendMessageAPI}/SendSafetyCheckMessage`;
-        //   const data = {
-        //     incId,
-        //     serviceUrl,
-        //     userTenantId,
-        //     userAadObjId,
-        //     allMembersArr: JSON.stringify(allMembersArr),
-        //     safetyCheckCard: JSON.stringify(approvalCard)
-        //   };
-        //   axios.post(url, data, {
-        //     headers: {
-        //       'Content-Type': 'application/json'
-        //     }
+        // if (process.env.NODE_ENV === 'development') {
+        //   const httpsAgent = new https.Agent({
+        //     rejectUnauthorized: false,
         //   })
-        //     .then((resp) => {
-        //       logTimeInSeconds(initStartTime, `TotalTime`);
-        //       return getOneTimeDashboardCardAsync(incId, null, userAadObjId);
-        //     })
-        //     .then((dashboardCard) => {
-        //       return sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId)
-        //     })
-        //     .then((resp) => {
-        //       resolve(true);
-        //     })
-        //     .catch((err) => {
-        //       processSafetyBotError(err, "", "", userAadObjId);
-        //       resolve(true);
-        //     });
+        //   axios.defaults.httpsAgent = httpsAgent;
+        // }
+        // const url = `${process.env.sendMessageAPI}/SendSafetyCheckMessage`;
+        // const data = {
+        //   incId,
+        //   serviceUrl,
+        //   userTenantId,
+        //   userAadObjId,
+        //   allMembersArr: JSON.stringify(allMembersArr),
+        //   safetyCheckCard: JSON.stringify(approvalCard)
+        // };
+        // axios.post(url, data, {
+        //   headers: {
+        //     'Content-Type': 'application/json'
+        //   }
+        // })
+        //   .then((resp) => {
+        //     logTimeInSeconds(initStartTime, `TotalTime`);
+        //     resolve(true);
+        //   })
+        //   .catch((err) => {
+        //     processSafetyBotError(err, "", "", userAadObjId);
+        //     resolve(true);
+        //   });
         // }
 
       }
