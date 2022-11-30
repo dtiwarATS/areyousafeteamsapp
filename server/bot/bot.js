@@ -1675,7 +1675,7 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
       incCreatedByUserArr.push(incCreatedByUserObj);
 
       log.addLog("Send Dashboard Resp Start");
-      const dashboardCard = await getOneTimeDashboardCard(incId);
+      //const dashboardCard = await getOneTimeDashboardCard(incId);
       //const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
       //await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
       log.addLog("Send Dashboard Resp End");
@@ -1879,14 +1879,14 @@ const sendApprovalResponse = async (user, context) => {
         version: "1.4",
       };
       //send new msg just to emulate msg is being updated
-      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       await sendApprovalResponseToSelectedMembers(incId, context, approvalCardResponse);
     }
 
-    const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
-    const serviceUrl = context.activity.serviceUrl;
+    //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
+    //const serviceUrl = context.activity.serviceUrl;
     //const activityId = await viewIncResult(incId, context, companyData, inc, runAt, dashboardCard, serviceUrl);
-    await updateIncResponseOfSelectedMembers(incId, runAt, dashboardCard, serviceUrl);
+    //await updateIncResponseOfSelectedMembers(incId, runAt, dashboardCard, serviceUrl);
   } catch (error) {
     console.log(error);
   }
@@ -2235,7 +2235,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
 
       const serviceUrl = subEventObj.companyData.serviceUrl;
       const userTenantId = subEventObj.companyData.userTenantId;
-      const dashboardCard = await getOneTimeDashboardCard(incId);
+      //const dashboardCard = await getOneTimeDashboardCard(incId);
       //const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
       //await sendIncResponseToSelectedMembers(incId, dashboardCard, subEventObj.runAt, serviceUrl, userTenantId, log);
 
