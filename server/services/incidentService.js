@@ -837,15 +837,19 @@ const updateUserInfoFlag = async (installationIds) => {
 }
 
 const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias = "title") => {
-  return `SELECT [USER_ID] [${userIdAlias}] , [USER_NAME] [${userNameAlias}], user_aadobject_id userAadObjId, 0 isSuperUser, conversationId FROM MSTEAMSTEAMSUSERS WHERE ${whereSql} and hasLicense = 1 ORDER BY [USER_NAME]`;
+  return `SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, 0 isSuperUser, u.conversationId,
+  case when inst.user_id is null then 0 else 1 end isAdmin 
+  FROM MSTEAMSTEAMSUSERS u
+  left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id
+  WHERE ${whereSql} and inst.uninstallation_date is null and u.hasLicense = 1 ORDER BY u.[USER_NAME]`;
 }
 
 const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
   let whereSql = "";
   if (teamId != null) {
-    whereSql = ` TEAM_ID = '${teamId}'`;
+    whereSql = ` u.TEAM_ID = '${teamId}'`;
   } else {
-    whereSql = ` TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
+    whereSql = ` u.TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
   return getTeamMemeberSqlQuery(whereSql, userIdAlias, userNameAlias);

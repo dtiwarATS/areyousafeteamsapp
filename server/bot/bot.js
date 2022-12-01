@@ -1879,7 +1879,7 @@ const sendApprovalResponse = async (user, context) => {
         version: "1.4",
       };
       //send new msg just to emulate msg is being updated
-      await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       await sendApprovalResponseToSelectedMembers(incId, context, approvalCardResponse);
     }
 
