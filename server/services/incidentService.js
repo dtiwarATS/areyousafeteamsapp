@@ -496,16 +496,16 @@ const addMembersIntoIncData = async (incId, allMembers, requesterId, userAadObjI
   return Promise.resolve(incData);
 };
 
-const updateIncResponseData = async (incidentId, userId, responseValue, incData) => {
+const updateIncResponseData = async (incidentId, userId, responseValue, incData, respTimestamp) => {
   pool = await poolPromise;
   let updateRespRecurrQuery = null;
   if (incData != null && incData.incType == "recurringIncident" && incData.runAt != null) {
-    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = GETDATE() WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   }
   else {
-    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = GETDATE() WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
   if (updateRespRecurrQuery != null) {
@@ -1031,9 +1031,9 @@ const updateSubscriptionType = async (licenseType, tenantId, previousSubscriptio
   try {
     if (Number(licenseType) === 2 && tenantId != null) {
       let currentDate = new Date();
-      const startDate = formatedDate("mm/dd/yyyy", currentDate);
+      const startDate = formatedDate("MM/dd/yyyy", currentDate);
       currentDate.setDate(currentDate.getDate() + 45);
-      const expiryDate = formatedDate("mm/dd/yyyy", new Date(currentDate));
+      const expiryDate = formatedDate("MM/dd/yyyy", new Date(currentDate));
       const sqlUpdate = `Update MSTeamsSubscriptionDetails set SubscriptionType = 2, SubscriptionDate = '${startDate}', 
                           ExpiryDate = '${expiryDate}', TrialStartDate =  getDate() where TenantId = '${tenantId}';
                           

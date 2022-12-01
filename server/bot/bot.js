@@ -271,7 +271,7 @@ const sendMsg = async (context) => {
     "body": [
       {
         "type": "TextBlock",
-        "text": `Hello there, we have introduced AreYouSafe? bot premium subscription with unlimited user access starting from ${formatedDate("mm/dd/yyyy", (new Date()))}. However, **you are getting 1-year free premium subscription** as a thank you for being our beta users and helping us improve AreYouSafe? bot with your valuable feedback.`,
+        "text": `Hello there, we have introduced AreYouSafe? bot premium subscription with unlimited user access starting from ${formatedDate("MM/dd/yyyy", (new Date()))}. However, **you are getting 1-year free premium subscription** as a thank you for being our beta users and helping us improve AreYouSafe? bot with your valuable feedback.`,
         "wrap": true
       },
       {
@@ -398,7 +398,7 @@ const createRecurrInc = async (context, user, companyData) => {
               "items": [
                 {
                   "type": "Input.Date",
-                  "value": formatedDate("yyyy-mm-dd", (new Date())),
+                  "value": formatedDate("yyyy-MM-dd", (new Date())),
                   "id": "startDate"
                 }
               ]
@@ -432,7 +432,7 @@ const createRecurrInc = async (context, user, companyData) => {
               "items": [
                 {
                   "type": "Input.Date",
-                  "value": formatedDate("yyyy-mm-dd", nextWeekDate),
+                  "value": formatedDate("yyyy-MM-dd", nextWeekDate),
                   "id": "endDate"
                 }
               ]
@@ -815,7 +815,7 @@ const saveRecurrInc = async (context, action, companyData) => {
   }
 
   const startDate = new Date(action.data.startDate);
-  preTextMsg += `starting from ${formatedDate("mm/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
+  preTextMsg += `starting from ${formatedDate("MM/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
   var guidance = action.data.guidance ? action.data.guidance : "No details available"
 
   const card = await getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident", guidance);
@@ -1847,12 +1847,16 @@ const sendApprovalResponse = async (user, context) => {
     const action = context.activity.value.action;
     const { info: response, inc, companyData } = action.data;
     const { incId, incTitle, incCreatedBy } = inc;
-
+    let respDate = new Date();
+    if (context?.activity?.rawLocalTimestamp != null && context.activity.rawLocalTimestamp.toString().split("+").length > 0) {
+      respDate = new Date(context.activity.rawLocalTimestamp.toString().split("+")[0]);
+    }
+    const respTimestamp = formatedDate('yyyy-MM-dd hh:mm:ss', respDate);
     const runAt = (inc.runAt != null) ? inc.runAt : null;
     if (response === "i_am_safe") {
-      await incidentService.updateIncResponseData(incId, user.id, 1, inc);
+      await incidentService.updateIncResponseData(incId, user.id, 1, inc, respTimestamp);
     } else {
-      await incidentService.updateIncResponseData(incId, user.id, 0, inc);
+      await incidentService.updateIncResponseData(incId, user.id, 0, inc, respTimestamp);
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
