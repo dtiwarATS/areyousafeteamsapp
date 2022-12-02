@@ -3,7 +3,7 @@ const db = require("../db");
 const Company = require("../models/Company");
 const { processSafetyBotError } = require("../models/processError");
 
-const parseCompanyData = async (result) => {
+const parseCompanyData = (result) => {
   let parsedCompanyObj = {};
   // console.log("result >>", result);
   try {
@@ -40,7 +40,7 @@ const parseCompanyData = async (result) => {
     processSafetyBotError(err, "", "", null);
   }
 
-  return Promise.resolve(parsedCompanyObj);
+  return parsedCompanyObj;
 };
 
 const isAdminUser = async (userObjId) => {
@@ -140,23 +140,47 @@ const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false
   }
 };
 
-const getCheckUserLicenseQuery = (userAadObjId) => {
-  return `select top 1 hasLicense from msteamsteamsusers where user_aadobject_id = '${userAadObjId}' and isNull(hasLicense, 0) = 1`;
+const getCheckUserLicenseQuery = (userAadObjId, teamId = null) => {
+  let selTeamIdWhere = ""
+  if (teamId != null) {
+    selTeamIdWhere = ` and usr.team_id='${teamId}'`;
+  }
+  return `select top 1 usr.*, inst.user_id adminUsrId, inst.user_name adminUsrName, inst.team_name teamName, inst.user_obj_id adminAadObjId from 
+          msteamsteamsusers usr
+          left join MSTeamsInstallationDetails inst on usr.team_id = inst.team_id
+          where usr.user_aadobject_id = '${userAadObjId}' ${selTeamIdWhere} and  inst.uninstallation_date is null`;
 }
 
-const checkUserHasValidLicense = async (userAadObjId) => {
-  let hasLicense = false;
+const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
+  let hasLicense = false, isTrialExpired = false, previousSubscriptionType = null, userName = null, userId = null;
+  let adminUsrId = null, adminUsrName = null, teamName = null, adminAadObjId = null;
   try {
-    const checkUserLicenseQuery = getCheckUserLicenseQuery(userAadObjId);
-    console.log(checkUserLicenseQuery);
+    const checkUserLicenseQuery = getCheckUserLicenseQuery(userAadObjId, teamId);
     const res = await db.getDataFromDB(checkUserLicenseQuery, userAadObjId);
-    console.log(res);
-    hasLicense = (res != null && res.length > 0 && res[0]["hasLicense"] != null && res[0]["hasLicense"] === true);
+    if (res != null && res.length > 0) {
+      hasLicense = (res[0]["hasLicense"] != null && res[0]["hasLicense"] === true);
+      isTrialExpired = (res[0]["isTrialExpired"] != null && res[0]["isTrialExpired"] === true);
+      previousSubscriptionType = res[0]["previousSubscriptionType"];
+      userName = res[0]["user_name"];
+      userId = res[0]["user_id"];
+      ({ adminUsrId, adminUsrName, teamName, adminAadObjId } = res[0]);
+    }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId);
+    processSafetyBotError(err, teamId, "", userAadObjId);
   }
-  return Promise.resolve(hasLicense);
+  return Promise.resolve({
+    hasLicense,
+    isTrialExpired,
+    previousSubscriptionType,
+    userName,
+    userId,
+    userAadObjId,
+    adminUsrId,
+    adminUsrName,
+    teamName,
+    adminAadObjId
+  });
 }
 
 // const addServiceUrl = async (companyData, acvtivityData) => {
@@ -192,7 +216,7 @@ const getCompaniesData = async (
     let res = await db.getDataFromDB(selectQuery, userObjId);
 
     // check if the user is super user or not
-    if (res.length == 0) {
+    if (res == null || res.length == 0) {
       res = await db.getDataFromDB(
         `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails where super_users like '%${userObjId}%' and uninstallation_date is null`, userObjId
       );
@@ -241,15 +265,16 @@ const removeAllTeamMember = async (teamId) => {
 }
 
 const teamMemberInsertQuery = (teamId, m) => {
+  const userEmail = m.email != null ? m.email : m.userPrincipalName;
   return `
     IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND[user_aadobject_id] = '${m.objectId}')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [userPrincipalName], [email], [tenantid], [userRole])
-    VALUES('${teamId}', '${m.objectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${m.email}', '${m.tenantId}', '${m.userRole}');
+    VALUES('${teamId}', '${m.objectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${userEmail}', '${m.tenantId}', '${m.userRole}');
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND[user_aadobject_id] = '${m.objectId}' AND userPrincipalName is null)
     BEGIN
-      UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${m.email}', tenantid = '${m.tenantId}', userRole = '${m.userRole}'
+      UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${userEmail}', tenantid = '${m.tenantId}', userRole = '${m.userRole}'
       WHERE team_id = '${teamId}'
     AND[user_aadobject_id] = '${m.objectId}'
     END `;
@@ -284,7 +309,7 @@ const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
     }
 
     if (sqlInserUsers != "") {
-      console.log(sqlInserUsers);
+      //console.log(sqlInserUsers);
       await pool.request().query(sqlInserUsers);
       isUserInfoSaved = true;
     }
@@ -369,8 +394,8 @@ const addTypeOneSubscriptionDetails = async (tenantId, userEmailId, userAadObjId
     Begin
       Declare @pkId integer;
 
-      INSERT INTO MSTeamsSubscriptionDetails([Timestamp], [SubscriptionDate], [SubscriptionType], [TenantId], [UserEmailId], [UserAadObjId], [UserLimit], [isProcessed])
-      VALUES(getDate(), CONVERT(VARCHAR(10), getDate(), 101), 1, '${tenantId}', '${userEmailId}', '${userAadObjId}', 10, 1);
+      INSERT INTO MSTeamsSubscriptionDetails([Timestamp], [SubscriptionDate], [SubscriptionType], [TenantId], [UserEmailId], [UserAadObjId], [UserLimit], [isProcessed], [InitDate])
+      VALUES(getDate(), CONVERT(VARCHAR(10), getDate(), 101), 1, '${tenantId}', '${userEmailId}', '${userAadObjId}', 10, 1, getDate());
 
       set @pkId = (SELECT SCOPE_IDENTITY());
 
@@ -578,7 +603,7 @@ const addFeedbackData = async (feedbackDataObj) => {
 const saveLog = async (sqlLog) => {
   try {
     pool = await poolPromise;
-    console.log("Sql log >> ", sqlLog);
+    //console.log("Sql log >> ", sqlLog);
     const result = await pool.request().query(sqlLog);
   } catch (err) {
     console.log(err);
@@ -615,7 +640,8 @@ module.exports = {
   verifyAdminUserForDashboardTab,
   getCompanyDataByTeamId,
   updateSuperUserDataByUserAadObjId,
-  checkUserHasValidLicense,
+  getUserLicenseDetails,
   updateIsUserInfoSaved,
-  getCompanyDataByTenantId
+  getCompanyDataByTenantId,
+  parseCompanyData
 };

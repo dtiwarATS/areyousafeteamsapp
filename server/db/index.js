@@ -123,7 +123,7 @@ const insertOrUpdateDataIntoDB = async (tableName, values, sqlWhere, sqlUpdate) 
       ' ELSE ' +
       ` BEGIN insert into ${tableName}(${columnsStr}) values(${valuesStr}); SELECT * FROM ${tableName} WHERE id = SCOPE_IDENTITY(); END `;
 
-    console.log("insert or update query => ", query);
+    //console.log("insert or update query => ", query);
     const result = await pool.request().query(query);
     return result.recordset;
   } catch (err) {
@@ -149,7 +149,7 @@ const insertDataIntoDB = async (tableName, values) => {
 
     let query = `insert into ${tableName}(${columnsStr}) values(${valuesStr}) SELECT * FROM ${tableName} WHERE id = SCOPE_IDENTITY();`;
 
-    console.log("insert query => ", query);
+    //console.log("insert query => ", query);
     const result = await pool.request().query(query);
     return result.recordset;
   } catch (err) {
@@ -159,7 +159,7 @@ const insertDataIntoDB = async (tableName, values) => {
   }
 };
 
-const updateDataIntoDB = async (query) => {
+const updateDataIntoDB = async (query, userObjId) => {
   try {
     // console.log("update query => ", query);
     pool = await poolPromise;
@@ -167,19 +167,56 @@ const updateDataIntoDB = async (query) => {
     return Promise.resolve(res);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userObjId);
   }
 };
 
-const insertData = async (sqlInsertQuery) => {
+const getPoolPromise = async (userObjId) => {
+  let pool = null;
+  try {
+    pool = await poolPromise;
+  } catch (err) {
+    processSafetyBotError(err, "", "", userObjId);
+  }
+  return pool;
+}
+
+const updateDataIntoDBAsync = async (query, pool, userObjId) => {
+  try {
+    return new Promise((resolve, reject) => {
+      try {
+        //console.log(`updateDataIntoDBAsync ${query}`);
+        pool.request().query(query)
+          .then((resp) => {
+            //console.log("saved");
+            resolve(resp);
+          })
+          .catch((err) => {
+            console.log(err);
+            processSafetyBotError(err, "", "", userObjId);
+            reject(err);
+          });
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(err, "", "", userObjId);
+      }
+    });
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userObjId);
+  }
+};
+
+const insertData = async (sqlInsertQuery, userObjId) => {
   let result = null;
   if (sqlInsertQuery != null) {
     try {
       pool = await poolPromise;
-      console.log("insert query => ", sqlInsertQuery);
-      result = await pool.request().query(sqlInsertQuery);
+      //console.log("insert query => ", sqlInsertQuery);
+      result = await pool.request().query(sqlInsertQuery, userObjId);
     } catch (err) {
       console.log(err);
+      processSafetyBotError(err, "", "", userObjId);
     }
   }
   return result;
@@ -191,7 +228,9 @@ const db = {
   updateDataIntoDB,
   insertOrUpdateDataIntoDB,
   getInsertSql,
-  insertData
+  insertData,
+  updateDataIntoDBAsync,
+  getPoolPromise
 };
 
 module.exports = db;

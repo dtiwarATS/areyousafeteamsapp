@@ -12,7 +12,8 @@ const createPool = async () => {
   config.database = process.env.DB_NAME;
   config.server = process.env.SERVER;
   config.port = 1433;
-  config.connectionTimeout = 99000;
+  config.connectionTimeout = 300000;
+  config.requestTimeout = 300000;
   config.options.trustServerCertificate = true;
   config.options.encrypt = true;
   return await sql.connect(config);

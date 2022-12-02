@@ -26,7 +26,7 @@ const {
   removeTeamMember,
   removeAllTeamMember,
   deleteCompanyDataByuserAadObjId,
-  checkUserHasValidLicense,
+  getUserLicenseDetails,
   updateIsUserInfoSaved,
   getCompanyDataByTenantId
 } = require("../db/dbOperations");
@@ -50,6 +50,7 @@ const {
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const { getWelcomeMessageCard, getSubcriptionSelectionCard } = require("./subscriptionCard");
+const PersonalEmail = require("../Email/personalEmail");
 
 class BotActivityHandler extends TeamsActivityHandler {
   constructor() {
@@ -71,17 +72,27 @@ class BotActivityHandler extends TeamsActivityHandler {
       try {
         let isSuperUser = false;
         const acvtivityData = context.activity;
+        const tenantId = acvtivityData?.conversation?.tenantId;
+
+        const isValidTenant = () => { (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") };
+
         if (acvtivityData.text == "sendversionupdate") {
           await bot.sendMsg(context);
         } else if (acvtivityData.text == "addteamsusers") {
-          const tenantId = acvtivityData?.conversation?.tenantId;
-          if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
+          if (isValidTenant) {
             await bot.addteamsusers();
           }
         } else if (acvtivityData.text == "sendProactiveMessaageToUserTest") {
-          const tenantId = acvtivityData?.conversation?.tenantId;
-          if (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") {
+          if (isValidTenant) {
             await bot.sendProactiveMessaageToUserTest();
+          }
+        } else if (acvtivityData.text == "sendProactiveMessaageToChannel") {
+          if (isValidTenant) {
+            await bot.sendProactiveMessaageToChannel();
+          }
+        } else if (acvtivityData.text == "updateConversationId") {
+          if (isValidTenant) {
+            await incidentService.updateConversationId();
           }
         }
         else {
@@ -94,25 +105,25 @@ class BotActivityHandler extends TeamsActivityHandler {
 
             ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(acvtivityData.from.aadObjectId));
 
+            const userLicenseDetails = await getUserLicenseDetails(acvtivityData.from.aadObjectId, companyData.teamId);
+            if (userLicenseDetails?.hasLicense === false) {
+              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData);
+              await next();
+              return;
+            }
+
             const isAdmin = await isAdminUser(
               acvtivityData.from.aadObjectId
             );
 
             if (!(isAdmin || isSuperUser)) {
-              await this.hanldeNonAdminUserMsg(context);
+              await this.hanldeNonAdminUserMsg(context, userLicenseDetails);
               await next();
               return;
             }
 
             if (!isInstalledInTeam) {
               bot.sendIntroductionMessage(context, acvtivityData.from);
-              await next();
-              return;
-            }
-
-            const hasLicense = await checkUserHasValidLicense(acvtivityData.from.aadObjectId);
-            if (!hasLicense) {
-              await this.notifyUserForInvalidLicense(context);
               await next();
               return;
             }
@@ -151,20 +162,6 @@ class BotActivityHandler extends TeamsActivityHandler {
                 status: StatusCodes.OK,
               };
             }
-
-            // if ((isAdmin || isSuperUser) && isInstalledInTeam) {
-            //   await this.hanldeAdminOrSuperUserMsg(context, companyData);
-            //   await next();
-            //   return;
-            // }
-
-            // if ((isAdmin || isSuperUser) && !isInstalledInTeam) {
-            //   bot.sendIntroductionMessage(context, acvtivityData.from);
-            //   await next();
-            //   return;
-            // } else {
-            //   await this.hanldeNonAdminUserMsg(context);
-            // }
           }
           await next();
         }
@@ -173,19 +170,38 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
     });
 
-    this.onConversationUpdate(async (context, next) => {
-      try {
-        let addedBot = false;
-        const acvtivityData = context.activity;
+    const getCompaniesDataJSON = (context, adminUserInfo, teamId, teamName) => {
+      let userEmail = adminUserInfo.email;
+      if (userEmail == null) {
+        userEmail = adminUserInfo?.userPrincipalName;
+      }
+      return {
+        userId: adminUserInfo.id,
+        userTenantId: adminUserInfo.tenantId,
+        userObjId: adminUserInfo.aadObjectId,
+        userName: adminUserInfo.name,
+        email: userEmail == null ? "" : userEmail,
+        teamId: teamId,
+        teamName: teamName,
+        superUser: [],
+        createdDate: new Date(Date.now()).toISOString(),
+        welcomeMessageSent: 0,
+        serviceUrl: context.activity.serviceUrl
+      };
+    }
 
-        const teamId = acvtivityData?.channelData?.team?.id;
-        const conversationType = context.activity.conversation.conversationType;
-        if (
-          acvtivityData &&
+    this.onConversationUpdate(async (context, next) => {
+      let addedBot = false;
+      const acvtivityData = context.activity;
+      const teamId = acvtivityData?.channelData?.team?.id;
+      const userAadObjectId = acvtivityData?.from?.aadObjectId;
+      try {
+        const conversationType = acvtivityData.conversation.conversationType;
+        if (acvtivityData &&
           acvtivityData?.channelData?.eventType === "teamMemberAdded"
         ) {
           const { membersAdded } = acvtivityData;
-          const teamId = acvtivityData.channelData.team.id;
+          // const teamId = acvtivityData.channelData.team.id;
           // retrive user info who installed the app from TeamsInfo.getTeamMembers(context, teamId);
           const allMembersInfo = await TeamsInfo.getTeamMembers(
             context,
@@ -205,32 +221,24 @@ class BotActivityHandler extends TeamsActivityHandler {
               );
 
               if (adminUserInfo) {
-                //console.log("adminUserInfo >> ", adminUserInfo);
-                // then save from.id as userid and from.aadObjectId as userObjectId
-                // and channelData.team.id as teamsId and save the data to database
-                const companyDataObj = {
-                  userId: acvtivityData.from.id,
-                  userTenantId: adminUserInfo.tenantId,
-                  userObjId: adminUserInfo.aadObjectId,
-                  userName: adminUserInfo.name,
-                  email: adminUserInfo.email == null ? "" : adminUserInfo.email,
-                  teamId: teamId,
-                  teamName: acvtivityData.channelData.team.name,
-                  superUser: [],
-                  createdDate: new Date(Date.now()).toISOString(),
-                  welcomeMessageSent: 0,
-                  serviceUrl: context.activity.serviceUrl
-                };
-
+                const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, teamId, acvtivityData.channelData.team.name);
                 const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
                 await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
+                if (teamId != null) {
+                  await incidentService.updateConversationId(teamId);
+                }
               }
             } else {
               const teamMember = allMembersInfo.find(
                 (m) => m.id === membersAdded[i].id
               );
-              const teamMembers = [teamMember];
-              await addTeamMember(teamId, teamMembers, true);
+              if (teamMember != null) {
+                const teamMembers = [teamMember];
+                await addTeamMember(teamId, teamMembers, true);
+                if (teamMember.aadObjectId != null) {
+                  await incidentService.updateConversationId(null, teamMember.aadObjectId);
+                }
+              }
             }
           }
         } // if bot/member is installed/added
@@ -272,19 +280,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 acvtivityData.from.id
               );
               if (adminUserInfo) {
-                const companyDataObj = {
-                  userId: adminUserInfo.id,
-                  userTenantId: adminUserInfo.tenantId,
-                  userObjId: adminUserInfo.aadObjectId,
-                  userName: adminUserInfo.name,
-                  email: adminUserInfo.email == null ? "" : adminUserInfo.email,
-                  teamId: "",
-                  teamName: "",
-                  superUser: [],
-                  createdDate: new Date(Date.now()).toISOString(),
-                  welcomeMessageSent: 0,
-                  serviceUrl: context.activity.serviceUrl
-                };
+                const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
                 const companyData = await insertCompanyData(companyDataObj, null, conversationType);
                 await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
               }
@@ -302,18 +298,65 @@ class BotActivityHandler extends TeamsActivityHandler {
           await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
         }
       } catch (err) {
-        processSafetyBotError(err, "", "");
+        processSafetyBotError(err, teamId, "", userAadObjectId, JSON.stringify(acvtivityData));
       }
     });
   }
 
-  async notifyUserForInvalidLicense(context) {
+  async notifyUserForInvalidLicense(context, userLicenseDetails, companyData) {
     try {
-      await context.sendActivity(
-        MessageFactory.text(
-          `It looks like you are on the FREE version of the AreYouSafe? bot. Please contact your safety initiator to get access.`
-        )
-      );
+      const { userName, userId, adminUsrId, adminUsrName, teamName } = userLicenseDetails;
+      //const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
+      let blockMessage = `You do not have the **AreYouSafe** bot license assigned for your **${teamName}** team. Please contact your admin <at>${adminUsrName}</at> to assign you the license.`;
+      if (userLicenseDetails && userLicenseDetails.isTrialExpired == true && userLicenseDetails.previousSubscriptionType == "2") {
+        blockMessage = `Your license has been deactivated since the **AreYouSafe** bot free trial period for your **${teamName}** team has ended. Please contact your admin <at>${adminUsrName}</at> to upgrade to a premium subscription plan.`;
+      }
+
+      const cardJSON = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+          {
+            "type": "TextBlock",
+            "text": `Hello <at>${userName}</at>,`,
+            "wrap": true
+          },
+          {
+            "type": "TextBlock",
+            "text": blockMessage,
+            "wrap": true
+          },
+          {
+            "type": "TextBlock",
+            "text": "With Gratitude,\n\nTeam AreYouSafe",
+            "wrap": true
+          }
+        ],
+        "msteams": {
+          "entities": [
+            {
+              "type": "mention",
+              "text": `<at>${userName}</at>`,
+              "mentioned": {
+                "id": userId,
+                "name": userName,
+              }
+            },
+            {
+              "type": "mention",
+              "text": `<at>${adminUsrName}</at>`,
+              "mentioned": {
+                "id": adminUsrId,
+                "name": adminUsrName,
+              }
+            }
+          ]
+        }
+      }
+      await context.sendActivity({
+        attachments: [CardFactory.adaptiveCard(cardJSON)],
+      });
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, "", "");
@@ -557,13 +600,50 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
-  async hanldeNonAdminUserMsg(context) {
+  async hanldeNonAdminUserMsg(context, userLicenseDetails) {
     try {
-      await context.sendActivity(
-        MessageFactory.text(
-          `👋 Hello! Unfortunately, you **do not have permissions** to initiate a safety check. Please contact your Teams Admin to initiate.`
-        )
-      );
+      const { userName, userId, adminUsrId, adminUsrName } = userLicenseDetails;
+
+      const cardJSON = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+          {
+            "type": "TextBlock",
+            "text": `Hello <at>${userName}</at>,`,
+            "wrap": true
+          },
+          {
+            "type": "TextBlock",
+            "text": `Unfortunately, you do not have permission to initiate a safety check. Please contact your admin <at>${adminUsrName}</at> to give you admin access.`,
+            "wrap": true
+          }
+        ],
+        "msteams": {
+          "entities": [
+            {
+              "type": "mention",
+              "text": `<at>${userName}</at>`,
+              "mentioned": {
+                "id": userId,
+                "name": userName,
+              }
+            },
+            {
+              "type": "mention",
+              "text": `<at>${adminUsrName}</at>`,
+              "mentioned": {
+                "id": adminUsrId,
+                "name": adminUsrName,
+              }
+            }
+          ]
+        }
+      }
+      await context.sendActivity({
+        attachments: [CardFactory.adaptiveCard(cardJSON)],
+      });
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, "", "");
@@ -583,15 +663,23 @@ class BotActivityHandler extends TeamsActivityHandler {
   }
 
   async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0) {
+    const userAadObjId = acvtivityData.from.aadObjectId;
     try {
       console.log({ "sendWelcomeMessage": companyData });
       if (companyData == null) {
         return;
       }
 
-      const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(acvtivityData.from.aadObjectId);
+      const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(userAadObjId);
 
       if (!isWelcomeMessageSent) {
+
+        (new PersonalEmail.PersonalEmail()).sendWelcomEmail(companyData.userEmail, userAadObjId)
+          .then(() => { })
+          .catch((err) => {
+            console.log(err);
+          });
+
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, companyData.userEmail);
         await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
 
@@ -612,7 +700,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         );
       }
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", userAadObjId);
     }
   }
 
@@ -621,6 +709,12 @@ class BotActivityHandler extends TeamsActivityHandler {
       userAadObjId
     );
     if (userInfo && userInfo.length > 0) {
+      (new PersonalEmail.PersonalEmail()).sendUninstallationEmail(userInfo[0].email, userAadObjId)
+        .then(() => { })
+        .catch((err) => {
+          console.log(err);
+        });
+
       await bot.sendUninstallationEmail(
         userInfo[0].email, userInfo[0].user_name
       );

@@ -11,6 +11,7 @@ const handlerForSafetyBotTab = (app) => {
 
     app.get("/areyousafetabhandler/getUserPermission", async (req, res) => {
         const userObjId = req.query.userId;
+        const teamId = (req.query.teamId != null && req.query.teamId != 'null') ? req.query.teamId : null;
         let isAdmin = false;
 
         let responseObj = {
@@ -22,13 +23,22 @@ const handlerForSafetyBotTab = (app) => {
             dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then(async (safetyInitiatorObj) => {
                 isAdmin = safetyInitiatorObj.isAdmin;
                 responseObj.isAdmin = isAdmin;
-                responseObj.hasValidLicense = await incidentService.hasValidLicense(userObjId);
-
-                let { isInstalledInTeam } = await incidentService.isBotInstalledInTeam(userObjId);
-
-                responseObj.isInstalledInTeam = isInstalledInTeam;
+                const userLicenseDetails = await dbOperation.getUserLicenseDetails(userObjId, teamId);
+                responseObj.hasValidLicense = userLicenseDetails.hasLicense;
                 responseObj.safetyInitiator = safetyInitiatorObj.safetyInitiator;
-                responseObj.botUserInfo = botUserInfo;
+
+                let { companyData, isInstalledInTeam } = await incidentService.isBotInstalledInTeam(userObjId);
+                responseObj.isInstalledInTeam = isInstalledInTeam;
+
+                let botUserInfoObj = {};
+                if (botUserInfo && botUserInfo.length > 0) {
+                    botUserInfoObj = botUserInfo[0];
+                }
+                responseObj.botUserInfo = {
+                    ...botUserInfoObj,
+                    companyData,
+                    userLicenseDetails
+                }
 
                 res.send(
                     responseObj
@@ -394,6 +404,27 @@ const handlerForSafetyBotTab = (app) => {
             await tabObj.processError(reqBody);
         } catch (err) {
             console.log(err);
+        }
+    });
+
+    app.get("/areyousafetabhandler/getSafetyCheckProgress", (req, res) => {
+        const { incid, incType, teamId, userAadObjId } = req.query;
+
+        try {
+            incidentService
+                .getSafetyCheckProgress(incid, incType, teamId, userAadObjId)
+                .then((progress) => {
+                    progress.respIncId = incid;
+                    res.send(progress);
+                })
+                .catch((err) => {
+                    console.log(err);
+                    processSafetyBotError(err, "", "", userAadObjId);
+                    res.send(0);
+                });
+        } catch (err) {
+            processSafetyBotError(err, "", "", userAadObjId);
+            res.send(0);
         }
     });
 }

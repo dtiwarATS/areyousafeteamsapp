@@ -43,7 +43,7 @@ BEGIN
 	response bit,
 	response_value bit,
 	comment varchar(max),
-	timestamp VARCHAR(100),
+	[timestamp] datetime,
 	--CONSTRAINT fk_event_member_response FOREIGN KEY(event_id) REFERENCES event(id)
 	);
 END
@@ -499,5 +499,61 @@ GO
 IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='message_delivery_error' AND TABLE_NAME='MSTeamsMemberResponses')
 BEGIN
 ALTER TABLE MSTeamsMemberResponses ADD message_delivery_error NVARCHAR(max) NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='conversationId' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD conversationId nvarchar(max) NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isThreeDayBeforeMessageSent' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD isThreeDayBeforeMessageSent BIT NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isSevenDayBeforeMessageSent' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD isSevenDayBeforeMessageSent BIT NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isTrialExpired' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD isTrialExpired bit NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='previousSubscriptionType' AND TABLE_NAME='MSTeamsTeamsUsers')
+BEGIN
+ALTER TABLE MSTeamsTeamsUsers ADD previousSubscriptionType varchar(2) NULL
+END
+GO
+
+--alter table MSTeamsMemberResponses alter column [timestamp] datetime
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='timestamp' AND TABLE_NAME='MSTeamsMemberResponsesRecurr')
+BEGIN
+ALTER TABLE MSTeamsMemberResponsesRecurr ADD [timestamp] datetime NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='InitDate' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD InitDate dateTime NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='TrialStartDate' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD TrialStartDate dateTime NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='SubcriptionStartDate' AND TABLE_NAME='MSTeamsSubscriptionDetails')
+BEGIN
+ALTER TABLE MSTeamsSubscriptionDetails ADD SubcriptionStartDate dateTime NULL
 END
 GO

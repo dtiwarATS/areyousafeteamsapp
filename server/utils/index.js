@@ -35,31 +35,35 @@ const toTitleCase = (str) => {
 };
 
 const formatedDate = (format, date = null) => {
-  if(date == null){
-    date = new Date();  
+  if (date == null) {
+    date = new Date();
   }
 
   let d = new Date(date),
-      month = '' + (d.getMonth() + 1),
-      day = '' + d.getDate(),
-      year = d.getFullYear(),
-      hours = d.getHours(),
-      minutes = d.getMinutes();
+    month = '' + (d.getMonth() + 1),
+    day = '' + d.getDate(),
+    year = d.getFullYear(),
+    hours = d.getHours(),
+    minutes = d.getMinutes(),
+    seconds = d.getSeconds();
 
-  if (month.length < 2){ 
-    month = '0' + month;   
-  }  
-  if (day.length < 2){
+  if (month.length < 2) {
+    month = '0' + month;
+  }
+  if (day.length < 2) {
     day = '0' + day;
   }
-  if (hours.length < 2){
+  if (hours.toString().length < 2) {
     hours = '0' + hours;
   }
-  if (minutes.length < 2){
+  if (minutes.toString().length < 2) {
     minutes = '0' + minutes;
   }
+  if (seconds.toString().length < 2) {
+    seconds = '0' + seconds;
+  }
 
-  let newDate = format.replace("mm",month).replace("dd",day).replace("yyyy",year).replace("hh",hours).replace("mm",minutes);
+  let newDate = format.replace("MM", month).replace("dd", day).replace("yyyy", year).replace("hh", hours).replace("mm", minutes).replace("ss", seconds);
   return newDate;
 }
 
@@ -81,21 +85,21 @@ const getCron = (time12hrStr, weekDaysArr) => {
   return `${minutes} ${hours} * * ${weekDayCron}`;
 }
 
-const convertToAMPM = (time) =>{
+const convertToAMPM = (time) => {
   const hour = time.split(":")[0];
   let minutes = time.split(":")[1] | "00";
-  const suffix = hour >= 12 ? "PM":"AM";
+  const suffix = hour >= 12 ? "PM" : "AM";
 
-  if (minutes.toString().length < 2){
+  if (minutes.toString().length < 2) {
     minutes = '0' + minutes;
   }
 
-  return (hour % 12)  + ":" + minutes + " " + suffix;
+  return (hour % 12) + ":" + minutes + " " + suffix;
 }
 
-module.exports = { 
-  sendEmail, 
-  toTitleCase, 
+module.exports = {
+  sendEmail,
+  toTitleCase,
   formatedDate,
   getCron,
   convertToAMPM

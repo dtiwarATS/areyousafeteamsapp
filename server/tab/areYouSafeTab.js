@@ -138,6 +138,8 @@ class AreYouSafeTab {
           const createdBy = inc.incCreatedByName;
           const startDate = this.getStartDate(inc.incCreatedDate);
           const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
+          const membersCount = inc.membersCount;
+          const messageDeliveredCount = inc.messageDeliveredCount;
           let safe = null;
           let needAssistance = null;
           let notResponded = null;
@@ -149,9 +151,9 @@ class AreYouSafeTab {
           if (inc.members != null && inc.members.length > 0) {
             const memberObj = this.sortMembers(inc.members);
             if (memberObj != null) {
-              safe = memberObj.membersSafe.sort();
-              needAssistance = memberObj.membersUnsafe.sort();
-              notResponded = memberObj.membersNotResponded.sort();
+              safe = memberObj.membersSafe;
+              needAssistance = memberObj.membersUnsafe;
+              notResponded = memberObj.membersNotResponded;
               safeCount = memberObj.membersSafe.length;
               needAssistanceCount = memberObj.membersUnsafe.length;
               notRespondedCount = memberObj.membersNotResponded.length;
@@ -165,7 +167,10 @@ class AreYouSafeTab {
           }
           const teamName = (teamObj && teamObj[inc.teamId]) ? teamObj[inc.teamId] : "";
 
-          return { incId, status, title, createdBy, startDate, duration, safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount, responsePercentage, teamName };
+          return {
+            incId, status, title, createdBy, startDate, duration, safe, needAssistance, notResponded, safeCount, needAssistanceCount,
+            notRespondedCount, responsePercentage, teamName, membersCount, messageDeliveredCount
+          };
         });
       }
     } catch (err) {
@@ -452,7 +457,7 @@ class AreYouSafeTab {
   sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, userAadObjId) => {
     const log = new AYSLog();
     try {
-      const safetyCheckSend = await bot.sendSafetyCheckMessage(incId, teamId, createdByUserInfo, log, userAadObjId);
+      const safetyCheckSend = await bot.sendSafetyCheckMessageAsync(incId, teamId, createdByUserInfo, log, userAadObjId);
       return Promise.resolve(safetyCheckSend);
     } catch (err) {
       console.log(err);

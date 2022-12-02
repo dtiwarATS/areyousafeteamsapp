@@ -269,23 +269,23 @@ const getTypeTwoFiveDayBeforeCard = (expiryDate) => {
     }
 }
 
-const getTypeTwoSubscriptionEndCard = (expiryDate, userEmailId) => {
-    const helfullLinkJSON = getHelfullLinkJSON(userEmailId);
-    return {
-        "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.4",
-        "body": [
-            {
-                "type": "TextBlock",
-                "text": `**Hello, Your 45-day free trial of the AreYouSafe? bot premium version has ended on ${expiryDate}.** You are now on the free version. AreYouSafe? bot will work for 10 users.`,
-                "wrap": true
-            },
-            subcriptionLinkJSON,
-            ...helfullLinkJSON
-        ]
-    }
-}
+// const getTypeTwoSubscriptionEndCard = (expiryDate, userEmailId) => {
+//     const helfullLinkJSON = getHelfullLinkJSON(userEmailId);
+//     return {
+//         "type": "AdaptiveCard",
+//         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+//         "version": "1.4",
+//         "body": [
+//             {
+//                 "type": "TextBlock",
+//                 "text": `**Hello, Your 45-day free trial of the AreYouSafe? bot premium version has ended on ${expiryDate}.** You are now on the free version. AreYouSafe? bot will work for 10 users.`,
+//                 "wrap": true
+//             },
+//             subcriptionLinkJSON,
+//             ...helfullLinkJSON
+//         ]
+//     }
+// }
 
 const getTypeThreeSubscriptionStartedCard = (userCount, startDate, endDate, userObj) => {
     const mentionUserEntities = [
@@ -402,6 +402,166 @@ const getTypeThreeSubscriptionEndCard = (expiryDate, userEmailId) => {
     }
 }
 
+const getTypeTwoSevenDayBeforeCard = (userId, userName) => {
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `Hi <at>${userName}</at>`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Your AreYouSafe free trial ends in 7-days. When your trial expires, we will switch you to the Free version that works for a team of up to 10 users.",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Please **Buy a subscription** to continue reaching out to all your employees during emergencies with the AreYouSafe bot.",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Have questions about pricing? Access our ↗ [FAQ page](https://safetybot.in/frequently_asked_questions.html)",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "To Buy a subscription: ",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Best,\n\nTeam AreYouSafe",
+                "wrap": true
+            }
+        ],
+        "msteams": {
+            "entities": [{
+                type: "mention",
+                text: `<at>${userName}</at>`,
+                mentioned: {
+                    id: userId,
+                    name: userName,
+                },
+            }]
+        }
+    }
+}
+
+const getTypeTwoThreeDayBeforeCard = (userId, userName) => {
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `Hi <at>${userName}</at>`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Your unlimited trial ends in 3 days.",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Without an **upgrade to premium**, you won't be able to reach all employees during emergencies using the AreYouSafe bot. Our plan starts at $0.50 user/month.",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Need to extend your trial? [Contact Us](mailto:help@safetybot.in)",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "To get a premium subscription: ",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Best,\n\nTeam AreYouSafe",
+                "wrap": true
+            }
+        ],
+        "msteams": {
+            "entities": [{
+                type: "mention",
+                text: `<at>${userName}</at>`,
+                mentioned: {
+                    id: userId,
+                    name: userName,
+                },
+            }]
+        }
+    }
+}
+
+const getTypeTwoSubscriptionEndCard = (userId, userName, teamName) => {
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": `Hi <at>${userName}</at>`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": `Your free trial has ended. You are now on the free version. AreYouSafe bot will work for up to 10 users (in alphabetical order by the first name) of your team ${teamName}.`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Upgrade to our premium subscription plan to continue improving emergency response during crises with real-time reports.",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "To get a premium subscription: ",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": "Best,\n\nTeam AreYouSafe",
+                "wrap": true
+            }
+        ],
+        "msteams": {
+            "entities": [{
+                type: "mention",
+                text: `<at>${userName}</at>`,
+                mentioned: {
+                    id: userId,
+                    name: userName,
+                },
+            }]
+        }
+    }
+}
+
 module.exports = {
     getWelcomeMessageCard,
     getSubcriptionSelectionCard,
@@ -413,5 +573,7 @@ module.exports = {
     getTypeThreeFiveDayBeforeOneTimePaymentCard,
     getTypeThreeFiveDayBeforeRecurringPaymentCard,
     getCancelRecurringSubcriptionStepCard,
-    getTypeThreeSubscriptionEndCard
+    getTypeThreeSubscriptionEndCard,
+    getTypeTwoSevenDayBeforeCard,
+    getTypeTwoThreeDayBeforeCard
 }
