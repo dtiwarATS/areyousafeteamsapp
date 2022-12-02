@@ -207,6 +207,12 @@ class BotActivityHandler extends TeamsActivityHandler {
             context,
             teamId
           );
+
+          // const allChannelInfo = await TeamsInfo.getTeamChannels(
+          //   context,
+          //   teamId
+          // );
+          // console.log({ allChannelInfo });
           let teamMemberCount = 0;
           if (allMembersInfo != null && Array.isArray(allMembersInfo) && allMembersInfo.length > 0) {
             teamMemberCount = allMembersInfo.length;

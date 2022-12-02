@@ -70,41 +70,44 @@ const isAdminUser = async (userObjId) => {
   }
 };
 
-const getSafetyInitiatorOfNonAdminUser = async (userObjId) => {
-  let safetyInitiator = null;
-  try {
-    const sqlInitiator = `select top 1 user_name from MSTeamsInstallationDetails where team_id in (
-      select top 1 team_id from MSTeamsTeamsUsers where user_aadobject_id = '${userObjId}' ) and uninstallation_date is null`;
+// const getSafetyInitiatorOfNonAdminUser = async (userObjId) => {
+//   let safetyInitiator = null;
+//   try {
+//     const sqlInitiator = `select top 1 user_name from MSTeamsInstallationDetails where team_id in (
+//       select top 1 team_id from MSTeamsTeamsUsers where user_aadobject_id = '${userObjId}' ) and uninstallation_date is null`;
 
-    let safetyInitiatorData = await db.getDataFromDB(sqlInitiator, userObjId);
+//     let safetyInitiatorData = await db.getDataFromDB(sqlInitiator, userObjId);
 
-    if (safetyInitiatorData != null && safetyInitiatorData.length > 0) {
-      safetyInitiator = safetyInitiatorData[0]["user_name"];
-    }
-  } catch (err) {
-    console.log(err);
-    processSafetyBotError(err, "", "", userObjId);
-  }
-  return safetyInitiator;
-}
+//     if (safetyInitiatorData != null && safetyInitiatorData.length > 0) {
+//       safetyInitiator = safetyInitiatorData[0]["user_name"];
+//     }
+//   } catch (err) {
+//     console.log(err);
+//     processSafetyBotError(err, "", "", userObjId);
+//   }
+//   return safetyInitiator;
+// }
 
 const verifyAdminUserForDashboardTab = async (userObjId) => {
-  let safetyInitiator = null;
+  //let safetyInitiator = null;
   let isAdmin = false;
 
   try {
     isAdmin = await isAdminUser(userObjId);
-    if (!isAdmin) {
-      safetyInitiator = await getSafetyInitiatorOfNonAdminUser(userObjId);
-    }
+    // if (!isAdmin) {
+    //   safetyInitiator = await getSafetyInitiatorOfNonAdminUser(userObjId);
+    // }
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, "", "", userObjId);
   }
 
+  // return {
+  //   isAdmin,
+  //   safetyInitiator
+  // }
   return {
-    isAdmin,
-    safetyInitiator
+    isAdmin
   }
 }
 
