@@ -2222,6 +2222,64 @@ const sendProactiveMessaageToUserTest = async () => {
   return Promise.resolve(resp);
 }
 
+const sendProactiveMessaageToChannel = async () => {
+  try {
+    const appId = "b7710cbf-d5f0-4046-a207-7375df3de460";
+    const appPass = "KKb7Q~yDbZnyXuu.R3oCs3xwQcZE0Pb~-NgnW";
+    const botName = "Are You Safe?";
+
+    let serviceUrl = "https://smba.trafficmanager.net/amer/";
+
+    const msgAttachment = {
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      appId: appId,
+      body: [
+        {
+          type: "TextBlock",
+          size: "Large",
+          weight: "Bolder",
+          text: "Sending message in teams channel.."
+        }
+      ],
+      type: "AdaptiveCard",
+      version: "1.4",
+    };
+    let activity = null;
+    if (msgAttachment != null) {
+      activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+    }
+    const conversationParameters = {
+      bot: {
+        id: appId,
+        name: botName
+      },
+      isGroup: true,
+      conversationType: "channel",
+      channelData: {
+        channel: { id: "19:-hsC9OMcGeta4Ke-bYtIVS4HFxNJZ8D8fYK50KZi7q01@thread.tacv2" }
+      },
+      activity: {
+        type: 'message',
+        attachments: [CardFactory.adaptiveCard(msgAttachment)]
+      }
+    };
+
+
+
+    if (activity != null) {
+      var credentials = new MicrosoftAppCredentials(appId, appPass);
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+
+      let conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
+      //let activityResp = await connectorClient.conversations.sendToConversation(conversationResp.id, activity);
+    }
+  }
+  catch (err) {
+    console.log(err);
+  }
+  return Promise.resolve(resp);
+}
+
 const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
   let successflag = true;
   try {
@@ -2449,5 +2507,6 @@ module.exports = {
   addteamsusers,
   updateServiceUrl,
   sendProactiveMessaageToUserTest,
+  sendProactiveMessaageToChannel,
   sendSafetyCheckMessageAsync
 };

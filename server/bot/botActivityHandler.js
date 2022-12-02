@@ -86,6 +86,10 @@ class BotActivityHandler extends TeamsActivityHandler {
           if (isValidTenant) {
             await bot.sendProactiveMessaageToUserTest();
           }
+        } else if (acvtivityData.text == "sendProactiveMessaageToChannel") {
+          if (isValidTenant) {
+            await bot.sendProactiveMessaageToChannel();
+          }
         } else if (acvtivityData.text == "updateConversationId") {
           if (isValidTenant) {
             await incidentService.updateConversationId();
