@@ -869,7 +869,7 @@ const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userName
 const getIncResponseMembers = async (incId, teamId, userAadObjId) => {
   let result = null;
   try {
-    const sqlWhere = ` team_id = '${teamId}' and user_id in (select user_id from MSTeamsIncResponseSelectedUsers where inc_id = ${incId})`;
+    const sqlWhere = ` u.team_id = '${teamId}' and u.user_id in (select user_id from MSTeamsIncResponseSelectedUsers where inc_id = ${incId})`;
     const sqlTeamMembers = getTeamMemeberSqlQuery(sqlWhere);
     result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
   } catch (err) {
@@ -885,7 +885,7 @@ const getIncSelectedMembers = async (selectedUsers, teamId, userAadObjId) => {
     if (selectedUsers && selectedUsers.length > 0) {
       selectedUsers = "'" + selectedUsers.split(",").join("','") + "'";
     }
-    const sqlWhere = ` team_id = '${teamId}' and user_id in (${selectedUsers})`;
+    const sqlWhere = ` u.team_id = '${teamId}' and u.user_id in (${selectedUsers})`;
     const sqlTeamMembers = getTeamMemeberSqlQuery(sqlWhere);
     result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
   } catch (err) {

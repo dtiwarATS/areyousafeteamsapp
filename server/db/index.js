@@ -88,7 +88,7 @@ const parseValue = (value) => {
     parsedValue = `'${str.replace(/'/g, "''")}'`;
   }
   if (typeof value === "string") {
-    parsedValue = `'${value.replace(/'/g, "''")}'`;
+    parsedValue = `N'${value.replace(/'/g, "''")}'`;
   }
   return parsedValue;
 };
