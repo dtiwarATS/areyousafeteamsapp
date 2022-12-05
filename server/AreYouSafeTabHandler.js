@@ -25,7 +25,7 @@ const handlerForSafetyBotTab = (app) => {
                 responseObj.isAdmin = isAdmin;
                 const userLicenseDetails = await dbOperation.getUserLicenseDetails(userObjId, teamId);
                 responseObj.hasValidLicense = userLicenseDetails.hasLicense;
-                responseObj.safetyInitiator = safetyInitiatorObj.safetyInitiator;
+                //responseObj.safetyInitiator = safetyInitiatorObj.safetyInitiator;
 
                 let { companyData, isInstalledInTeam } = await incidentService.isBotInstalledInTeam(userObjId);
                 responseObj.isInstalledInTeam = isInstalledInTeam;
@@ -58,16 +58,12 @@ const handlerForSafetyBotTab = (app) => {
         try {
             let isAdmin = false;
             const tabObj = new tab.AreYouSafeTab(userObjId);
-
-            const botUserInfo = await tabObj.getBotUserInfo(req.query.teamId, userObjId);
             const teamInfo = await incidentService.getUserTeamInfo(userObjId);
             dbOperation.verifyAdminUserForDashboardTab(req.query.userId).then((safetyInitiatorObj) => {
                 isAdmin = safetyInitiatorObj.isAdmin;
-                const safetyInitiator = safetyInitiatorObj.safetyInitiator;
+                //const safetyInitiator = safetyInitiatorObj.safetyInitiator;
                 const responseObj = {
                     respData: "no permission",
-                    safetyInitiator,
-                    botUserInfo,
                     isAdmin
                 }
                 const sendRespData = (incData) => {
