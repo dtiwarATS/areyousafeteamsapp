@@ -52,6 +52,8 @@ const { getAfterUsrSubscribedTypeOneCard, getAfterUsrSubscribedTypeTwoCard } = r
 const axios = require("axios");
 const https = require("https");
 
+const { getSafetyCheckMessageText, SafetyCheckCard } = require("../models/SafetyCheckCard");
+
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
     const emailBody =
@@ -632,27 +634,28 @@ const createInc = async (context, user, companyData) => {
     console.log(error);
   }
 };
-const getSafetyCheckMessageText = async (incId, createdByName, incTitle, mentionUserEntities, incRespSelectedUsers = null) => {
-  let onBehalfOf = "", responseUsers = "";
-  if (incRespSelectedUsers == null) {
-    incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
-  }
-  if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
-    for (let i = 0; i < incRespSelectedUsers.length; i++) {
-      const { user_id: userId, user_name: userName } = incRespSelectedUsers[i];
-      responseUsers += ((responseUsers != "") ? ", " : "") + `<at>${userName}</at>`;
-      dashboard.mentionUser(mentionUserEntities, userId, userName);
-    }
-  }
-  if (responseUsers != "") {
-    onBehalfOf = ` on behalf of ${responseUsers}`;
-  }
-  const msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
-  return msg;
-};
+// const getSafetyCheckMessageText = async (incId, createdByName, incTitle, mentionUserEntities, incRespSelectedUsers = null) => {
+//   let onBehalfOf = "", responseUsers = "";
+//   if (incRespSelectedUsers == null) {
+//     incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+//   }
+//   if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
+//     for (let i = 0; i < incRespSelectedUsers.length; i++) {
+//       const { user_id: userId, user_name: userName } = incRespSelectedUsers[i];
+//       responseUsers += ((responseUsers != "") ? ", " : "") + `<at>${userName}</at>`;
+//       dashboard.mentionUser(mentionUserEntities, userId, userName);
+//     }
+//   }
+//   if (responseUsers != "") {
+//     onBehalfOf = ` on behalf of ${responseUsers}`;
+//   }
+//   const msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
+//   return msg;
+// };
+
 const getIncConfirmationCard = async (inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, incType, guidance) => {
   let mentionUserEntities = [];
-  const safetyCheckMessageText = await getSafetyCheckMessageText(newInc.incId, inc_created_by.name, incTitle, mentionUserEntities);
+  const safetyCheckMessageText = await getSafetyCheckMessageText(newInc.incId, inc_created_by.name, incTitle, mentionUserEntities, null, 1);
   dashboard.mentionUser(mentionUserEntities, inc_created_by.id, inc_created_by.name);
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -746,6 +749,7 @@ const getIncConfirmationCard = async (inc_created_by, incTitle, preTextMsg, newI
     version: "1.4",
   };
 }
+
 const verifyDuplicateInc = async (teamId, incTitle) => {
   return await incidentService.verifyDuplicateInc(teamId, incTitle);
 };
@@ -1155,7 +1159,7 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
 
 const getSaftyCheckCard = async (incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList) => {
   let mentionUserEntities = [];
-  const safetyCheckMessageText = await getSafetyCheckMessageText(incObj.incId, incObj.incCreatedBy.name, incTitle, mentionUserEntities, incResponseSelectedUsersList);
+  const safetyCheckMessageText = await getSafetyCheckMessageText(incObj.incId, incObj.incCreatedBy.name, incTitle, mentionUserEntities, incResponseSelectedUsersList, 1);
   dashboard.mentionUser(mentionUserEntities, incObj.incCreatedBy.id, incObj.incCreatedBy.name);
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -1407,7 +1411,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
 
       logTimeInSeconds(startTime, `getRequiredDataToSendMessage end`);
       startTime = (new Date()).getTime();
-      const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
+      const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } = incData;
       const { serviceUrl, userTenantId } = companyData;
 
       let selectedMembersArr = [];
@@ -1417,27 +1421,29 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
 
       let allMembersArr = [];
       if (selectedMembersArr != null && selectedMembersArr.length > 0) {
-        allMembers.forEach((tm) => {
-          if (selectedMembersArr.includes(tm.id)) {
-            const tmObj = {
-              ...tm,
-              messageDelivered: "na",
-              response: "na",
-              responseValue: "na",
-            }
-            allMembersArr.push(tmObj);
-          }
-        });
+        allMembersArr = allMembers.filter((tm) => selectedMembersArr.includes(tm.id));
+        // allMembers.forEach((tm) => {
+        //   if (selectedMembersArr.includes(tm.id)) {
+        //     const tmObj = {
+        //       ...tm,
+        //       messageDelivered: "na",
+        //       response: "na",
+        //       responseValue: "na",
+        //     }
+        //     allMembersArr.push(tmObj);
+        //   }
+        // });
       } else {
-        allMembers.forEach((tm) => {
-          const tmObj = {
-            ...tm,
-            messageDelivered: "na",
-            response: "na",
-            responseValue: "na",
-          }
-          allMembersArr.push(tmObj);
-        });
+        allMembersArr = allMembers;
+        // allMembers.forEach((tm) => {
+        //   const tmObj = {
+        //     ...tm,
+        //     messageDelivered: "na",
+        //     response: "na",
+        //     responseValue: "na",
+        //   }
+        //   allMembersArr.push(tmObj);
+        // });
       }
 
       const incWithAddedMembers = await incidentService.addMembersIntoIncData(
@@ -1448,7 +1454,13 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
       );
       logTimeInSeconds(startTime, `addMembersIntoIncData end`);
       startTime = (new Date()).getTime();
-      if (incType == "onetime") {
+
+      if (Number(incTypeId) == 1 && incType == "recurringIncident") {
+        const userTimeZone = createdByUserInfo.userTimeZone;
+        const actionData = { incident: incData };
+        await incidentService.saveRecurrSubEventInc(actionData, companyData, userTimeZone);
+        resolve(true);
+      } else {
         const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
@@ -1456,9 +1468,6 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         }
         incCreatedByUserArr.push(incCreatedByUserObj);
 
-        //const dashboardResponse = await sendProactiveMessaageToUser(incCreatedByUserArr, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId);
-        //logTimeInSeconds(startTime, `send dashboard to safety initiator users end`);
-        //startTime = (new Date()).getTime();
         let incObj = {
           incId,
           incTitle,
@@ -1468,12 +1477,11 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         }
         incGuidance = incGuidance ? incGuidance : "No details available";
 
-        const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList);
+        const approvalCard = await SafetyCheckCard(incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId);
 
         logTimeInSeconds(startTime, `getSaftyCheckCard end`);
         startTime = (new Date()).getTime();
 
-        // {
         const appId = process.env.MicrosoftAppId;
         const appPass = process.env.MicrosoftAppPassword;
 
@@ -1555,13 +1563,6 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
                   updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
                 }, 500);
               }
-              // getOneTimeDashboardCardAsync(incId, null, userAadObjId)
-              //   .then((dashboardCard) => sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl, userTenantId, log, userAadObjId))
-              //   .then((resp) => {
-              //   })
-              //   .catch((err) => {
-              //     processSafetyBotError(err, "", "", userAadObjId);
-              //   });
               resolve(true);
             }
           } catch (err) {
@@ -1581,45 +1582,6 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
             processSafetyBotError(err, "", "", userAadObjId);
           }
         });
-        // }
-
-        // {
-        // if (process.env.NODE_ENV === 'development') {
-        //   const httpsAgent = new https.Agent({
-        //     rejectUnauthorized: false,
-        //   })
-        //   axios.defaults.httpsAgent = httpsAgent;
-        // }
-        // const url = `${process.env.sendMessageAPI}/SendSafetyCheckMessage`;
-        // const data = {
-        //   incId,
-        //   serviceUrl,
-        //   userTenantId,
-        //   userAadObjId,
-        //   allMembersArr: JSON.stringify(allMembersArr),
-        //   safetyCheckCard: JSON.stringify(approvalCard)
-        // };
-        // axios.post(url, data, {
-        //   headers: {
-        //     'Content-Type': 'application/json'
-        //   }
-        // })
-        //   .then((resp) => {
-        //     logTimeInSeconds(initStartTime, `TotalTime`);
-        //     resolve(true);
-        //   })
-        //   .catch((err) => {
-        //     processSafetyBotError(err, "", "", userAadObjId);
-        //     resolve(true);
-        //   });
-        // }
-
-      }
-      else if (incType == "recurringIncident") {
-        const userTimeZone = createdByUserInfo.userTimeZone;
-        const actionData = { incident: incData };
-        await incidentService.saveRecurrSubEventInc(actionData, companyData, userTimeZone);
-        resolve(true);
       }
     } catch (err) {
       console.log(`sendSafetyCheckMessage error: ${err} `);

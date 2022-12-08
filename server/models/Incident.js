@@ -20,7 +20,8 @@ class Incident {
     INC_STATUS_ID,
     STATUS,
     membersCount,
-    messageDeliveredCount
+    messageDeliveredCount,
+    inc_type_id
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -43,6 +44,7 @@ class Incident {
     this.incCreatedByName = CREATED_BY_NAME;
     this.membersCount = membersCount;
     this.messageDeliveredCount = messageDeliveredCount;
+    this.incTypeId = inc_type_id;
   }
 }
 

@@ -1206,7 +1206,7 @@ const getRequiredDataToSendMessage = async (incId, teamId, userAadObjId, userIdA
     const sql = ` SELECT top 1 * FROM MSTeamsInstallationDetails where team_id = '${teamId}';
     
     SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
-    inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, m.is_message_delivered, 
+    inc.selected_members, inc.created_by, inc.GUIDANCE, inc.inc_type_id, m.user_id, m.user_name, m.is_message_delivered, 
     m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
     inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
     FROM MSTeamsIncidents inc
