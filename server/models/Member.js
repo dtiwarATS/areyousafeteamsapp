@@ -13,7 +13,7 @@ class Member {
   }) {
     this.userId = user_id;
     this.userName = user_name;
-    this.isMessageDelivered = is_message_delivered || null;
+    this.isMessageDelivered = is_message_delivered != null ? is_message_delivered : null;
     this.response = response;
     this.responseValue = response_value;
     this.comment = comment;

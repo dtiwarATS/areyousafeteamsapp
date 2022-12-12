@@ -1422,31 +1422,11 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
       let allMembersArr = [];
       if (selectedMembersArr != null && selectedMembersArr.length > 0) {
         allMembersArr = allMembers.filter((tm) => selectedMembersArr.includes(tm.id));
-        // allMembers.forEach((tm) => {
-        //   if (selectedMembersArr.includes(tm.id)) {
-        //     const tmObj = {
-        //       ...tm,
-        //       messageDelivered: "na",
-        //       response: "na",
-        //       responseValue: "na",
-        //     }
-        //     allMembersArr.push(tmObj);
-        //   }
-        // });
       } else {
         allMembersArr = allMembers;
-        // allMembers.forEach((tm) => {
-        //   const tmObj = {
-        //     ...tm,
-        //     messageDelivered: "na",
-        //     response: "na",
-        //     responseValue: "na",
-        //   }
-        //   allMembersArr.push(tmObj);
-        // });
       }
 
-      const incWithAddedMembers = await incidentService.addMembersIntoIncData(
+      await incidentService.addMembersIntoIncData(
         incId,
         allMembersArr,
         incCreatedBy,

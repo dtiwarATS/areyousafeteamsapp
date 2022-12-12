@@ -147,9 +147,11 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
 
   let selectQuery = ` ${createdByVar}
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, m.user_id, 
+  m.user_name, m.is_message_delivered, m.response, m.response_value, 
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
-  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID, tu.userPrincipalName
+  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID, 
+  tu.userPrincipalName
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
