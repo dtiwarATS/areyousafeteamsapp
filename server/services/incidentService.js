@@ -974,16 +974,16 @@ const getSuperUsersByTeamId = async (teamId) => {
 const isWelcomeMessageSend = async (userObjId) => {
   let isWelcomeMessageSent = false;
   try {
-    const sqlIsMessageSent = `IF EXISTS (select * from msteamsinstallationdetails where user_obj_id = '${userObjId}' and welcomeMessageSent = 1) ` +
-      `BEGIN ` +
-      `UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; ` +
-      `SELECT cast('1' as bit) AS isWelcomeMessageSent ` +
-      `END ` +
-      `ELSE ` +
-      `BEGIN ` +
-      `UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; ` +
-      `SELECT cast('0' as bit) AS isWelcomeMessageSent; ` +
-      `END `;
+    const sqlIsMessageSent = `IF EXISTS (select * from msteamsinstallationdetails where user_obj_id = '${userObjId}' and welcomeMessageSent = 1)
+      BEGIN 
+        UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; 
+        SELECT cast('1' as bit) AS isWelcomeMessageSent ;
+      END 
+      ELSE 
+      BEGIN
+        UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; 
+        SELECT cast('0' as bit) AS isWelcomeMessageSent; 
+      END `;
     result = await db.getDataFromDB(sqlIsMessageSent, userObjId);
     if (result && result.length > 0) {
       isWelcomeMessageSent = result[0]["isWelcomeMessageSent"];

@@ -152,7 +152,7 @@ class AreYouSafeTab {
         }
 
         incFormatedData = incData.map((inc) => {
-          const { incId, incTitle: title, createdBy, membersCount, messageDeliveredCount, incTypeId } = inc;
+          const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount, incTypeId } = inc;
           const status = (inc.incStatusId === 2) ? "Closed" : "In progress";
           const startDate = this.getStartDate(inc.incCreatedDate);
           const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
