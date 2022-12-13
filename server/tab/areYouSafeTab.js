@@ -152,7 +152,7 @@ class AreYouSafeTab {
         }
 
         incFormatedData = incData.map((inc) => {
-          const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount, incTypeId } = inc;
+          const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount, incTypeId, additionalInfo, travelUpdate, contactInfo } = inc;
           const status = (inc.incStatusId === 2) ? "Closed" : "In progress";
           const startDate = this.getStartDate(inc.incCreatedDate);
           const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
@@ -205,7 +205,7 @@ class AreYouSafeTab {
             incId, status, title, createdBy, startDate, duration, incTypeId,
             safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount,
             notDelivered, deliveryInProgress, delivered, notDeliveredCount, deliveryInProgressCount, deliveredCount,
-            responsePercentage, teamName, membersCount, messageDeliveredCount,
+            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo
           };
         });
       }

@@ -22,7 +22,10 @@ class Incident {
     membersCount,
     messageDeliveredCount,
     inc_type_id,
-    incident_type
+    incident_type,
+    additionalInfo,
+    travelUpdate,
+    contactInfo
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -47,6 +50,9 @@ class Incident {
     this.messageDeliveredCount = messageDeliveredCount;
     this.incTypeId = inc_type_id;
     this.incMsgType = incident_type;
+    this.additionalInfo = additionalInfo;
+    this.travelUpdate = travelUpdate;
+    this.contactInfo = contactInfo;
   }
 }
 

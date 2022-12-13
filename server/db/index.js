@@ -25,7 +25,6 @@ const getColumns = (tableName) => {
     case "MSTeamsIncidents":
       columns = [
         "inc_name",
-        "inc_desc",
         "inc_type",
         "channel_id",
         "team_id",
@@ -40,7 +39,10 @@ const getColumns = (tableName) => {
         "CREATED_BY_NAME",
         "GUIDANCE",
         "INC_STATUS_ID",
-        "INC_TYPE_ID"
+        "INC_TYPE_ID",
+        "additionalInfo",
+        "travelUpdate",
+        "contactInfo"
       ];
       break;
 

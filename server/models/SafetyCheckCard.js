@@ -21,7 +21,7 @@ const getSafetyCheckMessageText = async (incId, createdByName, incTitle, mention
     let msg = "";
     if (incTypeId == 1) {//Safety Check
         msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
-    } else {
+    } else if (incTypeId == 2) {
         msg = `This is a safety alert from <at>${createdByName}</at>. We think you may be affected by **${incTitle}**.`;
     }
     return msg;
@@ -91,7 +91,70 @@ const getSafetyCheckTypeCard = async (incTitle, incObj, companyData, incGuidance
     };
 }
 
-const SafetyCheckCard = async (incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId) => {
+const getImpBulletineTypeCard = async (incTitle, incGuidance, additionalInfo) => {
+    const cardBody = [
+        {
+            type: "TextBlock",
+            size: "Large",
+            weight: "Bolder",
+            text: `**Important Bulletin: ${incTitle}**`
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            text: `**Guidance:**\n\n` + incGuidance,
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            text: `**Additional Information:**\n\n` + additionalInfo,
+        }
+    ];
+
+    return {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: cardBody,
+        type: "AdaptiveCard",
+        version: "1.4",
+    };
+}
+
+const getTravelAdvisoryTypeCard = async (incTitle, incGuidance, travelUpdate, contactInfo) => {
+    const cardBody = [
+        {
+            type: "TextBlock",
+            size: "Large",
+            weight: "Bolder",
+            text: `**Travel Advisory: ${incTitle}**`
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            text: `**Travel Update:**\n\n` + travelUpdate,
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            text: `**Guidance:**\n\n` + incGuidance,
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            text: `**Contact Information:**\n\n` + contactInfo,
+        }
+    ];
+
+    return {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: cardBody,
+        type: "AdaptiveCard",
+        version: "1.4",
+    };
+}
+
+const SafetyCheckCard = async (incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId, additionalInfo, travelUpdate, contactInfo) => {
     let card = null;
     switch (incTypeId) {
         case 1: //Safety Check
@@ -101,10 +164,10 @@ const SafetyCheckCard = async (incTitle, incObj, companyData, incGuidance, incRe
             card = await getSafetyCheckTypeCard(incTitle, incObj, companyData, incGuidance, null, incTypeId);
             break;
         case 3: //Important Bulletin
-            card = null;
+            card = await getImpBulletineTypeCard(incTitle, incGuidance, additionalInfo, travelUpdate, contactInfo);
             break;
         case 4: //Travel Advisory
-            card = null;
+            card = await getTravelAdvisoryTypeCard(incTitle, incGuidance, travelUpdate, contactInfo);
             break;
         case 5: //Stakeholder Notice
             card = null;
