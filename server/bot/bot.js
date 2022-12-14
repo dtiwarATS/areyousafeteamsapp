@@ -273,12 +273,22 @@ const sendMsg = async (context) => {
     "body": [
       {
         "type": "TextBlock",
-        "text": `Hello there, we have introduced AreYouSafe? bot premium subscription with unlimited user access starting from ${formatedDate("MM/dd/yyyy", (new Date()))}. However, **you are getting 1-year free premium subscription** as a thank you for being our beta users and helping us improve AreYouSafe? bot with your valuable feedback.`,
+        "text": "Hello there, we have added **new incident types** recently.",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "Type **Help** in your chat window to continue using AreYouSafe? bot premium for unlimited users.",
+        "text": "- **Safety Alerts** - Notify your employees about a potential danger that needs immediate attention and offer preventive measures. \r- **Important bulletin** - Pass on the official news or post-incident updates to your team. \r- **Travel advisory** - Provide safety and security recommendations to your folks on business trips and provide safety instructions. \r - **Stakeholder notice** - Give incident briefings to your crisis management team and key stakeholders.",
+        "wrap": true
+      },
+      {
+        "type": "TextBlock",
+        "text": "To access these features in",
+        "wrap": true
+      },
+      {
+        "type": "TextBlock",
+        "text": "1. **Chat**: Go to the Chat section -> AreYouSafe? Bot -> Dashboard tab -> Click the **Create Incident** button -> Select the **Incident Type**. \r 2. **Team**: Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? Tab -> Click the **Create Incident** button -> Select the **Incident Type**.",
         "wrap": true
       },
       {
