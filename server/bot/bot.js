@@ -1411,7 +1411,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
 
       logTimeInSeconds(startTime, `getRequiredDataToSendMessage end`);
       startTime = (new Date()).getTime();
-      const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId, additionalInfo, travelUpdate, contactInfo } = incData;
+      const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId, additionalInfo, travelUpdate, contactInfo, situation } = incData;
       const { serviceUrl, userTenantId } = companyData;
 
       let selectedMembersArr = [];
@@ -1457,7 +1457,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
         }
         incGuidance = incGuidance ? incGuidance : "No details available";
 
-        const approvalCard = await SafetyCheckCard(incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId, additionalInfo, travelUpdate, contactInfo);
+        const approvalCard = await SafetyCheckCard(incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId, additionalInfo, travelUpdate, contactInfo, situation);
 
         logTimeInSeconds(startTime, `getSaftyCheckCard end`);
         startTime = (new Date()).getTime();

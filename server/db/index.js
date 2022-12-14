@@ -42,7 +42,8 @@ const getColumns = (tableName) => {
         "INC_TYPE_ID",
         "additionalInfo",
         "travelUpdate",
-        "contactInfo"
+        "contactInfo",
+        "situation",
       ];
       break;
 

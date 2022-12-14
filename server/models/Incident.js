@@ -25,7 +25,8 @@ class Incident {
     incident_type,
     additionalInfo,
     travelUpdate,
-    contactInfo
+    contactInfo,
+    situation
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -53,6 +54,7 @@ class Incident {
     this.additionalInfo = additionalInfo;
     this.travelUpdate = travelUpdate;
     this.contactInfo = contactInfo;
+    this.situation = situation;
   }
 }
 

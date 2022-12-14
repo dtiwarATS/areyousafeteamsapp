@@ -152,7 +152,8 @@ class AreYouSafeTab {
         }
 
         incFormatedData = incData.map((inc) => {
-          const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount, incTypeId, additionalInfo, travelUpdate, contactInfo } = inc;
+          const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount,
+            incTypeId, additionalInfo, travelUpdate, contactInfo, situation } = inc;
           const status = (inc.incStatusId === 2) ? "Closed" : "In progress";
           const startDate = this.getStartDate(inc.incCreatedDate);
           const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
@@ -205,7 +206,7 @@ class AreYouSafeTab {
             incId, status, title, createdBy, startDate, duration, incTypeId,
             safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount,
             notDelivered, deliveryInProgress, delivered, notDeliveredCount, deliveryInProgressCount, deliveredCount,
-            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo
+            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo, situation
           };
         });
       }
@@ -481,6 +482,9 @@ class AreYouSafeTab {
           responseSelectedMembers = incObj.responseSelectedMembers;
         }
         incData.guidance = incData.guidance.toString().replace(/\\n/g, "\n\n");
+        incData.additionalInfo = incData.additionalInfo.toString().replace(/\\n/g, "\n\n");
+        incData.contactInfo = incData.contactInfo.toString().replace(/\\n/g, "\n\n");
+        incData.situation = incData.situation.toString().replace(/\\n/g, "\n\n");
         newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises, userAadObjId);
       }
     } catch (err) {
