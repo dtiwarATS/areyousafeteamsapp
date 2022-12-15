@@ -276,19 +276,21 @@ class BotActivityHandler extends TeamsActivityHandler {
           }
         } else if (teamId == null && acvtivityData) {
           const { membersAdded } = acvtivityData;
-          for (let i = 0; i < membersAdded.length; i++) {
-            // See if the member added was our bot
-            if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
-              addedBot = true;
-              // retrive user info who installed the app
-              const adminUserInfo = await TeamsInfo.getMember(
-                context,
-                acvtivityData.from.id
-              );
-              if (adminUserInfo) {
-                const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
-                const companyData = await insertCompanyData(companyDataObj, null, conversationType);
-                await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
+          if (membersAdded) {
+            for (let i = 0; i < membersAdded.length; i++) {
+              // See if the member added was our bot
+              if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
+                addedBot = true;
+                // retrive user info who installed the app
+                const adminUserInfo = await TeamsInfo.getMember(
+                  context,
+                  acvtivityData.from.id
+                );
+                if (adminUserInfo) {
+                  const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
+                  const companyData = await insertCompanyData(companyDataObj, null, conversationType);
+                  await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
+                }
               }
             }
           }

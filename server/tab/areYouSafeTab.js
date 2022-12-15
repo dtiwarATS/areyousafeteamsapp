@@ -91,28 +91,48 @@ class AreYouSafeTab {
     }
   }
 
-  sortMembers = (members) => {
+  sortMembers = (members, incTypeId) => {
     let memberObj = null;
     try {
-      memberObj = {
-        membersSafe: [],
-        membersUnsafe: [],
-        membersNotResponded: [],
-      };
+      if (!incTypeId || incTypeId == 1) {
+        memberObj = {
+          membersSafe: [],
+          membersUnsafe: [],
+          membersNotResponded: [],
+        };
 
-      members.forEach((m) => {
-        const { response, responseValue } = m;
+        members.forEach((m) => {
+          const { response, responseValue } = m;
 
-        if (response === "na" || response === false) {
-          memberObj.membersNotResponded.push(m);
-        } else if (response === true) {
-          if (responseValue === true) {
-            memberObj.membersSafe.push(m);
-          } else if (responseValue === false || responseValue == null) {
-            memberObj.membersUnsafe.push(m);
+          if (response === "na" || response === false) {
+            memberObj.membersNotResponded.push(m);
+          } else if (response === true) {
+            if (responseValue === true) {
+              memberObj.membersSafe.push(m);
+            } else if (responseValue === false || responseValue == null) {
+              memberObj.membersUnsafe.push(m);
+            }
           }
-        }
-      });
+        });
+      } else {
+        memberObj = {
+          notDelivered: [],
+          deliveryInProgress: [],
+          delivered: [],
+        };
+        members.forEach((m) => {
+          const { isMessageDelivered, msgStatus } = m;
+
+          if (!msgStatus || msgStatus?.toString()?.trim() == "") {
+            memberObj.deliveryInProgress.push(m);
+          } else if (isMessageDelivered === true) {
+            memberObj.delivered.push(m);
+          } else if (isMessageDelivered === false) {
+            memberObj.notDelivered.push(m);
+          }
+        });
+      }
+
     } catch (err) {
       processSafetyBotError(err, "", "");
     }
@@ -132,14 +152,12 @@ class AreYouSafeTab {
         }
 
         incFormatedData = incData.map((inc) => {
-          const incId = inc.incId;
+          const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount,
+            incTypeId, additionalInfo, travelUpdate, contactInfo, situation } = inc;
           const status = (inc.incStatusId === 2) ? "Closed" : "In progress";
-          const title = inc.incTitle;
-          const createdBy = inc.incCreatedByName;
           const startDate = this.getStartDate(inc.incCreatedDate);
           const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
-          const membersCount = inc.membersCount;
-          const messageDeliveredCount = inc.messageDeliveredCount;
+
           let safe = null;
           let needAssistance = null;
           let notResponded = null;
@@ -148,28 +166,47 @@ class AreYouSafeTab {
           let notRespondedCount = 0;
           let responsePercentage = "0%";
 
-          if (inc.members != null && inc.members.length > 0) {
-            const memberObj = this.sortMembers(inc.members);
-            if (memberObj != null) {
-              safe = memberObj.membersSafe;
-              needAssistance = memberObj.membersUnsafe;
-              notResponded = memberObj.membersNotResponded;
-              safeCount = memberObj.membersSafe.length;
-              needAssistanceCount = memberObj.membersUnsafe.length;
-              notRespondedCount = memberObj.membersNotResponded.length;
+          let notDelivered = null;
+          let deliveryInProgress = null;
+          let delivered = null;
+          let notDeliveredCount = null;
+          let deliveryInProgressCount = null;
+          let deliveredCount = null;
 
-              if (needAssistanceCount > 0 || safeCount > 0) {
-                responsePercentage = Math.round(
-                  ((needAssistanceCount + safeCount) * 100) / inc.members.length
-                ).toString() + "%";
+          if (inc.members != null && inc.members.length > 0) {
+            const memberObj = this.sortMembers(inc.members, inc.incTypeId);
+            if (memberObj != null) {
+              if (!incTypeId || incTypeId == 1) {
+                safe = memberObj.membersSafe;
+                needAssistance = memberObj.membersUnsafe;
+                notResponded = memberObj.membersNotResponded;
+                safeCount = memberObj.membersSafe.length;
+                needAssistanceCount = memberObj.membersUnsafe.length;
+                notRespondedCount = memberObj.membersNotResponded.length;
+
+                if (needAssistanceCount > 0 || safeCount > 0) {
+                  responsePercentage = Math.round(
+                    ((needAssistanceCount + safeCount) * 100) / inc.members.length
+                  ).toString() + "%";
+                }
+              } else {
+                notDelivered = memberObj.notDelivered;
+                deliveryInProgress = memberObj.deliveryInProgress;
+                delivered = memberObj.delivered;
+                notDeliveredCount = memberObj.notDelivered.length;
+                deliveryInProgressCount = memberObj.deliveryInProgress.length;
+                deliveredCount = memberObj.delivered.length;
               }
             }
           }
+
           const teamName = (teamObj && teamObj[inc.teamId]) ? teamObj[inc.teamId] : "";
 
           return {
-            incId, status, title, createdBy, startDate, duration, safe, needAssistance, notResponded, safeCount, needAssistanceCount,
-            notRespondedCount, responsePercentage, teamName, membersCount, messageDeliveredCount
+            incId, status, title, createdBy, startDate, duration, incTypeId,
+            safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount,
+            notDelivered, deliveryInProgress, delivered, notDeliveredCount, deliveryInProgressCount, deliveredCount,
+            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo, situation
           };
         });
       }
@@ -445,6 +482,9 @@ class AreYouSafeTab {
           responseSelectedMembers = incObj.responseSelectedMembers;
         }
         incData.guidance = incData.guidance.toString().replace(/\\n/g, "\n\n");
+        incData.additionalInfo = incData.additionalInfo.toString().replace(/\\n/g, "\n\n");
+        incData.contactInfo = incData.contactInfo.toString().replace(/\\n/g, "\n\n");
+        incData.situation = incData.situation.toString().replace(/\\n/g, "\n\n");
         newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises, userAadObjId);
       }
     } catch (err) {

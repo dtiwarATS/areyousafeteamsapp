@@ -70,42 +70,14 @@ const isAdminUser = async (userObjId) => {
   }
 };
 
-// const getSafetyInitiatorOfNonAdminUser = async (userObjId) => {
-//   let safetyInitiator = null;
-//   try {
-//     const sqlInitiator = `select top 1 user_name from MSTeamsInstallationDetails where team_id in (
-//       select top 1 team_id from MSTeamsTeamsUsers where user_aadobject_id = '${userObjId}' ) and uninstallation_date is null`;
-
-//     let safetyInitiatorData = await db.getDataFromDB(sqlInitiator, userObjId);
-
-//     if (safetyInitiatorData != null && safetyInitiatorData.length > 0) {
-//       safetyInitiator = safetyInitiatorData[0]["user_name"];
-//     }
-//   } catch (err) {
-//     console.log(err);
-//     processSafetyBotError(err, "", "", userObjId);
-//   }
-//   return safetyInitiator;
-// }
-
 const verifyAdminUserForDashboardTab = async (userObjId) => {
-  //let safetyInitiator = null;
   let isAdmin = false;
-
   try {
     isAdmin = await isAdminUser(userObjId);
-    // if (!isAdmin) {
-    //   safetyInitiator = await getSafetyInitiatorOfNonAdminUser(userObjId);
-    // }
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, "", "", userObjId);
   }
-
-  // return {
-  //   isAdmin,
-  //   safetyInitiator
-  // }
   return {
     isAdmin
   }
@@ -185,18 +157,6 @@ const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
     adminAadObjId
   });
 }
-
-// const addServiceUrl = async (companyData, acvtivityData) => {
-//   try {
-//     const serviceUrl = acvtivityData.serviceUrl;
-//     pool = await poolPromise;
-//     const sqlAddServiceUrl = `update MSTeamsInstallationDetails set serviceUrl = '${serviceUrl}' where user_tenant_id = '${companyData.userTenantId}'`;
-//     await pool.request().query(sqlAddServiceUrl);
-//   } catch (err) {
-//     console.log(err);
-//     processSafetyBotError(err, "", "");
-//   }
-// }
 
 const getCompaniesData = async (
   userObjId,
@@ -278,15 +238,14 @@ const teamMemberInsertQuery = (teamId, m) => {
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND[user_aadobject_id] = '${m.objectId}' AND userPrincipalName is null)
     BEGIN
       UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${userEmail}', tenantid = '${m.tenantId}', userRole = '${m.userRole}'
-      WHERE team_id = '${teamId}'
-    AND[user_aadobject_id] = '${m.objectId}'
-    END `;
+      WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}';
+    END`;
 }
 
 const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
   let isUserInfoSaved = false;
+  let sqlInserUsers = "";
   try {
-    let sqlInserUsers = "";
     pool = await poolPromise;
 
     if (updateLicense) {
@@ -318,53 +277,15 @@ const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, teamId, "", "", sqlInserUsers);
   }
   return isUserInfoSaved;
 }
 
-// const insertTeamData = async (tenantId, teamId, teamName, allMembersInfo) => {
-//   try {
-//     const sqlTeam = `IF NOT EXISTS(SELECT * FROM MSTeamsTeams WHERE tenant_id = '${tenantId}' and team_id = '${teamId}') ` +
-//       ` BEGIN ` +
-//       ` INSERT INTO MSTeamsTeams([tenant_id], [team_id], [team_name]) VALUES('${tenantId}', '${teamId}', '${teamName}'); ` +
-//       ` SELECT id FROM MSTeamsTeams WHERE id = SCOPE_IDENTITY(); ` +
-//       ` END ` +
-//       ` ELSE ` +
-//       ` BEGIN ` +
-//       ` SELECT ID FROM MSTeamsTeams WHERE tenant_id = '${tenantId}' and team_id = '${teamId}'; ` +
-//       ` END `;
-
-//     console.log(sqlTeam);
-//     const result = await pool.request().query(sqlTeam);
-//     const id = result?.recordset[0]["id"];
-//     if (id != null && Number(id) > 0) {
-//       insertUserData(id, teamId, allMembersInfo);
-//     }
-//   } catch (err) {
-//     console.log(err);
-//   }
-// }
-
 const updateUserLicenseStatus = async (teamId, tenantId, userObjId) => {
+  let sqlUpdateLicenseStatus = "";
   try {
-    // const sqlUpdateLicenseStatus = `Declare @licenseCount integer = (select count(id) from MSTeamsTeamsUsers where tenantid = '${tenantId}' and team_id = '${teamId}' and hasLicense = 1 );
-    // Declare @remaningLicense integer = (10 - @licenseCount);
-    // If (@remaningLicense <= 10)
-    // begin 
-
-    // update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
-    // select top (@remaningLicense) user_aadobject_id from MSTeamsTeamsUsers where user_aadobject_id not in (
-    //     select distinct user_aadobject_id 
-    //     from MSTeamsTeamsUsers 
-    //     where hasLicense = 1 and tenantid = '${tenantId}' and team_id = '${teamId}'
-    //   ) and tenantid = '${tenantId}' and team_id = '${teamId}' order by (case when user_aadobject_id = '${userObjId}' 
-    //   then 0 else 1 end), [user_name]
-    // )
-    // and tenantid = '${tenantId}' and team_id = '${teamId}'
-
-    // end`;
-    const sqlUpdateLicenseStatus = `update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
+    sqlUpdateLicenseStatus = `update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
       select user_aadobject_id from (
         select top 10 user_aadobject_id from MSTeamsTeamsUsers where user_aadobject_id not in (
           select user_aadobject_id 
@@ -387,13 +308,14 @@ const updateUserLicenseStatus = async (teamId, tenantId, userObjId) => {
       `;
     await pool.request().query(sqlUpdateLicenseStatus);
   } catch (err) {
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, teamId, "", userObjId, sqlUpdateLicenseStatus);
   }
 }
 
 const addTypeOneSubscriptionDetails = async (tenantId, userEmailId, userAadObjId, teamId) => {
+  let sqlSubscriptionDetails = "";
   try {
-    const sqlSubscriptionDetails = `If Not Exists (select ID from MSTeamsSubscriptionDetails where UserAadObjId = '${userAadObjId}')
+    sqlSubscriptionDetails = `If Not Exists (select ID from MSTeamsSubscriptionDetails where UserAadObjId = '${userAadObjId}')
     Begin
       Declare @pkId integer;
 
@@ -403,22 +325,23 @@ const addTypeOneSubscriptionDetails = async (tenantId, userEmailId, userAadObjId
       set @pkId = (SELECT SCOPE_IDENTITY());
 
       UPDATE MSTeamsInstallationDetails SET SubscriptionDetailsId = @pkId where user_obj_id = '${userAadObjId}' and team_id = '${teamId}';
-    End
+    END
     ELSE
     BEGIN
-      UPDATE MSTeamsInstallationDetails SET SubscriptionDetailsId = (select top 1 ID from MSTeamsSubscriptionDetails where UserAadObjId = '${userAadObjId}') where user_obj_id = '${userAadObjId}' and team_id = '${teamId}';
-    END
-    `;
+      UPDATE MSTeamsInstallationDetails SET SubscriptionDetailsId = (select top 1 ID from MSTeamsSubscriptionDetails where UserAadObjId = '${userAadObjId}') 
+      where user_obj_id = '${userAadObjId}' and team_id = '${teamId}';
+    END`;
     await pool.request().query(sqlSubscriptionDetails);
   } catch (err) {
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, teamId, "", userAadObjId, sqlSubscriptionDetails);
   }
 }
 
 const updateIsUserInfoSaved = async (id, teamId = null, tenantId = null, updateUserLincenseForExistingMembers = false) => {
+  let sqlUpdateUserInfo = "";
   try {
     pool = await poolPromise;
-    let sqlUpdateUserInfo = `update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id in (${id});`;
+    sqlUpdateUserInfo = `update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id in (${id});`;
     if (updateUserLincenseForExistingMembers && teamId != null && tenantId != null) {
       sqlUpdateUserInfo += ` IF EXISTS(
         select SubscriptionDetailsId from MSTeamsInstallationDetails A 
@@ -428,11 +351,11 @@ const updateIsUserInfoSaved = async (id, teamId = null, tenantId = null, updateU
           update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id in (
             select user_aadobject_id from MSTeamsTeamsUsers where team_id = '${teamId}'
           ) and tenantid = '${tenantId}'
-        END; `;
+        END `;
     }
     await pool.request().query(sqlUpdateUserInfo);
   } catch (err) {
-    processSafetyBotError(err, teamId, "");
+    processSafetyBotError(err, teamId, "", "", sqlUpdateUserInfo);
   }
 }
 
@@ -450,8 +373,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
     const sqlAddCompanyData = `IF('personal' = '${conversationType}')
     BEGIN
       IF EXISTS(SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}')
-      BEGIN
-        --UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null WHERE user_obj_id = '${companyDataObj.userObjId}';
+      BEGIN        
         SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}';
       END
       ELSE
@@ -529,15 +451,9 @@ const deleteCompanyData = async (teamId, userObjId) => {
     await pool.request().query(deleteIncQuery);
 
     isDelete = true;
-    // let query = `DELETE FROM MSTeamsInstallationDetails where team_id = '${teamId}'; ` +
-    //   ` UPDATE MSTeamsIncidents SET IS_DELETED = 1 WHERE team_id = '${teamId}'; `;
-
-    //await pool.request().query(query);
-
-    //await removeAllTeamMember(teamId);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(err, "", "", userObjId);
   }
   return isDelete;
 };

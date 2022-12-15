@@ -92,7 +92,8 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
     let selectQuery = "";
     if (runAt != null) {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-      inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, mRecurr.is_message_delivered, 
+      inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+      m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
       inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
       FROM MSTeamsIncidents inc
@@ -104,7 +105,8 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
     }
     else {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
-      inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, m.is_message_delivered, 
+      inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+      m.user_id, m.user_name, m.is_message_delivered, 
       m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
       inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
       FROM MSTeamsIncidents inc
@@ -147,9 +149,12 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
 
   let selectQuery = ` ${createdByVar}
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
-  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
+  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+  m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
-  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID, tu.userPrincipalName
+  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID, 
+  tu.userPrincipalName
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
@@ -972,16 +977,16 @@ const getSuperUsersByTeamId = async (teamId) => {
 const isWelcomeMessageSend = async (userObjId) => {
   let isWelcomeMessageSent = false;
   try {
-    const sqlIsMessageSent = `IF EXISTS (select * from msteamsinstallationdetails where user_obj_id = '${userObjId}' and welcomeMessageSent = 1) ` +
-      `BEGIN ` +
-      `UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; ` +
-      `SELECT cast('1' as bit) AS isWelcomeMessageSent ` +
-      `END ` +
-      `ELSE ` +
-      `BEGIN ` +
-      `UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; ` +
-      `SELECT cast('0' as bit) AS isWelcomeMessageSent; ` +
-      `END `;
+    const sqlIsMessageSent = `IF EXISTS (select * from msteamsinstallationdetails where user_obj_id = '${userObjId}' and welcomeMessageSent = 1)
+      BEGIN 
+        UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; 
+        SELECT cast('1' as bit) AS isWelcomeMessageSent ;
+      END 
+      ELSE 
+      BEGIN
+        UPDATE msteamsinstallationdetails SET welcomeMessageSent = 1 WHERE user_obj_id = '${userObjId}'; 
+        SELECT cast('0' as bit) AS isWelcomeMessageSent; 
+      END `;
     result = await db.getDataFromDB(sqlIsMessageSent, userObjId);
     if (result && result.length > 0) {
       isWelcomeMessageSent = result[0]["isWelcomeMessageSent"];
@@ -1206,8 +1211,8 @@ const getRequiredDataToSendMessage = async (incId, teamId, userAadObjId, userIdA
     const sql = ` SELECT top 1 * FROM MSTeamsInstallationDetails where team_id = '${teamId}';
     
     SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
-    inc.selected_members, inc.created_by, inc.GUIDANCE, m.user_id, m.user_name, m.is_message_delivered, 
-    m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
+    inc.selected_members, inc.created_by, inc.GUIDANCE, inc.inc_type_id, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+    m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
     inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
