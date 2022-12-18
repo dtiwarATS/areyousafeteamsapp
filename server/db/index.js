@@ -19,6 +19,8 @@ const getColumns = (tableName) => {
         "created_date",
         "welcomeMessageSent",
         "serviceUrl",
+        "channelId",
+        "channelName"
       ];
       break;
 

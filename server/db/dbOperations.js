@@ -393,7 +393,9 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
         END
         ELSE IF EXISTS(SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}' and team_id = '${teamId}')
         BEGIN
-          UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null WHERE team_id = '${teamId}' and user_obj_id = '${companyDataObj.userObjId}';
+          UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null, 
+          channelId = '${companyDataObj.channelId}', channelName = '${companyDataObj.channelName}'
+          WHERE team_id = '${teamId}' and user_obj_id = '${companyDataObj.userObjId}';
           SELECT top 1 * FROM MSTeamsInstallationDetails where user_obj_id = '${companyDataObj.userObjId}' and team_id = '${teamId}';
         END
         ELSE
