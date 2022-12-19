@@ -145,10 +145,11 @@ const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjI
 const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null, delay = 100, memberObj = null, msgNotSentArr = []) => {
   let resp = {
     "userId": members[0]?.id,
-    "conversationId": null,
+    "conversationId": conversationId || null,
     "activityId": null,
     "status": null,
     "error": null,
+    "errorCode": null,
     memberObj
   };
   try {
@@ -190,6 +191,7 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
               }
             })
             .catch((err) => {
+              resp.errorCode = err.code;
               if (err.code !== "ConversationBlockedByUser") {
                 msgNotSentArr.push(memberObj);
               }
