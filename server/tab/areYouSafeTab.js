@@ -102,9 +102,9 @@ class AreYouSafeTab {
         };
 
         members.forEach((m) => {
-          const { response, responseValue, isMessageDelivered } = m;
+          const { response, responseValue, msgStatus } = m;
 
-          if ((response === "na" || response === false) && isMessageDelivered) {
+          if ((response === "na" || response === false) && msgStatus?.toString()?.trim() != null) {
             memberObj.membersNotResponded.push(m);
           } else if (response === true) {
             if (responseValue === true) {
