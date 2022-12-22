@@ -15,12 +15,13 @@ const { processSafetyBotError } = require("../models/processError");
   let currentDateTime = moment(new Date()).utc().format('YYYY-MM-DD HH:mm');
   log.addLog(`recurr job : currentDateTime - ${currentDateTime}`);
   console.log("recurr job : currentDateTime - " + currentDateTime);
-  let sqlJob = `SELECT A.ID AS INC_ID, B.ID AS SUB_EVENT_ID, B.CRON, B.TIMEZONE, A.INC_TYPE AS incType, A.INC_NAME, A.CREATED_BY AS createdById, ` +
-    `A.CREATED_BY_NAME AS createdByName, A.TEAM_ID, A.CHANNEL_ID, A.EVENT_END_DATE eventEndDate, A.EVENT_END_TIME eventEndTime, B.RUN_AT runAt ` +
-    ` FROM MSTEAMSINCIDENTS A ` +
-    `LEFT JOIN MSTEAMS_SUB_EVENT B ON A.ID = B.INC_ID ` +
-    `WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT) AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, A.EVENT_START_DATE)` +
-    `AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2`;
+  let sqlJob = `SELECT A.ID AS INC_ID, B.ID AS SUB_EVENT_ID, B.CRON, B.TIMEZONE, A.INC_TYPE AS incType, A.INC_NAME, A.INC_NAME incTitle, A.CREATED_BY AS createdById, 
+    A.CREATED_BY_NAME AS createdByName, A.TEAM_ID, A.CHANNEL_ID, A.EVENT_END_DATE eventEndDate, A.EVENT_END_TIME eventEndTime, B.RUN_AT runAt 
+    ,A.inc_type_id incTypeId, A.additionalInfo, A.travelUpdate, A.contactInfo, A.situation
+    FROM MSTEAMSINCIDENTS A 
+    LEFT JOIN MSTEAMS_SUB_EVENT B ON A.ID = B.INC_ID 
+    WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT) AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, A.EVENT_START_DATE)
+    AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2`;
 
   let jobsToBeExecutedArr = await db.getDataFromDB(sqlJob);
   log.addLog(`jobsToBeExecutedArr length - ${jobsToBeExecutedArr?.length}`);
@@ -45,7 +46,10 @@ const { processSafetyBotError } = require("../models/processError");
             return true;
           }
           log.addLog(`usrTZCurrentTime: ${usrTZCurrentTime}`);
-          let eventMembersSql = `select [id], [user_id] , [user_name]  from MSTeamsMemberResponses where inc_id = ${incId}`;
+          let eventMembersSql = `select distinct A.[id] memberResponsesId, A.[user_id] id, A.[user_name] name, U.conversationId 
+          from MSTeamsMemberResponses A
+          LEFT JOIN MSTeamsTeamsUsers U on a.user_id = u.user_id 
+          where inc_id = ${incId} and U.team_id='${teamId}'`;
           let eventMembers = await db.getDataFromDB(eventMembersSql);
 
           if (eventMembers?.length > 0) {
@@ -56,15 +60,22 @@ const { processSafetyBotError } = require("../models/processError");
               eventMembers,
               companyData
             }
+
+            let interval = parser.parseExpression(cron, options);
+            let nextRunAtUTC = interval.next().toISOString();
+            let sqlUpdate = `UPDATE MSTEAMS_SUB_EVENT SET LAST_RUN_AT = '${job.runAt}', RUN_AT = '${nextRunAtUTC}', COMPLETED = 1 WHERE ID = ${subEventId}`;
+            db.updateDataIntoDB(sqlUpdate, job?.createdById);
+
             log.addLog("send recurring safety message start");
             let allEventMsgDelivered = await bot.sendRecurrEventMsg(job, incId, incTitle, log);
             log.addLog("send recurring safety message end");
-            if (allEventMsgDelivered) {
-              let interval = parser.parseExpression(cron, options);
-              let nextRunAtUTC = interval.next().toISOString();
-              let sqlUpdate = `UPDATE MSTEAMS_SUB_EVENT SET LAST_RUN_AT = '${job.runAt}', RUN_AT = '${nextRunAtUTC}', COMPLETED = 1 WHERE ID = ${subEventId}`;
-              await db.updateDataIntoDB(sqlUpdate, job?.createdById);
-            }
+
+            // if (allEventMsgDelivered) {
+            //   let interval = parser.parseExpression(cron, options);
+            //   let nextRunAtUTC = interval.next().toISOString();
+            //   let sqlUpdate = `UPDATE MSTEAMS_SUB_EVENT SET LAST_RUN_AT = '${job.runAt}', RUN_AT = '${nextRunAtUTC}', COMPLETED = 1 WHERE ID = ${subEventId}`;
+            //   await db.updateDataIntoDB(sqlUpdate, job?.createdById);
+            // }
           }
           log.addLog(`incTitle: ${incTitle} end`);
           saveLog = true;

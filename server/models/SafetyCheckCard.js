@@ -95,8 +95,9 @@ const getImpBulletineTypeCard = async (incTitle, incGuidance, additionalInfo) =>
     const cardBody = [
         {
             type: "TextBlock",
-            size: "Large",
+            size: "Medium",
             weight: "Bolder",
+            wrap: true,
             text: `**Important Bulletin: ${incTitle}**`
         },
         {
@@ -124,8 +125,9 @@ const getTravelAdvisoryTypeCard = async (incTitle, incGuidance, travelUpdate, co
     const cardBody = [
         {
             type: "TextBlock",
-            size: "Large",
+            size: "Medium",
             weight: "Bolder",
+            wrap: true,
             text: `**Travel Advisory: ${incTitle}**`
         },
         {
@@ -158,8 +160,9 @@ const getStakeholderNoticeTypeCard = async (incTitle, situation, additionalInfo)
     const cardBody = [
         {
             type: "TextBlock",
-            size: "Large",
+            size: "Medium",
             weight: "Bolder",
+            wrap: true,
             text: `**Stakeholder Notice: ${incTitle}**`
         },
         {

@@ -605,3 +605,15 @@ BEGIN
 ALTER TABLE MSTeamsIncidents ADD situation nvarchar(4000) NULL
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='channelId' AND TABLE_NAME='msteamsinstallationdetails')
+BEGIN
+ALTER TABLE msteamsinstallationdetails ADD channelId nvarchar(256)
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='channelName' AND TABLE_NAME='msteamsinstallationdetails')
+BEGIN
+ALTER TABLE msteamsinstallationdetails ADD channelName nvarchar(256)
+END
+GO

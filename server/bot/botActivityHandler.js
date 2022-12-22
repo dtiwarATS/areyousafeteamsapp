@@ -175,6 +175,11 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (userEmail == null) {
         userEmail = adminUserInfo?.userPrincipalName;
       }
+      let channelId = "", channelName = "";
+      if (context?.activity?.conversation?.conversationType == "channel") {
+        channelId = (context.activity.conversation?.id != null) ? context.activity.conversation?.id : teamId;
+        channelName = (context.activity.conversation?.name != null) ? context.activity.conversation?.name : "General";
+      }
       return {
         userId: adminUserInfo.id,
         userTenantId: adminUserInfo.tenantId,
@@ -186,7 +191,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         superUser: [],
         createdDate: new Date(Date.now()).toISOString(),
         welcomeMessageSent: 0,
-        serviceUrl: context.activity.serviceUrl
+        serviceUrl: context.activity.serviceUrl,
+        channelId,
+        channelName,
       };
     }
 
@@ -201,18 +208,11 @@ class BotActivityHandler extends TeamsActivityHandler {
           acvtivityData?.channelData?.eventType === "teamMemberAdded"
         ) {
           const { membersAdded } = acvtivityData;
-          // const teamId = acvtivityData.channelData.team.id;
-          // retrive user info who installed the app from TeamsInfo.getTeamMembers(context, teamId);
           const allMembersInfo = await TeamsInfo.getTeamMembers(
             context,
             teamId
           );
 
-          // const allChannelInfo = await TeamsInfo.getTeamChannels(
-          //   context,
-          //   teamId
-          // );
-          // console.log({ allChannelInfo });
           let teamMemberCount = 0;
           if (allMembersInfo != null && Array.isArray(allMembersInfo) && allMembersInfo.length > 0) {
             teamMemberCount = allMembersInfo.length;

@@ -142,13 +142,15 @@ const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjI
   return userConversationId;
 }
 
-const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null) => {
+const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null, delay = 100, memberObj = null, msgNotSentArr = []) => {
   let resp = {
     "userId": members[0]?.id,
-    "conversationId": null,
+    "conversationId": conversationId || null,
     "activityId": null,
     "status": null,
-    "error": null
+    "error": null,
+    "errorCode": null,
+    memberObj
   };
   try {
 
@@ -183,12 +185,16 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
                   resp.conversationId = conversationId;
                   resp.activityId = activityResp.id;
                 }
-                if (callbackFn != null && typeof callbackFn === "function") {
-                  callbackFn(resp, index);
-                }
+              }
+              if (callbackFn != null && typeof callbackFn === "function") {
+                callbackFn(resp, index);
               }
             })
             .catch((err) => {
+              resp.errorCode = err.code;
+              if (err.code !== "ConversationBlockedByUser") {
+                msgNotSentArr.push(memberObj);
+              }
               if (callbackFn != null && typeof callbackFn === "function") {
                 if (err?.statusCode != null) {
                   resp.status = err.statusCode;
@@ -200,15 +206,17 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
                 callbackFn(resp, index);
               }
             });
-        }, 5);
+        }, delay);
+        console.log({ delay });
       }
     }
   }
   catch (err) {
+    msgNotSentArr.push(memberObj);
     console.log(err);
     processSafetyBotError(err, "", "", userAadObjId, JSON.stringify(members));
   }
-  return Promise.resolve(resp);
+  //return Promise.resolve(resp);
 }
 
 const sendProactiveMessaageToUser = async (members, msgAttachment, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null) => {
