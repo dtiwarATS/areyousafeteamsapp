@@ -502,6 +502,7 @@ class AreYouSafeTab {
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, teamId, createdByUserInfo?.user_name, userAadObjId);
+      return true;
     } finally {
       await log.saveLog(incId);
     }
