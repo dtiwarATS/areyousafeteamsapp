@@ -230,12 +230,12 @@ const removeAllTeamMember = async (teamId) => {
 const teamMemberInsertQuery = (teamId, m) => {
   const userEmail = m.email != null ? m.email : m.userPrincipalName;
   return `
-    IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND[user_aadobject_id] = '${m.objectId}')
+    IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [userPrincipalName], [email], [tenantid], [userRole])
     VALUES('${teamId}', '${m.objectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${userEmail}', '${m.tenantId}', '${m.userRole}');
     END
-    ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND[user_aadobject_id] = '${m.objectId}' AND userPrincipalName is null)
+    ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}' AND userPrincipalName is null)
     BEGIN
       UPDATE MSTeamsTeamsUsers SET userPrincipalName = '${m.userPrincipalName}', email = '${userEmail}', tenantid = '${m.tenantId}', userRole = '${m.userRole}'
       WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}';

@@ -654,7 +654,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", userId);
     }
   }
   async hanldeChannelUserMsg(context) {
