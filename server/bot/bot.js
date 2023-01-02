@@ -124,58 +124,58 @@ const selectResponseCard = async (context, user) => {
     const action = context.activity?.value?.action;
     const verb = action?.verb;
     let companyData = action.data.companyData ? action.data.companyData : {};
-    let isAdminOrSuperuser = false;
-    isAdminOrSuperuser = true;
-    if (verb === "create_onetimeincident" && isAdminOrSuperuser) {
+    // let isAdminOrSuperuser = false;
+    // isAdminOrSuperuser = true;
+    if (verb === "create_onetimeincident") {
       await createInc(context, user, companyData);
-    } else if (verb === "create_recurringincident" && isAdminOrSuperuser) {
+    } else if (verb === "create_recurringincident") {
       await createRecurrInc(context, user, companyData);
-    } else if (verb === "save_new_inc" && isAdminOrSuperuser) {
+    } else if (verb === "save_new_inc") {
       await saveInc(context, action, companyData, user);
-    } else if (verb === "save_new_recurr_inc" && isAdminOrSuperuser) {
+    } else if (verb === "save_new_recurr_inc") {
       await saveRecurrInc(context, action, companyData);
-    } else if (verb === "list_delete_inc" && isAdminOrSuperuser) {
+    } else if (verb === "list_delete_inc") {
       await sendDeleteIncCard(context, user, companyData);
-    } else if (verb === "delete_inc" && isAdminOrSuperuser) {
+    } else if (verb === "delete_inc") {
       const adaptiveCard = await deleteInc(context, action);
       return Promise.resolve(adaptiveCard);
-    } else if (verb === "list_inc" && isAdminOrSuperuser) {
+    } else if (verb === "list_inc") {
       await viewAllInc(context, companyData);
-    } else if (verb && verb === "send_approval" && isAdminOrSuperuser) {
+    } else if (verb && verb === "send_approval") {
       await sendApproval(context);
-    } else if (verb && verb === "cancel_send_approval" && isAdminOrSuperuser) {
+    } else if (verb && verb === "cancel_send_approval") {
       await cancelSendApproval(context, user);
     } else if (verb && verb === "send_response") {
       await sendApprovalResponse(user, context);
     } else if (verb && verb === "submit_comment") {
       await submitComment(context, user, companyData);
-    } else if (verb && verb === "contact_us" && isAdminOrSuperuser) {
+    } else if (verb && verb === "contact_us") {
       await sendContactUsForm(context, companyData);
-    } else if (verb && verb === "submit_contact_us" && isAdminOrSuperuser) {
+    } else if (verb && verb === "submit_contact_us") {
       await submitContactUsForm(context, companyData);
-    } else if (verb && verb === "view_settings" && isAdminOrSuperuser) {
+    } else if (verb && verb === "view_settings") {
       await viewSettings(context, companyData);
-    } else if (verb && verb === "submit_settings" && isAdminOrSuperuser) {
+    } else if (verb && verb === "submit_settings") {
       await submitSettings(context, companyData);
-    } else if (verb && (verb === "dashboard_view_previous_inc" || verb == "dashboard_view_next_inc") && isAdminOrSuperuser) {
+    } else if (verb && (verb === "dashboard_view_previous_inc" || verb == "dashboard_view_next_inc")) {
       const adaptiveCard = await navigateDashboardList(context, action, verb);
       return Promise.resolve(adaptiveCard);
-    } else if (verb === "copyInc" && isAdminOrSuperuser) {
+    } else if (verb === "copyInc") {
       await copyInc(context, user, action);
-    } else if (verb === "closeInc" && isAdminOrSuperuser) {
+    } else if (verb === "closeInc") {
       await showIncStatusConfirmationCard(context, action, "Closed");
-    } else if (verb === "reopenInc" && isAdminOrSuperuser) {
+    } else if (verb === "reopenInc") {
       await showIncStatusConfirmationCard(context, action, "In progress");
-    } else if (verb === "updateIncStatus" && isAdminOrSuperuser) {
+    } else if (verb === "updateIncStatus") {
       const adaptiveCard = await updateIncStatus(context, action);
       return Promise.resolve(adaptiveCard);
-    } else if (verb === "confirmDeleteInc" && isAdminOrSuperuser) {
+    } else if (verb === "confirmDeleteInc") {
       await showIncDeleteConfirmationCard(context, action);
     } else if (verb === "add_user_info") {
       await addUserInfoByTeamId(context);
-    } else if (verb === "newUsrSubscriptionType1" && isAdminOrSuperuser) {
+    } else if (verb === "newUsrSubscriptionType1") {
       await processnewUsrSubscriptionType1(context, action, companyData);
-    } else if (verb === "newUsrSubscriptionType2" && isAdminOrSuperuser) {
+    } else if (verb === "newUsrSubscriptionType2") {
       await processnewUsrSubscriptionType2(context, action);
     }
     return Promise.resolve(true);
