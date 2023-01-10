@@ -61,8 +61,8 @@ const processBotError = async (reqBody) => {
                 transportParam = new mail.EmailTransportParam(process.env.HOST_NAME, process.env.PORTS, true, process.env.AUTH_USER, process.env.AUTH_PASS);
                 emailOption = new mail.EmailOption(process.env.ADMIN_EMAIL, process.env.ADMIN_EMAIL, subject, emailBody);
             } else {
-                transportParam = new mail.EmailTransportParam(process.env.AB_HOST_NAME, process.env.AB_PORTS, true, process.env.AUTH_USER, process.env.AUTH_PASS);
-                emailOption = new mail.EmailOption(process.env.AB_ADMIN_EMAIL, process.env.AB_ADMIN_EMAIL, subject, emailBody);
+                // transportParam = new mail.EmailTransportParam(process.env.AB_HOST_NAME, process.env.AB_PORTS, true, process.env.AUTH_USER, process.env.AUTH_PASS);
+                // emailOption = new mail.EmailOption(process.env.AB_ADMIN_EMAIL, process.env.AB_ADMIN_EMAIL, subject, emailBody);
             }
             mail.sendEmail(transportParam, emailOption);
             await insertErrorIntoDB(botName, errorMessage, errorDetails, teamId, userName, date);
@@ -79,7 +79,7 @@ getSubject = () => {
 
 processSafetyBotError = (err, teamId, userName, userAadObjId, otherDetails) => {
     try {
-        let errorMessage = "", errorDetails = "", botName = "areyousafebot", subject = getSubject(), date = new Date();
+        let errorMessage = "", errorDetails = "", botName = "areyousafebot", subject = getSubject(), date = new Date(), appName = "msteams";
         if (err != null) {
             if (err.message != null) {
                 errorMessage = err.message;
