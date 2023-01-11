@@ -9,7 +9,7 @@ const updateMainCard = (companyData) => {
     {
       "type": "Action.OpenUrl",
       "title": "Contact us",
-      "url": "mailto:help@safetybot.in",
+      "url": "mailto:help@areyousafe.in",
     }
   ];
   const card = {

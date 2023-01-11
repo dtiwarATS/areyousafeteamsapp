@@ -20,7 +20,7 @@ const getOldWelcomeMessageCard = () => {
     //     },
     //     {
     //       type: "TextBlock",
-    //       text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+    //       text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@areyousafe.in](mailto:help@areyousafe.in)",
     //       wrap: true
     //     }
     //   ]
@@ -42,7 +42,7 @@ const getContactUsBtnJSON = () => {
             {
                 "type": "Action.OpenUrl",
                 "title": "Contact us",
-                "url": "mailto:help@safetybot.in",
+                "url": "mailto:help@areyousafe.in",
             }
         ]
     }
@@ -480,7 +480,7 @@ const getTypeTwoThreeDayBeforeCard = (userId, userName) => {
             },
             {
                 "type": "TextBlock",
-                "text": "Need to extend your trial? [Contact Us](mailto:help@safetybot.in)",
+                "text": "Need to extend your trial? [Contact Us](mailto:help@areyousafe.in)",
                 "wrap": true
             },
             {

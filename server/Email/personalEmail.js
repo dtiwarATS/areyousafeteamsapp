@@ -31,7 +31,7 @@ class PersonalEmail {
                     "<br /> <br />" +
                     "With Gratitude, <br />" +
                     "Vipassana Mahale <br />" +
-                    "<a href='mailto:vipassana.mahale@safetybot.in'>vipassana.mahale@safetybot.in</a><br />" +
+                    "<a href='mailto:vipassana.mahale@areyousafe.in'>vipassana.mahale@areyousafe.in</a><br />" +
                     "<a href='https://safetybot.in/'>https://safetybot.in/</a>"
 
                 const emailTransportParam = new email.EmailTransportParam(this.host, this.port, this.secure, this.user, this.pass);
@@ -61,7 +61,7 @@ class PersonalEmail {
                     "I am looking forward to your feedback." +
                     "<br /> <br />" +
                     "Vipassana Mahale <br />" +
-                    "<a href='mailto:vipassana.mahale@safetybot.in'>vipassana.mahale@safetybot.in</a><br />" +
+                    "<a href='mailto:vipassana.mahale@areyousafe.in'>vipassana.mahale@areyousafe.in</a><br />" +
                     "<a href='https://safetybot.in/'>https://safetybot.in/</a>"
 
                 const emailTransportParam = new email.EmailTransportParam(this.host, this.port, this.secure, this.user, this.pass, this.from);

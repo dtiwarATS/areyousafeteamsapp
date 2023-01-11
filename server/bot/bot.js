@@ -293,7 +293,7 @@ const sendMsg = async (context) => {
       },
       {
         "type": "TextBlock",
-        "text": "**Contact us**: [help@safetybot.in](mailto:help@safetybot.in) \n\nWith Gratitude,\n\nAreYouSafe Support",
+        "text": "**Contact us**: [help@areyousafe.in](mailto:help@areyousafe.in) \n\nWith Gratitude,\n\nAreYouSafe Support",
         "wrap": true
       }
     ]
@@ -2570,7 +2570,7 @@ const sendIntroductionMessage = async (context, from) => {
       },
       {
         type: "TextBlock",
-        text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetybot.in](mailto:help@safetybot.in)",
+        text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@areyousafe.in](mailto:help@areyousafe.in)",
         wrap: true,
       },
       {
