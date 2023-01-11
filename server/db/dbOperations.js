@@ -25,8 +25,7 @@ const parseCompanyData = (result) => {
 
 
       // return empty array if value of super_users is ''
-      let superUsers = resultObj.super_users
-        .split(",")
+      let superUsers = resultObj?.super_users?.split(",")
         .filter((word) => /\w/.test(word));
 
       resultObj = {
@@ -464,7 +463,7 @@ const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
   let isUpdated = false;
   try {
     pool = await poolPromise;
-    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}' WHERE(user_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}' WHERE (user_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
 
     const result = await pool.request().query(updateQuery);
     isUpdated = true;
