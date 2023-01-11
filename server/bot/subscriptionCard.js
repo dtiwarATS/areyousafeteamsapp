@@ -55,8 +55,8 @@ const getFAQBtnJSON = () => {
             {
                 "type": "Action.OpenUrl",
                 "title": "Frequently Asked Questions",
-                "url": "https://safetybot.in/frequently_asked_questions.html",
-                "iconUrl": "https://safetybot.in/img/help.png"
+                "url": "https://areyousafe.in/frequently_asked_questions.html",
+                "iconUrl": "https://areyousafe.in/img/help.png"
             }
         ]
     }
@@ -70,7 +70,7 @@ const getManageLicenseBtnJSON = (userEmailId) => {
                 "type": "Action.OpenUrl",
                 "title": "Manage Licenses",
                 "url": `https://areyousafesubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${userEmailId}`,
-                "iconUrl": "https://safetybot.in/img/help.png"
+                "iconUrl": "https://areyousafe.in/img/help.png"
             }
         ]
     }
@@ -425,7 +425,7 @@ const getTypeTwoSevenDayBeforeCard = (userId, userName) => {
             },
             {
                 "type": "TextBlock",
-                "text": "Have questions about pricing? Access our ↗ [FAQ page](https://safetybot.in/frequently_asked_questions.html)",
+                "text": "Have questions about pricing? Access our ↗ [FAQ page](https://areyousafe.in/frequently_asked_questions.html)",
                 "wrap": true
             },
             {

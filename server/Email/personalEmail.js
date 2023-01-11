@@ -25,14 +25,14 @@ class PersonalEmail {
                     "<br /> <br />" +
                     "We developed AreYouSafe to help you improve crisis management. I would love to hear what you think of our bot and if there is anything we can improve." +
                     "<br /> <br />" +
-                    "Have questions about getting started? Access our <a href='https://safetybot.in/frequently_asked_questions.html'>FAQ page</a>" +
+                    "Have questions about getting started? Access our <a href='https://areyousafe.in/frequently_asked_questions.html'>FAQ page</a>" +
                     "<br /> <br />" +
                     "For additional questions and to get started, simply reply to this email." +
                     "<br /> <br />" +
                     "With Gratitude, <br />" +
                     "Vipassana Mahale <br />" +
                     "<a href='mailto:vipassana.mahale@areyousafe.in'>vipassana.mahale@areyousafe.in</a><br />" +
-                    "<a href='https://safetybot.in/'>https://safetybot.in/</a>"
+                    "<a href='https://areyousafe.in/'>https://areyousafe.in/</a>"
 
                 const emailTransportParam = new email.EmailTransportParam(this.host, this.port, this.secure, this.user, this.pass);
                 const emailOption = new email.EmailOption(this.user, toUserEmailId, subject, emailBody);
@@ -62,7 +62,7 @@ class PersonalEmail {
                     "<br /> <br />" +
                     "Vipassana Mahale <br />" +
                     "<a href='mailto:vipassana.mahale@areyousafe.in'>vipassana.mahale@areyousafe.in</a><br />" +
-                    "<a href='https://safetybot.in/'>https://safetybot.in/</a>"
+                    "<a href='https://areyousafe.in/'>https://areyousafe.in/</a>"
 
                 const emailTransportParam = new email.EmailTransportParam(this.host, this.port, this.secure, this.user, this.pass, this.from);
                 const emailOption = new email.EmailOption(this.user, toUserEmailId, subject, emailBody);
