@@ -1442,7 +1442,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
       }
     }
 
-    let msgNotSentArr = [], retryCounter = 1, respTime = (new Date()).getTime();
+    let msgNotSentArr = [], retryCounter = 0, respTime = (new Date()).getTime();
 
     const respTimeInterval = setInterval(() => {
       try {
@@ -1492,6 +1492,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
         const error = (msgResp?.error == null) ? null : msgResp?.error;
         const respMemberObj = msgResp.memberObj;
+
         if (isRecurringInc) {
           if (error == null || msgResp.errorCode == "ConversationBlockedByUser" || retryCounter == 3) {
             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
@@ -1538,6 +1539,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
 
     const sendProactiveMessage = (membersToSendMessageArray) => {
       let delay = 0;
+      const sendErrorEmail = (retryCounter == 3);
       membersToSendMessageArray.map((member, index) => {
         try {
           let memberArr = [{
@@ -1545,7 +1547,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
             name: member.name
           }];
           const conversationId = member.conversationId;
-          sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index, delay, member, msgNotSentArr);
+          sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index, delay, member, msgNotSentArr, sendErrorEmail);
         } catch (err) {
           processSafetyBotError(err, "", "", userAadObjId);
         }

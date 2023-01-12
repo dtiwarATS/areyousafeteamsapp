@@ -142,7 +142,7 @@ const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjI
   return userConversationId;
 }
 
-const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null, delay = 100, memberObj = null, msgNotSentArr = []) => {
+const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null, delay = 100, memberObj = null, msgNotSentArr = [], sendErrorEmail = true) => {
   let resp = {
     "userId": members[0]?.id,
     "conversationId": conversationId || null,
@@ -150,6 +150,7 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
     "status": null,
     "error": null,
     "errorCode": null,
+    "errObj": null,
     memberObj
   };
   try {
@@ -195,6 +196,9 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
               if (err.code !== "ConversationBlockedByUser") {
                 msgNotSentArr.push(memberObj);
               }
+              if (sendErrorEmail) {
+                processSafetyBotError(err, "", members[0]?.name, members[0]?.id, userAadObjId);
+              }
               if (callbackFn != null && typeof callbackFn === "function") {
                 if (err?.statusCode != null) {
                   resp.status = err.statusCode;
@@ -202,6 +206,7 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
                   resp.status = 500;
                 }
                 resp.error = err.message;
+                resp.errObj = err;
                 console.log(`Error: sendToConversation ${err}`);
                 callbackFn(resp, index);
               }
