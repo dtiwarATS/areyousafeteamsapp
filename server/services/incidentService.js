@@ -9,7 +9,7 @@ const parser = require("cron-parser");
 const { formatedDate } = require("../utils/index");
 const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
 const { processSafetyBotError } = require("../models/processError");
-const { getUsersConversationId } = require("../api/apiMethods");
+const { getUsersConversationId, getConversationParameters } = require("../api/apiMethods");
 
 
 const parseEventData = (result, updateRecurrMemebersResp = false) => {
@@ -845,8 +845,8 @@ const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias =
   return `SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, 0 isSuperUser, u.conversationId,
   case when inst.user_id is null then 0 else 1 end isAdmin 
   FROM MSTEAMSTEAMSUSERS u
-  left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id
-  WHERE ${whereSql} and inst.uninstallation_date is null and u.hasLicense = 1 ORDER BY u.[USER_NAME]`;
+  left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null
+  WHERE ${whereSql} and u.hasLicense = 1 ORDER BY u.[USER_NAME]`;
 }
 
 const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
@@ -1158,9 +1158,9 @@ const isBotInstalledInTeam = async (userAadObjId) => {
 
 const updateConversationId = async (teamId, userObjId) => {
   try {
-    let sqlTeamMembers = `select distinct a.serviceUrl, a.user_tenant_id tenantId, b.user_id userId, b.user_name userName from MSTeamsInstallationDetails a
+    let sqlTeamMembers = `select distinct top 1000 a.serviceUrl, a.user_tenant_id tenantId, b.user_id userId, b.user_name userName from MSTeamsInstallationDetails a
     left join MSTeamsTeamsUsers b on a.team_id = b.team_id
-    where a.serviceUrl is not null and b.conversationId is null and b.user_id is not null`;
+    where a.serviceUrl is not null and b.conversationId is null and b.user_id is not null and a.user_tenant_id = 'b9328432-f501-493e-b7f4-3105520a1cd4'`;
 
     if (teamId != null) {
       sqlTeamMembers += ` and b.team_id='${teamId}' `;
@@ -1169,51 +1169,107 @@ const updateConversationId = async (teamId, userObjId) => {
     if (userObjId != null) {
       sqlTeamMembers += ` and b.user_aadobject_id='${userObjId}' `;
     }
-
+    const dbPool = await db.getPoolPromise(userObjId);
     const result = await db.getDataFromDB(sqlTeamMembers);
     if (result != null && Array.isArray(result)) {
-      let sqlUpdate = "", delay = 500, cdelay = 500;
+      let sqlUpdate = "";
 
-      const updateConversation = async (sql) => {
+      const updateConversation = (sql) => {
         if (sql != "") {
           sqlUpdate = "";
-          setTimeout(async () => {
-            console.log({ sql });
-            await db.updateDataIntoDB(sql);
-            delay = 0;
-          }, delay);
-          delay += 500;
+          console.log(sql);
+          db.updateDataIntoDBAsync(sql, dbPool, userObjId)
+            .then((resp) => {
+
+            })
+            .catch((err) => {
+              sqlUpdate += sql;
+              processSafetyBotError(err, "", "", userObjId, sql);
+            });
         }
       }
-
-      let counter = 1;
-      result.map((item) => {
-        setTimeout(async () => {
+      let counter = 1, recurDelay = 5000;
+      const fnRecursiveCall = (startIndex, endIndex) => {
+        for (let i = startIndex; i < endIndex; i++) {
           try {
-            const { serviceUrl, tenantId, userId, userName } = item;
-            if (userId && userId != "") {
+            const member = result[i];
+            if (member) {
+              const { serviceUrl, tenantId, userId, userName } = member;
+              if (userId == null || userName == null) {
+                counter++;
+                continue;
+              }
               const memberArr = [{
                 id: userId,
                 name: userName
               }];
-              const conversationId = await getUsersConversationId(tenantId, memberArr, serviceUrl, null, false);
-              console.log({ counter, conversationId });
-              if (conversationId != null) {
-                sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
-              }
+              getUsersConversationId(tenantId, memberArr, serviceUrl, null, false)
+                .then((conversationId) => {
+                  console.log({ i, conversationId });
+                  if (conversationId != null) {
+                    sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
+                  }
+                  console.log({ i, counter });
+                  if ((counter > 0 && counter % 200 == 0) || counter == result.length) {
+                    updateConversation(sqlUpdate);
+                  }
+                  counter++;
+                })
+                .catch((err) => {
+                  counter++;
+                  console.log(err);
+                  processSafetyBotError(err, "", "", userObjId);
+                });
             }
           } catch (err) {
             console.log(err);
-          } finally {
-            if ((counter > 1 && counter % 200 == 0) || counter == result.length) {
-              updateConversation(sqlUpdate);
-            }
-            counter++;
+            processSafetyBotError(err, "", "", userObjId);
           }
-        }, cdelay);
-        cdelay += 500;
-      })
+        }
+        if (endIndex < result.length) {
+          setTimeout(() => {
+            startIndex = endIndex;
+            endIndex = endIndex + 50;
+            if (endIndex > result.length) {
+              endIndex = result.length;
+            }
+            fnRecursiveCall(startIndex, endIndex);
+            console.log("fnRecursiveCall End");
+            recurDelay += 5000;
+          }, recurDelay);
+        }
+      }
+      let endIndex = (result.length > 50) ? 50 : result.length;
+      console.log("fnRecursiveCall start");
+      fnRecursiveCall(0, endIndex);
 
+      // let counter = 1;
+      // result.map((item) => {
+      //   setTimeout(async () => {
+      //     try {
+      //       const { serviceUrl, tenantId, userId, userName } = item;
+      //       if (userId && userId != "") {
+      //         const memberArr = [{
+      //           id: userId,
+      //           name: userName
+      //         }];
+      //         const conversationId = await getUsersConversationId(tenantId, memberArr, serviceUrl, null, false);
+      //         console.log({ counter, conversationId });
+      //         if (conversationId != null) {
+      //           sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
+      //         }
+      //       }
+      //     } catch (err) {
+      //       console.log(err);
+      //     } finally {
+      //       if ((counter > 1 && counter % 200 == 0) || counter == result.length) {
+      //         updateConversation(sqlUpdate);
+      //       }
+      //       counter++;
+      //     }
+      //   }, cdelay);
+      //   cdelay += 500;
+      // })
       // await Promise.all(
       //   result.map(async (item, index) => {
       //     const { serviceUrl, tenantId, userId, userName } = item;

@@ -1494,22 +1494,28 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         const error = (msgResp?.error == null) ? null : msgResp?.error;
         const respMemberObj = msgResp.memberObj;
 
-        if (isRecurringInc) {
-          if (error == null || msgResp.errorCode == "ConversationBlockedByUser" || retryCounter == 3) {
+        if (error == null || msgResp.errorCode == "ConversationBlockedByUser" || retryCounter == 3) {
+          if (isRecurringInc) {
             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
-            values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
+              values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
+          } else {
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incObj.incId} and user_id = '${msgResp.userId}'; `;
           }
+        }
+
+        if (!error) {
+          console.log({ "usrId": msgResp.userId, index });
         } else {
-          sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incObj.incId} and user_id = '${msgResp.userId}'; `;
+          console.log({ "error": `status ${status}`, "usrId": msgResp.userId, index });
         }
 
         if (updateStartTime == null) {
           updateStartTime = (new Date()).getTime();
         }
         let updateEndTime = (new Date()).getTime();
-        updateEndTime = (updateEndTime - updateStartTime) / 1000;
+        updateEndTime = (updateEndTime - updateStartTime) / 5000;
 
-        if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 1) {
+        if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
           updateStartTime = null;
           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
         }
@@ -1539,7 +1545,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
     }
 
     const sendProactiveMessage = (membersToSendMessageArray) => {
-      console.log({ retryCounter });
+      console.log({ "memberCount:": membersToSendMessageArray?.length, retryCounter });
       let delay = 0;
       const sendErrorEmail = (retryCounter == 3);
 
@@ -1564,15 +1570,15 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         if (endIndex < membersToSendMessageArray.length) {
           setTimeout(() => {
             startIndex = endIndex;
-            endIndex = endIndex + 50;
+            endIndex = endIndex + 20;
             if (endIndex > membersToSendMessageArray.length) {
               endIndex = membersToSendMessageArray.length;
             }
             fnRecursiveCall(startIndex, endIndex);
-          }, 2000);
+          }, 20000);
         }
       }
-      let endIndex = (membersToSendMessageArray.length > 50) ? 50 : membersToSendMessageArray.length;
+      let endIndex = (membersToSendMessageArray.length > 20) ? 20 : membersToSendMessageArray.length;
       fnRecursiveCall(0, endIndex);
       // while (membersCount < membersToSendMessageArray.length) {
       //   try {
