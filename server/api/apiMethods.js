@@ -121,7 +121,7 @@ const getConversationParameters = (tenantId, appId, botName, members) => {
   };
 }
 
-const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjId) => {
+const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjId, sendErrorEmail = true) => {
   let userConversationId = null;
   try {
     const appId = process.env.MicrosoftAppId;
@@ -137,12 +137,15 @@ const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjI
       userConversationId = conversationResp.id;
     }
   } catch (err) {
-    processSafetyBotError(err, "", "", userAadObjId);
+    console.log(err);
+    if (sendErrorEmail) {
+      processSafetyBotError(err, "", "", userAadObjId);
+    }
   }
   return userConversationId;
 }
 
-const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null, delay = 100, memberObj = null, msgNotSentArr = [], sendErrorEmail = true) => {
+const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null, delay = 100, memberObj = null, msgNotSentArr = [], sendErrorEmail = true) => {
   let resp = {
     "userId": members[0]?.id,
     "conversationId": conversationId || null,
@@ -155,12 +158,12 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
   };
   try {
 
-    let activity = null;
-    if (msgAttachment != null) {
-      activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
-    } else if (msgText != null) {
-      activity = MessageFactory.text(msgText);
-    }
+    // let activity = null;
+    // if (msgAttachment != null) {
+    //   activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+    // } else if (msgText != null) {
+    //   activity = MessageFactory.text(msgText);
+    // }
 
     if (activity != null) {
       if (connectorClient == null) {
@@ -171,48 +174,51 @@ const sendProactiveMessaageToUserAsync = async (members, msgAttachment, msgText,
         connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
       }
 
+      const sendToConversation = () => {
+        connectorClient.conversations.sendToConversation(conversationId, activity)
+          .then((activityResp) => {
+            if (activityResp != null && activityResp._response != null && activityResp._response.status != null) {
+              resp.status = activityResp?._response?.status;
+              const isValidActivityStatus = checkValidStatus(activityResp._response.status);
+              if (activityResp.id != null && isValidActivityStatus) {
+                resp.conversationId = conversationId;
+                resp.activityId = activityResp.id;
+              }
+            }
+            if (callbackFn != null && typeof callbackFn === "function") {
+              callbackFn(resp, index);
+            }
+          })
+          .catch((err) => {
+            resp.errorCode = err.code;
+            if (err.code !== "ConversationBlockedByUser") {
+              msgNotSentArr.push(memberObj);
+            }
+            if (sendErrorEmail) {
+              processSafetyBotError(err, "", members[0]?.name, members[0]?.id, userAadObjId);
+            }
+            if (callbackFn != null && typeof callbackFn === "function") {
+              if (err?.statusCode != null) {
+                resp.status = err.statusCode;
+              } else {
+                resp.status = 500;
+              }
+              resp.error = err.message;
+              resp.errObj = err;
+              console.log(`Error: sendToConversation ${err}`);
+              callbackFn(resp, index);
+            }
+          });
+      }
       if (conversationId == null) {
         conversationId = await getUsersConversationId(tenantId, members, serviceUrl, userAadObjId);
       }
-
       if (conversationId != null) {
-        setTimeout(() => {
-          connectorClient.conversations.sendToConversation(conversationId, activity)
-            .then((activityResp) => {
-              if (activityResp != null && activityResp._response != null && activityResp._response.status != null) {
-                resp.status = activityResp?._response?.status;
-                const isValidActivityStatus = checkValidStatus(activityResp._response.status);
-                if (activityResp.id != null && isValidActivityStatus) {
-                  resp.conversationId = conversationId;
-                  resp.activityId = activityResp.id;
-                }
-              }
-              if (callbackFn != null && typeof callbackFn === "function") {
-                callbackFn(resp, index);
-              }
-            })
-            .catch((err) => {
-              resp.errorCode = err.code;
-              if (err.code !== "ConversationBlockedByUser") {
-                msgNotSentArr.push(memberObj);
-              }
-              if (sendErrorEmail) {
-                processSafetyBotError(err, "", members[0]?.name, members[0]?.id, userAadObjId);
-              }
-              if (callbackFn != null && typeof callbackFn === "function") {
-                if (err?.statusCode != null) {
-                  resp.status = err.statusCode;
-                } else {
-                  resp.status = 500;
-                }
-                resp.error = err.message;
-                resp.errObj = err;
-                console.log(`Error: sendToConversation ${err}`);
-                callbackFn(resp, index);
-              }
-            });
-        }, delay);
-        console.log({ delay });
+        sendToConversation();
+        // setTimeout(async () => {
+        //   sendToConversation();
+        // }, delay);
+        // console.log({ delay });
       }
     }
   }

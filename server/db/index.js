@@ -154,6 +154,7 @@ const updateDataIntoDB = async (query, userObjId) => {
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, "", "", userObjId, query);
+    return null;
   }
 };
 

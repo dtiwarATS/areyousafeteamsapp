@@ -1160,7 +1160,7 @@ const updateConversationId = async (teamId, userObjId) => {
   try {
     let sqlTeamMembers = `select distinct a.serviceUrl, a.user_tenant_id tenantId, b.user_id userId, b.user_name userName from MSTeamsInstallationDetails a
     left join MSTeamsTeamsUsers b on a.team_id = b.team_id
-    where a.serviceUrl is not null and b.conversationId is null`;
+    where a.serviceUrl is not null and b.conversationId is null and b.user_id is not null`;
 
     if (teamId != null) {
       sqlTeamMembers += ` and b.team_id='${teamId}' `;
@@ -1172,25 +1172,70 @@ const updateConversationId = async (teamId, userObjId) => {
 
     const result = await db.getDataFromDB(sqlTeamMembers);
     if (result != null && Array.isArray(result)) {
-      let sqlUpdate = "";
-      await Promise.all(
-        result.map(async (item, index) => {
-          const { serviceUrl, tenantId, userId, userName } = item;
-          const memberArr = [{
-            id: userId,
-            name: userName
-          }];
-          const conversationId = await getUsersConversationId(tenantId, memberArr, serviceUrl);
-          //console.log({ index, conversationId });
-          if (conversationId != null) {
-            sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
-          }
-        })
-      );
+      let sqlUpdate = "", delay = 500, cdelay = 500;
 
-      if (sqlUpdate != "") {
-        await db.updateDataIntoDB(sqlUpdate);
+      const updateConversation = async (sql) => {
+        if (sql != "") {
+          sqlUpdate = "";
+          setTimeout(async () => {
+            console.log({ sql });
+            await db.updateDataIntoDB(sql);
+            delay = 0;
+          }, delay);
+          delay += 500;
+        }
       }
+
+      let counter = 1;
+      result.map((item) => {
+        setTimeout(async () => {
+          try {
+            const { serviceUrl, tenantId, userId, userName } = item;
+            if (userId && userId != "") {
+              const memberArr = [{
+                id: userId,
+                name: userName
+              }];
+              const conversationId = await getUsersConversationId(tenantId, memberArr, serviceUrl, null, false);
+              console.log({ counter, conversationId });
+              if (conversationId != null) {
+                sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
+              }
+            }
+          } catch (err) {
+            console.log(err);
+          } finally {
+            if ((counter > 1 && counter % 200 == 0) || counter == result.length) {
+              updateConversation(sqlUpdate);
+            }
+            counter++;
+          }
+        }, cdelay);
+        cdelay += 500;
+      })
+
+      // await Promise.all(
+      //   result.map(async (item, index) => {
+      //     const { serviceUrl, tenantId, userId, userName } = item;
+      //     const memberArr = [{
+      //       id: userId,
+      //       name: userName
+      //     }];
+      //     const conversationId = await getUsersConversationId(tenantId, memberArr, serviceUrl);
+      //     //console.log({ index, conversationId });
+      //     if (conversationId != null) {
+      //       sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
+      //     }
+
+      //     if (index > 0 && index % 200 == 0) {
+      //       updateConversation(sqlUpdate);
+      //     }
+      //   })
+      // );
+
+      // if (sqlUpdate != "") {
+      //   await db.updateDataIntoDB(sqlUpdate);
+      // }
     }
   } catch (err) {
     console.log(err);

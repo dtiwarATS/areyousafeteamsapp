@@ -231,7 +231,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
                 await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
                 if (teamId != null) {
-                  await incidentService.updateConversationId(teamId);
+                  incidentService.updateConversationId(teamId);
                 }
               }
             } else {
@@ -242,7 +242,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 const teamMembers = [teamMember];
                 await addTeamMember(teamId, teamMembers, true);
                 if (teamMember.aadObjectId != null) {
-                  await incidentService.updateConversationId(null, teamMember.aadObjectId);
+                  incidentService.updateConversationId(null, teamMember.aadObjectId);
                 }
               }
             }

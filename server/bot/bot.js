@@ -1416,7 +1416,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
     const isRecurringInc = (runAt != null);
     const { incTitle, incTypeId, additionalInfo, travelUpdate, contactInfo, situation } = incData;
     const approvalCard = await SafetyCheckCard(incTitle, incObj, companyData, incObj.incGuidance, incObj.incResponseSelectedUsersList, incTypeId, additionalInfo, travelUpdate, contactInfo, situation);
-
+    const activity = MessageFactory.attachment(CardFactory.adaptiveCard(approvalCard));
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
 
@@ -1437,6 +1437,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
 
           })
           .catch((err) => {
+            sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(err, "", "", userAadObjId, sql);
           });
       }
@@ -1538,21 +1539,87 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
     }
 
     const sendProactiveMessage = (membersToSendMessageArray) => {
+      console.log({ retryCounter });
       let delay = 0;
       const sendErrorEmail = (retryCounter == 3);
-      membersToSendMessageArray.map((member, index) => {
-        try {
-          let memberArr = [{
-            id: member.id,
-            name: member.name
-          }];
-          const conversationId = member.conversationId;
-          sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index, delay, member, msgNotSentArr, sendErrorEmail);
-        } catch (err) {
-          processSafetyBotError(err, "", "", userAadObjId);
+
+      const fnRecursiveCall = (startIndex, endIndex) => {
+        for (let i = startIndex; i < endIndex; i++) {
+          try {
+            const member = membersToSendMessageArray[i];
+            if (member) {
+              let memberArr = [{
+                id: member.id,
+                name: member.name
+              }];
+              const conversationId = member.conversationId;
+              sendProactiveMessaageToUserAsync(memberArr, activity, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, i, delay, member, msgNotSentArr, sendErrorEmail);
+              console.log({ i });
+            }
+          } catch (err) {
+            console.log(err);
+            processSafetyBotError(err, "", "", userAadObjId);
+          }
         }
-        delay += 500;
-      });
+        if (endIndex < membersToSendMessageArray.length) {
+          setTimeout(() => {
+            startIndex = endIndex;
+            endIndex = endIndex + 50;
+            if (endIndex > membersToSendMessageArray.length) {
+              endIndex = membersToSendMessageArray.length;
+            }
+            fnRecursiveCall(startIndex, endIndex);
+          }, 2000);
+        }
+      }
+      let endIndex = (membersToSendMessageArray.length > 50) ? 50 : membersToSendMessageArray.length;
+      fnRecursiveCall(0, endIndex);
+      // while (membersCount < membersToSendMessageArray.length) {
+      //   try {
+      //     if (!pause) {
+      //       const member = membersToSendMessageArray[membersCount];
+      //       let memberArr = [{
+      //         id: member.id,
+      //         name: member.name
+      //       }];
+      //       const conversationId = member.conversationId;
+      //       sendProactiveMessaageToUserAsync(memberArr, activity, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, membersCount, delay, member, msgNotSentArr, sendErrorEmail);
+      //       console.log({ membersCount });
+      //       if ((membersCount + 1) % 50 == 0) {
+      //         pause = true;
+      //         timerStart = (new Date()).getTime();
+      //       }
+      //     } else {
+      //       timerEnd = (new Date()).getTime();
+      //       if ((timerEnd - timerStart) > 2000) {
+      //         pause = false;
+      //         console.log("pause false");
+      //       }
+      //       console.log({ pause, membersCount });
+      //     }
+      //   } catch (err) {
+      //     console.log(err);
+      //     processSafetyBotError(err, "", "", userAadObjId);
+      //   } finally {
+      //     if (!pause) {
+      //       membersCount++;
+      //     }
+      //   }
+      // }
+
+      // membersToSendMessageArray.map((member, index) => {
+      //   try {
+      //     let memberArr = [{
+      //       id: member.id,
+      //       name: member.name
+      //     }];
+      //     const conversationId = member.conversationId;
+      //     sendProactiveMessaageToUserAsync(memberArr, activity, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index, delay, member, msgNotSentArr, sendErrorEmail);
+      //   } catch (err) {
+      //     processSafetyBotError(err, "", "", userAadObjId);
+      //   }
+      //   delay += 500;
+      // });
     }
     sendProactiveMessage(allMembersArr);
   } catch (err) {
@@ -1754,7 +1821,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
                 name: member.name
               }];
               const conversationId = member.conversationId;
-              sendProactiveMessaageToUserAsync(memberArr, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index, delay, member, msgNotSentArr);
+              sendProactiveMessaageToUserAsync(memberArr, activity, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index, delay, member, msgNotSentArr);
             } catch (err) {
               processSafetyBotError(err, "", "", userAadObjId);
             }
