@@ -1160,7 +1160,7 @@ const updateConversationId = async (teamId, userObjId) => {
   try {
     let sqlTeamMembers = `select distinct top 1000 a.serviceUrl, a.user_tenant_id tenantId, b.user_id userId, b.user_name userName from MSTeamsInstallationDetails a
     left join MSTeamsTeamsUsers b on a.team_id = b.team_id
-    where a.serviceUrl is not null and b.conversationId is null and b.user_id is not null and a.user_tenant_id != 'b9328432-f501-493e-b7f4-3105520a1cd4'`;
+    where a.serviceUrl is not null and b.conversationId is null and b.user_id is not null `;
 
     if (teamId != null) {
       sqlTeamMembers += ` and b.team_id='${teamId}' `;
