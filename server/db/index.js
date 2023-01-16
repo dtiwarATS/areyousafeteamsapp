@@ -186,12 +186,14 @@ const updateDataIntoDBAsync = async (query, pool, userObjId) => {
       } catch (err) {
         console.log(err);
         processSafetyBotError(err, "", "", userObjId, query);
+        reject(err);
       }
     });
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, "", "", userObjId, query);
   }
+  return false;
 };
 
 const insertData = async (sqlInsertQuery, userObjId) => {

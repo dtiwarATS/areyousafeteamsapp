@@ -1432,7 +1432,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
     const updateMsgDeliveryStatus = (sql) => {
       if (sql != "") {
         sqlUpdateMsgDeliveryStatus = "";
-        db.updateDataIntoDBAsync(sql, dbPool, userAadObjId)
+        const promise = db.updateDataIntoDBAsync(sql, dbPool, userAadObjId)
           .then((resp) => {
 
           })
@@ -1440,6 +1440,10 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
             sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(err, "", "", userAadObjId, sql);
           });
+
+        if (!promise) {
+          sqlUpdateMsgDeliveryStatus += sql;
+        }
       }
     }
 
@@ -1469,6 +1473,9 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
 
     const reSendMessage = () => {
       try {
+        if (sqlUpdateMsgDeliveryStatus != "") {
+          updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+        }
         messageCount = 0;
         allMembersArr = msgNotSentArr;
         msgNotSentArr = [];
@@ -1532,12 +1539,11 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
                 processSafetyBotError(err, "", "", userAadObjId);
               }
             }
+            if (sqlUpdateMsgDeliveryStatus != "") {
+              updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+            }
+            resolveFn(true);
           }
-
-          if (sqlUpdateMsgDeliveryStatus != "") {
-            updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-          }
-          resolveFn(true);
         }
       } catch (err) {
         processSafetyBotError(err, "", "", userAadObjId);
@@ -1570,14 +1576,14 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         }
         if (endIndex < membersToSendMessageArray.length) {
           startIndex = endIndex;
-          endIndex = endIndex + 2;
+          endIndex = endIndex + 1;
           if (endIndex > membersToSendMessageArray.length) {
             endIndex = membersToSendMessageArray.length;
           }
           recurTimerDelay = 1000;
           if (startIndex % 50 == 0) {
             console.log({ startIndex, endIndex });
-            recurTimerDelay = 60000;
+            recurTimerDelay = 20000;
           }
           setTimeout(() => {
             fnRecursiveCall(startIndex, endIndex);
@@ -1585,7 +1591,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
           }, recurTimerDelay);
         }
       }
-      let endIndex = (membersToSendMessageArray.length > 2) ? 2 : membersToSendMessageArray.length;
+      let endIndex = (membersToSendMessageArray.length > 1) ? 1 : membersToSendMessageArray.length;
       console.log("fnRecursiveCall start");
       fnRecursiveCall(0, endIndex);
       // while (membersCount < membersToSendMessageArray.length) {

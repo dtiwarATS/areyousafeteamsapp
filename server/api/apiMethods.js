@@ -248,6 +248,7 @@ const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serv
       resp.error = err.message;
       resp.errObj = err;
       console.log(`Error: sendToConversation ${err}`);
+      msgNotSentArr.push(memberObj);
       callbackFn(resp, index);
     }
     if (sendErrorEmail) {
