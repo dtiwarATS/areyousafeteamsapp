@@ -1160,7 +1160,7 @@ const updateConversationId = async (teamId, userObjId) => {
   try {
     let sqlTeamMembers = `select distinct top 1000 a.serviceUrl, a.user_tenant_id tenantId, b.user_id userId, b.user_name userName from MSTeamsInstallationDetails a
     left join MSTeamsTeamsUsers b on a.team_id = b.team_id
-    where a.serviceUrl is not null and b.conversationId is null and b.user_id is not null and a.user_tenant_id = 'b9328432-f501-493e-b7f4-3105520a1cd4'`;
+    where a.serviceUrl is not null and b.conversationId is null and b.user_id is not null and a.user_tenant_id != 'b9328432-f501-493e-b7f4-3105520a1cd4'`;
 
     if (teamId != null) {
       sqlTeamMembers += ` and b.team_id='${teamId}' `;
@@ -1188,7 +1188,7 @@ const updateConversationId = async (teamId, userObjId) => {
             });
         }
       }
-      let counter = 1, recurDelay = 5000;
+      let counter = 1, recurDelay = 1000;
       const fnRecursiveCall = (startIndex, endIndex) => {
         for (let i = startIndex; i < endIndex; i++) {
           try {
@@ -1227,19 +1227,23 @@ const updateConversationId = async (teamId, userObjId) => {
           }
         }
         if (endIndex < result.length) {
+          startIndex = endIndex;
+          endIndex = endIndex + 4;
+          if (endIndex > result.length) {
+            endIndex = result.length;
+          }
+          recurDelay = 1000;
+          if (startIndex % 48 == 0) {
+            console.log({ startIndex, endIndex });
+            recurDelay = 50000;
+          }
           setTimeout(() => {
-            startIndex = endIndex;
-            endIndex = endIndex + 50;
-            if (endIndex > result.length) {
-              endIndex = result.length;
-            }
             fnRecursiveCall(startIndex, endIndex);
             console.log("fnRecursiveCall End");
-            recurDelay += 5000;
           }, recurDelay);
         }
       }
-      let endIndex = (result.length > 50) ? 50 : result.length;
+      let endIndex = (result.length > 4) ? 4 : result.length;
       console.log("fnRecursiveCall start");
       fnRecursiveCall(0, endIndex);
 

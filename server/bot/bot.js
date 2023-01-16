@@ -1504,18 +1504,18 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         }
 
         if (!error) {
-          console.log({ "usrId": msgResp.userId, index });
+          console.log({ "usrId": msgResp.userId, "name": respMemberObj.name, index });
         } else {
-          console.log({ "error": `status ${status}`, "usrId": msgResp.userId, index });
+          console.log({ "error": `status ${status}`, "usrId": msgResp.userId, "name": respMemberObj.name, index });
         }
 
         if (updateStartTime == null) {
           updateStartTime = (new Date()).getTime();
         }
         let updateEndTime = (new Date()).getTime();
-        updateEndTime = (updateEndTime - updateStartTime) / 5000;
+        updateEndTime = (updateEndTime - updateStartTime) / 2000;
 
-        if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 5) {
+        if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 2) {
           updateStartTime = null;
           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
         }
@@ -1549,6 +1549,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
       let delay = 0;
       const sendErrorEmail = (retryCounter == 3);
 
+      let recurTimerDelay = 1000;
       const fnRecursiveCall = (startIndex, endIndex) => {
         for (let i = startIndex; i < endIndex; i++) {
           try {
@@ -1568,17 +1569,24 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
           }
         }
         if (endIndex < membersToSendMessageArray.length) {
+          startIndex = endIndex;
+          endIndex = endIndex + 2;
+          if (endIndex > membersToSendMessageArray.length) {
+            endIndex = membersToSendMessageArray.length;
+          }
+          recurTimerDelay = 1000;
+          if (startIndex % 50 == 0) {
+            console.log({ startIndex, endIndex });
+            recurTimerDelay = 60000;
+          }
           setTimeout(() => {
-            startIndex = endIndex;
-            endIndex = endIndex + 20;
-            if (endIndex > membersToSendMessageArray.length) {
-              endIndex = membersToSendMessageArray.length;
-            }
             fnRecursiveCall(startIndex, endIndex);
-          }, 20000);
+            console.log("fnRecursiveCall End");
+          }, recurTimerDelay);
         }
       }
-      let endIndex = (membersToSendMessageArray.length > 20) ? 20 : membersToSendMessageArray.length;
+      let endIndex = (membersToSendMessageArray.length > 2) ? 2 : membersToSendMessageArray.length;
+      console.log("fnRecursiveCall start");
       fnRecursiveCall(0, endIndex);
       // while (membersCount < membersToSendMessageArray.length) {
       //   try {

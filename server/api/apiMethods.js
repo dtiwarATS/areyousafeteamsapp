@@ -132,7 +132,7 @@ const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjI
     var credentials = new MicrosoftAppCredentials(appId, appPass);
     var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
-    conversationResp = await connectorClient.conversations.createConversation(conversationParameters, { timeout: 20000 });
+    conversationResp = await connectorClient.conversations.createConversation(conversationParameters, { timeout: 300000 });
     if (conversationResp?.id != null) {
       userConversationId = conversationResp.id;
     }
