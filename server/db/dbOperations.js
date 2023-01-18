@@ -102,7 +102,7 @@ const getCompaniesDataBySuperUserId = async (superUserId, filterByTeamId = false
   try {
     selectQuery = "";
     let companyData = {};
-    const filter = (filterByTeamId) ? ' and team_id is not null' : ' ';
+    const filter = (filterByTeamId) ? ` and team_id is not null and team_id <> '' ` : ' ';
     selectQuery = `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${superUserId}%'  ${filter} and uninstallation_date is null`;
 
     let res = await db.getDataFromDB(selectQuery, superUserId);
