@@ -1726,10 +1726,10 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
           }
         }
 
-        if (respMemberObj.conversationId == null && respMemberObj.newConversationId != null) {
-          respMemberObj.conversationId = respMemberObj.newConversationId;
+        if (respMemberObj.conversationId == null && msgResp.newConversationId != null) {
+          respMemberObj.conversationId = msgResp.newConversationId;
 
-          sqlUpdateMsgDeliveryStatus += ` update msteamsteamsusers set conversationId = '${respMemberObj.newConversationId}' where user_id = '${msgResp.userId}' ;`;
+          sqlUpdateMsgDeliveryStatus += ` update msteamsteamsusers set conversationId = '${msgResp.newConversationId}' where user_id = '${msgResp.userId}' ;`;
         }
 
         if (!error) {

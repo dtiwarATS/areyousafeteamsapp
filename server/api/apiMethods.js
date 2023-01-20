@@ -205,7 +205,7 @@ const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serv
           })
           .catch((err) => {
             resp.errorCode = err.code;
-            if (err.code !== "ConversationBlockedByUser") {
+            if (err.code !== "ConversationBlockedByUser" && err.message != "Invalid user identity in provided tenant") {
               msgNotSentArr.push(memberObj);
             }
             if (sendErrorEmail) {
@@ -238,7 +238,9 @@ const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serv
         // console.log({ delay });
       } else {
         if (callbackFn != null && typeof callbackFn === "function") {
-          msgNotSentArr.push(memberObj);
+          if (resp.error != "Invalid user identity in provided tenant") {
+            msgNotSentArr.push(memberObj);
+          }
           callbackFn(resp, index);
         }
       }
