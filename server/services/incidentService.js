@@ -1412,6 +1412,19 @@ const getSafetyCheckProgress = async (incId, incType, teamId, userAadObjId) => {
   return Promise.resolve(result);
 }
 
+const updateConversationIdAsync = async (conversationId, userId, userName) => {
+  if (conversationId != null) {
+    try {
+      pool = await poolPromise;
+      const sqlUpdate = `update msteamsteamsusers set conversationId = '${conversationId}' where user_id = '${userId}'`;
+      pool.request().query(sqlUpdate);
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(err, "", userName);
+    }
+  }
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1467,5 +1480,6 @@ module.exports = {
   isBotInstalledInTeam,
   updateConversationId,
   getRequiredDataToSendMessage,
-  getSafetyCheckProgress
+  getSafetyCheckProgress,
+  updateConversationIdAsync
 };

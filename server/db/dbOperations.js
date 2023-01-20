@@ -247,6 +247,15 @@ const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
   try {
     pool = await poolPromise;
 
+    const insertUserInfo = async (sql) => {
+      sqlInserUsers = "";
+      try {
+        await pool.request().query(sql);
+      } catch (err) {
+        sqlInserUsers += sql;
+      }
+    }
+
     if (updateLicense) {
       teamMembers.map((m, index) => {
         sqlInserUsers += teamMemberInsertQuery(teamId, m);
@@ -262,6 +271,10 @@ const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
         begin
               update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id = '${m.objectId}'
         end `;
+
+        if (index % 99 == 0) {
+          insertUserInfo(sqlInserUsers);
+        }
       });
     } else {
       teamMembers.map((m) => {

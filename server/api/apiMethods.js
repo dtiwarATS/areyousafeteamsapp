@@ -132,7 +132,8 @@ const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjI
     var credentials = new MicrosoftAppCredentials(appId, appPass);
     var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
 
-    conversationResp = await connectorClient.conversations.createConversation(conversationParameters, { timeout: 300000 });
+    //conversationResp = await connectorClient.conversations.createConversation(conversationParameters, { timeout: 300000 });
+    conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
     if (conversationResp?.id != null) {
       userConversationId = conversationResp.id;
     }
@@ -146,7 +147,7 @@ const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjI
       resp.error = err.message;
       resp.errObj = err;
     }
-    console.log(err);
+    //console.log(err);
     if (sendErrorEmail) {
       processSafetyBotError(err, members[0]?.name, members[0]?.id, null);
     }
@@ -154,7 +155,7 @@ const getUsersConversationId = async (tenantId, members, serviceUrl, userAadObjI
   return userConversationId;
 }
 
-const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null, delay = 100, memberObj = null, msgNotSentArr = [], sendErrorEmail = true) => {
+const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serviceUrl, tenantId, log, userAadObjId, conversationId = null, connectorClient = null, callbackFn = null, index = null, delay = 100, memberObj = null, msgNotSentArr = [], sendErrorEmail = true, retryCounter = null) => {
   let resp = {
     "userId": members[0]?.id,
     "conversationId": conversationId || null,
@@ -163,7 +164,9 @@ const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serv
     "error": null,
     "errorCode": null,
     "errObj": null,
-    memberObj
+    memberObj,
+    "newConversationId": null,
+    retryCounter
   };
   try {
 
@@ -216,13 +219,16 @@ const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serv
               }
               resp.error = err.message;
               resp.errObj = err;
-              console.log(`Error: sendToConversation ${err}`);
+              //console.log(`Error: sendToConversation ${err}`);
               callbackFn(resp, index);
             }
           });
       }
       if (conversationId == null) {
-        conversationId = await getUsersConversationId(tenantId, members, serviceUrl, userAadObjId, sendErrorEmail);
+        conversationId = await getUsersConversationId(tenantId, members, serviceUrl, userAadObjId, sendErrorEmail, resp);
+        if (conversationId != null) {
+          resp.newConversationId = conversationId;
+        }
       }
       if (conversationId != null) {
         sendToConversation();
@@ -247,7 +253,7 @@ const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serv
       }
       resp.error = err.message;
       resp.errObj = err;
-      console.log(`Error: sendToConversation ${err}`);
+      //console.log(`Error: sendToConversation ${err}`);
       msgNotSentArr.push(memberObj);
       callbackFn(resp, index);
     }
