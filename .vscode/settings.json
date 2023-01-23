@@ -6,6 +6,7 @@
   "appService.showBuildDuringDeployPrompt": false,
   "appService.zipIgnorePattern": [
     "node_modules{,/**}",
-    ".vscode{,/**}"
+    ".vscode{,/**}",
+    ".env"
   ]
 }

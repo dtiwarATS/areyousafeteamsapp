@@ -1733,9 +1733,9 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         }
 
         if (!error) {
-          console.log({ "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount });
+          console.log({ "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter });
         } else {
-          console.log({ "error": `status ${status}`, "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount });
+          console.log({ "error": `status ${status}`, "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter });
         }
 
         if (updateStartTime == null) {
