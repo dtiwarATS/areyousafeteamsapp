@@ -510,6 +510,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         } else {
           responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
         }
+        await sendDirectMessage(context, context.activity.from, responseText);
         var incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance ? incGuidance : "No details available";
         const cards = CardFactory.adaptiveCard(
@@ -526,9 +527,13 @@ class BotActivityHandler extends TeamsActivityHandler {
           )
         );
 
-        const message = MessageFactory.attachment(cards);
-        message.id = context.activity.replyToId;
-        await context.updateActivity(message);
+        await context.sendActivity({
+          attachments: [cards],
+        });
+
+        // const message = MessageFactory.attachment(cards);
+        // message.id = context.activity.replyToId;
+        // await context.updateActivity(message);
       } else if (
         uVerb === "send_approval" ||
         uVerb === "cancel_send_approval"
