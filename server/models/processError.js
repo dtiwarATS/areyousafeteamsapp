@@ -99,6 +99,8 @@ processSafetyBotError = (err, teamId, userName, userAadObjId, otherDetails) => {
 
         if (otherDetails == null) {
             otherDetails = "";
+        } else if (typeof otherDetails === "object") {
+            otherDetails = JSON.stringify(otherDetails);
         }
 
         const build = process.env.build;

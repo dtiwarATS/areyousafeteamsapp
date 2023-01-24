@@ -1625,9 +1625,8 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
     const dbPool = await db.getPoolPromise(userAadObjId);
     let sqlUpdateMsgDeliveryStatus = "";
     let updateStartTime = null;
-    const updateConversationIdAsyncFn = incidentService.updateConversationIdAsync;
-    //const allMembersArrCopy = [...allMembersArr];
-
+    let allMembersArrCount = (Array.isArray(allMembersArr)) ? allMembersArr.length : 0;
+    let retryLog = [];
     const updateMsgDeliveryStatus = (sql) => {
       if (sql != "") {
         sqlUpdateMsgDeliveryStatus = "";
@@ -1646,7 +1645,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
       }
     }
 
-    let msgNotSentArr = [], retryCounter = 0, retryCountTill = 10, respTime = (new Date()).getTime();
+    let msgNotSentArr = [], retryCounter = 0, retryCountTill = 10, respTime = (new Date()).getTime(), recurTimerDelay = 1000, rps = 5;
 
     const respTimeInterval = setInterval(() => {
       try {
@@ -1657,7 +1656,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
           return;
         }
         if ((currentTime - respTime) / 1000 >= 150) {
-          if (msgNotSentArr.length > 0 && retryCounter <= retryCountTill) {
+          if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
             reSendMessage();
           } else if (messageCount == allMembersArr.length) {
             clearInterval(respTimeInterval);
@@ -1688,7 +1687,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         }
 
         allMembersArr = msgNotSentArr;
-
+        allMembersArrCount = (Array.isArray(allMembersArr)) ? allMembersArr.length : 0;
         msgNotSentArr = [];
         sendProactiveMessage(allMembersArr);
       } catch (err) {
@@ -1717,7 +1716,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
 
         respMemberObj.isResponseReceived = true;
 
-        if (error == null || msgResp.errorCode == "ConversationBlockedByUser" || retryCounter == retryCountTill) {
+        if (error == null || msgResp.errorCode == "ConversationBlockedByUser" || error == "Invalid user identity in provided tenant" || retryCounter == retryCountTill) {
           if (isRecurringInc) {
             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
               values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
@@ -1733,9 +1732,9 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         }
 
         if (!error) {
-          console.log({ "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter });
+          console.log({ "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter, allMembersArrCount });
         } else {
-          console.log({ "error": `status ${status}`, "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter });
+          console.log({ "error": `status ${status}`, "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter, allMembersArrCount });
         }
 
         if (updateStartTime == null) {
@@ -1750,7 +1749,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         }
 
         if (messageCount == allMembersArr.length) {
-          if (msgNotSentArr.length > 0 && retryCounter <= retryCountTill) {
+          if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
             reSendMessage();
           } else {
             if (respTimeInterval != null) {
@@ -1764,6 +1763,8 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
             if (sqlUpdateMsgDeliveryStatus != "") {
               updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
             }
+            console.log({ retryLog });
+            processSafetyBotError("Retry Log", "", "", userAadObjId, retryLog);
             resolveFn(true);
           }
         }
@@ -1773,11 +1774,11 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
     }
 
     const sendProactiveMessage = (membersToSendMessageArray) => {
+      retryLog.push({ "memberCount:": membersToSendMessageArray?.length, retryCounter });
       console.log({ "memberCount:": membersToSendMessageArray?.length, retryCounter });
       let delay = 0;
       const sendErrorEmail = (retryCounter == retryCountTill);
 
-      let recurTimerDelay = 1000, rps = 50;
       const fnRecursiveCall = (startIndex, endIndex) => {
         for (let i = startIndex; i < endIndex; i++) {
           try {
