@@ -84,6 +84,8 @@ const server = app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
 
+server.keepAliveTimeout = 61 * 1000;
+
 process.on("SIGTERM", shutDown);
 process.on("SIGINT", shutDown);
 
