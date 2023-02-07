@@ -1207,7 +1207,7 @@ const updateConversationId = async (teamId, userObjId) => {
                 .then((conversationId) => {
                   console.log({ i, conversationId });
                   if (conversationId != null) {
-                    sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}'; `;
+                    sqlUpdate += ` update MSTeamsTeamsUsers set conversationId = '${conversationId}' where user_id = '${userId}' and tenantid = '${tenantId}' and team_id='${teamId}'; `;
                   }
                   console.log({ i, counter });
                   if ((counter > 0 && counter % 200 == 0) || counter == result.length) {
