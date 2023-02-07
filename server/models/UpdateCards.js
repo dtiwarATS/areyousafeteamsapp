@@ -155,7 +155,6 @@ const updateSafeMessage = (
   inc,
   incGuidance
 ) => {
-  var msg = responseText + `\n\n If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`;
   var card = {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -163,7 +162,7 @@ const updateSafeMessage = (
     body: [
       {
         type: "TextBlock",
-        text: `${responseText}\n\n If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`,
+        text: `If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`,
         wrap: true,
       },
       {
@@ -199,18 +198,18 @@ const updateSafeMessage = (
         text: `**Guidance:**\n\n` + incGuidance,
       },
     ],
-    msteams: {
-      entities: [
-        {
-          type: "mention",
-          text: `<at>${incCreatedBy.name}</at>`,
-          mentioned: {
-            id: incCreatedBy.id,
-            name: incCreatedBy.name,
-          },
-        },
-      ],
-    },
+    // msteams: {
+    //   entities: [
+    //     {
+    //       type: "mention",
+    //       text: `<at>${incCreatedBy.name}</at>`,
+    //       mentioned: {
+    //         id: incCreatedBy.id,
+    //         name: incCreatedBy.name,
+    //       },
+    //     },
+    //   ],
+    // },
     type: "AdaptiveCard",
     version: "1.4",
   };
