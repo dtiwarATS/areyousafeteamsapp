@@ -1568,7 +1568,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
               updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
             }
             console.log({ retryLog });
-            processSafetyBotError("Retry Log", "", "", userAadObjId, retryLog);
+            //processSafetyBotError("Retry Log", "", "", userAadObjId, retryLog);
             resolveFn(true);
           }
         }
