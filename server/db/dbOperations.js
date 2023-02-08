@@ -446,7 +446,7 @@ const deleteCompanyDataByuserAadObjId = async (userObjId) => {
   try {
     if (userObjId != null) {
       pool = await poolPromise;
-      let query = `update msteamsinstallationdetails set uninstallation_date = '${new Date(Date.now()).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where user_obj_id = '${userObjId}' and (team_id is null or team_id = '')`;
+      let query = `update msteamsinstallationdetails set super_users = null, uninstallation_date = '${new Date(Date.now()).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where user_obj_id = '${userObjId}' and (team_id is null or team_id = '')`;
       await pool.request().query(query);
     }
   } catch (err) {
