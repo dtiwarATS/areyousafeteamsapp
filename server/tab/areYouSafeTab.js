@@ -229,18 +229,24 @@ class AreYouSafeTab {
       const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
       let superUsersArr = [];
       if (superUsers.length > 0) {
-        superUsersArr = superUsers[0]["super_users"].split(",").map((sUser) => sUser);
+        superUsersArr = superUsers[0]["super_users"].split(",");
       }
       if (superUsersArr.length > 0 && teamsMembers && teamsMembers.length > 0) {
-        teamsMembersWithsSuperUserFlag = teamsMembers.map((usr) => {
-          let isSuperUser = superUsersArr.includes(usr.userAadObjId);
-          usr.isSuperUser = isSuperUser;
-          return usr;
+        teamsMembers.forEach(usr => {
+          const isSuperUser = superUsersArr.includes(usr.userAadObjId);
+          if (isSuperUser) {
+            usr.isSuperUser = true;
+          }
         });
+        // teamsMembersWithsSuperUserFlag = teamsMembers.map((usr) => {
+
+        //   usr.isSuperUser = isSuperUser;
+        //   return usr;
+        // });
       }
-      if (teamsMembersWithsSuperUserFlag && teamsMembersWithsSuperUserFlag.length > 0) {
-        teamsMembers = teamsMembersWithsSuperUserFlag;
-      }
+      // if (teamsMembersWithsSuperUserFlag && teamsMembersWithsSuperUserFlag.length > 0) {
+      //   teamsMembers = teamsMembersWithsSuperUserFlag;
+      // }
     } catch (err) {
       processSafetyBotError(err, teamId, "", userAadObjId);
     }
