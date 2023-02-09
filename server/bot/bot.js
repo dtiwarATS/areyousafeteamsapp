@@ -699,12 +699,12 @@ const getIncConfirmationCard = async (inc_created_by, incTitle, preTextMsg, newI
 
         ],
       },
-      {
-        type: "TextBlock",
-        separator: true,
-        wrap: true,
-        text: `**Guidance:**\n\n` + guidance,
-      },
+      // {
+      //   type: "TextBlock",
+      //   separator: true,
+      //   wrap: true,
+      //   text: `**Guidance:**\n\n` + guidance,
+      // },
       {
         type: "RichTextBlock",
         separator: true,
@@ -1212,12 +1212,12 @@ const getSaftyCheckCard = async (incTitle, incObj, companyData, incGuidance, inc
           }
         ]
       },
-      {
-        type: "TextBlock",
-        separator: true,
-        wrap: true,
-        text: `**Guidance:**\n\n` + incGuidance,
-      }
+      // {
+      //   type: "TextBlock",
+      //   separator: true,
+      //   wrap: true,
+      //   text: `**Guidance:**\n\n` + incGuidance,
+      // }
     ],
     msteams: {
       entities: mentionUserEntities

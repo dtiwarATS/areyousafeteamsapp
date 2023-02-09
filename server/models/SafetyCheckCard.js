@@ -72,13 +72,14 @@ const getSafetyCheckTypeCard = async (incTitle, incObj, companyData, incGuidance
                 }
             ]
         });
+    } else {
+        cardBody.push({
+            type: "TextBlock",
+            separator: true,
+            wrap: true,
+            text: `**Guidance:**\n\n` + incGuidance,
+        });
     }
-    cardBody.push({
-        type: "TextBlock",
-        separator: true,
-        wrap: true,
-        text: `**Guidance:**\n\n` + incGuidance,
-    });
     return {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
