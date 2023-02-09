@@ -841,15 +841,18 @@ const updateUserInfoFlag = async (installationIds) => {
   }
 }
 
-const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias = "title") => {
-  return `SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, 0 isSuperUser, u.conversationId,
+const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias = "title", superUsersLeftJoinQuery = null) => {
+  return `SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, ` +
+    (superUsersLeftJoinQuery != null ? ' CASE when tblAadObjId.useAadObjId is not null then 1 else 0 end isSuperUser ' : ' 0 isSuperUser ')
+    + ` , u.conversationId,
   case when inst.user_id is null then 0 else 1 end isAdmin 
   FROM MSTEAMSTEAMSUSERS u
-  left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null
-  WHERE ${whereSql} and u.hasLicense = 1 ORDER BY u.[USER_NAME]`;
+  left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
+    (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : '')
+    + ` WHERE ${whereSql} and u.hasLicense = 1 ORDER BY u.[USER_NAME]`;
 }
 
-const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title") => {
+const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title", superUsersLeftJoinQuery = null) => {
   let whereSql = "";
   if (teamId != null) {
     whereSql = ` u.TEAM_ID = '${teamId}'`;
@@ -857,12 +860,12 @@ const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", use
     whereSql = ` u.TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
-  return getTeamMemeberSqlQuery(whereSql, userIdAlias, userNameAlias);
+  return getTeamMemeberSqlQuery(whereSql, userIdAlias, userNameAlias, superUsersLeftJoinQuery);
 }
 
-const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title", userAadObjId) => {
+const getAllTeamMembersByTeamId = async (teamId, userIdAlias = "value", userNameAlias = "title", userAadObjId, superUsersLeftJoinQuery = null) => {
   try {
-    const sqlTeamMembers = getAllTeamMembersQuery(teamId, null, userIdAlias, userNameAlias);
+    const sqlTeamMembers = getAllTeamMembersQuery(teamId, null, userIdAlias, userNameAlias, superUsersLeftJoinQuery);
     const result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
     return Promise.resolve(result);
   } catch (err) {

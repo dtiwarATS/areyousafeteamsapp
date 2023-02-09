@@ -222,28 +222,46 @@ class AreYouSafeTab {
     try {
       let teamsMembersWithsSuperUserFlag = null;
       if (teamId != null && teamId != "null") {
-        teamsMembers = await incidentService.getAllTeamMembersByTeamId(teamId);
-      } else if (userAadObjId != null && userAadObjId != "null") {
-        teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
-      }
-      const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
-      let superUsersArr = [];
-      if (superUsers.length > 0) {
-        superUsersArr = superUsers[0]["super_users"].split(",");
-      }
-      if (superUsersArr.length > 0 && teamsMembers && teamsMembers.length > 0) {
-        teamsMembers.forEach(usr => {
-          const isSuperUser = superUsersArr.includes(usr.userAadObjId);
-          if (isSuperUser) {
-            usr.isSuperUser = true;
+        const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
+        let superUsersLeftJoinQuery = null;
+        if (superUsers.length > 0) {
+          const superUsersArr = superUsers[0]["super_users"].split(",").map((useAadObjId, index) => {
+            if (useAadObjId) {
+              if (index == 0) {
+                return ` select '${useAadObjId}' useAadObjId `;
+              } else {
+                return ` union all select '${useAadObjId}' useAadObjId `;
+              }
+            }
+          });
+          if (superUsersArr.length > 0) {
+            superUsersLeftJoinQuery = `left join (Select * from (` + superUsersArr.join(' ') + ') t ) tblAadObjId on tblAadObjId.useAadObjId = u.user_aadobject_id ';
           }
-        });
-        // teamsMembersWithsSuperUserFlag = teamsMembers.map((usr) => {
+        }
 
-        //   usr.isSuperUser = isSuperUser;
-        //   return usr;
-        // });
+        teamsMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "value", "title", userAadObjId, superUsersLeftJoinQuery);
       }
+      // else if (userAadObjId != null && userAadObjId != "null") {
+      //   teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
+      // }
+      // const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
+      // let superUsersArr = [];
+      // if (superUsers.length > 0) {
+      //   superUsersArr = superUsers[0]["super_users"].split(",");
+      // }
+      // if (superUsersArr.length > 0 && teamsMembers && teamsMembers.length > 0) {
+      //   teamsMembers.forEach(usr => {
+      //     const isSuperUser = superUsersArr.includes(usr.userAadObjId);
+      //     if (isSuperUser) {
+      //       usr.isSuperUser = true;
+      //     }
+      //   });
+      //   // teamsMembersWithsSuperUserFlag = teamsMembers.map((usr) => {
+
+      //   //   usr.isSuperUser = isSuperUser;
+      //   //   return usr;
+      //   // });
+      // }
       // if (teamsMembersWithsSuperUserFlag && teamsMembersWithsSuperUserFlag.length > 0) {
       //   teamsMembers = teamsMembersWithsSuperUserFlag;
       // }
