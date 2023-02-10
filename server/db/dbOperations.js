@@ -555,6 +555,17 @@ const getCompanyDataByTenantId = async (tenantId, filter = null) => {
   return Promise.resolve(result);
 }
 
+const renameTeam = async (teamId, teamName, tenantId) => {
+  let result = null;
+  try {
+    const sqlUpdateTeamName = `update msteamsinstallationdetails set team_name = '${teamName}' where team_id = '${teamId}' and user_tenant_id = '${tenantId}'`;
+    result = await db.updateDataIntoDB(sqlUpdateTeamName);
+  } catch (err) {
+    processSafetyBotError(err, "", "");
+  }
+  return Promise.resolve(result);
+}
+
 module.exports = {
   getCompaniesData,
   addFeedbackData,
@@ -576,5 +587,6 @@ module.exports = {
   getUserLicenseDetails,
   updateIsUserInfoSaved,
   getCompanyDataByTenantId,
-  parseCompanyData
+  parseCompanyData,
+  renameTeam
 };
