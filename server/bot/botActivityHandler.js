@@ -153,7 +153,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 }
               }
             } catch (err) {
-              processSafetyBotError(err, "", "");
+              processSafetyBotError(err, "", "", "", "onMessage - personal");
             }
 
             if (isAdmin || isSuperUser) {
@@ -167,7 +167,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           await next();
         }
       } catch (err) {
-        processSafetyBotError(err, "", "");
+        processSafetyBotError(err, "", "", "", "onMessage");
       }
     });
 
@@ -375,7 +375,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", "", "notifyUserForInvalidLicense");
     }
   }
 
@@ -388,7 +388,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", "", "onInstallationUpdateActivity");
     }
   }
 
@@ -604,7 +604,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", "", "onInvokeActivity");
     }
   }
 
@@ -627,7 +627,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", "", "hanldeAdminOrSuperUserMsg");
     }
   }
 
@@ -677,7 +677,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", userId);
+      processSafetyBotError(err, "", "", userId, JSON.stringify({ "fnName": "hanldeNonAdminUserMsg", "userLicenseDetails": userLicenseDetails }));
     }
   }
   async hanldeChannelUserMsg(context) {
@@ -689,7 +689,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       );
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", "", "hanldeChannelUserMsg");
     }
   }
 
@@ -731,7 +731,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         );
       }
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(err, "", "", userAadObjId, "sendWelcomeMessage");
     }
   }
 

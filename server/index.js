@@ -111,5 +111,5 @@ function shutDown() {
 // });
 
 process.on('uncaughtException', function (err) {
-  processSafetyBotError(err, "", "", "");
+  processSafetyBotError(err, "", "", "", "uncaughtException");
 });
