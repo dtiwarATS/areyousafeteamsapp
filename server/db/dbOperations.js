@@ -232,7 +232,7 @@ const teamMemberInsertQuery = (teamId, m) => {
     IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [userPrincipalName], [email], [tenantid], [userRole])
-    VALUES('${teamId}', '${m.objectId}', '${m.id}', '${m.name}', '${m.userPrincipalName}', '${userEmail}', '${m.tenantId}', '${m.userRole}');
+    VALUES('${teamId}', '${m.objectId}', '${m.id}', '${m.name.replace(/'/g, "''")}, '${m.userPrincipalName}', '${userEmail}', '${m.tenantId}', '${m.userRole}');
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}' AND userPrincipalName is null)
     BEGIN
