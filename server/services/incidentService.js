@@ -303,7 +303,7 @@ const getIncGuidance = async (incId) => {
   }
 };
 
-const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadObjId) => {
+const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadObjId, responseSelectedTeams, teamIds) => {
   let newInc = {};
   try {
     if (incObj.selectedMembers.length === 0 && memberChoises && memberChoises.length > 0) {
@@ -320,6 +320,10 @@ const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadO
       if (selectedMembersResp && selectedMembersResp != "") {
         await saveIncResponseSelectedUsers(newInc.incId, selectedMembersResp, memberChoises, userAadObjId);
         incObj.responseSelectedUsers = selectedMembersResp;
+      }
+      if (responseSelectedTeams && responseSelectedTeams != "") {
+        await saveIncResponseSelectedTeams(newInc.incId, responseSelectedTeams, teamIds, userAadObjId);
+        incObj.responseSelectedTeams = responseSelectedTeams;
       }
     }
   } catch (err) {
@@ -643,6 +647,36 @@ const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises, userA
   }
 }
 
+const saveIncResponseSelectedTeams = async (incId, channelIds, teamIds, userAadObjId) => {
+  try {
+    if (incId != null && channelIds != null && channelIds != '' && channelIds.split(',').length > 0) {
+      let query = "";
+      const channelIdsArr = channelIds.split(',');
+      for (let c = 0; c < channelIdsArr.length; c++) {
+        const channelId = channelIdsArr[c];
+        let teamId = "", teamName = "", channelName = "";
+        if (teamIds != null) {
+          const teamObj = teamIds.find((m) => m.channelId == channelId);
+          if (teamObj != null) {
+            teamId = teamObj.teamId;
+            teamName = teamObj.teamName;
+            channelName = teamObj.channelName
+          }
+        }
+        query += `insert into MSTeamsIncResponseSelectedTeams(incId, teamId, teamName, channelId, channelName) values(${incId}, '${teamId}', '${teamName}', '${channelId}', '${channelName}');`;
+      }
+      //console.log("insert query => ", query);
+      if (query != "") {
+        await pool.request().query(query);
+      }
+    }
+  }
+  catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
+  }
+}
+
 const saveIncResponseUserTS = async (respUserTSquery, userAadObjId) => {
   try {
     if (respUserTSquery != null && respUserTSquery != "") {
@@ -842,14 +876,14 @@ const updateUserInfoFlag = async (installationIds) => {
 }
 
 const getTeamMemeberSqlQuery = (whereSql, userIdAlias = "value", userNameAlias = "title", superUsersLeftJoinQuery = null) => {
-  return `SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, ` +
+  return ` SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, ` +
     (superUsersLeftJoinQuery != null ? ' CASE when tblAadObjId.useAadObjId is not null then 1 else 0 end isSuperUser ' : ' 0 isSuperUser ')
     + ` , u.conversationId,
   case when inst.user_id is null then 0 else 1 end isAdmin 
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : '')
-    + ` WHERE ${whereSql} and u.hasLicense = 1 ORDER BY u.[USER_NAME]`;
+    + ` WHERE ${whereSql} and u.hasLicense = 1 ORDER BY u.[USER_NAME]; `;
 }
 
 const getAllTeamMembersQuery = (teamId, userAadObjId, userIdAlias = "value", userNameAlias = "title", superUsersLeftJoinQuery = null) => {
@@ -956,7 +990,7 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select team_id teamId, team_name teamName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null order by team_name`;
+    const sqlTeamInfo = `select team_id teamId, team_name teamName, channelId, isnull(team_name, '') + isnull(channelName, '') channelName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
     result = await db.getDataFromDB(sqlTeamInfo, userAadObjId);
   } catch (err) {
     console.log(err);
@@ -1428,6 +1462,32 @@ const updateConversationIdAsync = async (conversationId, userId, userName) => {
   }
 }
 
+const getIncDataToCopyInc = async (incId, selectedUsers, teamId, userAadObjId) => {
+  let result = null;
+  try {
+    if (selectedUsers && selectedUsers.length > 0) {
+      selectedUsers = "'" + selectedUsers.split(",").join("','") + "'";
+    }
+    const sqlWhereSelectedMembers = ` u.team_id = '${teamId}' and u.user_id in (${selectedUsers})`;
+    const sqlSelectedMembers = getTeamMemeberSqlQuery(sqlWhereSelectedMembers);
+
+    const sqlWhereResponseMembers = ` u.team_id = '${teamId}' and u.user_id in (select user_id from MSTeamsIncResponseSelectedUsers where inc_id = ${incId})`;
+    const sqlResponseMembers = getTeamMemeberSqlQuery(sqlWhereResponseMembers);
+
+    const sqlSelectedTeams = ` select teamId, teamName , channelId, channelName from MSTeamsIncResponseSelectedTeams where incId = ${incId}; `;
+
+    const sqlCopyData = `${sqlSelectedMembers} 
+                          ${sqlResponseMembers}
+                          ${sqlSelectedTeams}`;
+
+    result = await db.getDataFromDB(sqlCopyData, userAadObjId, false);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", userAadObjId);
+  }
+  return Promise.resolve(result);
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1484,5 +1544,6 @@ module.exports = {
   updateConversationId,
   getRequiredDataToSendMessage,
   getSafetyCheckProgress,
-  updateConversationIdAsync
+  updateConversationIdAsync,
+  getIncDataToCopyInc
 };

@@ -505,11 +505,19 @@ class AreYouSafeTab {
         if (incObj.responseSelectedMembers != null) {
           responseSelectedMembers = incObj.responseSelectedMembers;
         }
+        let teamIds = null;
+        if (incObj.userTeamInfo != null) {
+          teamIds = incObj.userTeamInfo;
+        }
+        let responseSelectedTeams = null;
+        if (incObj.responseSelectedTeams != null) {
+          responseSelectedTeams = incObj.responseSelectedTeams;
+        }
         incData.guidance = incData.guidance.toString().replace(/\\n/g, "\n\n");
         incData.additionalInfo = incData.additionalInfo.toString().replace(/\\n/g, "\n\n");
         incData.contactInfo = incData.contactInfo.toString().replace(/\\n/g, "\n\n");
         incData.situation = incData.situation.toString().replace(/\\n/g, "\n\n");
-        newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises, userAadObjId);
+        newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises, userAadObjId, responseSelectedTeams, teamIds);
       }
     } catch (err) {
       console.log(err);
@@ -582,9 +590,21 @@ class AreYouSafeTab {
         selectedUsers = incData.selectedMembers;
       }
 
-      const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId, userAadObjId);
-      const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId, userAadObjId);
-      return { incData, incResponseMembersData, incSelectedMembersData };
+      // const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId, userAadObjId);
+      // const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId, userAadObjId);
+      // const incDataToCopy = await incidentService.getIncDataToCopyInc(incId, selectedUsers, teamId, userAadObjId);
+
+      let incSelectedMembersData = null;
+      let incResponseMembersData = null;
+      let incDataToCopy = null;
+
+      if (incDataToCopy != null && incDataToCopy.length > 0) {
+        incSelectedMembersData = incDataToCopy[0];
+        incResponseMembersData = incDataToCopy[1];
+        incDataToCopy = incDataToCopy[2];
+      }
+
+      return { incData, incResponseMembersData, incSelectedMembersData, incDataToCopy };
     } catch (err) {
       processSafetyBotError(err, "", "");
     }
