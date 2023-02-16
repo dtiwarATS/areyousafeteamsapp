@@ -1500,6 +1500,21 @@ const getIncDataToCopyInc = async (incId, selectedUsers, teamId, userAadObjId) =
   return Promise.resolve(result);
 }
 
+const getNAReapSelectedTeams = async (teamId, userAadObjId, sqlWhere = null) => {
+  try {
+    if (sqlWhere == null) {
+      sqlWhere = ` where a.tenantId in (select user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}') `;
+    }
+    const sql = ` select a.id, a.teamId, a.teamName, a.channelId, a.channelName, b.serviceUrl
+                  from MSTeamsNAResponseSelectedTeams a 
+                  left join MSTeamsInstallationDetails b on a.teamId = b.team_id and a.channelId = b.channelId ${sqlWhere}  `;
+    return await db.getDataFromDB(sql, userAadObjId);
+  } catch (err) {
+    processSafetyBotError(err, teamId, "", userAadObjId, "getNAReapSelectedTeams");
+  }
+  return null;
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1558,5 +1573,6 @@ module.exports = {
   getSafetyCheckProgress,
   updateConversationIdAsync,
   getIncDataToCopyInc,
-  getIncResponseSelectedChannelList
+  getIncResponseSelectedChannelList,
+  getNAReapSelectedTeams
 };

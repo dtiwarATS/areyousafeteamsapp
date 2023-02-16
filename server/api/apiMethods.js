@@ -383,6 +383,37 @@ const sentActivityToTeamChannel = async (context, msgAttachment, teamsChannelId,
   }
 }
 
+const sendProactiveMessaageToSelectedChannel = async (msgAttachment, channelId, serviceUrl, userAadObjId) => {
+  try {
+    if (msgAttachment != null) {
+      const appId = process.env.MicrosoftAppId;;
+      const appPass = process.env.MicrosoftAppPassword;
+      const botName = process.env.BotName;
+      const activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+
+      const conversationParameters = {
+        bot: {
+          id: appId,
+          name: botName
+        },
+        isGroup: true,
+        conversationType: "channel",
+        channelData: {
+          channel: { id: channelId }
+        },
+        activity: activity
+      };
+
+      var credentials = new MicrosoftAppCredentials(appId, appPass);
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+
+      await connectorClient.conversations.createConversation(conversationParameters);
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId, "sendProactiveMessaageToSelectedChannel");
+  }
+}
+
 module.exports = {
   getAllTeamMembers,
   sendDirectMessage,
@@ -392,5 +423,6 @@ module.exports = {
   getAllTeamMembersByConnectorClient,
   getUsersConversationId,
   sendProactiveMessaageToUserAsync,
-  sentActivityToTeamChannel
+  sentActivityToTeamChannel,
+  sendProactiveMessaageToSelectedChannel
 };

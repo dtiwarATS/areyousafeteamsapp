@@ -13,7 +13,7 @@ const ENV_FILE = path.join(__dirname, "../.env");
 const db = require("../db");
 const dashboard = require("../models/dashboard");
 const bot = require("../bot/bot");
-const { getCompaniesData, updateSuperUserDataByUserAadObjId } = require("../db/dbOperations");
+const { getCompaniesData, updateSuperUserDataByUserAadObjId, saveNARespSelectedTeams } = require("../db/dbOperations");
 
 require("dotenv").config({ path: ENV_FILE });
 
@@ -319,6 +319,7 @@ class AreYouSafeTab {
             );
           }
         }
+        bot.sendNSRespToTeamChannel(admins[0].user_tenant_id, approvalCardResponse, userAadObjId);
         isMessageSent = true;
       }
     } catch (err) {
@@ -449,6 +450,7 @@ class AreYouSafeTab {
             );
           }
         }
+        bot.sendNSRespToTeamChannel(admins[0].user_tenant_id, approvalCardResponse, userAadObjId);
       }
     } catch (err) {
       processSafetyBotError(err, "", "", userAadObjId);
@@ -571,9 +573,10 @@ class AreYouSafeTab {
     return Promise.resolve(superUsers);
   }
 
-  saveUserSetting = async ({ teamId, superUsers, userAadObjId }) => {
+  saveUserSetting = async ({ teamId, superUsers, userAadObjId, selectedTeams }) => {
     let result = null;
     try {
+      saveNARespSelectedTeams(teamId, selectedTeams, userAadObjId);
       result = await updateSuperUserDataByUserAadObjId(userAadObjId, teamId, superUsers);
     } catch (err) {
       processSafetyBotError(err, teamId, "", userAadObjId);

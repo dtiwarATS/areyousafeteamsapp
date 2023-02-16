@@ -21,7 +21,8 @@ const {
   addLog,
   getAllTeamMembersByConnectorClient,
   sendProactiveMessaageToUserAsync,
-  sentActivityToTeamChannel
+  sentActivityToTeamChannel,
+  sendProactiveMessaageToSelectedChannel
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
@@ -2991,6 +2992,25 @@ const addteamsusers = async (context) => {
   }
 }
 
+const sendNSRespToTeamChannel = async (userTeamId, adaptiveCard, userAadObjId) => {
+  try {
+    const sqlWhere = ` where a.tenantId = '${userTeamId}' `;
+    const channelData = await incidentService.getNAReapSelectedTeams("", userAadObjId, sqlWhere);
+    if (channelData && channelData.length > 0) {
+      await Promise.all(
+        channelData.map(async (data) => {
+          const channelId = data.channelId;
+          const serviceUrl = data.serviceUrl;
+          await sendProactiveMessaageToSelectedChannel(adaptiveCard, channelId, serviceUrl, userAadObjId);
+        })
+      );
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId, "sendNSRespToTeamChannel");
+  }
+}
+
 module.exports = {
   invokeResponse,
   sendInstallationEmail,
@@ -3013,5 +3033,6 @@ module.exports = {
   updateServiceUrl,
   sendProactiveMessaageToUserTest,
   sendProactiveMessaageToChannel,
-  sendSafetyCheckMessageAsync
+  sendSafetyCheckMessageAsync,
+  sendNSRespToTeamChannel
 };

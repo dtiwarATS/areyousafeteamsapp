@@ -423,6 +423,26 @@ const handlerForSafetyBotTab = (app) => {
             res.send(0);
         }
     });
+
+    app.get("/areyousafetabhandler/getNAReapSelectedTeams", (req, res) => {
+        const { teamId, userAadObjId } = req.query;
+
+        try {
+            incidentService
+                .getNAReapSelectedTeams(teamId, userAadObjId)
+                .then((data) => {
+                    res.send(data);
+                })
+                .catch((err) => {
+                    console.log(err);
+                    processSafetyBotError(err, "", "", userAadObjId);
+                    res.send(0);
+                });
+        } catch (err) {
+            processSafetyBotError(err, "", "", userAadObjId);
+            res.send(0);
+        }
+    });
 }
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;
