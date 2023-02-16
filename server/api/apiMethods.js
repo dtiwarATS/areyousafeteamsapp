@@ -370,6 +370,19 @@ const updateMessage = async (activityId, activity, conversationId, serviceUrl) =
   }
 }
 
+const sentActivityToTeamChannel = async (context, msgAttachment, teamsChannelId, userAadObjId) => {
+  try {
+    const activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+    const [reference] = await TeamsInfo.sendMessageToTeamsChannel(context, activity, teamsChannelId, process.env.MicrosoftAppId);
+
+    await context.adapter.continueConversationAsync(process.env.MicrosoftAppId, reference, async turnContext => {
+      await turnContext.sendActivity(activity);
+    });
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId, "sentActivityToTeamChannel");
+  }
+}
+
 module.exports = {
   getAllTeamMembers,
   sendDirectMessage,
@@ -378,5 +391,6 @@ module.exports = {
   updateMessage,
   getAllTeamMembersByConnectorClient,
   getUsersConversationId,
-  sendProactiveMessaageToUserAsync
+  sendProactiveMessaageToUserAsync,
+  sentActivityToTeamChannel
 };

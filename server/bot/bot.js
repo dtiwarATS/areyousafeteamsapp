@@ -20,7 +20,8 @@ const {
   updateMessage,
   addLog,
   getAllTeamMembersByConnectorClient,
-  sendProactiveMessaageToUserAsync
+  sendProactiveMessaageToUserAsync,
+  sentActivityToTeamChannel
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
@@ -1289,6 +1290,23 @@ const sendApprovalResponseToSelectedMembers = async (incId, context, approvalCar
   }
 }
 
+const sendApprovalResponseToSelectedTeams = async (incId, context, approvalCardResponse, userAadObjId) => { //If user click on Need assistance, then send message to selected users 
+  try {
+    const incRespSelectedChannels = await incidentService.getIncResponseSelectedChannelList(incId);
+    if (incRespSelectedChannels != null && incRespSelectedChannels.length > 0) {
+      for (let i = 0; i < incRespSelectedChannels.length; i++) {
+        const channelId = incRespSelectedChannels[i]?.channelId;
+        if (channelId) {
+          await sentActivityToTeamChannel(context, approvalCardResponse, channelId, userAadObjId);
+        }
+      }
+    }
+  }
+  catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId, "sendApprovalResponseToSelectedTeams");
+  }
+}
+
 const updateIncResponseOfSelectedMembers = async (incId, runAt, dashboardCard, serviceUrl) => {
   try {
     const incResponseUserTSData = await incidentService.getIncResponseUserTS(incId, runAt);
@@ -2328,6 +2346,7 @@ const sendApprovalResponse = async (user, context) => {
       //send new msg just to emulate msg is being updated
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       await sendApprovalResponseToSelectedMembers(incId, context, approvalCardResponse);
+      await sendApprovalResponseToSelectedTeams(incId, context, approvalCardResponse, user.aadObjectId);
     }
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
@@ -2336,6 +2355,7 @@ const sendApprovalResponse = async (user, context) => {
     //await updateIncResponseOfSelectedMembers(incId, runAt, dashboardCard, serviceUrl);
   } catch (error) {
     console.log(error);
+    processSafetyBotError(err, "", "", user.aadObjectId, "sendApprovalResponse");
   }
 };
 
@@ -2374,9 +2394,12 @@ const submitComment = async (context, user, companyData) => {
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
       await incidentService.updateIncResponseComment(incId, userId, commentVal, inc);
+
+      await sendApprovalResponseToSelectedTeams(incId, context, approvalCardResponse, user.aadObjectId);
     }
   } catch (error) {
     console.log(error);
+    processSafetyBotError(err, "", "", user.aadObjectId, "submitComment");
   }
 };
 

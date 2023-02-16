@@ -592,19 +592,17 @@ class AreYouSafeTab {
 
       // const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId, userAadObjId);
       // const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId, userAadObjId);
-      // const incDataToCopy = await incidentService.getIncDataToCopyInc(incId, selectedUsers, teamId, userAadObjId);
 
-      let incSelectedMembersData = null;
-      let incResponseMembersData = null;
-      let incDataToCopy = null;
+      let incSelectedMembersData = null, incResponseMembersData = null, incResponseTeamsData = null;
+      let incDataToCopy = await incidentService.getIncDataToCopyInc(incId, selectedUsers, teamId, userAadObjId);
 
       if (incDataToCopy != null && incDataToCopy.length > 0) {
         incSelectedMembersData = incDataToCopy[0];
         incResponseMembersData = incDataToCopy[1];
-        incDataToCopy = incDataToCopy[2];
+        incResponseTeamsData = incDataToCopy[2];
       }
 
-      return { incData, incResponseMembersData, incSelectedMembersData, incDataToCopy };
+      return { incData, incResponseMembersData, incSelectedMembersData, incResponseTeamsData };
     } catch (err) {
       processSafetyBotError(err, "", "");
     }

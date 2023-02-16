@@ -702,6 +702,18 @@ const getIncResponseSelectedUsersList = async (incId, userAadObjId) => {
   }
 }
 
+const getIncResponseSelectedChannelList = async (incId, userAadObjId) => {
+  try {
+    const sql = `select id, incId, channelId from MSTeamsIncResponseSelectedTeams where incId = ${incId};`;
+    const result = await db.getDataFromDB(sql, userAadObjId);
+    return Promise.resolve(result);
+  }
+  catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId);
+  }
+}
+
 const getUserTenantDetails = async (incId, userAadObjId) => {
   try {
     const sql = `select top 1 user_tenant_id, serviceUrl from msteamsinstallationdetails where team_id ` +
@@ -1545,5 +1557,6 @@ module.exports = {
   getRequiredDataToSendMessage,
   getSafetyCheckProgress,
   updateConversationIdAsync,
-  getIncDataToCopyInc
+  getIncDataToCopyInc,
+  getIncResponseSelectedChannelList
 };
