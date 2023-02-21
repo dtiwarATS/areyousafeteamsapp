@@ -117,27 +117,95 @@ const getManageLicenseColumnSet = (userEmailId) => {
     }
 }
 
-const getWelcomeMessageCard = (teamMemberCount, userEmailId) => {
-    const faqAndContactUsColumnSetJSON = getFaqAndContactUsColumnSetJSON();
+const getWelcomeMessageCard = (teamMemberCount, companyData, teamName, newInc) => {
+    //const faqAndContactUsColumnSetJSON = getFaqAndContactUsColumnSetJSON();
+    const userEmailId = companyData.userEmailId;
+    const continueBtnActionSet = {
+        "type": "ActionSet",
+        "actions": [
+            {
+                "type": "Action.Execute",
+                "title": "Continue",
+                "verb": "triggerTestSafetyCheckMessage",
+                "data": {
+                    inc: newInc,
+                    companyData: companyData
+                }
+            }
+        ],
+    }
+    let btnSafe = {
+        type: "Action.Execute",
+        title: "I am safe",
+        "isEnabled": false
+    }
+    let btnAssistance = {
+        type: "Action.Execute",
+        title: "I need assistance",
+        "isEnabled": false
+    }
+    const safetyCheckMessageText = `This is a **${newInc.incTitle}** from <at>${newInc.incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;
     const body = [
         {
             "type": "TextBlock",
-            "text": "**Hello, Thank you for installing AreYouSafe? bot. Your automated and personalized crisis management assistant is up and running.**",
+            "text": `Welcome to the AreYouSafe bot! I will help you communicate with your team during a crisis. To get started, let's send out a test safety check message to team - **${teamName}** (${teamMemberCount} members) through a direct message.`,
             "wrap": true
         },
         {
             "type": "TextBlock",
-            "text": "Click on the Dashboard tab above to access all features. ",
+            "text": "Here is how the message will look to your team members:",
             "wrap": true
         },
         {
             "type": "TextBlock",
-            "text": "Helpful links",
-            "wrap": true,
-            "separator": true
+            "text": " ",
+            "separator": true,
+            "wrap": true
         },
-        faqAndContactUsColumnSetJSON
+        {
+            type: "TextBlock",
+            wrap: true,
+            text: safetyCheckMessageText
+        },
+        {
+            type: "ActionSet",
+            actions: [
+                btnSafe,
+                btnAssistance
+            ]
+        },
+        {
+            "type": "TextBlock",
+            "text": " ",
+            "wrap": true
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            separator: true,
+            text: `Click on **Continue** to send this message to everyone.`
+        },
+        continueBtnActionSet
     ]
+    // const body = [
+    //     {
+    //         "type": "TextBlock",
+    //         "text": "**Hello, Thank you for installing AreYouSafe? bot. Your automated and personalized crisis management assistant is up and running.**",
+    //         "wrap": true
+    //     },
+    //     {
+    //         "type": "TextBlock",
+    //         "text": "Click on the Dashboard tab above to access all features. ",
+    //         "wrap": true
+    //     },
+    //     {
+    //         "type": "TextBlock",
+    //         "text": "Helpful links",
+    //         "wrap": true,
+    //         "separator": true
+    //     },
+    //     faqAndContactUsColumnSetJSON
+    // ]
 
     if (teamMemberCount > 10) {
         const manageLicenseColumnSet = getManageLicenseColumnSet(userEmailId);
@@ -147,7 +215,17 @@ const getWelcomeMessageCard = (teamMemberCount, userEmailId) => {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         type: "AdaptiveCard",
         version: "1.0",
-        body
+        body,
+        msteams: {
+            entities: [{
+                type: "mention",
+                text: `<at>${companyData.userName}</at>`,
+                mentioned: {
+                    id: companyData.userId,
+                    name: companyData.userName,
+                },
+            }]
+        },
     };
 }
 

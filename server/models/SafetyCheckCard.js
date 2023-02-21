@@ -27,11 +27,18 @@ const getSafetyCheckMessageText = async (incId, createdByName, incTitle, mention
     return msg;
 };
 
-const getSafetyCheckTypeCard = async (incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId) => {
+const getSafetyCheckTypeCard = async (incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId, safetyCheckMessageText = null, incCreatedById = null, incCreatedByName = null, isPreview = false) => {
     const mentionUserEntities = [];
-    const safetyCheckMessageText = await getSafetyCheckMessageText(incObj.incId, incObj.incCreatedBy.name, incTitle, mentionUserEntities, incResponseSelectedUsersList, incTypeId);
-
-    dashboard.mentionUser(mentionUserEntities, incObj.incCreatedBy.id, incObj.incCreatedBy.name);
+    if (!safetyCheckMessageText) {
+        safetyCheckMessageText = await getSafetyCheckMessageText(incObj.incId, incObj.incCreatedBy.name, incTitle, mentionUserEntities, incResponseSelectedUsersList, incTypeId);
+    }
+    if (!incCreatedById) {
+        incCreatedById = incObj.incCreatedBy.id;
+    }
+    if (!incCreatedByName) {
+        incCreatedByName = incObj.incCreatedBy.name;
+    }
+    dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
     const cardBody = [
         {
             type: "TextBlock",
@@ -47,29 +54,39 @@ const getSafetyCheckTypeCard = async (incTitle, incObj, companyData, incGuidance
         }
     ];
     if (incTypeId == 1) {
+        let btnSafe = {
+            type: "Action.Execute",
+            title: "I am safe"
+        }
+        let btnAssistance = {
+            type: "Action.Execute",
+            title: "I need assistance"
+        }
+        if (!isPreview) {
+            btnSafe = {
+                ...btnSafe,
+                verb: "send_response",
+                data: {
+                    info: "i_am_safe",
+                    inc: incObj,
+                    companyData: companyData
+                }
+            };
+            btnAssistance = {
+                ...btnAssistance,
+                verb: "send_response",
+                data: {
+                    info: "need_assistance",
+                    inc: incObj,
+                    companyData: companyData
+                }
+            };
+        }
         cardBody.push({
             type: "ActionSet",
             actions: [
-                {
-                    type: "Action.Execute",
-                    verb: "send_response",
-                    title: "I am safe",
-                    data: {
-                        info: "i_am_safe",
-                        inc: incObj,
-                        companyData: companyData
-                    }
-                },
-                {
-                    type: "Action.Execute",
-                    verb: "send_response",
-                    title: "I need assistance",
-                    data: {
-                        info: "need_assistance",
-                        inc: incObj,
-                        companyData: companyData
-                    }
-                }
+                btnSafe,
+                btnAssistance
             ]
         });
     } else {
@@ -211,5 +228,6 @@ const SafetyCheckCard = async (incTitle, incObj, companyData, incGuidance, incRe
 
 module.exports = {
     getSafetyCheckMessageText,
-    SafetyCheckCard
+    SafetyCheckCard,
+    getSafetyCheckTypeCard
 };

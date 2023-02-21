@@ -230,7 +230,8 @@ class BotActivityHandler extends TeamsActivityHandler {
               if (adminUserInfo) {
                 const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, teamId, acvtivityData.channelData.team.name);
                 const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
-                await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
+                const newInc = await bot.createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjectId, acvtivityData.from, companyData);
+                await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount, newInc);
                 if (teamId != null) {
                   incidentService.updateConversationId(teamId);
                 }
@@ -693,43 +694,43 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
-  async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0) {
+  async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0, newInc) {
     const userAadObjId = acvtivityData.from.aadObjectId;
     try {
       console.log({ "sendWelcomeMessage": companyData });
       if (companyData == null) {
         return;
       }
+      let teamName = companyData.teamName;
+      //const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(userAadObjId);
 
-      const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(userAadObjId);
+      //if (!isWelcomeMessageSent) {
+      
+      const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, companyData, teamName, newInc);
+      await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
 
-      if (!isWelcomeMessageSent) {
+      (new PersonalEmail.PersonalEmail()).sendWelcomEmail(companyData.userEmail, userAadObjId)
+        .then(() => { })
+        .catch((err) => {
+          console.log(err);
+        });
 
-        (new PersonalEmail.PersonalEmail()).sendWelcomEmail(companyData.userEmail, userAadObjId)
-          .then(() => { })
-          .catch((err) => {
-            console.log(err);
-          });
-
-        const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, companyData.userEmail);
-        await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
-
-        if (teamMemberCount > 10) {
-          const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount, companyData);
-          await sendDirectMessageCard(context, acvtivityData.from, subcriptionSelectionCard);
-        }
-
-        let teamName = "";
-        if (acvtivityData.channelData != null && acvtivityData.channelData.team != null && acvtivityData.channelData.team.name != null) {
-          teamName = acvtivityData.channelData.team.name;
-        }
-
-        await bot.sendInstallationEmail(
-          adminUserInfo.email,
-          adminUserInfo.name,
-          teamName
-        );
+      if (teamMemberCount > 10) {
+        const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount, companyData);
+        await sendDirectMessageCard(context, acvtivityData.from, subcriptionSelectionCard);
       }
+
+      // let teamName = "";
+      // if (acvtivityData.channelData != null && acvtivityData.channelData.team != null && acvtivityData.channelData.team.name != null) {
+      //   teamName = acvtivityData.channelData.team.name;
+      // }
+
+      await bot.sendInstallationEmail(
+        adminUserInfo.email,
+        adminUserInfo.name,
+        teamName
+      );
+      //}
     } catch (err) {
       processSafetyBotError(err, "", "", userAadObjId, "sendWelcomeMessage");
     }

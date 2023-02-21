@@ -303,7 +303,7 @@ const getIncGuidance = async (incId) => {
   }
 };
 
-const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadObjId, responseSelectedTeams, teamIds) => {
+const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadObjId, responseSelectedTeams, teamIds, isTestRecord = false) => {
   let newInc = {};
   try {
     if (incObj.selectedMembers.length === 0 && memberChoises && memberChoises.length > 0) {
@@ -312,6 +312,7 @@ const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadO
       });
       incObj.selectedMembers = selectedMembers;
     }
+    incObj.isTestRecord = isTestRecord;
     let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
     const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
 
@@ -637,7 +638,8 @@ const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises, userA
       }
       //console.log("insert query => ", query);
       if (query != "") {
-        await pool.request().query(query);
+        await db.insertData(query, userAadObjId);
+        //await pool.request().query(query);
       }
     }
   }
@@ -667,7 +669,8 @@ const saveIncResponseSelectedTeams = async (incId, channelIds, teamIds, userAadO
       }
       //console.log("insert query => ", query);
       if (query != "") {
-        await pool.request().query(query);
+        await db.insertData(query, userAadObjId);
+        //await pool.request().query(query);
       }
     }
   }

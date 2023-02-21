@@ -54,7 +54,7 @@ const { getAfterUsrSubscribedTypeOneCard, getAfterUsrSubscribedTypeTwoCard } = r
 const axios = require("axios");
 const https = require("https");
 
-const { getSafetyCheckMessageText, SafetyCheckCard } = require("../models/SafetyCheckCard");
+const { getSafetyCheckMessageText, SafetyCheckCard, getSafetyCheckTypeCard } = require("../models/SafetyCheckCard");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -179,6 +179,8 @@ const selectResponseCard = async (context, user) => {
       await processnewUsrSubscriptionType1(context, action, companyData);
     } else if (verb === "newUsrSubscriptionType2") {
       await processnewUsrSubscriptionType2(context, action);
+    } else if (verb === "triggerTestSafetyCheckMessage") {
+      await triggerTestSafetyCheckMessage(action, user.aadObjectId);
     }
     return Promise.resolve(true);
   } catch (error) {
@@ -3011,6 +3013,98 @@ const sendNSRespToTeamChannel = async (userTeamId, adaptiveCard, userAadObjId) =
   }
 }
 
+const createTestIncident = async (context, incCreatedBy, incCreatedByName, teamsMembers, teamId, userAadObjId, from, companyData) => {
+  const memberChoises = [];
+  let selectedMembers = "";
+  teamsMembers.forEach((usr) => {
+    memberChoises.push({ value: usr.id, title: usr.name });
+    selectedMembers += (selectedMembers != "") ? "," + usr.id : usr.id;
+  });
+  try {
+    const incData = {
+      incTitle: "TEST safety check",
+      incType: "onetime",
+      channelId: teamId,
+      teamId,
+      selectedMembers,
+      incCreatedBy,
+      createdDate: new Date(Date.now()).toISOString(),
+      occursEvery: "",
+      startDate: "",
+      startTime: "",
+      endDate: "",
+      endTime: "",
+      incCreatedByName,
+      guidance: "",
+      incStatusId: 1,
+      incTypeId: 1,
+      additionalInfo: "",
+      travelUpdate: "",
+      contactInfo: "",
+      situation: ""
+    };
+    const newInc = await incidentService.createNewInc(incData, incCreatedBy, memberChoises, userAadObjId, null, null, true);
+    return newInc;
+    // if (newInc && newInc.incId) {
+    //   const safetyCheckMessageText = `This is a **${incData.incTitle}** from <at>${incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;
+    //   const previewCard = await getSafetyCheckTypeCard(newInc.incTitle, newInc, null, null, null, 1, safetyCheckMessageText, incCreatedBy, incCreatedByName, true);
+    //   if (previewCard != null) {
+    //     previewCard.body[0] = {
+    //       type: "TextBlock",
+    //       wrap: true,
+    //       text: `Let's get started by sending a **${incData.incTitle}** message to your team members. Here is the preview:`
+    //     }
+
+    //     const continuePreText = {
+    //       type: "TextBlock",
+    //       wrap: true,
+    //       separator: true,
+    //       text: `Click on **Continue** to send this message to everyone.`
+    //     }
+
+    //     const continueBtnActionSet = {
+    //       "type": "ActionSet",
+    //       "actions": [
+    //         {
+    //           "type": "Action.Execute",
+    //           "title": "Continue",
+    //           "verb": "triggerTestSafetyCheckMessage",
+    //           "data": {
+    //             inc: newInc,
+    //             companyData: companyData
+    //           }
+    //         }
+    //       ]
+    //     }
+    //     previewCard.body.push(continuePreText);
+    //     previewCard.body.push(continueBtnActionSet);
+    //     await sendDirectMessageCard(context, from, previewCard);
+    //   }
+    // }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId, "createTestIncident");
+  }
+}
+
+const triggerTestSafetyCheckMessage = async (action, userAadObjId) => {
+  try {
+    if (action?.data?.inc) {
+      const log = new AYSLog();
+      const { incId, teamId, incCreatedBy, incCreatedByName } = action.data.inc;
+
+      const createdByUserInfo = {
+        user_id: incCreatedBy,
+        user_name: incCreatedByName
+      }
+      await sendSafetyCheckMessageAsync(incId, teamId, createdByUserInfo, log, userAadObjId);
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userAadObjId, "triggerTestSafetyCheckMessage");
+  }
+}
+
 module.exports = {
   invokeResponse,
   sendInstallationEmail,
@@ -3034,5 +3128,6 @@ module.exports = {
   sendProactiveMessaageToUserTest,
   sendProactiveMessaageToChannel,
   sendSafetyCheckMessageAsync,
-  sendNSRespToTeamChannel
+  sendNSRespToTeamChannel,
+  createTestIncident
 };
