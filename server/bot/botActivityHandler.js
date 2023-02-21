@@ -705,9 +705,12 @@ class BotActivityHandler extends TeamsActivityHandler {
       //const isWelcomeMessageSent = await incidentService.isWelcomeMessageSend(userAadObjId);
 
       //if (!isWelcomeMessageSent) {
-      
-      const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, companyData, teamName, newInc);
-      await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
+      try {
+        const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, companyData, teamName, newInc);
+        await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
+      } catch (err) {
+        processSafetyBotError(err, "", "", userAadObjId, "welcomeMessageCard");
+      }
 
       (new PersonalEmail.PersonalEmail()).sendWelcomEmail(companyData.userEmail, userAadObjId)
         .then(() => { })
