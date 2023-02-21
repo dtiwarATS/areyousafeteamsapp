@@ -3022,7 +3022,7 @@ const createTestIncident = async (context, incCreatedBy, incCreatedByName, teams
   });
   try {
     const incData = {
-      incTitle: "TEST safety check",
+      incTitle: "Test - Safety Check - Test",
       incType: "onetime",
       channelId: teamId,
       teamId,
