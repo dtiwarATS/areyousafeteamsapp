@@ -180,7 +180,7 @@ const selectResponseCard = async (context, user) => {
     } else if (verb === "newUsrSubscriptionType2") {
       await processnewUsrSubscriptionType2(context, action);
     } else if (verb === "triggerTestSafetyCheckMessage") {
-      await triggerTestSafetyCheckMessage(action, user.aadObjectId);
+      await triggerTestSafetyCheckMessage(context, action, user.aadObjectId);
     }
     return Promise.resolve(true);
   } catch (error) {
@@ -3087,7 +3087,7 @@ const createTestIncident = async (context, incCreatedBy, incCreatedByName, teams
   }
 }
 
-const triggerTestSafetyCheckMessage = async (action, userAadObjId) => {
+const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
   try {
     if (action?.data?.inc) {
       const log = new AYSLog();
@@ -3098,6 +3098,9 @@ const triggerTestSafetyCheckMessage = async (action, userAadObjId) => {
         user_name: incCreatedByName
       }
       await sendSafetyCheckMessageAsync(incId, teamId, createdByUserInfo, log, userAadObjId);
+
+      const msg = `Your safety check message has been sent to all the users. \n\nClick on the **Dashboard tab** above to view the real-time safety status and access all features.`;
+      await sendDirectMessage(context, context.activity.from, msg);
     }
   } catch (err) {
     console.log(err);

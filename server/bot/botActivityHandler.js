@@ -35,7 +35,8 @@ const {
   sendDirectMessage,
   sendDirectMessageCard,
   getAllTeamMembers,
-  getAllTeamMembersByConnectorClient
+  getAllTeamMembersByConnectorClient,
+  sendMultipleDirectMessageCard
 } = require("../api/apiMethods");
 
 const {
@@ -50,7 +51,7 @@ const {
 } = require("../models/UpdateCards");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
-const { getWelcomeMessageCard, getSubcriptionSelectionCard } = require("./subscriptionCard");
+const { getWelcomeMessageCard, getSubcriptionSelectionCard, getTestIncPreviewCard } = require("./subscriptionCard");
 const PersonalEmail = require("../Email/personalEmail");
 
 class BotActivityHandler extends TeamsActivityHandler {
@@ -706,8 +707,9 @@ class BotActivityHandler extends TeamsActivityHandler {
 
       //if (!isWelcomeMessageSent) {
       try {
-        const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, companyData, teamName, newInc);
-        await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
+        const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, teamName);
+        const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData, newInc);
+        await sendMultipleDirectMessageCard(context, acvtivityData.from, welcomeMessageCard, testIncPreviewCard);
       } catch (err) {
         processSafetyBotError(err, "", "", userAadObjId, "welcomeMessageCard");
       }

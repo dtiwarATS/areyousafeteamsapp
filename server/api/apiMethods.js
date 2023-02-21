@@ -100,6 +100,31 @@ const sendDirectMessageCard = async (
   }
 };
 
+const sendMultipleDirectMessageCard = async (
+  context,
+  teamMember,
+  ...respCard
+) => {
+  try {
+    let ref = TurnContext.getConversationReference(context.activity);
+    ref.user = teamMember;
+
+    const attachments = respCard.map(card => CardFactory.adaptiveCard(card));
+
+    await context.adapter.createConversation(ref, async (t1) => {
+      const ref2 = TurnContext.getConversationReference(t1.activity);
+      await t1.adapter.continueConversation(ref2, async (t2) => {
+        await t2.sendActivity({
+          attachments: attachments,
+        });
+      });
+    });
+  } catch (err) {
+    processSafetyBotError(err, "", "", "", JSON.stringify(teamMember));
+  }
+};
+
+
 const checkValidStatus = (statusCode) => {
   const validStatusCodeArr = [200, 201, 202, 204];
   return validStatusCodeArr.includes(Number(statusCode));
@@ -424,5 +449,6 @@ module.exports = {
   getUsersConversationId,
   sendProactiveMessaageToUserAsync,
   sentActivityToTeamChannel,
-  sendProactiveMessaageToSelectedChannel
+  sendProactiveMessaageToSelectedChannel,
+  sendMultipleDirectMessageCard
 };
