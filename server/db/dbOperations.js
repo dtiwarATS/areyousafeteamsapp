@@ -505,6 +505,28 @@ const updateSuperUserDataByUserAadObjId = async (userId, teamId, selectedUserStr
   return Promise.resolve(isUpdated);
 };
 
+const saveNARespSelectedTeams = async (teamId, selectedTeams, userAadObjId) => {
+  try {
+    if (selectedTeams && selectedTeams.length > 0) {
+      pool = await poolPromise;
+      const selectQuery = `select user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}';`;
+      let res = await db.getDataFromDB(selectQuery, userAadObjId);
+      if (res != null && res.length > 0) {
+        const tenantId = res[0]["user_tenant_id"];
+        let sqlSave = `Delete from MSTeamsNAResponseSelectedTeams where tenantId = '${tenantId}'; `;
+        selectedTeams.forEach((team) => {
+          const { teamId, teamName, channelId, channelName } = team;
+          sqlSave += ` insert into MSTeamsNAResponseSelectedTeams (tenantId, teamId, teamName, channelId, channelName) values ('${tenantId}', '${teamId}', '${teamName}', '${channelId}', '${channelName}'); `;
+        });
+        pool.request().query(sqlSave);
+      }
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", userAadObjId, "saveNARespSelectedTeams");
+  }
+}
+
 const updateCompanyData = async (userId, teamId, teamName = "") => {
   try {
     pool = await poolPromise;
@@ -588,5 +610,6 @@ module.exports = {
   updateIsUserInfoSaved,
   getCompanyDataByTenantId,
   parseCompanyData,
-  renameTeam
+  renameTeam,
+  saveNARespSelectedTeams
 };

@@ -100,6 +100,31 @@ const sendDirectMessageCard = async (
   }
 };
 
+const sendMultipleDirectMessageCard = async (
+  context,
+  teamMember,
+  ...respCard
+) => {
+  try {
+    let ref = TurnContext.getConversationReference(context.activity);
+    ref.user = teamMember;
+
+    const attachments = respCard.map(card => CardFactory.adaptiveCard(card));
+
+    await context.adapter.createConversation(ref, async (t1) => {
+      const ref2 = TurnContext.getConversationReference(t1.activity);
+      await t1.adapter.continueConversation(ref2, async (t2) => {
+        await t2.sendActivity({
+          attachments: attachments,
+        });
+      });
+    });
+  } catch (err) {
+    processSafetyBotError(err, "", "", "", JSON.stringify(teamMember));
+  }
+};
+
+
 const checkValidStatus = (statusCode) => {
   const validStatusCodeArr = [200, 201, 202, 204];
   return validStatusCodeArr.includes(Number(statusCode));
@@ -370,6 +395,50 @@ const updateMessage = async (activityId, activity, conversationId, serviceUrl) =
   }
 }
 
+const sentActivityToTeamChannel = async (context, msgAttachment, teamsChannelId, userAadObjId) => {
+  try {
+    const activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+    const [reference] = await TeamsInfo.sendMessageToTeamsChannel(context, activity, teamsChannelId, process.env.MicrosoftAppId);
+
+    await context.adapter.continueConversationAsync(process.env.MicrosoftAppId, reference, async turnContext => {
+      await turnContext.sendActivity(activity);
+    });
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId, "sentActivityToTeamChannel");
+  }
+}
+
+const sendProactiveMessaageToSelectedChannel = async (msgAttachment, channelId, serviceUrl, userAadObjId) => {
+  try {
+    if (msgAttachment != null) {
+      const appId = process.env.MicrosoftAppId;;
+      const appPass = process.env.MicrosoftAppPassword;
+      const botName = process.env.BotName;
+      const activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+
+      const conversationParameters = {
+        bot: {
+          id: appId,
+          name: botName
+        },
+        isGroup: true,
+        conversationType: "channel",
+        channelData: {
+          channel: { id: channelId }
+        },
+        activity: activity
+      };
+
+      var credentials = new MicrosoftAppCredentials(appId, appPass);
+      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+
+      await connectorClient.conversations.createConversation(conversationParameters);
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId, "sendProactiveMessaageToSelectedChannel");
+  }
+}
+
 module.exports = {
   getAllTeamMembers,
   sendDirectMessage,
@@ -378,5 +447,8 @@ module.exports = {
   updateMessage,
   getAllTeamMembersByConnectorClient,
   getUsersConversationId,
-  sendProactiveMessaageToUserAsync
+  sendProactiveMessaageToUserAsync,
+  sentActivityToTeamChannel,
+  sendProactiveMessaageToSelectedChannel,
+  sendMultipleDirectMessageCard
 };

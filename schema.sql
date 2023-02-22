@@ -623,3 +623,48 @@ BEGIN
 ALTER TABLE SYS_ERROR_LOGGER ADD APP_NAME NVARCHAR(32) NULL
 END
 GO
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsIncResponseSelectedTeams')
+BEGIN
+	CREATE TABLE [dbo].[MSTeamsIncResponseSelectedTeams](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[incId] [int] NOT NULL,
+	[teamId] [varchar](256) NOT NULL,
+	[teamName] [varchar](256) NOT NULL,
+	[channelId] [varchar](256) NOT NULL,
+	[channelName] [varchar](256) NOT NULL,
+	PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+	) ON [PRIMARY] 
+
+	ALTER TABLE DBO.MSTeamsIncResponseSelectedTeams  WITH CHECK ADD  CONSTRAINT FK_IncResponseSelectedTeams_Incidents FOREIGN KEY([incId])
+	REFERENCES DBO.MSTeamsIncidents (ID) ON DELETE CASCADE
+	ALTER TABLE DBO.MSTeamsIncResponseSelectedTeams CHECK CONSTRAINT FK_IncResponseSelectedTeams_Incidents
+END
+GO
+
+
+IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MSTeamsNAResponseSelectedTeams')
+BEGIN
+	CREATE TABLE [dbo].[MSTeamsNAResponseSelectedTeams](
+	[id] [int] IDENTITY(1,1) NOT NULL,
+	[tenantId] [varchar](256) NOT NULL,
+	[teamId] [varchar](256) NOT NULL,
+	[teamName] [varchar](256) NOT NULL,
+	[channelId] [varchar](256) NOT NULL,
+	[channelName] [varchar](256) NOT NULL,
+	PRIMARY KEY CLUSTERED 
+	(
+		[id] ASC
+	)WITH (STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+	) ON [PRIMARY]
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='isTestRecord' AND TABLE_NAME='MSTeamsIncidents')
+BEGIN
+ALTER TABLE MSTeamsIncidents ADD isTestRecord bit NULL
+END
+GO

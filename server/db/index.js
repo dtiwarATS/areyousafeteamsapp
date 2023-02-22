@@ -46,6 +46,7 @@ const getColumns = (tableName) => {
         "travelUpdate",
         "contactInfo",
         "situation",
+        "isTestRecord"
       ];
       break;
 

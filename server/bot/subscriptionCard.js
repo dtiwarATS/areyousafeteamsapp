@@ -35,43 +35,52 @@ const subcriptionLinkJSON = {
     "wrap": true
 }
 
+const contactUsActionObj = {
+    "type": "Action.OpenUrl",
+    "title": "Contact us",
+    "url": "mailto:help@areyousafe.in",
+    "id": "contactUsAction"
+}
 const getContactUsBtnJSON = () => {
     return {
         "type": "ActionSet",
         "actions": [
-            {
-                "type": "Action.OpenUrl",
-                "title": "Contact us",
-                "url": "mailto:help@areyousafe.in",
-            }
+            contactUsActionObj
         ]
     }
+}
+
+const faqActionObj = {
+    "type": "Action.OpenUrl",
+    "title": "Frequently Asked Questions",
+    "url": "https://areyousafe.in/frequently_asked_questions.html",
+    "iconUrl": "https://areyousafe.in/img/help.png",
+    "id": "faqAction"
 }
 
 const getFAQBtnJSON = () => {
     return {
         "type": "ActionSet",
         "actions": [
-            {
-                "type": "Action.OpenUrl",
-                "title": "Frequently Asked Questions",
-                "url": "https://areyousafe.in/frequently_asked_questions.html",
-                "iconUrl": "https://areyousafe.in/img/help.png"
-            }
+            faqActionObj
         ]
     }
 }
 
+const getManageLicenseActionObj = (userEmailId) => {
+    return {
+        "type": "Action.OpenUrl",
+        "title": "Manage Licenses",
+        "url": `https://areyousafesubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${userEmailId}`,
+        "iconUrl": "https://areyousafe.in/img/help.png",
+        "id": "manageLicenseAction"
+    }
+}
 const getManageLicenseBtnJSON = (userEmailId) => {
     return {
         "type": "ActionSet",
         "actions": [
-            {
-                "type": "Action.OpenUrl",
-                "title": "Manage Licenses",
-                "url": `https://areyousafesubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${userEmailId}`,
-                "iconUrl": "https://areyousafe.in/img/help.png"
-            }
+            getManageLicenseActionObj(userEmailId)
         ]
     }
 }
@@ -117,37 +126,341 @@ const getManageLicenseColumnSet = (userEmailId) => {
     }
 }
 
-const getWelcomeMessageCard = (teamMemberCount, userEmailId) => {
-    const faqAndContactUsColumnSetJSON = getFaqAndContactUsColumnSetJSON();
-    const body = [
-        {
-            "type": "TextBlock",
-            "text": "**Hello, Thank you for installing AreYouSafe? bot. Your automated and personalized crisis management assistant is up and running.**",
-            "wrap": true
-        },
-        {
-            "type": "TextBlock",
-            "text": "Click on the Dashboard tab above to access all features. ",
-            "wrap": true
-        },
-        {
-            "type": "TextBlock",
-            "text": "Helpful links",
-            "wrap": true,
-            "separator": true
-        },
-        faqAndContactUsColumnSetJSON
-    ]
+const getHelpActionSet = (teamMemberCount, userEmailId) => {
+    const manageLicenseActionObj = getManageLicenseActionObj(userEmailId);
 
+    const actionArr = [
+        faqActionObj
+    ];
     if (teamMemberCount > 10) {
-        const manageLicenseColumnSet = getManageLicenseColumnSet(userEmailId);
-        body.push(manageLicenseColumnSet);
+        actionArr.push(manageLicenseActionObj);
     }
+    actionArr.push(contactUsActionObj);
+    return actionArr
+}
+
+const getWelcomeMessageCard = (teamMemberCount, teamName) => {
     return {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         type: "AdaptiveCard",
-        version: "1.0",
-        body
+        version: "1.5",
+        body: [
+            {
+                "type": "TextBlock",
+                "text": `Welcome to the AreYouSafe bot! I will help you communicate with your team during a crisis.`,
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": `To get started, let's send out a test safety check message to team - **${teamName}** (${teamMemberCount} members) through a direct message.`,
+                "wrap": true
+            }
+        ]
+    };
+}
+
+const getTestIncPreviewCard = (teamMemberCount, companyData, newInc) => {
+    const userEmailId = companyData.userEmailId;
+
+    const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
+    const safetyCheckMessageText = `This is a **${newInc.incTitle}** from <at>${newInc.incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;
+    const body = [
+        {
+            "type": "TextBlock",
+            "text": "Here is how the message will look to your team members:",
+            "wrap": true,
+        },
+        {
+            type: "TextBlock",
+            size: "Large",
+            weight: "Bolder",
+            text: "Hello!"
+        },
+        {
+            "type": "TextBlock",
+            "text": " ",
+            "separator": true,
+            "wrap": true
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            text: safetyCheckMessageText
+        },
+        {
+            "type": "ActionSet",
+            "actions": [
+                {
+                    "type": "Action.ToggleVisibility",
+                    "title": "I am safe",
+                    "targetElements": []
+                },
+                {
+                    "type": "Action.ToggleVisibility",
+                    "title": "I need assistance",
+                    "targetElements": []
+                }
+            ]
+        },
+        {
+            "type": "TextBlock",
+            "text": " ",
+            "wrap": true
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            separator: true,
+            text: `Click on **Continue** to send this message to everyone.`
+        },
+        {
+            "type": "ColumnSet",
+            "columns": [
+                {
+                    "type": "Column",
+                    "width": "auto",
+                    "items": [
+                        {
+                            "type": "ActionSet",
+                            "actions": [
+                                {
+                                    "type": "Action.Execute",
+                                    "title": "Continue",
+                                    "verb": "triggerTestSafetyCheckMessage",
+                                    "style": "positive",
+                                    "data": {
+                                        "inc": newInc,
+                                        "companyData": companyData
+                                    }
+                                }
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                        {
+                            "type": "ActionSet",
+                            "actions": [
+                                {
+                                    "type": "Action.ToggleVisibility",
+                                    "title": "Help",
+                                    "targetElements": ["helpActionSetToggle"]
+                                }
+                            ],
+                        },
+                        {
+                            "type": "ActionSet",
+                            "isVisible": false,
+                            "id": "helpActionSetToggle",
+                            "actions": helpActionSet,
+                        }
+                    ]
+                }
+            ]
+        }
+    ];
+
+    return {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        type: "AdaptiveCard",
+        version: "1.5",
+        body,
+        msteams: {
+            entities: [{
+                type: "mention",
+                text: `<at>${companyData.userName}</at>`,
+                mentioned: {
+                    id: companyData.userId,
+                    name: companyData.userName,
+                },
+            }]
+        },
+    };
+}
+
+const getWelcomeMessageCardOld = (teamMemberCount, companyData, teamName, newInc) => {
+    const userEmailId = companyData.userEmailId;
+
+    let btnSafe = {
+        type: "Action.ShowCard",
+        title: "I am safe",
+        "isEnabled": false
+    }
+    let btnAssistance = {
+        type: "Action.ShowCard",
+        title: "I need assistance",
+        "isEnabled": false
+    }
+    const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
+    const safetyCheckMessageText = `This is a **${newInc.incTitle}** from <at>${newInc.incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;
+    const body = [
+        {
+            "type": "TextBlock",
+            "text": `Welcome to the AreYouSafe bot! I will help you communicate with your team during a crisis.`,
+            "wrap": true
+        },
+        // {
+        //     "type": "TextBlock",
+        //     "text": `I will help you communicate with your team during a crisis.`,
+        //     "wrap": true,
+        //     "spacing": "None",
+        // },
+        {
+            "type": "TextBlock",
+            "text": `To get started, let's send out a test safety check message to team - **${teamName}** (${teamMemberCount} members) through a direct message.`,
+            "wrap": true
+        },
+        {
+            "type": "TextBlock",
+            "text": "Here is how the message will look to your team members:",
+            "wrap": true,
+        },
+        {
+            "type": "TextBlock",
+            "text": " ",
+            "separator": true,
+            "wrap": true
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            text: safetyCheckMessageText
+        },
+        // {
+        //     "type": "ColumnSet",
+        //     "columns": [
+        //         {
+        //             "type": "Column",
+        //             "width": "auto",
+        //             "items": [
+        //                 {
+        //                     "type": "TextBlock",
+        //                     "text": "I am safe",
+        //                     "wrap": true,
+        //                     "size": "Large",
+        //                     "weight": "Lighter",
+        //                     "color": "Accent"
+        //                 }
+        //             ],
+        //             "style": "emphasis"
+        //         },
+        //         {
+        //             "type": "Column",
+        //             "width": "auto",
+        //             "items": [
+        //                 {
+        //                     "type": "TextBlock",
+        //                     "text": "I need assistance",
+        //                     "wrap": true,
+        //                     "size": "Large",
+        //                     "color": "Accent"
+        //                 }
+        //             ],
+        //             "style": "emphasis"
+        //         }
+        //     ]
+        // },
+        // {
+        //     type: "ActionSet",
+        //     actions: [
+        //         btnSafe,
+        //         btnAssistance
+        //     ]
+        // },
+        {
+            "type": "ActionSet",
+            "actions": [
+                {
+                    "type": "Action.ToggleVisibility",
+                    "title": "I am safe",
+                    "targetElements": []
+                },
+                {
+                    "type": "Action.ToggleVisibility",
+                    "title": "I need assistance",
+                    "targetElements": []
+                }
+            ]
+        },
+        {
+            "type": "TextBlock",
+            "text": " ",
+            "wrap": true
+        },
+        {
+            type: "TextBlock",
+            wrap: true,
+            separator: true,
+            text: `Click on **Continue** to send this message to everyone.`
+        },
+        {
+            "type": "ColumnSet",
+            "columns": [
+                {
+                    "type": "Column",
+                    "width": "auto",
+                    "items": [
+                        {
+                            "type": "ActionSet",
+                            "actions": [
+                                {
+                                    "type": "Action.Execute",
+                                    "title": "Continue",
+                                    "verb": "triggerTestSafetyCheckMessage",
+                                    "style": "positive",
+                                    "data": {
+                                        "inc": newInc,
+                                        "companyData": companyData
+                                    }
+                                }
+                            ],
+                        }
+                    ]
+                },
+                {
+                    "type": "Column",
+                    "width": "stretch",
+                    "items": [
+                        {
+                            "type": "ActionSet",
+                            "actions": [
+                                {
+                                    "type": "Action.ToggleVisibility",
+                                    "title": "Help",
+                                    "targetElements": ["helpActionSetToggle"]
+                                }
+                            ],
+                        },
+                        {
+                            "type": "ActionSet",
+                            "isVisible": false,
+                            "id": "helpActionSetToggle",
+                            "actions": helpActionSet,
+                        }
+                    ]
+                }
+            ]
+        }
+    ];
+
+    return {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        type: "AdaptiveCard",
+        version: "1.5",
+        body,
+        msteams: {
+            entities: [{
+                type: "mention",
+                text: `<at>${companyData.userName}</at>`,
+                mentioned: {
+                    id: companyData.userId,
+                    name: companyData.userName,
+                },
+            }]
+        },
     };
 }
 
@@ -575,5 +888,6 @@ module.exports = {
     getCancelRecurringSubcriptionStepCard,
     getTypeThreeSubscriptionEndCard,
     getTypeTwoSevenDayBeforeCard,
-    getTypeTwoThreeDayBeforeCard
+    getTypeTwoThreeDayBeforeCard,
+    getTestIncPreviewCard
 }
