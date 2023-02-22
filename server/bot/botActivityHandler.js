@@ -711,8 +711,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         if (newInc) {
           const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData, newInc);
           await sendMultipleDirectMessageCard(context, acvtivityData.from, welcomeMessageCard, testIncPreviewCard);
+        } else {
+          await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
         }
-        await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
       } catch (err) {
         processSafetyBotError(err, "", "", userAadObjId, "welcomeMessageCard");
       }

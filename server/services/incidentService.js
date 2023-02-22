@@ -634,7 +634,7 @@ const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises, userA
             userName = usrObj.title;
           }
         }
-        query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${userName}');`;
+        query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${userName.replace(/'/g, "''")}');`;
       }
       //console.log("insert query => ", query);
       if (query != "") {
@@ -665,7 +665,7 @@ const saveIncResponseSelectedTeams = async (incId, channelIds, teamIds, userAadO
             channelName = teamObj.channelName
           }
         }
-        query += `insert into MSTeamsIncResponseSelectedTeams(incId, teamId, teamName, channelId, channelName) values(${incId}, '${teamId}', '${teamName}', '${channelId}', '${channelName}');`;
+        query += `insert into MSTeamsIncResponseSelectedTeams(incId, teamId, teamName, channelId, channelName) values(${incId}, '${teamId}', '${teamName.replace(/'/g, "''")}', '${channelId}', '${channelName.replace(/'/g, "''")}');`;
       }
       //console.log("insert query => ", query);
       if (query != "") {

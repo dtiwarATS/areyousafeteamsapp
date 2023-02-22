@@ -203,7 +203,7 @@ const insertData = async (sqlInsertQuery, userObjId) => {
     try {
       pool = await poolPromise;
       //console.log("insert query => ", sqlInsertQuery);
-      result = await pool.request().query(sqlInsertQuery.replace(/'/g, "''"), userObjId);
+      result = await pool.request().query(sqlInsertQuery, userObjId);
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, "", "", userObjId, sqlInsertQuery);
