@@ -109,7 +109,7 @@ class BotActivityHandler extends TeamsActivityHandler {
 
             const userLicenseDetails = await getUserLicenseDetails(acvtivityData.from.aadObjectId, companyData.teamId);
             if (userLicenseDetails?.hasLicense === false) {
-              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData);
+              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData, acvtivityData.from.aadObjectId);
               await next();
               return;
             }
@@ -292,7 +292,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 if (adminUserInfo) {
                   const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
                   const companyData = await insertCompanyData(companyDataObj, null, conversationType);
-                  await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
+                  await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0, null);
                 }
               }
             }
@@ -321,7 +321,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     });
   }
 
-  async notifyUserForInvalidLicense(context, userLicenseDetails, companyData) {
+  async notifyUserForInvalidLicense(context, userLicenseDetails, companyData, userAadObjId) {
     try {
       const { userName, userId, adminUsrId, adminUsrName, teamName } = userLicenseDetails;
       //const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
@@ -377,7 +377,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", "", "notifyUserForInvalidLicense");
+      processSafetyBotError(err, "", "", userAadObjId, "notifyUserForInvalidLicense");
     }
   }
 
@@ -708,8 +708,11 @@ class BotActivityHandler extends TeamsActivityHandler {
       //if (!isWelcomeMessageSent) {
       try {
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, teamName);
-        const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData, newInc);
-        await sendMultipleDirectMessageCard(context, acvtivityData.from, welcomeMessageCard, testIncPreviewCard);
+        if (newInc) {
+          const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData, newInc);
+          await sendMultipleDirectMessageCard(context, acvtivityData.from, welcomeMessageCard, testIncPreviewCard);
+        }
+        await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
       } catch (err) {
         processSafetyBotError(err, "", "", userAadObjId, "welcomeMessageCard");
       }

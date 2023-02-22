@@ -109,8 +109,20 @@ const getSafetyCheckTypeCard = async (incTitle, incObj, companyData, incGuidance
     };
 }
 
-const getImpBulletineTypeCard = async (incTitle, incGuidance, additionalInfo) => {
+const getImpBulletineTypeCard = async (incTitle, incGuidance, additionalInfo, incCreatedById, incCreatedByName) => {
     const cardBody = [
+        {
+            type: "TextBlock",
+            size: "Large",
+            weight: "Bolder",
+            text: "Hello!"
+        },
+        {
+            type: "TextBlock",
+            separator: true,
+            wrap: true,
+            text: `This is a important bulletin from <at>${incCreatedByName}</at>.`
+        },
         {
             type: "TextBlock",
             size: "Medium",
@@ -129,18 +141,34 @@ const getImpBulletineTypeCard = async (incTitle, incGuidance, additionalInfo) =>
             text: `**Additional Information:**\n\n` + additionalInfo,
         }
     ];
-
+    const mentionUserEntities = [];
+    dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
     return {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
         body: cardBody,
         type: "AdaptiveCard",
         version: "1.4",
+        msteams: {
+            entities: mentionUserEntities
+        },
     };
 }
 
-const getTravelAdvisoryTypeCard = async (incTitle, incGuidance, travelUpdate, contactInfo) => {
+const getTravelAdvisoryTypeCard = async (incTitle, incGuidance, travelUpdate, contactInfo, incCreatedById, incCreatedByName) => {
     const cardBody = [
+        {
+            type: "TextBlock",
+            size: "Large",
+            weight: "Bolder",
+            text: "Hello!"
+        },
+        {
+            type: "TextBlock",
+            separator: true,
+            wrap: true,
+            text: `This is a travel advisory from <at>${incCreatedByName}</at>.`
+        },
         {
             type: "TextBlock",
             size: "Medium",
@@ -165,17 +193,34 @@ const getTravelAdvisoryTypeCard = async (incTitle, incGuidance, travelUpdate, co
         }
     ];
 
+    const mentionUserEntities = [];
+    dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
     return {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
         body: cardBody,
         type: "AdaptiveCard",
         version: "1.4",
+        msteams: {
+            entities: mentionUserEntities
+        },
     };
 }
 
-const getStakeholderNoticeTypeCard = async (incTitle, situation, additionalInfo) => {
+const getStakeholderNoticeTypeCard = async (incTitle, situation, additionalInfo, incCreatedById, incCreatedByName) => {
     const cardBody = [
+        {
+            type: "TextBlock",
+            size: "Large",
+            weight: "Bolder",
+            text: "Hello!"
+        },
+        {
+            type: "TextBlock",
+            separator: true,
+            wrap: true,
+            text: `This is a stakeholder notice from <at>${incCreatedByName}</at>.`
+        },
         {
             type: "TextBlock",
             size: "Medium",
@@ -195,12 +240,17 @@ const getStakeholderNoticeTypeCard = async (incTitle, situation, additionalInfo)
         }
     ];
 
+    const mentionUserEntities = [];
+    dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
     return {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
         body: cardBody,
         type: "AdaptiveCard",
         version: "1.4",
+        msteams: {
+            entities: mentionUserEntities
+        },
     };
 }
 
@@ -214,13 +264,13 @@ const SafetyCheckCard = async (incTitle, incObj, companyData, incGuidance, incRe
             card = await getSafetyCheckTypeCard(incTitle, incObj, companyData, incGuidance, null, incTypeId);
             break;
         case 3: //Important Bulletin
-            card = await getImpBulletineTypeCard(incTitle, incGuidance, additionalInfo, travelUpdate, contactInfo);
+            card = await getImpBulletineTypeCard(incTitle, incGuidance, additionalInfo, incObj.incCreatedBy.id, incObj.incCreatedBy.name);
             break;
         case 4: //Travel Advisory
-            card = await getTravelAdvisoryTypeCard(incTitle, incGuidance, travelUpdate, contactInfo);
+            card = await getTravelAdvisoryTypeCard(incTitle, incGuidance, travelUpdate, contactInfo, incObj.incCreatedBy.id, incObj.incCreatedBy.name);
             break;
         case 5: //Stakeholder Notice
-            card = await getStakeholderNoticeTypeCard(incTitle, situation, additionalInfo);
+            card = await getStakeholderNoticeTypeCard(incTitle, situation, additionalInfo, incObj.incCreatedBy.id, incObj.incCreatedBy.name);
             break;
     }
     return card;
