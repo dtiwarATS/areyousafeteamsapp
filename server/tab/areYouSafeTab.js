@@ -140,7 +140,7 @@ class AreYouSafeTab {
   };
 
   getFormatedIncData = (incData, teamInfo, userObjId) => {
-    let incFormatedData = null;
+    let incFormatedData = [];
     try {
       if (incData != null && incData.length > 0) {
         let teamObj = null;
@@ -151,9 +151,13 @@ class AreYouSafeTab {
           })
         }
 
-        incFormatedData = incData.map((inc) => {
+        incData.forEach((inc) => {
           const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount,
-            incTypeId, additionalInfo, travelUpdate, contactInfo, situation } = inc;
+            incTypeId, additionalInfo, travelUpdate, contactInfo, situation, isTestRecord } = inc;
+
+          if (messageDeliveredCount == 0 && isTestRecord) {
+            return;
+          }
           const status = (inc.incStatusId === 2) ? "Closed" : "In progress";
           const startDate = this.getStartDate(inc.incCreatedDate);
           const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
@@ -202,12 +206,13 @@ class AreYouSafeTab {
 
           const teamName = (teamObj && teamObj[inc.teamId]) ? teamObj[inc.teamId] : "";
 
-          return {
+          const incObj = {
             incId, status, title, createdBy, startDate, duration, incTypeId,
             safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount,
             notDelivered, deliveryInProgress, delivered, notDeliveredCount, deliveryInProgressCount, deliveredCount,
             responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo, situation
           };
+          incFormatedData.push(incObj);
         });
       }
     } catch (err) {

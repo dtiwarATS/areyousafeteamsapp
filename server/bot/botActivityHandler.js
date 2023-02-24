@@ -108,7 +108,7 @@ class BotActivityHandler extends TeamsActivityHandler {
             ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(acvtivityData.from.aadObjectId));
 
             const userLicenseDetails = await getUserLicenseDetails(acvtivityData.from.aadObjectId, companyData.teamId);
-            if (userLicenseDetails?.hasLicense === false) {
+            if (userLicenseDetails.userId != null && userLicenseDetails?.hasLicense === false) {
               await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData, acvtivityData.from.aadObjectId);
               await next();
               return;
