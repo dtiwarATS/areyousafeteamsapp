@@ -153,7 +153,7 @@ class AreYouSafeTab {
 
         incData.forEach((inc) => {
           const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount,
-            incTypeId, additionalInfo, travelUpdate, contactInfo, situation, isTestRecord } = inc;
+            incTypeId, additionalInfo, travelUpdate, contactInfo, situation, isTestRecord, teamId } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
             return;
@@ -204,13 +204,13 @@ class AreYouSafeTab {
             }
           }
 
-          const teamName = (teamObj && teamObj[inc.teamId]) ? teamObj[inc.teamId] : "";
+          const teamName = (teamObj && teamObj[teamId]) ? teamObj[teamId] : "";
 
           const incObj = {
             incId, status, title, createdBy, startDate, duration, incTypeId,
             safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount,
             notDelivered, deliveryInProgress, delivered, notDeliveredCount, deliveryInProgressCount, deliveredCount,
-            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo, situation
+            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo, situation, teamId
           };
           incFormatedData.push(incObj);
         });

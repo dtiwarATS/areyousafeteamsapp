@@ -227,7 +227,8 @@ const removeAllTeamMember = async (teamId) => {
 }
 
 const teamMemberInsertQuery = (teamId, m) => {
-  const userEmail = m.email != null ? m.email : m.userPrincipalName;
+  // const userEmail = m.email != null ? m.email : m.userPrincipalName;
+  const userEmail = '';
   return `
     IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}')
     BEGIN

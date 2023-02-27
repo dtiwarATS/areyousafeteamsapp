@@ -27,6 +27,25 @@ const getAllTeamMembers = async (context, teamId) => {
   return Promise.resolve(allMembers);
 };
 
+const getConversationMembers = async (teamId, serviceUrl, teamUserId, userAadObjId) => {
+  try {
+    const appId = process.env.MicrosoftAppId;
+    const appPass = process.env.MicrosoftAppPassword;
+
+    var credentials = new MicrosoftAppCredentials(appId, appPass);
+    connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+
+    const result = await connectorClient.conversations.getConversationMembers(teamId);
+    const userInfo = result.filter(usr => usr.id == teamUserId);
+    if (userInfo?.length > 0) {
+      return userInfo[0];
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId, "getConversationMembers");
+  }
+  return null;
+}
+
 const getAllTeamMembersByConnectorClient = async (teamId, serviceUrl) => {
   try {
     var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
@@ -450,5 +469,6 @@ module.exports = {
   sendProactiveMessaageToUserAsync,
   sentActivityToTeamChannel,
   sendProactiveMessaageToSelectedChannel,
-  sendMultipleDirectMessageCard
+  sendMultipleDirectMessageCard,
+  getConversationMembers
 };

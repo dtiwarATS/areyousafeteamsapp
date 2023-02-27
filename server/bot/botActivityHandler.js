@@ -36,7 +36,8 @@ const {
   sendDirectMessageCard,
   getAllTeamMembers,
   getAllTeamMembersByConnectorClient,
-  sendMultipleDirectMessageCard
+  sendMultipleDirectMessageCard,
+  getConversationMembers
 } = require("../api/apiMethods");
 
 const {
