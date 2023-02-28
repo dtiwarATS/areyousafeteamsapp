@@ -462,7 +462,8 @@ const deleteCompanyData = async (teamId, userObjId) => {
     let updateQuery = `update msteamsinstallationdetails set super_users = null, uninstallation_date = '${new Date(Date.now()).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where team_id = '${teamId}'`;
     await pool.request().query(updateQuery);
 
-    let deleteIncQuery = `delete from MSTeamsIncidents where team_id = '${teamId}'; `;
+    let deleteIncQuery = `delete from MSTeamsIncidents where team_id = '${teamId}'; 
+                          delete from MSTeamsNAResponseSelectedTeams where teamId = '${teamId}'; `;
     await pool.request().query(deleteIncQuery);
 
     isDelete = true;

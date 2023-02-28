@@ -1165,7 +1165,7 @@ const getAllCompanyData = async () => {
   try {
     const sqlAllCompanyData = `SELECT * FROM MSTEAMSINSTALLATIONDETAILS WHERE (ISUSERINFOSAVED = 0 OR ISUSERINFOSAVED IS NULL) 
                                 and team_id is not null and team_id <> '' and email not like '%onmicrosoft.com%' 
-                                and uninstallation_date is null`;
+                                and uninstallation_date is null and serviceUrl is not null`;
     result = await db.getDataFromDB(sqlAllCompanyData);
   } catch (err) {
     processSafetyBotError(err, "", "");
