@@ -113,3 +113,7 @@ function shutDown() {
 process.on('uncaughtException', function (err) {
   processSafetyBotError(err, "", "", "", "uncaughtException");
 });
+
+String.prototype.replaceApostrophe = function () {
+  return this.replace(/'/g, "''")
+}
