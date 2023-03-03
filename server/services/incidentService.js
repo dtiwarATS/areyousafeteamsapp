@@ -150,7 +150,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let selectQuery = ` ${createdByVar}
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
-  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord,
   m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
   , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID, 
@@ -610,7 +610,7 @@ const getLastRunAt = async (incId) => {
 const verifyDuplicateInc = async (teamId, incTitle) => {
   try {
     if (teamId != null && teamId != '') {
-      const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle}' AND TEAM_ID = '${teamId}'`;
+      const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle.replaceApostrophe()}' AND TEAM_ID = '${teamId}'`;
       const result = await db.getDataFromDB(sqlLastRunAt);
       return (result != null && result.length > 0);
     }
@@ -634,7 +634,7 @@ const saveIncResponseSelectedUsers = async (incId, userIds, memberChoises, userA
             userName = usrObj.title;
           }
         }
-        query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${userName}');`;
+        query += `insert into MSTeamsIncResponseSelectedUsers(inc_id, user_id, user_name) values(${incId}, '${userId}', '${userName.replace(/'/g, "''")}');`;
       }
       //console.log("insert query => ", query);
       if (query != "") {
@@ -665,7 +665,7 @@ const saveIncResponseSelectedTeams = async (incId, channelIds, teamIds, userAadO
             channelName = teamObj.channelName
           }
         }
-        query += `insert into MSTeamsIncResponseSelectedTeams(incId, teamId, teamName, channelId, channelName) values(${incId}, '${teamId}', '${teamName}', '${channelId}', '${channelName}');`;
+        query += `insert into MSTeamsIncResponseSelectedTeams(incId, teamId, teamName, channelId, channelName) values(${incId}, '${teamId}', '${teamName.replace(/'/g, "''")}', '${channelId}', '${channelName.replace(/'/g, "''")}');`;
       }
       //console.log("insert query => ", query);
       if (query != "") {
@@ -1005,7 +1005,7 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select team_id teamId, team_name teamName, channelId, isnull(team_name, '') + isnull(channelName, '') channelName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
+    const sqlTeamInfo = `select team_id teamId, team_name teamName, channelId, isnull(team_name, '') + ' - ' + isnull(channelName, '') channelName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
     result = await db.getDataFromDB(sqlTeamInfo, userAadObjId);
   } catch (err) {
     console.log(err);
@@ -1165,7 +1165,7 @@ const getAllCompanyData = async () => {
   try {
     const sqlAllCompanyData = `SELECT * FROM MSTEAMSINSTALLATIONDETAILS WHERE (ISUSERINFOSAVED = 0 OR ISUSERINFOSAVED IS NULL) 
                                 and team_id is not null and team_id <> '' and email not like '%onmicrosoft.com%' 
-                                and uninstallation_date is null`;
+                                and uninstallation_date is null and serviceUrl is not null`;
     result = await db.getDataFromDB(sqlAllCompanyData);
   } catch (err) {
     processSafetyBotError(err, "", "");
@@ -1179,6 +1179,18 @@ const updateDataIntoDB = async (sqlUpdate) => {
   } catch (err) {
     processSafetyBotError(err, "", "");
   }
+}
+
+const isUserPartOfOtherTeamsFn = async (userAadObjId) => { // Checks, is bot installed into other teams
+  try {
+    const sql = `select id from MSTeamsInstallationDetails where uninstallation_date is null and team_id in
+    (select team_id from MSTeamsTeamsUsers where user_aadobject_id = '${userAadObjId}')`;
+    const result = await db.getDataFromDB(sql);
+    return (result?.length > 0);
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId, "isUserPartOfOtherTeams");
+  }
+  return false;
 }
 
 const isBotInstalledInTeam = async (userAadObjId) => {
@@ -1200,6 +1212,10 @@ const isBotInstalledInTeam = async (userAadObjId) => {
         isSuperUser = true;
         isInstalledInTeam = true;
       }
+    }
+
+    if (!isInstalledInTeam) {
+      isInstalledInTeam = await isUserPartOfOtherTeamsFn(userAadObjId);
     }
   } catch (err) {
     console.log(err);

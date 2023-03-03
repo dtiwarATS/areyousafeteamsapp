@@ -96,14 +96,14 @@ const { processSafetyBotError } = require("../models/processError");
             and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 5 and ISNULL(sd.isFiveDayBeforeMessageSent, 0) <> 1`;
 
             if (daysBefore == 3) {
-                sqlWhere = ` where sd.SubscriptionType in (2) and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 3 and ISNULL(sd.isThreeDayBeforeMessageSent, 0) <> 1`;
+                sqlWhere = ` where sd.SubscriptionType in (2) and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 3 and ISNULL(sd.isThreeDayBeforeMessageSent, 0) <> 1 `;
             }
 
             if (daysBefore == 7) {
-                sqlWhere = ` where sd.SubscriptionType in (2) and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 7 and ISNULL(sd.isSevenDayBeforeMessageSent, 0) <> 1`;
+                sqlWhere = ` where sd.SubscriptionType in (2) and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 7 and ISNULL(sd.isSevenDayBeforeMessageSent, 0) <> 1 `;
             }
         } else {
-            sqlWhere = "where sd.SubscriptionType in (2,3) and GETDATE() > sd.ExpiryDate and ISNULL(sd.isAfterExpiryMessageSent, 0) <> 1";
+            sqlWhere = " where sd.SubscriptionType in (2,3) and GETDATE() > sd.ExpiryDate and ISNULL(sd.isAfterExpiryMessageSent, 0) <> 1 ";
         }
 
         return sqlBeforeExpiry = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, usr.tenantid, inst.serviceUrl, sd.SubscriptionType, 
@@ -114,7 +114,7 @@ const { processSafetyBotError } = require("../models/processError");
         from MSTeamsSubscriptionDetails sd
         left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
         left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
-        ${sqlWhere}`;
+        ${sqlWhere} and inst.uninstallation_date is null`;
     }
 
     let sqlFiveDayBeforeExpiry = beforeExpiryQuery(true, 5);

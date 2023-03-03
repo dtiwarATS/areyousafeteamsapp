@@ -161,9 +161,12 @@ const getWelcomeMessageCard = (teamMemberCount, teamName) => {
 
 const getTestIncPreviewCard = (teamMemberCount, companyData, newInc) => {
     const userEmailId = companyData.userEmailId;
-
+    const newIncData = { //getting Message size too large error when team member count is more hence removed selectedMembers
+        ...newInc,
+        selectedMembers: null
+    };
     const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
-    const safetyCheckMessageText = `This is a **${newInc.incTitle}** from <at>${newInc.incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;
+    const safetyCheckMessageText = `This is a **${newIncData.incTitle}** from <at>${newIncData.incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;
     const body = [
         {
             "type": "TextBlock",
@@ -229,7 +232,7 @@ const getTestIncPreviewCard = (teamMemberCount, companyData, newInc) => {
                                     "verb": "triggerTestSafetyCheckMessage",
                                     "style": "positive",
                                     "data": {
-                                        "inc": newInc,
+                                        "inc": newIncData,
                                         "companyData": companyData
                                     }
                                 }

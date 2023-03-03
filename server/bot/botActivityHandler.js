@@ -36,7 +36,8 @@ const {
   sendDirectMessageCard,
   getAllTeamMembers,
   getAllTeamMembersByConnectorClient,
-  sendMultipleDirectMessageCard
+  sendMultipleDirectMessageCard,
+  getConversationMembers
 } = require("../api/apiMethods");
 
 const {
@@ -104,28 +105,28 @@ class BotActivityHandler extends TeamsActivityHandler {
           } else if (acvtivityData.conversation.conversationType === "personal") {
 
             let companyData = null, isInstalledInTeam = true;
+            const aadObjectId = acvtivityData.from.aadObjectId;
+            ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(aadObjectId));
 
-            ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(acvtivityData.from.aadObjectId));
-
-            const userLicenseDetails = await getUserLicenseDetails(acvtivityData.from.aadObjectId, companyData.teamId);
-            if (userLicenseDetails?.hasLicense === false) {
-              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData);
+            const userLicenseDetails = await getUserLicenseDetails(aadObjectId, companyData.teamId);
+            if (userLicenseDetails.userId != null && userLicenseDetails?.hasLicense === false) {
+              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData, aadObjectId);
               await next();
               return;
             }
 
             const isAdmin = await isAdminUser(
-              acvtivityData.from.aadObjectId
+              aadObjectId
             );
 
-            if (!(isAdmin || isSuperUser)) {
-              await this.hanldeNonAdminUserMsg(context, userLicenseDetails);
+            if (!isInstalledInTeam) {
+              bot.sendIntroductionMessage(context, acvtivityData.from);
               await next();
               return;
             }
 
-            if (!isInstalledInTeam) {
-              bot.sendIntroductionMessage(context, acvtivityData.from);
+            if (!(isAdmin || isSuperUser)) {
+              await this.hanldeNonAdminUserMsg(context, userLicenseDetails);
               await next();
               return;
             }
@@ -292,7 +293,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 if (adminUserInfo) {
                   const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
                   const companyData = await insertCompanyData(companyDataObj, null, conversationType);
-                  await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
+                  await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0, null);
                 }
               }
             }
@@ -321,7 +322,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     });
   }
 
-  async notifyUserForInvalidLicense(context, userLicenseDetails, companyData) {
+  async notifyUserForInvalidLicense(context, userLicenseDetails, companyData, userAadObjId) {
     try {
       const { userName, userId, adminUsrId, adminUsrName, teamName } = userLicenseDetails;
       //const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
@@ -377,7 +378,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", "", "notifyUserForInvalidLicense");
+      processSafetyBotError(err, "", "", userAadObjId, "notifyUserForInvalidLicense");
     }
   }
 
@@ -634,9 +635,8 @@ class BotActivityHandler extends TeamsActivityHandler {
   }
 
   async hanldeNonAdminUserMsg(context, userLicenseDetails) {
+    const { userName, userId, adminUsrId, adminUsrName } = userLicenseDetails;
     try {
-      const { userName, userId, adminUsrId, adminUsrName } = userLicenseDetails;
-
       const cardJSON = {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -708,8 +708,12 @@ class BotActivityHandler extends TeamsActivityHandler {
       //if (!isWelcomeMessageSent) {
       try {
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, teamName);
-        const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData, newInc);
-        await sendMultipleDirectMessageCard(context, acvtivityData.from, welcomeMessageCard, testIncPreviewCard);
+        if (newInc) {
+          const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData, newInc);
+          await sendMultipleDirectMessageCard(context, acvtivityData.from, welcomeMessageCard, testIncPreviewCard);
+        } else {
+          await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
+        }
       } catch (err) {
         processSafetyBotError(err, "", "", userAadObjId, "welcomeMessageCard");
       }
