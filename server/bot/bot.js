@@ -1297,11 +1297,12 @@ const sendApprovalResponseToSelectedMembers = async (incId, context, approvalCar
 const sendApprovalResponseToSelectedTeams = async (incId, context, approvalCardResponse, userAadObjId) => { //If user click on Need assistance, then send message to selected users 
   try {
     const incRespSelectedChannels = await incidentService.getIncResponseSelectedChannelList(incId);
+    const serviceUrl = context?.activity?.serviceUrl;
     if (incRespSelectedChannels != null && incRespSelectedChannels.length > 0) {
       for (let i = 0; i < incRespSelectedChannels.length; i++) {
         const channelId = incRespSelectedChannels[i]?.channelId;
-        if (channelId) {
-          await sentActivityToTeamChannel(context, approvalCardResponse, channelId, userAadObjId);
+        if (channelId && serviceUrl) {
+          await sendProactiveMessaageToSelectedChannel(approvalCardResponse, channelId, serviceUrl, userAadObjId, incId);
         }
       }
     }

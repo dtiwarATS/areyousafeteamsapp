@@ -427,10 +427,10 @@ const sentActivityToTeamChannel = async (context, msgAttachment, teamsChannelId,
   }
 }
 
-const sendProactiveMessaageToSelectedChannel = async (msgAttachment, channelId, serviceUrl, userAadObjId) => {
+const sendProactiveMessaageToSelectedChannel = async (msgAttachment, channelId, serviceUrl, userAadObjId, incId = "") => {
   try {
     if (msgAttachment != null) {
-      const appId = process.env.MicrosoftAppId;;
+      const appId = process.env.MicrosoftAppId;
       const appPass = process.env.MicrosoftAppPassword;
       const botName = process.env.BotName;
       const activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
@@ -454,7 +454,7 @@ const sendProactiveMessaageToSelectedChannel = async (msgAttachment, channelId, 
       await connectorClient.conversations.createConversation(conversationParameters);
     }
   } catch (err) {
-    processSafetyBotError(err, "", "", userAadObjId, "sendProactiveMessaageToSelectedChannel");
+    processSafetyBotError(err, channelId, "", userAadObjId, `sendProactiveMessaageToSelectedChannel ${incId}`);
   }
 }
 
@@ -471,4 +471,4 @@ module.exports = {
   sendProactiveMessaageToSelectedChannel,
   sendMultipleDirectMessageCard,
   getConversationMembers
-};
+}
