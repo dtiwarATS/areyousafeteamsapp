@@ -467,7 +467,7 @@ const getWelcomeMessageCardOld = (teamMemberCount, companyData, teamName, newInc
     };
 }
 
-const getSubcriptionSelectionCard = (teamMemberCount, companyData) => {
+const getSubcriptionSelectionCard = (teamMemberCount, userEmail) => {
     return {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -486,7 +486,7 @@ const getSubcriptionSelectionCard = (teamMemberCount, companyData) => {
                         "title": "Continue with the free version (10 users)",
                         "verb": "newUsrSubscriptionType1",
                         "data": {
-                            companyData
+                            userEmail
                         }
                     }
                 ]

@@ -176,7 +176,7 @@ const selectResponseCard = async (context, user) => {
     } else if (verb === "add_user_info") {
       await addUserInfoByTeamId(context);
     } else if (verb === "newUsrSubscriptionType1") {
-      await processnewUsrSubscriptionType1(context, action, companyData);
+      await processnewUsrSubscriptionType1(context, action);
     } else if (verb === "newUsrSubscriptionType2") {
       await processnewUsrSubscriptionType2(context, action);
     } else if (verb === "triggerTestSafetyCheckMessage") {
@@ -188,9 +188,10 @@ const selectResponseCard = async (context, user) => {
   }
 };
 
-const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
+const processnewUsrSubscriptionType1 = async (context, action) => {
   try {
-    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard(companyData.userEmail));
+    const userEmail = action?.data?.userEmail;
+    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard(userEmail));
 
     const message = MessageFactory.attachment(card);
     message.id = context.activity.replyToId;
@@ -1296,11 +1297,12 @@ const sendApprovalResponseToSelectedMembers = async (incId, context, approvalCar
 const sendApprovalResponseToSelectedTeams = async (incId, context, approvalCardResponse, userAadObjId) => { //If user click on Need assistance, then send message to selected users 
   try {
     const incRespSelectedChannels = await incidentService.getIncResponseSelectedChannelList(incId);
+    const serviceUrl = context?.activity?.serviceUrl;
     if (incRespSelectedChannels != null && incRespSelectedChannels.length > 0) {
       for (let i = 0; i < incRespSelectedChannels.length; i++) {
         const channelId = incRespSelectedChannels[i]?.channelId;
-        if (channelId) {
-          await sentActivityToTeamChannel(context, approvalCardResponse, channelId, userAadObjId);
+        if (channelId && serviceUrl) {
+          await sendProactiveMessaageToSelectedChannel(approvalCardResponse, channelId, serviceUrl, userAadObjId, incId);
         }
       }
     }
@@ -2286,7 +2288,7 @@ const sendIncStatusValidation = async (context, incStatusId) => {
         body: [
           {
             type: "TextBlock",
-            text: `The **${incTitle}** is closed.Please contact <at>${incCreatedBy.name}</at>`,
+            text: `The **${incTitle}** is closed. Please contact <at>${incCreatedBy.name}</at>`,
             wrap: true,
           },
         ],
