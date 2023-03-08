@@ -2288,7 +2288,7 @@ const sendIncStatusValidation = async (context, incStatusId) => {
         body: [
           {
             type: "TextBlock",
-            text: `The **${incTitle}** is closed.Please contact <at>${incCreatedBy.name}</at>`,
+            text: `The **${incTitle}** is closed. Please contact <at>${incCreatedBy.name}</at>`,
             wrap: true,
           },
         ],

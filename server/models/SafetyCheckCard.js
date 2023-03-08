@@ -121,7 +121,7 @@ const getImpBulletineTypeCard = async (incTitle, incGuidance, additionalInfo, in
             type: "TextBlock",
             separator: true,
             wrap: true,
-            text: `This is a important bulletin from <at>${incCreatedByName}</at>.`
+            text: `This is an important bulletin from <at>${incCreatedByName}</at>.`
         },
         {
             type: "TextBlock",
