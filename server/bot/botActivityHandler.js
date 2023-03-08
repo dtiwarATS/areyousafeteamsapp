@@ -244,7 +244,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               if (teamMember != null) {
                 const teamMembers = [teamMember];
                 await addTeamMember(teamId, teamMembers, true);
-                if (adminUserInfo) {
+                if (adminUserInfo && i == (membersAdded.length - 1)) {
                   let userEmail = adminUserInfo.email ? adminUserInfo.email : adminUserInfo.userPrincipalName;
                   if (userEmail) {
                     await this.onMemberAddedSendSubscriptionSelectionCard(context, acvtivityData.from, userEmail, teamId);
