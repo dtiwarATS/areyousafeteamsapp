@@ -165,22 +165,22 @@ const getCompaniesData = async (
   try {
     selectQuery = "";
     let companyData = {};
-    const sqlmemberCountCol = "(select count(*) from MSTeamsTeamsUsers usr  where usr.team_id = team_id) membersCount";
+    const sqlmemberCountCol = "(select count(*) from MSTeamsTeamsUsers usr  where usr.team_id = inst.team_id) membersCount";
     if (teamId) {
       if (filterByTeamID) {
-        selectQuery = `SELECT *, ${sqlmemberCountCol}  FROM MSTeamsInstallationDetails where user_tenant_id = '${teamId}' and uninstallation_date is null`;
+        selectQuery = `SELECT *, ${sqlmemberCountCol}  FROM MSTeamsInstallationDetails inst where user_tenant_id = '${teamId}' and uninstallation_date is null`;
       } else {
-        selectQuery = `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and team_id = '${teamId}' and uninstallation_date is null`;
+        selectQuery = `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails inst where user_obj_id = '${userObjId}' and team_id = '${teamId}' and uninstallation_date is null`;
       }
     } else {
-      selectQuery = `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and uninstallation_date is null`;
+      selectQuery = `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails inst where user_obj_id = '${userObjId}' and uninstallation_date is null`;
     }
     let res = await db.getDataFromDB(selectQuery, userObjId);
 
     // check if the user is super user or not
     if (res == null || res.length == 0) {
       res = await db.getDataFromDB(
-        `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails where super_users like '%${userObjId}%' and uninstallation_date is null`, userObjId
+        `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails inst where super_users like '%${userObjId}%' and uninstallation_date is null`, userObjId
       );
     }
     companyData = await parseCompanyData(res);
@@ -271,7 +271,7 @@ const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
               update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id = '${m.objectId}'
         end `;
 
-        if (index % 99 == 0) {
+        if (index > 0 && index % 99 == 0) {
           insertUserInfo(sqlInserUsers);
         }
       });

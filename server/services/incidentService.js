@@ -1540,7 +1540,7 @@ const getMembersCountForSubscriptionType1 = async (teamId, userAadObjId) => {
     const sql = ` select count(id) membersCount from MSTeamsTeamsUsers where team_id = '${teamId}' and (
       select count(id) from MSTeamsSubscriptionDetails where id in (
       select SubscriptionDetailsId from MSTeamsInstallationDetails a where team_id = '${teamId}')
-      and TrialStartDate is null and SubscriptionType = 1) >= 0 `;
+      and TrialStartDate is null and SubscriptionType = 1) > 0 `;
     const result = await db.getDataFromDB(sql, userAadObjId);
     if (result && result.length > 0) {
       membersCount = result[0]["membersCount"];
