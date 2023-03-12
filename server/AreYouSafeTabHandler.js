@@ -6,6 +6,7 @@ const dbOperation = require("./db/dbOperations");
 const tab = require("./tab/AreYouSafeTab");
 const { processSafetyBotError } = require("./models/processError");
 const { getConversationMembers } = require("./api/apiMethods");
+const { formatedDate } = require("./utils/index")
 
 const handlerForSafetyBotTab = (app) => {
     const tabObj = new tab.AreYouSafeTab();
@@ -461,6 +462,28 @@ const handlerForSafetyBotTab = (app) => {
         } catch (err) {
             processSafetyBotError(err, "", "", userAadObjId);
             res.send(0);
+        }
+    });
+
+    app.post("/areyousafetabhandler/updateSafetyCheckStatus", (req, res) => {
+        const { respId, isRecurring, isSafe, userAadObjId, respTimestamp } = req.query;
+        try {
+            incidentService.updateSafetyCheckStatus(respId, (isRecurring === 'true'), isSafe, respTimestamp, userAadObjId)
+                .then((data) => {
+                    if (data) {
+                        res.send("true");
+                    } else {
+                        res.send("false");
+                    }
+                })
+                .catch((err) => {
+                    console.log(err);
+                    processSafetyBotError(err, "", "", userAadObjId, "areyousafetabhandler/getMemberInfo");
+                    res.send("false");
+                });
+        } catch (err) {
+            processSafetyBotError(err, "", "", userAadObjId);
+            res.send("false");
         }
     });
 }

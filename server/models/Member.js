@@ -1,5 +1,6 @@
 class Member {
   constructor({
+    respId,
     user_id,
     user_name,
     is_message_delivered,
@@ -11,6 +12,7 @@ class Member {
     msgStatus,
     error
   }) {
+    this.respId = respId;
     this.userId = user_id;
     this.userName = user_name;
     this.isMessageDelivered = is_message_delivered != null ? is_message_delivered : null;
