@@ -10,7 +10,9 @@ class Member {
     timestamp,
     tu,
     msgStatus,
-    error
+    error,
+    admin_name,
+    is_marked_by_admin
   }) {
     this.respId = respId;
     this.userId = user_id;
@@ -23,6 +25,8 @@ class Member {
     this.userPrincipalName = (tu && tu.length > 0) ? tu[0].userPrincipalName : null;
     this.msgStatus = msgStatus;
     this.error = error;
+    this.adminName = admin_name;
+    this.isMarkedByAdmin = is_marked_by_admin;
   }
 }
 

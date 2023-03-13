@@ -466,9 +466,9 @@ const handlerForSafetyBotTab = (app) => {
     });
 
     app.post("/areyousafetabhandler/updateSafetyCheckStatus", (req, res) => {
-        const { respId, isRecurring, isSafe, userAadObjId, respTimestamp } = req.query;
+        const { respId, isRecurring, isSafe, userAadObjId, respTimestamp, adminName } = req.query;
         try {
-            incidentService.updateSafetyCheckStatus(respId, (isRecurring === 'true'), isSafe, respTimestamp, userAadObjId)
+            incidentService.updateSafetyCheckStatus(respId, (isRecurring === 'true'), isSafe, respTimestamp, adminName, userAadObjId)
                 .then((data) => {
                     if (data) {
                         res.send("true");
