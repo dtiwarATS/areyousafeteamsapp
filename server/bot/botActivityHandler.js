@@ -712,6 +712,7 @@ class BotActivityHandler extends TeamsActivityHandler {
   async onMemberAddedSendSubscriptionSelectionCard(context, from, userEmail, teamId) {
     try {
       const teamMemberCount = await incidentService.getMembersCountForSubscriptionType1(teamId, from.aadObjectId);
+      console.log({ teamMemberCount });
       if (teamMemberCount > 10) {
         await this.sendSubscriptionSelectionCard(context, from, teamMemberCount, userEmail);
       }

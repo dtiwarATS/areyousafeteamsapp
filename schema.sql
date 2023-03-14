@@ -668,3 +668,39 @@ BEGIN
 ALTER TABLE MSTeamsIncidents ADD isTestRecord bit NULL
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='is_marked_by_admin' AND TABLE_NAME='MSTeamsMemberResponses')
+BEGIN
+ALTER TABLE MSTeamsMemberResponses ADD is_marked_by_admin bit NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='admin_aadObjId' AND TABLE_NAME='MSTeamsMemberResponses')
+BEGIN
+ALTER TABLE MSTeamsMemberResponses ADD admin_aadObjId varchar(255) NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='admin_name' AND TABLE_NAME='MSTeamsMemberResponses')
+BEGIN
+ALTER TABLE MSTeamsMemberResponses ADD admin_name nvarchar(512) NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='is_marked_by_admin' AND TABLE_NAME='MSTeamsMemberResponsesRecurr')
+BEGIN
+ALTER TABLE MSTeamsMemberResponsesRecurr ADD is_marked_by_admin bit NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='admin_aadObjId' AND TABLE_NAME='MSTeamsMemberResponsesRecurr')
+BEGIN
+ALTER TABLE MSTeamsMemberResponsesRecurr ADD admin_aadObjId varchar(255) NULL
+END
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='admin_name' AND TABLE_NAME='MSTeamsMemberResponsesRecurr')
+BEGIN
+ALTER TABLE MSTeamsMemberResponsesRecurr ADD admin_name nvarchar(512) NULL
+END
+GO

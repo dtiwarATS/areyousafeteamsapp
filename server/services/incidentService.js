@@ -35,34 +35,26 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
             if (member.mRecurr != null && member.mRecurr.length == 1 && parsedData.inc_type === 'recurringIncident') {
               if (updateRecurrMemebersResp) {
                 const recurrMemberResp = member.mRecurr[0];
+                member.respId = recurrMemberResp.respRecurrId;
                 member.response = recurrMemberResp.responseR;
                 member.response_value = recurrMemberResp.response_valueR;
                 member.comment = recurrMemberResp.commentR;
                 member.is_message_delivered = recurrMemberResp.is_message_deliveredR;
                 member.msgStatus = recurrMemberResp.msgStatusR;
                 member.timestamp = recurrMemberResp.timestampR;
-              } else {
-                member = {
-                  ...member,
-                  ...member.mRecurr[0]
-                }
+                member.admin_name = recurrMemberResp.admin_nameR;
+                member.is_marked_by_admin = recurrMemberResp.is_marked_by_adminR;
               }
+              // else {
+              //   member = {
+              //     ...member,
+              //     ...member.mRecurr[0]
+              //   }
+              // }
             }
 
             if (member.is_message_delivered) {
               messageDeliveredCount++;
-            }
-
-            try {
-              if (member.mRecurr[0]?.tu && member.mRecurr[0]?.tu.length > 0) {
-                member = {
-                  ...member,
-                  ...member.mRecurr[0],
-                  ...member.mRecurr[0]?.tu[0]
-                }
-              }
-            } catch (err) {
-
             }
 
             return new Member(member);
@@ -151,15 +143,15 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
   inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord,
-  m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
-  m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR
-  , mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID, 
-  tu.userPrincipalName
+  m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+  m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
+  mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
+  mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
+  mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
   Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
-  LEFT JOIN MSTeamsTeamsUsers tu on tu.user_id = m.user_id and inc.team_id = tu.team_id
   ${whereSql} ${orderBySql}
   FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
@@ -1551,6 +1543,35 @@ const getMembersCountForSubscriptionType1 = async (teamId, userAadObjId) => {
   return membersCount;
 }
 
+const updateSafetyCheckStatus = async (respId, isRecurring, isSafe, respTimestamp, adminName, userAadObjId) => {
+  try {
+    let sql = "", resp = 0, userRespValue = null, isMarkedByAdmin = null, adminAadObjId = null;
+    if (isSafe === 'false') {
+      respTimestamp = null;
+      adminName = null;
+    } else {
+      userRespValue = 1;
+      resp = 1;
+      respTimestamp = `'${respTimestamp}'`;
+      adminName = `'${adminName}'`;
+      isMarkedByAdmin = 1;
+      adminAadObjId = `'${userAadObjId}'`;
+    }
+    if (isRecurring) {
+      sql = `update MSTeamsMemberResponsesRecurr set response = ${resp} , response_value = ${userRespValue}, timestamp = ${respTimestamp},
+      is_marked_by_admin = ${isMarkedByAdmin}, admin_aadObjId = ${adminAadObjId}, admin_name = ${adminName} where id = ${respId}`;
+    } else {
+      sql = `update MSTeamsMemberResponses set response = ${resp} , response_value = ${userRespValue}, timestamp = ${respTimestamp},
+      is_marked_by_admin = ${isMarkedByAdmin}, admin_aadObjId = ${adminAadObjId}, admin_name = ${adminName} where id = ${respId}`;
+    }
+    const result = await db.updateDataIntoDB(sql, userAadObjId);
+    return result?.rowsAffected?.length > 0;
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId, "updateSafetyCheckStatus");
+  }
+  return false;
+}
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -1611,5 +1632,6 @@ module.exports = {
   getIncDataToCopyInc,
   getIncResponseSelectedChannelList,
   getNAReapSelectedTeams,
-  getMembersCountForSubscriptionType1
+  getMembersCountForSubscriptionType1,
+  updateSafetyCheckStatus
 };
