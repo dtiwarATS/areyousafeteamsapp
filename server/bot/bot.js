@@ -3091,9 +3091,26 @@ const createTestIncident = async (context, incCreatedBy, incCreatedByName, teams
 
 const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
   try {
-    if (action?.data?.inc) {
+    await context.sendActivities([{ type: "typing" }]);
+    const companyData = action.data.companyData;
+    if (!companyData) {
+      return;
+    }
+    const teamId = companyData.teamId;
+    const allMembersInfo = await getAllTeamMembers(context, teamId);
+    if (!allMembersInfo || allMembersInfo.length == 0) {
+      return [];
+    }
+    const adminUserInfo = allMembersInfo.find(
+      (m) => m.id === context.activity.from.id
+    );
+    if (!adminUserInfo) {
+      return;
+    }
+    const incData = await createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjId, context.activity.from, companyData);
+    if (incData) {
       const log = new AYSLog();
-      const { incId, teamId, incCreatedBy, incCreatedByName } = action.data.inc;
+      const { incId, incCreatedBy, incCreatedByName } = incData;
 
       const createdByUserInfo = {
         user_id: incCreatedBy,

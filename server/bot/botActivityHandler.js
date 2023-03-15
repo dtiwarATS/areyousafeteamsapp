@@ -231,8 +231,8 @@ class BotActivityHandler extends TeamsActivityHandler {
               if (adminUserInfo) {
                 const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, teamId, acvtivityData.channelData.team.name);
                 const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
-                const newInc = await bot.createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjectId, acvtivityData.from, companyData);
-                await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount, newInc);
+                //const newInc = await bot.createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjectId, acvtivityData.from, companyData);
+                await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
                 if (teamId != null) {
                   incidentService.updateConversationId(teamId);
                 }
@@ -298,7 +298,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 if (adminUserInfo) {
                   const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
                   const companyData = await insertCompanyData(companyDataObj, null, conversationType);
-                  await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0, null);
+                  await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
                 }
               }
             }
@@ -721,7 +721,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
-  async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0, newInc) {
+  async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0) {
     const userAadObjId = acvtivityData.from.aadObjectId;
     try {
       console.log({ "sendWelcomeMessage": companyData });
@@ -734,8 +734,8 @@ class BotActivityHandler extends TeamsActivityHandler {
       //if (!isWelcomeMessageSent) {
       try {
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, teamName);
-        if (newInc) {
-          const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData, newInc);
+        if (teamMemberCount > 0) {
+          const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData);
           await sendMultipleDirectMessageCard(context, acvtivityData.from, welcomeMessageCard, testIncPreviewCard);
         } else {
           await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
