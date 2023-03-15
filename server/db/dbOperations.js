@@ -240,23 +240,15 @@ const teamMemberInsertQuery = (teamId, m) => {
     END`;
 }
 
-const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
+const addTeamMember = async (teamId, teamMembers, updateLicense = false, removeOldUsers = false) => {
   let isUserInfoSaved = false;
   let sqlInserUsers = "";
   try {
     pool = await poolPromise;
-
-    const insertUserInfo = async (sql) => {
-      sqlInserUsers = "";
-      try {
-        await pool.request().query(sql);
-      } catch (err) {
-        sqlInserUsers += sql;
-      }
-    }
+    const userList = [];
 
     if (updateLicense) {
-      teamMembers.map((m, index) => {
+      teamMembers.forEach((m, index) => {
         sqlInserUsers += teamMemberInsertQuery(teamId, m);
 
         sqlInserUsers += ` Declare @userLimit${index} int, @licensedUsed${index} int
@@ -270,15 +262,25 @@ const addTeamMember = async (teamId, teamMembers, updateLicense = false) => {
         begin
               update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id = '${m.objectId}'
         end `;
-
-        if (index > 0 && index % 99 == 0) {
-          insertUserInfo(sqlInserUsers);
-        }
       });
     } else {
       teamMembers.map((m) => {
+        if (removeOldUsers) {
+          userList.push(m.objectId);
+        }
         sqlInserUsers += teamMemberInsertQuery(teamId, m);
       });
+    }
+
+    if (userList.length > 0 && removeOldUsers) {
+      let delSql = "";
+      try {
+        delSql = `delete from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id not in ('${userList.join("','")}')`;
+        await pool.request().query(delSql);
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(err, teamId, "", "", delSql);
+      }
     }
 
     if (sqlInserUsers != "") {
@@ -419,7 +421,7 @@ const insertCompanyData = async (companyDataObj, allMembersInfo, conversationTyp
     res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
-      const isUserInfoSaved = await addTeamMember(teamId, allMembersInfo);
+      const isUserInfoSaved = await addTeamMember(teamId, allMembersInfo, false, true);
       const installationId = res[0].id;
       if (isUserInfoSaved && Number(installationId) > 0) {
         await updateIsUserInfoSaved(installationId);
