@@ -39,7 +39,6 @@ const {
   sendMultipleDirectMessageCard,
   getConversationMembers
 } = require("../api/apiMethods");
-
 const {
   updateMainCard,
   updateCard,
@@ -596,6 +595,16 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+      } else if (uVerb == "triggerTestSafetyCheckMessage") {
+        const action = context.activity.value.action;
+        const { companyData, teamMemberCount } = action.data;
+        const cards = CardFactory.adaptiveCard(
+          getTestIncPreviewCard(teamMemberCount, companyData)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        context.updateActivity(message);
       }
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
