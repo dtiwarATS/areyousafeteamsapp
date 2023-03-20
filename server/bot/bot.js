@@ -3043,9 +3043,11 @@ const createTestIncident = async (context, incCreatedBy, incCreatedByName, teams
       additionalInfo: "",
       travelUpdate: "",
       contactInfo: "",
-      situation: ""
+      situation: "",
+      isTestRecord: true,
+      isSavedAsDraft: false,
     };
-    const newInc = await incidentService.createNewInc(incData, incCreatedBy, memberChoises, userAadObjId, null, null, true);
+    const newInc = await incidentService.createNewInc(incData, incCreatedBy, memberChoises, userAadObjId, null, null);
     return newInc;
     // if (newInc && newInc.incId) {
     //   const safetyCheckMessageText = `This is a **${incData.incTitle}** from <at>${incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;
