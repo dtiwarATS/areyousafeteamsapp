@@ -582,7 +582,7 @@ const getCompanyDataByTenantId = async (tenantId, filter = null) => {
 const renameTeam = async (teamId, teamName, tenantId) => {
   let result = null;
   try {
-    const sqlUpdateTeamName = `update msteamsinstallationdetails set team_name = '${teamName}' where team_id = '${teamId}' and user_tenant_id = '${tenantId}'`;
+    const sqlUpdateTeamName = `update msteamsinstallationdetails set team_name = '${teamName.replaceApostrophe()}' where team_id = '${teamId}' and user_tenant_id = '${tenantId}'`;
     result = await db.updateDataIntoDB(sqlUpdateTeamName);
   } catch (err) {
     processSafetyBotError(err, "", "");
