@@ -21,7 +21,7 @@ const { processSafetyBotError } = require("../models/processError");
     FROM MSTEAMSINCIDENTS A 
     LEFT JOIN MSTEAMS_SUB_EVENT B ON A.ID = B.INC_ID 
     WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT) AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, A.EVENT_START_DATE)
-    AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2`;
+    AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2 AND isSavedAsDraft <> 1`;
 
   let jobsToBeExecutedArr = await db.getDataFromDB(sqlJob);
   log.addLog(`jobsToBeExecutedArr length - ${jobsToBeExecutedArr?.length}`);

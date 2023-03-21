@@ -278,27 +278,32 @@ const sendMsg = async (context) => {
     "body": [
       {
         "type": "TextBlock",
-        "text": "Hello there, we have added **new incident types** recently.",
+        "text": "Hello there, we have added a cool **new feature** recently. ",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "- **Safety Alerts** - Notify your employees about a potential danger that needs immediate attention and offer preventive measures. \r- **Important bulletin** - Pass on the official news or post-incident updates to your team. \r- **Travel advisory** - Provide safety and security recommendations to your folks on business trips and provide safety instructions. \r - **Stakeholder notice** - Give incident briefings to your crisis management team and key stakeholders.",
+        "text": "- **Dashboard Tab -** \r Admins can now mark the safety status of team members who have not responded on their behalf.",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "To access these features in",
+        "text": "To access this feature in:",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "1. **Chat**: Go to the Chat section -> AreYouSafe? Bot -> Dashboard tab -> Click the **Create Incident** button -> Select the **Incident Type**. \r 2. **Team**: Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? Tab -> Click the **Create Incident** button -> Select the **Incident Type**.",
+        "text": "**Chat:** Go to the Chat section -> AreYouSafe? Bot -> Dashboard tab -> Not Responded card ",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "**Contact us**: [help@areyousafe.in](mailto:help@areyousafe.in) \n\nWith Gratitude,\n\nAreYouSafe Support",
+        "text": "**Team:** Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? tab -> Dashboard tab -> Not Responded card ",
+        "wrap": true
+      },
+      {
+        "type": "TextBlock",
+        "text": "Have questions? [Email](mailto:help@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=vmahale@ats360.com) | [Schedule call](https://calendly.com/vipassanamahale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
         "wrap": true
       }
     ]
@@ -3043,9 +3048,11 @@ const createTestIncident = async (context, incCreatedBy, incCreatedByName, teams
       additionalInfo: "",
       travelUpdate: "",
       contactInfo: "",
-      situation: ""
+      situation: "",
+      isTestRecord: true,
+      isSavedAsDraft: false,
     };
-    const newInc = await incidentService.createNewInc(incData, incCreatedBy, memberChoises, userAadObjId, null, null, true);
+    const newInc = await incidentService.createNewInc(incData, incCreatedBy, memberChoises, userAadObjId, null, null);
     return newInc;
     // if (newInc && newInc.incId) {
     //   const safetyCheckMessageText = `This is a **${incData.incTitle}** from <at>${incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;

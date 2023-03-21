@@ -27,7 +27,9 @@ class Incident {
     travelUpdate,
     contactInfo,
     situation,
-    isTestRecord
+    isTestRecord,
+    isSavedAsDraft,
+    updatedOn
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -57,6 +59,8 @@ class Incident {
     this.contactInfo = contactInfo;
     this.situation = situation;
     this.isTestRecord = isTestRecord;
+    this.isSavedAsDraft = isSavedAsDraft;
+    this.updatedOn = updatedOn;
   }
 }
 

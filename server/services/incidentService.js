@@ -83,8 +83,9 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
     let eventData = {};
     let selectQuery = "";
     if (runAt != null) {
-      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
+      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
       inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+      inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn,
       m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
       inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
@@ -96,8 +97,9 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     }
     else {
-      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
+      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
       inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+      inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn,
       m.user_id, m.user_name, m.is_message_delivered, 
       m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
       inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
@@ -123,7 +125,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
 const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let orderBySql = "";
   if (orderBy != null && orderBy == "desc") {
-    orderBySql = " order by inc.INC_STATUS_ID,  inc.id desc, m.[timestamp] desc, m.user_name";
+    orderBySql = " order by inc.INC_STATUS_ID, CAST(inc.created_date as datetime) desc, CAST(inc.updatedOn as datetime) desc, inc.id desc , m.[timestamp] desc, m.user_name ";
   }
 
   let createdByVar = "";
@@ -142,7 +144,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let selectQuery = ` ${createdByVar}
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
-  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord,
+  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn,
   m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
@@ -295,8 +297,8 @@ const getIncGuidance = async (incId) => {
   }
 };
 
-const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadObjId, responseSelectedTeams, teamIds, isTestRecord = false) => {
-  let newInc = {};
+const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadObjId, responseSelectedTeams, teamIds, incId) => {
+  let newInc = null;
   try {
     if (incObj.selectedMembers.length === 0 && memberChoises && memberChoises.length > 0) {
       const selectedMembers = memberChoises.map((m) => {
@@ -304,12 +306,28 @@ const createNewInc = async (incObj, selectedMembersResp, memberChoises, userAadO
       });
       incObj.selectedMembers = selectedMembers;
     }
-    incObj.isTestRecord = isTestRecord;
     let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
-    const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
-
-    if (res && res.length > 0) {
-      newInc = new Incident(res[0]);
+    if (incId && incId > 0) {
+      const updateQuery = db.getUpdateDataIntoDBQuery("MSTeamsIncidents", incidentValues, "id", incId, userAadObjId);
+      if (updateQuery != null) {
+        const result = await db.updateDataIntoDB(updateQuery, userAadObjId);
+        if (result != null) {
+          const selectQuery = `delete from MSTeamsIncResponseSelectedUsers where inc_id = ${incId}
+                                delete from MSTeamsIncResponseSelectedTeams where incId = ${incId}
+                               SELECT * FROM MSTeamsIncidents WHERE id = ${incId};`;
+          const incResult = await db.getDataFromDB(selectQuery, userAadObjId);
+          if (incResult != null && incResult.length > 0) {
+            newInc = new Incident(incResult[0]);
+          }
+        }
+      }
+    } else {
+      const res = await db.insertDataIntoDB("MSTeamsIncidents", incidentValues);
+      if (res && res.length > 0) {
+        newInc = new Incident(res[0]);
+      }
+    }
+    if (newInc != null) {
       if (selectedMembersResp && selectedMembersResp != "") {
         await saveIncResponseSelectedUsers(newInc.incId, selectedMembersResp, memberChoises, userAadObjId);
         incObj.responseSelectedUsers = selectedMembersResp;

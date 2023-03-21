@@ -153,7 +153,7 @@ class AreYouSafeTab {
 
         incData.forEach((inc) => {
           const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount,
-            incTypeId, additionalInfo, travelUpdate, contactInfo, situation, isTestRecord, teamId, incType } = inc;
+            incTypeId, additionalInfo, travelUpdate, contactInfo, situation, isTestRecord, teamId, incType, isSavedAsDraft, updatedOn } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
             return;
@@ -173,11 +173,11 @@ class AreYouSafeTab {
           let notDelivered = null;
           let deliveryInProgress = null;
           let delivered = null;
-          let notDeliveredCount = null;
-          let deliveryInProgressCount = null;
-          let deliveredCount = null;
+          let notDeliveredCount = 0;
+          let deliveryInProgressCount = 0;
+          let deliveredCount = 0;
 
-          if (inc.members != null && inc.members.length > 0) {
+          if (inc.members != null && inc.members.length > 0 && !isSavedAsDraft) {
             const memberObj = this.sortMembers(inc.members, inc.incTypeId);
             if (memberObj != null) {
               if (!incTypeId || incTypeId == 1) {
@@ -210,7 +210,7 @@ class AreYouSafeTab {
             incId, status, title, createdBy, startDate, duration, incTypeId,
             safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount,
             notDelivered, deliveryInProgress, delivered, notDeliveredCount, deliveryInProgressCount, deliveredCount,
-            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo, situation, teamId, incType
+            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo, situation, teamId, incType, isSavedAsDraft, updatedOn
           };
           incFormatedData.push(incObj);
         });
@@ -498,6 +498,7 @@ class AreYouSafeTab {
     try {
       if (incObj != null && incObj.incData != null) {
         let incData = incObj.incData;
+        let incId = incObj?.incId ? incObj.incId : -1;
         if (incData.incType === "recurringIncident" && incObj.incRecurrData != null) {
           incData = {
             ...incData,
@@ -524,7 +525,7 @@ class AreYouSafeTab {
         incData.additionalInfo = incData.additionalInfo.toString().replace(/\\n/g, "\n\n");
         incData.contactInfo = incData.contactInfo.toString().replace(/\\n/g, "\n\n");
         incData.situation = incData.situation.toString().replace(/\\n/g, "\n\n");
-        newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises, userAadObjId, responseSelectedTeams, teamIds);
+        newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises, userAadObjId, responseSelectedTeams, teamIds, incId);
       }
     } catch (err) {
       console.log(err);

@@ -46,7 +46,9 @@ const getColumns = (tableName) => {
         "travelUpdate",
         "contactInfo",
         "situation",
-        "isTestRecord"
+        "isTestRecord",
+        "isSavedAsDraft",
+        "updatedOn"
       ];
       break;
 
@@ -146,6 +148,23 @@ const insertDataIntoDB = async (tableName, values) => {
   }
 };
 
+const getUpdateDataIntoDBQuery = (tableName, incidentValues, pkColumn, pkColumnValue, userObjId) => {
+  try {
+    if (pkColumn && incidentValues && tableName && pkColumnValue > 0) {
+      let updateSql = `update ${tableName} set `;
+      const columns = getColumns(tableName);
+      incidentValues.forEach((colValue, index) => {
+        updateSql += ` ${(index > 0 ? ", " : "")} ${columns[index]} = ${parseValue(colValue)} `;
+      });
+      updateSql += ` where  ${pkColumn} = ${pkColumnValue}; `;
+      return updateSql;
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", "", userObjId, "getUpdateDataIntoDBQuery");
+  }
+  return null;
+}
+
 const updateDataIntoDB = async (query, userObjId) => {
   try {
     // console.log("update query => ", query);
@@ -219,7 +238,8 @@ const db = {
   getInsertSql,
   insertData,
   updateDataIntoDBAsync,
-  getPoolPromise
+  getPoolPromise,
+  getUpdateDataIntoDBQuery
 };
 
 module.exports = db;
