@@ -56,11 +56,13 @@ const getSafetyCheckTypeCard = async (incTitle, incObj, companyData, incGuidance
     if (incTypeId == 1) {
         let btnSafe = {
             type: "Action.Execute",
-            title: "I am safe"
+            title: "I am safe",
+            "iconUrl": "https://areyousafe.in/img/Safe_small.png"
         }
         let btnAssistance = {
             type: "Action.Execute",
-            title: "I need assistance"
+            title: "I need assistance",
+            "iconUrl": "https://areyousafe.in/img/SOS_small.png"
         }
         if (!isPreview) {
             btnSafe = {
