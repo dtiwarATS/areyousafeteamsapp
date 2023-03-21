@@ -173,11 +173,11 @@ class AreYouSafeTab {
           let notDelivered = null;
           let deliveryInProgress = null;
           let delivered = null;
-          let notDeliveredCount = null;
-          let deliveryInProgressCount = null;
-          let deliveredCount = null;
+          let notDeliveredCount = 0;
+          let deliveryInProgressCount = 0;
+          let deliveredCount = 0;
 
-          if (inc.members != null && inc.members.length > 0) {
+          if (inc.members != null && inc.members.length > 0 && !isSavedAsDraft) {
             const memberObj = this.sortMembers(inc.members, inc.incTypeId);
             if (memberObj != null) {
               if (!incTypeId || incTypeId == 1) {

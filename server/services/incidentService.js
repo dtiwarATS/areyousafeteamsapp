@@ -125,7 +125,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
 const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let orderBySql = "";
   if (orderBy != null && orderBy == "desc") {
-    orderBySql = " order by inc.INC_STATUS_ID, CAST(inc.created_date as date) desc, inc.id desc , m.[timestamp] desc, m.user_name ";
+    orderBySql = " order by inc.INC_STATUS_ID, CAST(inc.created_date as date) desc, CAST(inc.updatedOn as date) desc, inc.id desc , m.[timestamp] desc, m.user_name ";
   }
 
   let createdByVar = "";
