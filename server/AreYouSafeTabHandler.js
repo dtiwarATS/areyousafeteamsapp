@@ -486,6 +486,50 @@ const handlerForSafetyBotTab = (app) => {
             res.send("false");
         }
     });
+
+    app.get("/areyousafetabhandler/getAdminList", (req, res) => {
+
+        console.log("came in request");
+
+        const userAadObjId = req.query.userId;
+
+        try {
+
+            incidentService
+
+                .getAdmins(userAadObjId)
+
+                .then(async (adminData) => {
+
+                    if (adminData === null || (Array.isArray(adminData) && adminData.length === 0)) {
+
+                        res.send(null);
+
+                        return;
+
+                    }
+
+                    res.send(adminData[0]);
+
+                })
+
+                .catch((err) => {
+
+                    console.log(err);
+
+                    processSafetyBotError(err, "", "", userAadObjId);
+
+                    res.send(null);
+
+                });
+
+        } catch (err) {
+
+            processSafetyBotError(err, "", "", userAadObjId);
+
+        }
+
+    });
 }
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;
