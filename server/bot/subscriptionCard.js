@@ -193,13 +193,13 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
                     "type": "Action.ToggleVisibility",
                     "title": "I am safe",
                     "targetElements": [],
-                    "iconUrl": "https://areyousafe.in/img/Safe_small.png"
+
                 },
                 {
                     "type": "Action.ToggleVisibility",
                     "title": "I need assistance",
                     "targetElements": [],
-                    "iconUrl": "https://areyousafe.in/img/SOS_small.png"
+
                 }
             ]
         },
