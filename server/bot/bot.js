@@ -3051,6 +3051,7 @@ const createTestIncident = async (context, incCreatedBy, incCreatedByName, teams
       situation: "",
       isTestRecord: true,
       isSavedAsDraft: false,
+      updatedOn: ""
     };
     const newInc = await incidentService.createNewInc(incData, incCreatedBy, memberChoises, userAadObjId, null, null);
     return newInc;
