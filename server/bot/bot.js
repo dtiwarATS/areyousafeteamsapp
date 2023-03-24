@@ -176,7 +176,7 @@ const selectResponseCard = async (context, user) => {
     } else if (verb === "add_user_info") {
       await addUserInfoByTeamId(context);
     } else if (verb === "newUsrSubscriptionType1") {
-      await processnewUsrSubscriptionType1(context, action);
+      await processnewUsrSubscriptionType1(context, action, companyData);
     } else if (verb === "newUsrSubscriptionType2") {
       await processnewUsrSubscriptionType2(context, action);
     } else if (verb === "triggerTestSafetyCheckMessage") {
@@ -188,10 +188,10 @@ const selectResponseCard = async (context, user) => {
   }
 };
 
-const processnewUsrSubscriptionType1 = async (context, action) => {
+const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
   try {
     const userEmail = action?.data?.userEmail;
-    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard(userEmail));
+    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard(userEmail, companyData));
 
     const message = MessageFactory.attachment(card);
     message.id = context.activity.replyToId;
