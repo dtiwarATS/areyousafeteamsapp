@@ -14,7 +14,9 @@ class Company {
     isUpdate,
     isUserInfoSaved,
     serviceUrl,
-    membersCount
+    membersCount,
+    channelId,
+    channelName
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -31,6 +33,8 @@ class Company {
     this.isUserInfoSaved = isUserInfoSaved;
     this.serviceUrl = serviceUrl;
     this.membersCount = membersCount;
+    this.channelId = channelId;
+    this.channelName = channelName;
   }
 }
 

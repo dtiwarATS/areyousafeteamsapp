@@ -246,7 +246,8 @@ class BotActivityHandler extends TeamsActivityHandler {
                 if (adminUserInfo && i == (membersAdded.length - 1)) {
                   let userEmail = adminUserInfo.email ? adminUserInfo.email : adminUserInfo.userPrincipalName;
                   if (userEmail) {
-                    await this.onMemberAddedSendSubscriptionSelectionCard(context, acvtivityData.from, userEmail, teamId);
+                    const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, teamId, acvtivityData.channelData.team.name);
+                    await this.onMemberAddedSendSubscriptionSelectionCard(context, acvtivityData.from, userEmail, teamId, companyDataObj);
                   }
                 }
                 if (teamMember.aadObjectId != null) {
@@ -709,21 +710,21 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
-  async sendSubscriptionSelectionCard(context, from, teamMemberCount, userEmail) {
+  async sendSubscriptionSelectionCard(context, from, teamMemberCount, userEmail, companyDataObj) {
     try {
-      const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount, userEmail);
+      const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount, userEmail, companyDataObj);
       await sendDirectMessageCard(context, from, subcriptionSelectionCard);
     } catch (err) {
       processSafetyBotError(err, "", "", from.aadObjectId, "sendSubscriptionSelectionCard");
     }
   }
 
-  async onMemberAddedSendSubscriptionSelectionCard(context, from, userEmail, teamId) {
+  async onMemberAddedSendSubscriptionSelectionCard(context, from, userEmail, teamId, companyDataObj) {
     try {
       const teamMemberCount = await incidentService.getMembersCountForSubscriptionType1(teamId, from.aadObjectId);
       console.log({ teamMemberCount });
       if (teamMemberCount > 10) {
-        await this.sendSubscriptionSelectionCard(context, from, teamMemberCount, userEmail);
+        await this.sendSubscriptionSelectionCard(context, from, teamMemberCount, userEmail, companyDataObj);
       }
     } catch (err) {
       processSafetyBotError(err, "", "", from.aadObjectId, "onMemberAddedSendSubscriptionSelectionCard");
@@ -760,7 +761,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         });
 
       if (teamMemberCount > 10) {
-        this.sendSubscriptionSelectionCard(context, acvtivityData.from, teamMemberCount, companyData.userEmail);
+        this.sendSubscriptionSelectionCard(context, acvtivityData.from, teamMemberCount, companyData.userEmail, companyData);
       }
 
       // let teamName = "";

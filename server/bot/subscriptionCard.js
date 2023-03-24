@@ -1,3 +1,5 @@
+const { getMobileDashboardMsgBlockJSON } = require("../models/updateCards");
+
 const getOldWelcomeMessageCard = () => {
     // return {
     //   $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -105,7 +107,7 @@ const getFaqAndContactUsColumnSetJSON = () => {
                     contactUsBtnJSON
                 ],
                 "verticalContentAlignment": "Center"
-            }
+            },
         ]
     }
 }
@@ -463,7 +465,7 @@ const getWelcomeMessageCardOld = (teamMemberCount, companyData, teamName, newInc
     };
 }
 
-const getSubcriptionSelectionCard = (teamMemberCount, userEmail) => {
+const getSubcriptionSelectionCard = (teamMemberCount, userEmail, companyData) => {
     return {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -482,7 +484,8 @@ const getSubcriptionSelectionCard = (teamMemberCount, userEmail) => {
                         "title": "Continue with the free version (10 users)",
                         "verb": "newUsrSubscriptionType1",
                         "data": {
-                            userEmail
+                            userEmail,
+                            companyData
                         }
                     }
                 ]
@@ -516,8 +519,9 @@ const getHelfullLinkJSON = (userEmailId) => {
     ];
 }
 
-const getAfterUsrSubscribedTypeOneCard = (userEmailId) => {
+const getAfterUsrSubscribedTypeOneCard = (userEmailId, companyData) => {
     const helfullLinkJSON = getHelfullLinkJSON(userEmailId);
+    const mobileDashboardMsgBlockJSON = getMobileDashboardMsgBlockJSON(companyData);
     const card = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         type: "AdaptiveCard",
@@ -528,6 +532,7 @@ const getAfterUsrSubscribedTypeOneCard = (userEmailId) => {
                 "text": "Hello! Click on the **Dashboard tab** above to access all features.",
                 "wrap": true
             },
+            mobileDashboardMsgBlockJSON,
             ...helfullLinkJSON
         ]
     };
