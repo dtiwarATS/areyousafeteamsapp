@@ -194,12 +194,14 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
                 {
                     "type": "Action.ToggleVisibility",
                     "title": "I am safe",
-                    "targetElements": []
+                    "targetElements": [],
+
                 },
                 {
                     "type": "Action.ToggleVisibility",
                     "title": "I need assistance",
-                    "targetElements": []
+                    "targetElements": [],
+
                 }
             ]
         },

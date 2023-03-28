@@ -283,7 +283,7 @@ const sendMsg = async (context) => {
       },
       {
         "type": "TextBlock",
-        "text": "- **Dashboard Tab -** \r Admins can now mark the safety status of team members who have not responded on their behalf.",
+        "text": "- Admins can now save an Incident as a draft.",
         "wrap": true
       },
       {
@@ -293,17 +293,17 @@ const sendMsg = async (context) => {
       },
       {
         "type": "TextBlock",
-        "text": "**Chat:** Go to the Chat section -> AreYouSafe? Bot -> Dashboard tab -> Not Responded card ",
+        "text": "**Chat:** Go to the Chat section -> AreYouSafe? Bot -> Click the **Create Incident** button",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "**Team:** Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? tab -> Dashboard tab -> Not Responded card ",
+        "text": "**Team:** Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? tab -> Click the **Create Incident** button",
         "wrap": true
       },
       {
         "type": "TextBlock",
-        "text": "Have questions? [Email](mailto:help@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=vmahale@ats360.com) | [Schedule call](https://calendly.com/vipassanamahale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        "text": "Have questions? [Email](mailto:help@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) | [Schedule call](https://calendly.com/nehapingale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
         "wrap": true
       }
     ]
