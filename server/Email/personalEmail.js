@@ -23,7 +23,7 @@ class PersonalEmail {
 
                 const emailBody = "<div style='font-family:Calibri;font-size:16px;'>Hello, <br /><br />" +
                     "Thank you for installing AreYouSafe bot. You can use it FREE for small teams with less than 10 users." +
-                    "<br />" +
+                    "<br /><br />" +
                     "For larger teams, you can use it FREE for 45 days. For pricing after the 45-day trial check out our <a href='https://areyousafe.in/#pricing'>pricing page</a>." +
                     "<br /><br />" +
                     "Feel free to reach out to us if you need any help or want to share feedback." +
