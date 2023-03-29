@@ -51,7 +51,7 @@ const {
 } = require("../models/UpdateCards");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
-const { getWelcomeMessageCard, getSubcriptionSelectionCard, getTestIncPreviewCard } = require("./subscriptionCard");
+const { getWelcomeMessageCard, getSubcriptionSelectionCard, getTestIncPreviewCard, getWelcomeMessageCardForChannel } = require("./subscriptionCard");
 const PersonalEmail = require("../Email/personalEmail");
 
 class BotActivityHandler extends TeamsActivityHandler {
@@ -731,6 +731,15 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
+  async sendWelcomeMessageToChannel(context, userName) {
+    const wecomeMessageCardForChannelCard = getWelcomeMessageCardForChannel(userName);
+    const adaptiveCard = CardFactory.adaptiveCard(wecomeMessageCardForChannelCard);
+    await context.sendActivity({
+      attachments: [adaptiveCard],
+    });
+
+  }
+
   async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0) {
     const userAadObjId = acvtivityData.from.aadObjectId;
     try {
@@ -743,6 +752,9 @@ class BotActivityHandler extends TeamsActivityHandler {
 
       //if (!isWelcomeMessageSent) {
       try {
+        if (teamName != null) {
+          await this.sendWelcomeMessageToChannel(context, companyData.userName);
+        }
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, teamName);
         if (teamMemberCount > 0) {
           const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData);

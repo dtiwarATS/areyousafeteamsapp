@@ -881,6 +881,43 @@ const getTypeTwoSubscriptionEndCard = (userId, userName, teamName) => {
     }
 }
 
+const getWelcomeMessageCardForChannel = (userName) => {
+    return {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.4",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": "👋 Hi, I'm the AreYouSafe bot!",
+                "wrap": true,
+                "horizontalAlignment": "center",
+                "size": "large",
+                "color": "accent",
+                "weight": "bolder"
+            },
+            {
+                "type": "TextBlock",
+                "text": `**${userName}** added me to your team to help reach you during an emergency and ensure you are safe.`,
+                "wrap": true,
+                "horizontalAlignment": "center",
+                "color": "accent"
+            },
+            {
+                "type": "Image",
+                "url": "https://areyousafe.in/img/SafetyBot-SOS.png",
+                "horizontalAlignment": "center"
+            },
+            {
+                "type": "TextBlock",
+                "text": "You can also request assistance during emergencies by going to the **AreYouSafe?** tab added at the top of this channel -> Click the SOS - **I Need Assistance** button.",
+                "wrap": true,
+                "horizontalAlignment": "center",
+            }
+        ]
+    };
+}
+
 module.exports = {
     getWelcomeMessageCard,
     getSubcriptionSelectionCard,
@@ -895,5 +932,6 @@ module.exports = {
     getTypeThreeSubscriptionEndCard,
     getTypeTwoSevenDayBeforeCard,
     getTypeTwoThreeDayBeforeCard,
-    getTestIncPreviewCard
+    getTestIncPreviewCard,
+    getWelcomeMessageCardForChannel
 }
