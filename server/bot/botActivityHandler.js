@@ -731,8 +731,8 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
-  async sendWelcomeMessageToChannel(context, userName) {
-    const wecomeMessageCardForChannelCard = getWelcomeMessageCardForChannel(userName);
+  async sendWelcomeMessageToChannel(context, userName, userId) {
+    const wecomeMessageCardForChannelCard = getWelcomeMessageCardForChannel(userName, userId);
     const adaptiveCard = CardFactory.adaptiveCard(wecomeMessageCardForChannelCard);
     await context.sendActivity({
       attachments: [adaptiveCard],
@@ -753,7 +753,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       //if (!isWelcomeMessageSent) {
       try {
         if (teamName != null) {
-          await this.sendWelcomeMessageToChannel(context, companyData.userName);
+          await this.sendWelcomeMessageToChannel(context, companyData.userName, companyData.userId);
         }
         const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, teamName);
         if (teamMemberCount > 0) {

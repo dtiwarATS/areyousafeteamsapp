@@ -881,7 +881,7 @@ const getTypeTwoSubscriptionEndCard = (userId, userName, teamName) => {
     }
 }
 
-const getWelcomeMessageCardForChannel = (userName) => {
+const getWelcomeMessageCardForChannel = (userName, userId) => {
     return {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -898,7 +898,7 @@ const getWelcomeMessageCardForChannel = (userName) => {
             },
             {
                 "type": "TextBlock",
-                "text": `**${userName}** added me to your team to help reach you during an emergency and ensure you are safe.`,
+                "text": `**<at>${userName}</at>** added me to your team to help reach you during an emergency and ensure you are safe.`,
                 "wrap": true,
                 "horizontalAlignment": "center",
                 "color": "accent"
@@ -911,10 +911,19 @@ const getWelcomeMessageCardForChannel = (userName) => {
             {
                 "type": "TextBlock",
                 "text": "You can also request assistance during emergencies by going to the **AreYouSafe?** tab added at the top of this channel -> Click the SOS - **I Need Assistance** button.",
-                "wrap": true,
-                "horizontalAlignment": "center",
+                "wrap": true
             }
-        ]
+        ],
+        "msteams": {
+            "entities": [{
+                type: "mention",
+                text: `<at>${userName}</at>`,
+                mentioned: {
+                    id: userId,
+                    name: userName,
+                },
+            }]
+        }
     };
 }
 
