@@ -906,12 +906,14 @@ const getWelcomeMessageCardForChannel = (userName, userId) => {
             {
                 "type": "Image",
                 "url": "https://areyousafe.in/img/SafetyBot-SOS.png",
-                "horizontalAlignment": "center"
+                "horizontalAlignment": "center",
+                "spacing": "Medium"
             },
             {
                 "type": "TextBlock",
                 "text": "You can also request assistance during emergencies by going to the **AreYouSafe?** tab added at the top of this channel -> Click the SOS - **I Need Assistance** button.",
-                "wrap": true
+                "wrap": true,
+                "spacing": "Medium"
             }
         ],
         "msteams": {
