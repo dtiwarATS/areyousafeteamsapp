@@ -9,43 +9,45 @@ const getMobileDashboardMsgBlockJSON = (companyData) => {
     channelName = "General";
   }
   return {
-    "type": "TextBlock",
-    "wrap": true,
-    "text": `For mobile, navigate to the  **${teamName}** team -> **${channelName}** channel -> **AreYouSafe?** tab`
-  }
-}
+    type: "TextBlock",
+    wrap: true,
+    text: `For mobile, navigate to the  **${teamName}** team -> **${channelName}** channel -> **AreYouSafe?** tab`,
+  };
+};
 
 const updateMainCard = (companyData) => {
   //var taskItemUrl = 'https://teams.microsoft.com/l/entity/fe4a8eba-2a31-4737-8e33-e5fae6fee194/tasklist123?webUrl=' + encodedWebUrl + '&context=' + encodedContext;
 
-  const webUrl = `https://0f5a-110-172-16-5.ngrok.io/areYouSafeTab/index.html`;
+  const webUrl = `https://71b4-2405-201-36-4a04-9c5b-7081-306-bacc.ngrok.io/areYouSafeTab/index.html`;
   var encodedWebUrl = encodeURIComponent(`${webUrl}`);
-  let taskContext = encodeURIComponent(`{"channelId":"19:-hsC9OMcGeta4Ke-bYtIVS4HFxNJZ8D8fYK50KZi7q01@thread.tacv2"}`);
+  let taskContext = encodeURIComponent(
+    `{"channelId":"19:PGGt1Q5U4sC5_vwpm-Fq2SQMcBVaWHYL4X0HTCt-SGo1@thread.tacv2"}`
+  );
 
   // const webUrl = `https://areyousafeteamsprod.azurewebsites.net/areYouSafeTab/index.html`;
   // var encodedWebUrl = encodeURIComponent(`${webUrl}?&label=AreYouSafeDashboard`);
   // let taskContext = encodeURIComponent(`{"channelId":"19:3684c109f05f44efb4fb54a988d70286@thread.tacv2"}`);
 
-  const mobileDashboardMsgBlockJSON = getMobileDashboardMsgBlockJSON(companyData);
+  const mobileDashboardMsgBlockJSON =
+    getMobileDashboardMsgBlockJSON(companyData);
   const cardActions = [
-    // {
-    //   "type": "Action.OpenUrl",
-    //   "title": "Dashboard",
-    //   // "url": `https://teams.microsoft.com/l/entity/f1739c01-2e62-404b-80d4-72f79582ba0f/AreYouSafeDashboard?webUrl=${encodedWebUrl}&context=${taskContext}`,
-    //   "url": `https://teams.microsoft.com/l/entity/${process.env.MicrosoftAppId}/${process.env.tabEntityId}?context=${taskContext}`,
-    //   "id": "dashboardAction"
-    // },
     {
-      "type": "Action.OpenUrl",
-      "title": "Frequently Asked Questions",
-      "url": "https://areyousafe.in/frequently_asked_questions.html",
-      "iconUrl": "https://areyousafe.in/img/help.png"
+      type: "Action.OpenUrl",
+      title: "Dashboard",
+      url: `https://teams.microsoft.com/l/entity/${process.env.MicrosoftAppId}/${process.env.tabEntityId}?webUrl=${encodedWebUrl}&context=${taskContext}`,
+      id: "dashboardAction",
     },
     {
-      "type": "Action.OpenUrl",
-      "title": "Contact us",
-      "url": "mailto:help@areyousafe.in",
-    }
+      type: "Action.OpenUrl",
+      title: "Frequently Asked Questions",
+      url: "https://areyousafe.in/frequently_asked_questions.html",
+      iconUrl: "https://areyousafe.in/img/help.png",
+    },
+    {
+      type: "Action.OpenUrl",
+      title: "Contact us",
+      url: "mailto:help@areyousafe.in",
+    },
   ];
   const card = {
     type: "AdaptiveCard",
@@ -55,22 +57,27 @@ const updateMainCard = (companyData) => {
       {
         type: "TextBlock",
         wrap: true,
-        "text": "Hello! Click on the **Dashboard tab** above to access all features.",
+        text: "Hello! Click on the **Dashboard tab** above to access all features.",
       },
       mobileDashboardMsgBlockJSON,
       {
         type: "ActionSet",
         actions: cardActions,
-      }
-    ]
+      },
+    ],
   };
-  if (companyData != null && companyData.membersCount != null && Number(companyData.membersCount) > 0 && companyData.userEmail != null) {
+  if (
+    companyData != null &&
+    companyData.membersCount != null &&
+    Number(companyData.membersCount) > 0 &&
+    companyData.userEmail != null
+  ) {
     const manageSubscriptionBtnJSON = {
-      "type": "Action.OpenUrl",
-      "title": "Manage Licenses",
-      "url": `https://areyousafesubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${companyData.userEmail}`,
-      "iconUrl": "https://areyousafe.in/img/help.png"
-    }
+      type: "Action.OpenUrl",
+      title: "Manage Licenses",
+      url: `https://areyousafesubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${companyData.userEmail}`,
+      iconUrl: "https://areyousafe.in/img/help.png",
+    };
     cardActions.push(manageSubscriptionBtnJSON);
   }
   return card;
@@ -129,17 +136,16 @@ const updateSendApprovalMessage = (
             type: "Action.Execute",
             title: "I am safe",
             data: {
-              info: "i_am_safe"
+              info: "i_am_safe",
             },
           },
           {
             type: "Action.Execute",
             title: "I need assistance",
             data: {
-              info: "need_assistance"
+              info: "need_assistance",
             },
           },
-
         ],
       },
       {
@@ -222,10 +228,10 @@ const updateSafeMessage = (
               incTitle: incTitle,
               incCreatedBy: incCreatedBy,
               companyData: companyData,
-              inc
-            }
-          }
-        ]
+              inc,
+            },
+          },
+        ],
       },
       {
         type: "TextBlock",
@@ -330,5 +336,5 @@ module.exports = {
   updateSubmitCommentCard,
   updateDeleteCard,
   updateContactSubmitCard,
-  getMobileDashboardMsgBlockJSON
+  getMobileDashboardMsgBlockJSON,
 };
