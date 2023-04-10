@@ -203,7 +203,8 @@ const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
 
 const processnewUsrSubscriptionType2 = async (context, action) => {
   try {
-    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeTwoCard(context?.activity?.from?.name));
+    let companyData = action.data.companyData ? action.data.companyData : {};
+    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeTwoCard(context?.activity?.from?.name, companyData));
     const message = MessageFactory.attachment(card);
     message.id = context.activity.replyToId;
     await context.updateActivity(message);

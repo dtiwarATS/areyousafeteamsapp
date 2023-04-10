@@ -498,7 +498,11 @@ const getSubcriptionSelectionCard = (teamMemberCount, userEmail, companyData) =>
                     {
                         "type": "Action.Execute",
                         "title": "Start a 45-day free trial of premium version (unlimited users)",
-                        "verb": "newUsrSubscriptionType2"
+                        "verb": "newUsrSubscriptionType2",
+                        "data": {
+                            userEmail,
+                            companyData
+                        }
                     }
                 ]
             }
@@ -541,7 +545,14 @@ const getAfterUsrSubscribedTypeOneCard = (userEmailId, companyData) => {
     return card;
 }
 
-const getAfterUsrSubscribedTypeTwoCard = (userName) => {
+const getAfterUsrSubscribedTypeTwoCard = (userName, companyData) => {
+    let { teamName, channelName } = companyData;
+    if (teamName == null) {
+        teamName = "";
+    }
+    if (channelName == null) {
+        channelName = "General";
+    }
     const currentDate = new Date();
     currentDate.setDate(currentDate.getDate() + 45);
     const faqAndContactUsColumnSetJSON = getFaqAndContactUsColumnSetJSON();
@@ -558,6 +569,11 @@ const getAfterUsrSubscribedTypeTwoCard = (userName) => {
             {
                 "type": "TextBlock",
                 "text": "Click on the **Dashboard tab** above to access all features.",
+                "wrap": true
+            },
+            {
+                "type": "TextBlock",
+                "text": `For mobile, navigate to the  **${teamName}** team -> **${channelName}** channel -> **AreYouSafe?** tab`,
                 "wrap": true
             },
             {
