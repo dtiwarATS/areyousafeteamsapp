@@ -308,8 +308,9 @@ const handlerForSafetyBotTab = (app) => {
             const teamId = qs.teamId;
             const createdByUserInfo = req.body;
             const userAadObjId = qs.userAadObjId;
+            const resendSafetyCheck = qs.resendSafetyCheck;
             const tabObj = new tab.AreYouSafeTab();
-            const safetyCheckSend = await tabObj.sendSafetyCheckMessage(incId, teamId, createdByUserInfo, userAadObjId);
+            const safetyCheckSend = await tabObj.sendSafetyCheckMessage(incId, teamId, createdByUserInfo, userAadObjId, resendSafetyCheck);
             res.send(safetyCheckSend);
         } catch (err) {
             console.log(err);
