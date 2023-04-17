@@ -1892,14 +1892,17 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
 //   }
 // }
 
-const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log, userAadObjId) => {
+const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log, userAadObjId, resendSafetyCheck) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let { companyData, incData, allMembers, incGuidance, incResponseSelectedUsersList } = await incidentService.getRequiredDataToSendMessage(incId, teamId, userAadObjId, "id", "name");
-
+      let { companyData, incData, allMembers, incGuidance, incResponseSelectedUsersList } = await incidentService.getRequiredDataToSendMessage(incId, teamId, userAadObjId, "id", "name", resendSafetyCheck);
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } = incData;
-      const { serviceUrl, userTenantId } = companyData;
-
+      const { serviceUrl, userTenantId,
+        userId } = companyData;
+      if (resendSafetyCheck) {
+        createdByUserInfo.user_id =
+          userId
+      }
       let selectedMembersArr = [];
       if (selectedMembers != null && selectedMembers.split(",").length > 0) {
         selectedMembersArr = selectedMembers.split(",");
@@ -1949,7 +1952,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           name: createdByUserInfo.user_name
         }
         incCreatedByUserArr.push(incCreatedByUserObj);
-
+ 
         let incObj = {
           incId,
           incTitle,
@@ -1959,39 +1962,39 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           startTime
         }
         incGuidance = incGuidance ? incGuidance : "No details available";
-
+ 
         const approvalCard = await SafetyCheckCard(incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId, additionalInfo, travelUpdate, contactInfo, situation);
-
+ 
         logTimeInSeconds(startTime, `getSaftyCheckCard end`);
         startTime = (new Date()).getTime();
-
+ 
         const appId = process.env.MicrosoftAppId;
         const appPass = process.env.MicrosoftAppPassword;
-
+ 
         var credentials = new MicrosoftAppCredentials(appId, appPass);
         var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
-
+ 
         let messageCount = 0;
-
+ 
         const dbPool = await db.getPoolPromise(userAadObjId);
         let sqlUpdateMsgDeliveryStatus = "";
         let updateStartTime = null;
-
+ 
         const updateMsgDeliveryStatus = (sql) => {
           if (sql != "") {
             sqlUpdateMsgDeliveryStatus = "";
             db.updateDataIntoDBAsync(sql, dbPool, userAadObjId)
               .then((resp) => {
-
+ 
               })
               .catch((err) => {
                 processSafetyBotError(err, "", "", userAadObjId, sql);
               });
           }
         }
-
+ 
         let msgNotSentArr = [], retryCounter = 1, respTime = (new Date()).getTime();
-
+ 
         const respTimeInterval = setInterval(() => {
           try {
             const currentTime = (new Date()).getTime();
@@ -2008,7 +2011,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
             processSafetyBotError(err, "", "", userAadObjId);
           }
         }, 120000);
-
+ 
         const reSendMessage = () => {
           try {
             messageCount = 0;
@@ -2021,13 +2024,13 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           }
           retryCounter++;
         }
-
+ 
         const callbackFn = (msgResp, index) => {
           try {
             respTime = (new Date()).getTime();
             messageCount += 1;
             //console.log({ "end i ": index, messageCount });
-
+ 
             let isMessageDelivered = 0;
             if (msgResp?.conversationId != null && msgResp?.activityId != null) {
               isMessageDelivered = 1;
@@ -2035,18 +2038,18 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
             const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
             const error = (msgResp?.error == null) ? null : msgResp?.error;
             sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${msgResp.userId}'; `;
-
+ 
             if (updateStartTime == null) {
               updateStartTime = (new Date()).getTime();
             }
             let updateEndTime = (new Date()).getTime();
             updateEndTime = (updateEndTime - updateStartTime) / 1000;
-
+ 
             if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 1) {
               updateStartTime = null;
               updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
             }
-
+ 
             if (messageCount == allMembersArr.length) {
               if (msgNotSentArr.length > 0 && retryCounter <= 3) {
                 reSendMessage();
@@ -2060,7 +2063,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
                   }
                 }
               }
-
+ 
               logTimeInSeconds(startTime, `Sent all message end`);
               logTimeInSeconds(initStartTime, `TotalTime`);
               if (sqlUpdateMsgDeliveryStatus != "") {
@@ -2074,7 +2077,7 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
             processSafetyBotError(err, "", "", userAadObjId);
           }
         }
-
+ 
         const sendProactiveMessage = (membersToSendMessageArray) => {
           let delay = 0;
           membersToSendMessageArray.map((member, index) => {

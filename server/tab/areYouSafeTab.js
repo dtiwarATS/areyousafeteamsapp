@@ -534,10 +534,10 @@ class AreYouSafeTab {
     return Promise.resolve(newInc);
   }
 
-  sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, userAadObjId) => {
+  sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, userAadObjId, resendSafetyCheck) => {
     const log = new AYSLog();
     try {
-      const safetyCheckSend = await bot.sendSafetyCheckMessageAsync(incId, teamId, createdByUserInfo, log, userAadObjId);
+      const safetyCheckSend = await bot.sendSafetyCheckMessageAsync(incId, teamId, createdByUserInfo, log, userAadObjId, resendSafetyCheck);
       return Promise.resolve(safetyCheckSend);
     } catch (err) {
       console.log(err);
@@ -547,7 +547,7 @@ class AreYouSafeTab {
       await log.saveLog(incId);
     }
   }
-
+  
   getUserTeamInfo = async (userAadObjId) => {
     let userTeamInfo = null;
     try {
