@@ -4,7 +4,7 @@ const {
   CardFactory,
   TurnContext,
   TeamsInfo,
-  Message
+  Message,
 } = require("botbuilder");
 const {
   MicrosoftAppCredentials,
@@ -22,7 +22,7 @@ const {
   getAllTeamMembersByConnectorClient,
   sendProactiveMessaageToUserAsync,
   sentActivityToTeamChannel,
-  sendProactiveMessaageToSelectedChannel
+  sendProactiveMessaageToSelectedChannel,
 } = require("../api/apiMethods");
 const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
 const {
@@ -32,13 +32,10 @@ const {
   isAdminUser,
   saveLog,
   addTeamMember,
-  getCompanyDataByTeamId
+  getCompanyDataByTeamId,
 } = require("../db/dbOperations");
 
-const {
-  updateMainCard,
-  updateCard
-} = require("../models/UpdateCards");
+const { updateMainCard, updateCard } = require("../models/UpdateCards");
 const dashboard = require("../models/dashboard");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
@@ -50,11 +47,18 @@ const { AYSLog } = require("../utils/log");
 
 const newIncident = require("../view/newIncident");
 const { processSafetyBotError } = require("../models/processError");
-const { getAfterUsrSubscribedTypeOneCard, getAfterUsrSubscribedTypeTwoCard } = require("./subscriptionCard");
+const {
+  getAfterUsrSubscribedTypeOneCard,
+  getAfterUsrSubscribedTypeTwoCard,
+} = require("./subscriptionCard");
 const axios = require("axios");
 const https = require("https");
 
-const { getSafetyCheckMessageText, SafetyCheckCard, getSafetyCheckTypeCard } = require("../models/SafetyCheckCard");
+const {
+  getSafetyCheckMessageText,
+  SafetyCheckCard,
+  getSafetyCheckTypeCard,
+} = require("../models/SafetyCheckCard");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -72,7 +76,7 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
       "AreYouSafe Support";
 
     const subject = "AreYouSafe? Teams Bot | New Installation Details";
-    if (process.env.IS_EMAIL_SEND == 'true') {
+    if (process.env.IS_EMAIL_SEND == "true") {
       await sendEmail(userEmailId, subject, emailBody);
     }
   } catch (err) {
@@ -96,7 +100,7 @@ const sendUninstallationEmail = async (userEmailId, userName) => {
       "AreYouSafe Support";
 
     const subject = "AreYouSafe? Teams Bot | New Uninstallation Details";
-    if (process.env.IS_EMAIL_SEND == 'true') {
+    if (process.env.IS_EMAIL_SEND == "true") {
       await sendEmail(userEmailId, subject, emailBody);
     }
   } catch (err) {
@@ -159,7 +163,11 @@ const selectResponseCard = async (context, user) => {
       await viewSettings(context, companyData);
     } else if (verb && verb === "submit_settings") {
       await submitSettings(context, companyData);
-    } else if (verb && (verb === "dashboard_view_previous_inc" || verb == "dashboard_view_next_inc")) {
+    } else if (
+      verb &&
+      (verb === "dashboard_view_previous_inc" ||
+        verb == "dashboard_view_next_inc")
+    ) {
       const adaptiveCard = await navigateDashboardList(context, action, verb);
       return Promise.resolve(adaptiveCard);
     } else if (verb === "copyInc") {
@@ -191,7 +199,9 @@ const selectResponseCard = async (context, user) => {
 const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
   try {
     const userEmail = action?.data?.userEmail;
-    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeOneCard(userEmail, companyData));
+    const card = CardFactory.adaptiveCard(
+      getAfterUsrSubscribedTypeOneCard(userEmail, companyData)
+    );
 
     const message = MessageFactory.attachment(card);
     message.id = context.activity.replyToId;
@@ -199,12 +209,17 @@ const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
   } catch (err) {
     processSafetyBotError(err, "", "");
   }
-}
+};
 
 const processnewUsrSubscriptionType2 = async (context, action) => {
   try {
     let companyData = action.data.companyData ? action.data.companyData : {};
-    const card = CardFactory.adaptiveCard(getAfterUsrSubscribedTypeTwoCard(context?.activity?.from?.name, companyData));
+    const card = CardFactory.adaptiveCard(
+      getAfterUsrSubscribedTypeTwoCard(
+        context?.activity?.from?.name,
+        companyData
+      )
+    );
     const message = MessageFactory.attachment(card);
     message.id = context.activity.replyToId;
     await context.updateActivity(message);
@@ -214,7 +229,7 @@ const processnewUsrSubscriptionType2 = async (context, action) => {
   } catch (err) {
     processSafetyBotError(err, "", "");
   }
-}
+};
 
 const updateUserInfo = async (context, teams, tenantId) => {
   try {
@@ -229,13 +244,16 @@ const updateUserInfo = async (context, teams, tenantId) => {
         installationids.push(team.id);
       }
       if (installationids != null && installationids.length > 0) {
-        await incidentService.updateUserInfoFlag(installationids.join(","), tenantId);
+        await incidentService.updateUserInfoFlag(
+          installationids.join(","),
+          tenantId
+        );
       }
     }
   } catch (err) {
     console.log(err);
   }
-}
+};
 
 const updateServiceUrl = async (context, tenantId) => {
   try {
@@ -253,7 +271,7 @@ const updateServiceUrl = async (context, tenantId) => {
   } catch (err) {
     console.log(err);
   }
-}
+};
 
 const invokeMainActivityBoard = async (context, companyData) => {
   // if (companyData != null && companyData.isUserInfoSaved == null) {
@@ -267,53 +285,51 @@ const invokeMainActivityBoard = async (context, companyData) => {
 };
 
 const sendMsg = async (context) => {
-
   let allInstallation = await getInstallationData();
 
   console.log("hi msg send");
   console.log(allInstallation);
   const card = {
-    "type": "AdaptiveCard",
-    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-    "version": "1.4",
-    "body": [
+    type: "AdaptiveCard",
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    version: "1.4",
+    body: [
       {
-        "type": "TextBlock",
-        "text": "Hello there, we have added a cool **new feature** recently. ",
-        "wrap": true
+        type: "TextBlock",
+        text: "Hello there, we have added a cool **new feature** recently. ",
+        wrap: true,
       },
       {
-        "type": "TextBlock",
-        "text": "- Admins can now save an Incident as a draft.",
-        "wrap": true
+        type: "TextBlock",
+        text: "- Admins can now save an Incident as a draft.",
+        wrap: true,
       },
       {
-        "type": "TextBlock",
-        "text": "To access this feature in:",
-        "wrap": true
+        type: "TextBlock",
+        text: "To access this feature in:",
+        wrap: true,
       },
       {
-        "type": "TextBlock",
-        "text": "**Chat:** Go to the Chat section -> AreYouSafe? Bot -> Click the **Create Incident** button",
-        "wrap": true
+        type: "TextBlock",
+        text: "**Chat:** Go to the Chat section -> AreYouSafe? Bot -> Click the **Create Incident** button",
+        wrap: true,
       },
       {
-        "type": "TextBlock",
-        "text": "**Team:** Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? tab -> Click the **Create Incident** button",
-        "wrap": true
+        type: "TextBlock",
+        text: "**Team:** Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? tab -> Click the **Create Incident** button",
+        wrap: true,
       },
       {
-        "type": "TextBlock",
-        "text": "Have questions? [Email](mailto:help@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) | [Schedule call](https://calendly.com/nehapingale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
-        "wrap": true
-      }
-    ]
-  }
+        type: "TextBlock",
+        text: "Have questions? [Email](mailto:help@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) | [Schedule call](https://calendly.com/nehapingale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        wrap: true,
+      },
+    ],
+  };
   allInstallation.filter(async function (data, index) {
     try {
       await sendDirectMessageCard(context, data, card);
-    }
-    catch (error) {
+    } catch (error) {
       console.log(error);
     }
   });
@@ -329,8 +345,13 @@ const createRecurrInc = async (context, user, companyData) => {
     }));
 
     const eventDays = [
-      { title: "Sun", value: "0" }, { title: "Mon", value: "1" }, { title: "Tue", value: "2" }, { title: "Wed", value: "3" },
-      { title: "Thur", value: "4" }, { title: "Fri", value: "5" }, { title: "Sat", value: "6" }
+      { title: "Sun", value: "0" },
+      { title: "Mon", value: "1" },
+      { title: "Tue", value: "2" },
+      { title: "Wed", value: "3" },
+      { title: "Thur", value: "4" },
+      { title: "Fri", value: "5" },
+      { title: "Sat", value: "6" },
     ];
 
     var nextWeekDate = new Date();
@@ -377,9 +398,16 @@ const createRecurrInc = async (context, user, companyData) => {
             {
               type: "Action.ToggleVisibility",
               title: "Toggle!",
-              targetElements: ["lblOccursEvery", "eventDays", "lblRangeofRecurrence", "lblStartTime", "lblColumnSet", "lblEndTime", "lblColumnSet2"]
+              targetElements: [
+                "lblOccursEvery",
+                "eventDays",
+                "lblRangeofRecurrence",
+                "lblStartTime",
+                "lblColumnSet",
+                "lblEndTime",
+                "lblColumnSet2",
+              ],
             },
-
           ],
         },
         {
@@ -387,7 +415,7 @@ const createRecurrInc = async (context, user, companyData) => {
           wrap: true,
           text: "Occurs Every",
           weight: "bolder",
-          id: "lblOccursEvery"
+          id: "lblOccursEvery",
         },
         {
           type: "Input.ChoiceSet",
@@ -396,82 +424,82 @@ const createRecurrInc = async (context, user, companyData) => {
           style: "filtered",
           isMultiSelect: true,
           choices: eventDays,
-          value: "1,2,3,4,5"
+          value: "1,2,3,4,5",
         },
         {
           type: "TextBlock",
           wrap: true,
           text: "Range of Recurrence",
           weight: "bolder",
-          id: "lblRangeofRecurrence"
+          id: "lblRangeofRecurrence",
         },
         {
           type: "TextBlock",
           wrap: true,
           text: "Start Date and Time",
-          id: "lblStartTime"
+          id: "lblStartTime",
         },
         {
-          "type": "ColumnSet",
-          "id": "lblColumnSet",
-          "columns": [
+          type: "ColumnSet",
+          id: "lblColumnSet",
+          columns: [
             {
-              "type": "Column",
-              "width": "stretch",
-              "items": [
+              type: "Column",
+              width: "stretch",
+              items: [
                 {
-                  "type": "Input.Date",
-                  "value": formatedDate("yyyy-MM-dd", (new Date())),
-                  "id": "startDate"
-                }
-              ]
+                  type: "Input.Date",
+                  value: formatedDate("yyyy-MM-dd", new Date()),
+                  id: "startDate",
+                },
+              ],
             },
             {
-              "type": "Column",
-              "width": "stretch",
-              "items": [
+              type: "Column",
+              width: "stretch",
+              items: [
                 {
-                  "type": "Input.Time",
-                  "value": "10:00",
-                  "id": "startTime"
-                }
-              ]
-            }
-          ]
+                  type: "Input.Time",
+                  value: "10:00",
+                  id: "startTime",
+                },
+              ],
+            },
+          ],
         },
         {
           type: "TextBlock",
           wrap: true,
           text: "End Date and Time",
-          id: "lblEndTime"
+          id: "lblEndTime",
         },
         {
-          "type": "ColumnSet",
-          "id": "lblColumnSet2",
-          "columns": [
+          type: "ColumnSet",
+          id: "lblColumnSet2",
+          columns: [
             {
-              "type": "Column",
-              "width": "stretch",
-              "items": [
+              type: "Column",
+              width: "stretch",
+              items: [
                 {
-                  "type": "Input.Date",
-                  "value": formatedDate("yyyy-MM-dd", nextWeekDate),
-                  "id": "endDate"
-                }
-              ]
+                  type: "Input.Date",
+                  value: formatedDate("yyyy-MM-dd", nextWeekDate),
+                  id: "endDate",
+                },
+              ],
             },
             {
-              "type": "Column",
-              "width": "stretch",
-              "items": [
+              type: "Column",
+              width: "stretch",
+              items: [
                 {
-                  "type": "Input.Time",
-                  "value": "10:00",
-                  "id": "endTime"
-                }
-              ]
-            }
-          ]
+                  type: "Input.Time",
+                  value: "10:00",
+                  id: "endTime",
+                },
+              ],
+            },
+          ],
         },
         {
           type: "TextBlock",
@@ -497,7 +525,6 @@ const createRecurrInc = async (context, user, companyData) => {
         },
       ],
       actions: [
-
         {
           type: "Action.Execute",
           verb: "Cancel_button",
@@ -517,7 +544,7 @@ const createRecurrInc = async (context, user, companyData) => {
             inc_created_by: user,
             companyData: companyData,
           },
-        }
+        },
       ],
       type: "AdaptiveCard",
       version: "1.4",
@@ -531,30 +558,49 @@ const createRecurrInc = async (context, user, companyData) => {
   }
 };
 
-const getNewIncCardNew = async (context, user, companyData, errorMessage = "", isCopy = false, incId = -1) => {
+const getNewIncCardNew = async (
+  context,
+  user,
+  companyData,
+  errorMessage = "",
+  isCopy = false,
+  incId = -1
+) => {
   const allMembers = await getAllTeamMembers(context, companyData.teamId);
   let incData = null;
   if (isCopy && Number(incId) > 0) {
     incData = await incidentService.getInc(incId);
-    const responseSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+    const responseSelectedUsers =
+      await incidentService.getIncResponseSelectedUsersList(incId);
     if (responseSelectedUsers != null && responseSelectedUsers.length > 0) {
       incData["responseSelectedUsers"] = responseSelectedUsers;
-    }
-    else {
+    } else {
       incData["responseSelectedUsers"] = null;
     }
   }
-  return newIncident.getNewIncCardNew(user, companyData, allMembers, errorMessage, incData, isCopy);
-}
+  return newIncident.getNewIncCardNew(
+    user,
+    companyData,
+    allMembers,
+    errorMessage,
+    incData,
+    isCopy
+  );
+};
 
 const updateIncStatus = async (context, action) => {
   try {
     const companyData = action.data.companyData ? action.data.companyData : {};
-    const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+    const dashboardData = action.data.dashboardData
+      ? action.data.dashboardData
+      : {};
     const incId = action.data.incId ? Number(action.data.incId) : -1;
     const statusToUpdate = action.data.statusToUpdate;
     const incTitle = action.data.incTitle ? action.data.incTitle : "";
-    const isUpdated = await incidentService.updateIncStatus(incId, statusToUpdate);
+    const isUpdated = await incidentService.updateIncStatus(
+      incId,
+      statusToUpdate
+    );
     let adaptiveCard = null;
     if (dashboardData.ts != null && isUpdated) {
       await updateDashboardCard(context, dashboardData, companyData);
@@ -564,9 +610,7 @@ const updateIncStatus = async (context, action) => {
         text = `Incident **${incTitle}** has been reopen.`;
       }
       adaptiveCard = updateCard("", "", text);
-      const cards = CardFactory.adaptiveCard(
-        adaptiveCard
-      );
+      const cards = CardFactory.adaptiveCard(adaptiveCard);
 
       const message = MessageFactory.attachment(cards);
       message.id = context.activity.replyToId;
@@ -574,21 +618,27 @@ const updateIncStatus = async (context, action) => {
 
       return adaptiveCard;
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
-}
+};
 
 const showIncDeleteConfirmationCard = async (context, action) => {
   try {
     const companyData = action.data.companyData ? action.data.companyData : {};
-    const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+    const dashboardData = action.data.dashboardData
+      ? action.data.dashboardData
+      : {};
     const incId = action.data.incId ? Number(action.data.incId) : -1;
     const incTitle = action.data.incTitle ? action.data.incTitle : "";
     dashboardData["ts"] = context.activity.replyToId;
 
-    const card = dashboard.getDeleteIncidentCard(incId, dashboardData, companyData, incTitle);
+    const card = dashboard.getDeleteIncidentCard(
+      incId,
+      dashboardData,
+      companyData,
+      incTitle
+    );
     const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
       attachments: [adaptiveCard],
@@ -600,17 +650,29 @@ const showIncDeleteConfirmationCard = async (context, action) => {
   } catch (error) {
     console.log(error);
   }
-}
+};
 
-const showIncStatusConfirmationCard = async (context, action, statusToUpdate) => {
+const showIncStatusConfirmationCard = async (
+  context,
+  action,
+  statusToUpdate
+) => {
   try {
     const companyData = action.data.companyData ? action.data.companyData : {};
-    const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+    const dashboardData = action.data.dashboardData
+      ? action.data.dashboardData
+      : {};
     const incId = action.data.incId ? Number(action.data.incId) : -1;
     const incTitle = action.data.incTitle ? action.data.incTitle : "";
     dashboardData["ts"] = context.activity.replyToId;
 
-    const card = dashboard.getUpdateIncidentStatusCard(incId, dashboardData, companyData, statusToUpdate, incTitle);
+    const card = dashboard.getUpdateIncidentStatusCard(
+      incId,
+      dashboardData,
+      companyData,
+      statusToUpdate,
+      incTitle
+    );
     const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
       attachments: [adaptiveCard],
@@ -622,27 +684,36 @@ const showIncStatusConfirmationCard = async (context, action, statusToUpdate) =>
   } catch (error) {
     console.log(error);
   }
-}
+};
 
 const copyInc = async (context, user, action) => {
   try {
     const companyData = action.data.companyData ? action.data.companyData : {};
     const incId = action.data.incId ? Number(action.data.incId) : -1;
-    const card = await getNewIncCardNew(context, user, companyData, "", true, incId);
+    const card = await getNewIncCardNew(
+      context,
+      user,
+      companyData,
+      "",
+      true,
+      incId
+    );
     const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
       attachments: [adaptiveCard],
     });
 
     if (context.activity.replyToId != null) {
-      const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+      const dashboardData = action.data.dashboardData
+        ? action.data.dashboardData
+        : {};
       dashboardData["ts"] = context.activity.replyToId;
       await updateDashboardCard(context, dashboardData, companyData);
     }
   } catch (error) {
     console.log(error);
   }
-}
+};
 
 const createInc = async (context, user, companyData) => {
   try {
@@ -674,10 +745,31 @@ const createInc = async (context, user, companyData) => {
 //   return msg;
 // };
 
-const getIncConfirmationCard = async (inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, incType, guidance) => {
+const getIncConfirmationCard = async (
+  inc_created_by,
+  incTitle,
+  preTextMsg,
+  newInc,
+  companyData,
+  sentApprovalTo,
+  action,
+  incType,
+  guidance
+) => {
   let mentionUserEntities = [];
-  const safetyCheckMessageText = await getSafetyCheckMessageText(newInc.incId, inc_created_by.name, incTitle, mentionUserEntities, null, 1);
-  dashboard.mentionUser(mentionUserEntities, inc_created_by.id, inc_created_by.name);
+  const safetyCheckMessageText = await getSafetyCheckMessageText(
+    newInc.incId,
+    inc_created_by.name,
+    incTitle,
+    mentionUserEntities,
+    null,
+    1
+  );
+  dashboard.mentionUser(
+    mentionUserEntities,
+    inc_created_by.id,
+    inc_created_by.name
+  );
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
@@ -707,7 +799,6 @@ const getIncConfirmationCard = async (inc_created_by, incTitle, preTextMsg, newI
               companyData: companyData,
             },
           },
-
         ],
       },
       // {
@@ -743,7 +834,7 @@ const getIncConfirmationCard = async (inc_created_by, incTitle, preTextMsg, newI
               incType,
               safetyCheckMessageText: safetyCheckMessageText,
               mentionUserEntities: mentionUserEntities,
-              guidance
+              guidance,
             },
           },
           {
@@ -757,7 +848,7 @@ const getIncConfirmationCard = async (inc_created_by, incTitle, preTextMsg, newI
               inc_created_by,
               safetyCheckMessageText: safetyCheckMessageText,
               mentionUserEntities: mentionUserEntities,
-              guidance
+              guidance,
             },
           },
         ],
@@ -769,13 +860,14 @@ const getIncConfirmationCard = async (inc_created_by, incTitle, preTextMsg, newI
     type: "AdaptiveCard",
     version: "1.4",
   };
-}
+};
 
 const verifyDuplicateInc = async (teamId, incTitle) => {
   return await incidentService.verifyDuplicateInc(teamId, incTitle);
 };
 const showDuplicateIncError = async (context, user, companyData) => {
-  const errorMessage = "The incident with the same name already exists! Please enter another incident name.";
+  const errorMessage =
+    "The incident with the same name already exists! Please enter another incident name.";
   const card = await getNewIncCardNew(context, user, companyData, errorMessage);
   const cards = CardFactory.adaptiveCard(card);
 
@@ -788,7 +880,12 @@ const saveInc = async (context, action, companyData, user) => {
   const serviceUrl = context.activity.serviceUrl;
 
   //console.log({ inc_created_by, action });
-  const newInc = await incidentService.saveInc(action.data, companyData, memberChoises, serviceUrl);
+  const newInc = await incidentService.saveInc(
+    action.data,
+    companyData,
+    memberChoises,
+    serviceUrl
+  );
 
   let sentApprovalTo = "";
   if (action.data.selected_members) {
@@ -798,8 +895,20 @@ const saveInc = async (context, action, companyData, user) => {
     preTextMsg = `Should I send this message to everyone?`;
     sentApprovalTo = ALL_USERS;
   }
-  var guidance = action.data.guidance ? action.data.guidance : "No details available"
-  const card = await getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "onetime", guidance);
+  var guidance = action.data.guidance
+    ? action.data.guidance
+    : "No details available";
+  const card = await getIncConfirmationCard(
+    inc_created_by,
+    incTitle,
+    preTextMsg,
+    newInc,
+    companyData,
+    sentApprovalTo,
+    action,
+    "onetime",
+    guidance
+  );
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -826,9 +935,14 @@ const saveRecurrInc = async (context, action, companyData) => {
   //       response: "na",
   //       responseValue: "na",
   //     })
-  //   );  
+  //   );
   console.log({ inc_created_by, action });
-  const newInc = await incidentService.saveRecurrInc(action.data, companyData, memberChoises, serviceUrl);
+  const newInc = await incidentService.saveRecurrInc(
+    action.data,
+    companyData,
+    memberChoises,
+    serviceUrl
+  );
 
   let sentApprovalTo = "";
   if (action.data.selected_members) {
@@ -840,10 +954,27 @@ const saveRecurrInc = async (context, action, companyData) => {
   }
 
   const startDate = new Date(action.data.startDate);
-  preTextMsg += `starting from ${formatedDate("MM/dd/yyyy", startDate)} ${convertToAMPM(action.data.startTime)} according to the recurrence pattern selected?`;
-  var guidance = action.data.guidance ? action.data.guidance : "No details available"
+  preTextMsg += `starting from ${formatedDate(
+    "MM/dd/yyyy",
+    startDate
+  )} ${convertToAMPM(
+    action.data.startTime
+  )} according to the recurrence pattern selected?`;
+  var guidance = action.data.guidance
+    ? action.data.guidance
+    : "No details available";
 
-  const card = await getIncConfirmationCard(inc_created_by, incTitle, preTextMsg, newInc, companyData, sentApprovalTo, action, "recurringIncident", guidance);
+  const card = await getIncConfirmationCard(
+    inc_created_by,
+    incTitle,
+    preTextMsg,
+    newInc,
+    companyData,
+    sentApprovalTo,
+    action,
+    "recurringIncident",
+    guidance
+  );
 
   await context.sendActivity({
     attachments: [CardFactory.adaptiveCard(card)],
@@ -907,7 +1038,6 @@ const sendDeleteIncCard = async (context, user, companyData) => {
             companyData: companyData,
           },
         },
-
       ],
     };
 
@@ -926,31 +1056,38 @@ const updateDashboardCard = async (context, dashboardData, companyData) => {
     eventIndex = dashboardData.lastPageEventIndex;
   }
   dashboardData["eventIndex"] = eventIndex;
-  const dashboardCard = await dashboard.getIncidentTileDashboardCard(dashboardData, companyData, allTeamMembers);
+  const dashboardCard = await dashboard.getIncidentTileDashboardCard(
+    dashboardData,
+    companyData,
+    allTeamMembers
+  );
   const dsCard = CardFactory.adaptiveCard(dashboardCard);
   const dsMessage = MessageFactory.attachment(dsCard);
   dsMessage.id = dashboardData.ts;
   await context.updateActivity(dsMessage);
   return dsCard;
-}
+};
 
 const deleteInc = async (context, action) => {
   try {
     let incId = -1;
     let adaptiveCard = null;
-    const deleteFromDashboard = (action.data.deleteFromDashboard == true);
+    const deleteFromDashboard = action.data.deleteFromDashboard == true;
     if (deleteFromDashboard) {
       incId = action.data.incId ? Number(action.data.incId) : -1;
-    }
-    else {
+    } else {
       incId = action.data.incidentSelectedVal;
     }
 
     const incName = await incidentService.deleteInc(incId);
 
     if (deleteFromDashboard && incName != null) {
-      const companyData = action.data.companyData ? action.data.companyData : {};
-      const dashboardData = action.data.dashboardData ? action.data.dashboardData : {};
+      const companyData = action.data.companyData
+        ? action.data.companyData
+        : {};
+      const dashboardData = action.data.dashboardData
+        ? action.data.dashboardData
+        : {};
       if (dashboardData.ts != null) {
         await updateDashboardCard(context, dashboardData, companyData);
       }
@@ -959,9 +1096,7 @@ const deleteInc = async (context, action) => {
     if (incName != null) {
       const deleteText = `The incident **${incName}** has been deleted successfully.`;
       adaptiveCard = updateCard("", "", deleteText);
-      const card = CardFactory.adaptiveCard(
-        adaptiveCard
-      );
+      const card = CardFactory.adaptiveCard(adaptiveCard);
 
       const message = MessageFactory.attachment(card);
       message.id = context.activity.replyToId;
@@ -969,8 +1104,7 @@ const deleteInc = async (context, action) => {
     }
 
     return adaptiveCard;
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
 };
@@ -978,19 +1112,26 @@ const deleteInc = async (context, action) => {
 const viewAllInc = async (context, companyData) => {
   try {
     const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
-    const dashboardCard = await dashboard.getIncidentTileDashboardCard(null, companyData, allTeamMembers);
+    const dashboardCard = await dashboard.getIncidentTileDashboardCard(
+      null,
+      companyData,
+      allTeamMembers
+    );
     if (dashboardCard != null) {
       await context.sendActivity({
         attachments: [CardFactory.adaptiveCard(dashboardCard)],
       });
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
 };
 
-const getOneTimeDashboardCard = async (incidentId, runAt = null, userObjId = null) => {
+const getOneTimeDashboardCard = async (
+  incidentId,
+  runAt = null,
+  userObjId = null
+) => {
   let card = null;
   try {
     let inc = await incidentService.getInc(incidentId, runAt);
@@ -1121,7 +1262,7 @@ const getOneTimeDashboardCard = async (incidentId, runAt = null, userObjId = nul
               ],
             },
           ],
-        }
+        },
       ],
       msteams: {
         entities: mentionUserEntities,
@@ -1131,20 +1272,36 @@ const getOneTimeDashboardCard = async (incidentId, runAt = null, userObjId = nul
     processSafetyBotError(err, "", "", userObjId);
   }
   return card;
-}
+};
 
-const getOneTimeDashboardCardAsync = async (incidentId, runAt = null, userAadObjId = null) => {
+const getOneTimeDashboardCardAsync = async (
+  incidentId,
+  runAt = null,
+  userAadObjId = null
+) => {
   return new Promise(async (resolve, reject) => {
-    const dashboardCard = await getOneTimeDashboardCard(incidentId, runAt, userAadObjId);
+    const dashboardCard = await getOneTimeDashboardCard(
+      incidentId,
+      runAt,
+      userAadObjId
+    );
     if (dashboardCard != null) {
       resolve(dashboardCard);
     } else {
       reject(dashboardCard);
     }
   });
-}
+};
 
-const viewIncResult = async (incidentId, context, companyData, incData, runAt = null, dashboardCard = null, serviceUrl = null) => {
+const viewIncResult = async (
+  incidentId,
+  context,
+  companyData,
+  incData,
+  runAt = null,
+  dashboardCard = null,
+  serviceUrl = null
+) => {
   console.log("viewIncResult called", incidentId);
   if (incidentId === undefined) {
     await context.sendActivity(
@@ -1158,7 +1315,11 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
   }
 
   let activityId = null;
-  if (incData != null && incData.activityId != null && incData.conversationId != null) {
+  if (
+    incData != null &&
+    incData.activityId != null &&
+    incData.conversationId != null
+  ) {
     activityId = incData.activityId;
     const conversationId = incData.conversationId;
     const dashboardAdaptiveCard = CardFactory.adaptiveCard(dashboardCard);
@@ -1168,8 +1329,7 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
     activity.id = activityId;
 
     updateMessage(activityId, activity, conversationId, serviceUrl);
-  }
-  else {
+  } else {
     const activity = await context.sendActivity({
       attachments: [CardFactory.adaptiveCard(dashboardCard)],
     });
@@ -1178,10 +1338,27 @@ const viewIncResult = async (incidentId, context, companyData, incData, runAt = 
   return Promise.resolve(activityId);
 };
 
-const getSaftyCheckCard = async (incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList) => {
+const getSaftyCheckCard = async (
+  incTitle,
+  incObj,
+  companyData,
+  incGuidance,
+  incResponseSelectedUsersList
+) => {
   let mentionUserEntities = [];
-  const safetyCheckMessageText = await getSafetyCheckMessageText(incObj.incId, incObj.incCreatedBy.name, incTitle, mentionUserEntities, incResponseSelectedUsersList, 1);
-  dashboard.mentionUser(mentionUserEntities, incObj.incCreatedBy.id, incObj.incCreatedBy.name);
+  const safetyCheckMessageText = await getSafetyCheckMessageText(
+    incObj.incId,
+    incObj.incCreatedBy.name,
+    incTitle,
+    mentionUserEntities,
+    incResponseSelectedUsersList,
+    1
+  );
+  dashboard.mentionUser(
+    mentionUserEntities,
+    incObj.incCreatedBy.id,
+    incObj.incCreatedBy.name
+  );
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
@@ -1190,13 +1367,13 @@ const getSaftyCheckCard = async (incTitle, incObj, companyData, incGuidance, inc
         type: "TextBlock",
         size: "Large",
         weight: "Bolder",
-        text: "Hello!"
+        text: "Hello!",
       },
       {
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: safetyCheckMessageText
+        text: safetyCheckMessageText,
       },
       {
         type: "ActionSet",
@@ -1208,8 +1385,8 @@ const getSaftyCheckCard = async (incTitle, incObj, companyData, incGuidance, inc
             data: {
               info: "i_am_safe",
               inc: incObj,
-              companyData: companyData
-            }
+              companyData: companyData,
+            },
           },
           {
             type: "Action.Execute",
@@ -1218,10 +1395,10 @@ const getSaftyCheckCard = async (incTitle, incObj, companyData, incGuidance, inc
             data: {
               info: "need_assistance",
               inc: incObj,
-              companyData: companyData
-            }
-          }
-        ]
+              companyData: companyData,
+            },
+          },
+        ],
       },
       // {
       //   type: "TextBlock",
@@ -1231,12 +1408,12 @@ const getSaftyCheckCard = async (incTitle, incObj, companyData, incGuidance, inc
       // }
     ],
     msteams: {
-      entities: mentionUserEntities
+      entities: mentionUserEntities,
     },
     type: "AdaptiveCard",
     version: "1.4",
   };
-}
+};
 
 const sendCardToIndividualUser = async (context, userId, approvalCard) => {
   let activityId = null;
@@ -1253,74 +1430,124 @@ const sendCardToIndividualUser = async (context, userId, approvalCard) => {
         activityId = activity.id;
       });
     });
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
   return activityId;
-}
+};
 
-const sendCommentToSelectedMembers = async (incId, context, approvalCardResponse) => {
+const sendCommentToSelectedMembers = async (
+  incId,
+  context,
+  approvalCardResponse
+) => {
   try {
     const serviceUrl = context?.activity?.serviceUrl;
     const tenantId = context?.activity?.conversation?.tenantId;
-    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+    const incRespSelectedUsers =
+      await incidentService.getIncResponseSelectedUsersList(incId);
     if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
       for (let i = 0; i < incRespSelectedUsers.length; i++) {
-        let memberArr = [{
-          id: incRespSelectedUsers[i].user_id,
-          name: incRespSelectedUsers[i].user_name
-        }];
-        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse, null, serviceUrl, tenantId);
+        let memberArr = [
+          {
+            id: incRespSelectedUsers[i].user_id,
+            name: incRespSelectedUsers[i].user_name,
+          },
+        ];
+        const result = await sendProactiveMessaageToUser(
+          memberArr,
+          approvalCardResponse,
+          null,
+          serviceUrl,
+          tenantId
+        );
       }
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
-}
+};
 
-const sendApprovalResponseToSelectedMembers = async (incId, context, approvalCardResponse) => { //If user click on Need assistance, then send message to selected users 
+const sendApprovalResponseToSelectedMembers = async (
+  incId,
+  context,
+  approvalCardResponse
+) => {
+  //If user click on Need assistance, then send message to selected users
   try {
     const serviceUrl = context?.activity?.serviceUrl;
     const tenantId = context?.activity?.conversation?.tenantId;
-    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId);
+    const incRespSelectedUsers =
+      await incidentService.getIncResponseSelectedUsersList(incId);
     if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
       for (let i = 0; i < incRespSelectedUsers.length; i++) {
-        let memberArr = [{
-          id: incRespSelectedUsers[i].user_id,
-          name: incRespSelectedUsers[i].user_name
-        }];
-        const result = await sendProactiveMessaageToUser(memberArr, approvalCardResponse, null, serviceUrl, tenantId);
+        let memberArr = [
+          {
+            id: incRespSelectedUsers[i].user_id,
+            name: incRespSelectedUsers[i].user_name,
+          },
+        ];
+        const result = await sendProactiveMessaageToUser(
+          memberArr,
+          approvalCardResponse,
+          null,
+          serviceUrl,
+          tenantId
+        );
       }
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
-}
+};
 
-const sendApprovalResponseToSelectedTeams = async (incId, context, approvalCardResponse, userAadObjId) => { //If user click on Need assistance, then send message to selected users 
+const sendApprovalResponseToSelectedTeams = async (
+  incId,
+  context,
+  approvalCardResponse,
+  userAadObjId
+) => {
+  //If user click on Need assistance, then send message to selected users
   try {
-    const incRespSelectedChannels = await incidentService.getIncResponseSelectedChannelList(incId);
+    const incRespSelectedChannels =
+      await incidentService.getIncResponseSelectedChannelList(incId);
     const serviceUrl = context?.activity?.serviceUrl;
     if (incRespSelectedChannels != null && incRespSelectedChannels.length > 0) {
       for (let i = 0; i < incRespSelectedChannels.length; i++) {
         const channelId = incRespSelectedChannels[i]?.channelId;
         if (channelId && serviceUrl) {
-          await sendProactiveMessaageToSelectedChannel(approvalCardResponse, channelId, serviceUrl, userAadObjId, incId);
+          await sendProactiveMessaageToSelectedChannel(
+            approvalCardResponse,
+            channelId,
+            serviceUrl,
+            userAadObjId,
+            incId
+          );
         }
       }
     }
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "sendApprovalResponseToSelectedTeams"
+    );
   }
-  catch (err) {
-    processSafetyBotError(err, "", "", userAadObjId, "sendApprovalResponseToSelectedTeams");
-  }
-}
+};
 
-const updateIncResponseOfSelectedMembers = async (incId, runAt, dashboardCard, serviceUrl) => {
+const updateIncResponseOfSelectedMembers = async (
+  incId,
+  runAt,
+  dashboardCard,
+  serviceUrl
+) => {
   try {
-    const incResponseUserTSData = await incidentService.getIncResponseUserTS(incId, runAt);
+    const incResponseUserTSData = await incidentService.getIncResponseUserTS(
+      incId,
+      runAt
+    );
     if (incResponseUserTSData != null && incResponseUserTSData.length > 0) {
       for (let i = 0; i < incResponseUserTSData.length; i++) {
         const activityId = incResponseUserTSData[i].activityId;
@@ -1334,13 +1561,20 @@ const updateIncResponseOfSelectedMembers = async (incId, runAt, dashboardCard, s
         await updateMessage(activityId, activity, conversationId, serviceUrl);
       }
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
-}
+};
 
-const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, contextServiceUrl, userTenantId, log, userAadObjId) => {
+const sendIncResponseToSelectedMembers = async (
+  incId,
+  dashboardCard,
+  runAt,
+  contextServiceUrl,
+  userTenantId,
+  log,
+  userAadObjId
+) => {
   if (log == null) {
     log = new AYSLog();
   }
@@ -1348,15 +1582,27 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
     let sql = "";
     log.addLog("sendIncResponseToSelectedMembers start. ");
 
-    runAt = (runAt == null) ? '' : runAt;
-    const incRespSelectedUsers = await incidentService.getIncResponseSelectedUsersList(incId, userAadObjId);
+    runAt = runAt == null ? "" : runAt;
+    const incRespSelectedUsers =
+      await incidentService.getIncResponseSelectedUsersList(
+        incId,
+        userAadObjId
+      );
     let serviceUrl = null;
     let tenantId = null;
-    if (contextServiceUrl != null && contextServiceUrl != "" && userTenantId != null && userTenantId != "") {
+    if (
+      contextServiceUrl != null &&
+      contextServiceUrl != "" &&
+      userTenantId != null &&
+      userTenantId != ""
+    ) {
       serviceUrl = contextServiceUrl;
       tenantId = userTenantId;
     } else {
-      const userTenantDetails = await incidentService.getUserTenantDetails(incId, userAadObjId);
+      const userTenantDetails = await incidentService.getUserTenantDetails(
+        incId,
+        userAadObjId
+      );
 
       if (userTenantDetails != null) {
         serviceUrl = userTenantDetails.serviceUrl;
@@ -1365,49 +1611,61 @@ const sendIncResponseToSelectedMembers = async (incId, dashboardCard, runAt, con
     }
 
     log.addLog(` serviceUrl : ${serviceUrl}`);
-    log.addLog(`incRespSelectedUsers data : ${JSON.stringify(incRespSelectedUsers)}`);
+    log.addLog(
+      `incRespSelectedUsers data : ${JSON.stringify(incRespSelectedUsers)}`
+    );
 
     if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
       await Promise.all(
         incRespSelectedUsers.map(async (u) => {
-          let memberArr = [{
-            id: u.user_id,
-            name: u.user_name
-          }];
-          const result = await sendProactiveMessaageToUser(memberArr, dashboardCard, null, serviceUrl, tenantId, log, userAadObjId);
+          let memberArr = [
+            {
+              id: u.user_id,
+              name: u.user_name,
+            },
+          ];
+          const result = await sendProactiveMessaageToUser(
+            memberArr,
+            dashboardCard,
+            null,
+            serviceUrl,
+            tenantId,
+            log,
+            userAadObjId
+          );
           log.addLog(` activityId :  ${result.activityId} `);
           if (result.activityId != null) {
             sql += `INSERT INTO MSTeamsIncResponseUserTS(incResponseSelectedUserId, runAt, conversationId, activityId) VALUES(${u.id}, '${runAt}', '${result.conversationId}', '${result.activityId}');`;
           }
         })
-      )
+      );
     }
     if (sql != "") {
       log.addLog(` sql Insert saveIncResponseUserTS start`);
       await incidentService.saveIncResponseUserTS(sql, userAadObjId);
       log.addLog(` sql Inser saveIncResponseUserTS end`);
     }
-  }
-  catch (err) {
+  } catch (err) {
     log.addLog(` An Error occured: ${JSON.stringify(err)}`);
     console.log(err);
     processSafetyBotError(err, "", "", userAadObjId);
-  }
-  finally {
+  } finally {
     log.addLog(` sendIncResponseToSelectedMembers end.`);
   }
   return Promise.resolve(true);
-}
+};
 
 const sendtestmessage = async () => {
   console.log("Start sendtestmessage");
   try {
     const incCreatedByUserObj = {
       id: "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
-      name: "Sandesh Sawant"
-    }
+      name: "Sandesh Sawant",
+    };
 
-    const companyData = await getCompanyDataByTeamId("19:Aou6-jqp9KF8FL_Yum5AG_Pg7NP2FweAAsm9CaVSoGQ1@thread.tacv2");
+    const companyData = await getCompanyDataByTeamId(
+      "19:Aou6-jqp9KF8FL_Yum5AG_Pg7NP2FweAAsm9CaVSoGQ1@thread.tacv2"
+    );
     const { serviceUrl, userTenantId } = companyData;
     const incData = await incidentService.getInc(100662);
     const { incId, incTitle, incType } = incData;
@@ -1417,56 +1675,106 @@ const sendtestmessage = async () => {
       incTitle,
       incType,
       runAt: null,
-      incCreatedBy: incCreatedByUserObj
-    }
-    let incGuidance = "this is a fire Drill , Please Exit the Building or check in if you are not in the Building";
+      incCreatedBy: incCreatedByUserObj,
+    };
+    let incGuidance =
+      "this is a fire Drill , Please Exit the Building or check in if you are not in the Building";
 
-    const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, incGuidance);
-    let member = [{
-      id: "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
-      name: "Sandesh Sawant"
-    }];
-    const response = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, incCreatedByUserObj.id);
+    const approvalCard = await getSaftyCheckCard(
+      incTitle,
+      incObj,
+      companyData,
+      incGuidance
+    );
+    let member = [
+      {
+        id: "29:14xKzHoGhohgIpMI5zrDD2IuwD4XLWQHK-uN09QacAGO-r5MkSx2kuoKdB1hEKneuePknoF22_Oiwv0R0yz6KHA",
+        name: "Sandesh Sawant",
+      },
+    ];
+    const response = await sendProactiveMessaageToUser(
+      member,
+      approvalCard,
+      null,
+      serviceUrl,
+      userTenantId,
+      incCreatedByUserObj.id
+    );
     console.log(response);
   } catch (err) {
     console.log(err);
   }
   console.log("End sendtestmessage");
-}
+};
 
 const logTimeInSeconds = (startTime, message) => {
-  let endTime = (new Date()).getTime();
+  let endTime = new Date().getTime();
   let seconds = (endTime - startTime) / 1000;
   console.log(`${message} ${seconds}`);
-}
+};
 
 //Send message after received response new
-const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, companyData, serviceUrl, userAadObjId, userTenantId, log, resolveFn, rejectFn, runAt = null) => {
+const sendProactiveMessageAsync = async (
+  allMembersArr,
+  incData,
+  incObj,
+  companyData,
+  serviceUrl,
+  userAadObjId,
+  userTenantId,
+  log,
+  resolveFn,
+  rejectFn,
+  runAt = null
+) => {
   try {
-    const isRecurringInc = (runAt != null);
-    const { incTitle, incTypeId, additionalInfo, travelUpdate, contactInfo, situation } = incData;
-    const approvalCard = await SafetyCheckCard(incTitle, incObj, companyData, incObj.incGuidance, incObj.incResponseSelectedUsersList, incTypeId, additionalInfo, travelUpdate, contactInfo, situation);
-    const activity = MessageFactory.attachment(CardFactory.adaptiveCard(approvalCard));
+    const isRecurringInc = runAt != null;
+    const {
+      incTitle,
+      incTypeId,
+      additionalInfo,
+      travelUpdate,
+      contactInfo,
+      situation,
+    } = incData;
+    const approvalCard = await SafetyCheckCard(
+      incTitle,
+      incObj,
+      companyData,
+      incObj.incGuidance,
+      incObj.incResponseSelectedUsersList,
+      incTypeId,
+      additionalInfo,
+      travelUpdate,
+      contactInfo,
+      situation
+    );
+    const activity = MessageFactory.attachment(
+      CardFactory.adaptiveCard(approvalCard)
+    );
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
 
     var credentials = new MicrosoftAppCredentials(appId, appPass);
-    var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+    var connectorClient = new ConnectorClient(credentials, {
+      baseUri: serviceUrl,
+    });
 
     let messageCount = 0;
 
     const dbPool = await db.getPoolPromise(userAadObjId);
     let sqlUpdateMsgDeliveryStatus = "";
     let updateStartTime = null;
-    let allMembersArrCount = (Array.isArray(allMembersArr)) ? allMembersArr.length : 0;
+    let allMembersArrCount = Array.isArray(allMembersArr)
+      ? allMembersArr.length
+      : 0;
     let retryLog = [];
     const updateMsgDeliveryStatus = (sql) => {
       if (sql != "") {
         sqlUpdateMsgDeliveryStatus = "";
-        const promise = db.updateDataIntoDBAsync(sql, dbPool, userAadObjId)
-          .then((resp) => {
-
-          })
+        const promise = db
+          .updateDataIntoDBAsync(sql, dbPool, userAadObjId)
+          .then((resp) => {})
           .catch((err) => {
             sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(err, "", "", userAadObjId, sql);
@@ -1476,13 +1784,18 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
           sqlUpdateMsgDeliveryStatus += sql;
         }
       }
-    }
+    };
 
-    let msgNotSentArr = [], retryCounter = 0, retryCountTill = 10, respTime = (new Date()).getTime(), recurTimerDelay = 1000, rps = 1;
+    let msgNotSentArr = [],
+      retryCounter = 0,
+      retryCountTill = 10,
+      respTime = new Date().getTime(),
+      recurTimerDelay = 1000,
+      rps = 1;
 
     const respTimeInterval = setInterval(() => {
       try {
-        const currentTime = (new Date()).getTime();
+        const currentTime = new Date().getTime();
         if ((currentTime - respTime) / 1000 >= 300) {
           clearInterval(respTimeInterval);
           resolveFn(true);
@@ -1520,14 +1833,16 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         }
 
         allMembersArr = msgNotSentArr;
-        allMembersArrCount = (Array.isArray(allMembersArr)) ? allMembersArr.length : 0;
+        allMembersArrCount = Array.isArray(allMembersArr)
+          ? allMembersArr.length
+          : 0;
         msgNotSentArr = [];
         sendProactiveMessage(allMembersArr);
       } catch (err) {
         console.log(err);
         processSafetyBotError(err, "", "", userAadObjId);
       }
-    }
+    };
 
     const callbackFn = (msgResp, index) => {
       try {
@@ -1535,7 +1850,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
           return;
         }
 
-        respTime = (new Date()).getTime();
+        respTime = new Date().getTime();
         messageCount += 1;
         //console.log({ "end i ": index, messageCount });
 
@@ -1543,13 +1858,18 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
           isMessageDelivered = 1;
         }
-        const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
-        const error = (msgResp?.error == null) ? null : msgResp?.error;
+        const status = msgResp?.status == null ? null : Number(msgResp?.status);
+        const error = msgResp?.error == null ? null : msgResp?.error;
         const respMemberObj = msgResp.memberObj;
 
         respMemberObj.isResponseReceived = true;
 
-        if (error == null || msgResp.errorCode == "ConversationBlockedByUser" || error == "Invalid user identity in provided tenant" || retryCounter == retryCountTill) {
+        if (
+          error == null ||
+          msgResp.errorCode == "ConversationBlockedByUser" ||
+          error == "Invalid user identity in provided tenant" ||
+          retryCounter == retryCountTill
+        ) {
           if (isRecurringInc) {
             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
               values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
@@ -1558,25 +1878,47 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
           }
         }
 
-        if (respMemberObj.conversationId == null && msgResp.newConversationId != null) {
+        if (
+          respMemberObj.conversationId == null &&
+          msgResp.newConversationId != null
+        ) {
           respMemberObj.conversationId = msgResp.newConversationId;
 
           sqlUpdateMsgDeliveryStatus += ` update msteamsteamsusers set conversationId = '${msgResp.newConversationId}' where user_id = '${msgResp.userId}' ;`;
         }
 
         if (!error) {
-          console.log({ "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter, allMembersArrCount });
+          console.log({
+            usrId: msgResp.userId,
+            name: respMemberObj.name,
+            index,
+            messageCount,
+            retryCounter,
+            allMembersArrCount,
+          });
         } else {
-          console.log({ "error": `status ${status}`, "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter, allMembersArrCount });
+          console.log({
+            error: `status ${status}`,
+            usrId: msgResp.userId,
+            name: respMemberObj.name,
+            index,
+            messageCount,
+            retryCounter,
+            allMembersArrCount,
+          });
         }
 
         if (updateStartTime == null) {
-          updateStartTime = (new Date()).getTime();
+          updateStartTime = new Date().getTime();
         }
-        let updateEndTime = (new Date()).getTime();
+        let updateEndTime = new Date().getTime();
         updateEndTime = (updateEndTime - updateStartTime) / 2000;
 
-        if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 2) {
+        if (
+          sqlUpdateMsgDeliveryStatus != "" &&
+          updateEndTime != null &&
+          Number(updateEndTime) >= 2
+        ) {
           updateStartTime = null;
           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
         }
@@ -1604,14 +1946,23 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
       } catch (err) {
         processSafetyBotError(err, "", "", userAadObjId);
       }
-    }
+    };
 
     const sendProactiveMessage = (membersToSendMessageArray) => {
-      retryLog.push({ "memberCount:": membersToSendMessageArray?.length, retryCounter });
-      console.log({ "memberCount:": membersToSendMessageArray?.length, retryCounter });
+      retryLog.push({
+        "memberCount:": membersToSendMessageArray?.length,
+        retryCounter,
+      });
+      console.log({
+        "memberCount:": membersToSendMessageArray?.length,
+        retryCounter,
+      });
       let delay = 0;
-      const sendErrorEmail = (retryCounter == retryCountTill);
-      let endIndex = (membersToSendMessageArray.length > rps) ? rps : membersToSendMessageArray.length;
+      const sendErrorEmail = retryCounter == retryCountTill;
+      let endIndex =
+        membersToSendMessageArray.length > rps
+          ? rps
+          : membersToSendMessageArray.length;
 
       const afterMessageSent = (msgResp, index) => {
         callbackFn(msgResp, index);
@@ -1629,36 +1980,55 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
           }
           console.log("fnRecursiveCall End");
         }
-      }
+      };
 
       const fnRecursiveCall = (startIndex, endIndex) => {
         try {
           const i = startIndex;
           const member = membersToSendMessageArray[i];
           if (member) {
-            let memberArr = [{
-              id: member.id,
-              name: member.name
-            }];
+            let memberArr = [
+              {
+                id: member.id,
+                name: member.name,
+              },
+            ];
             const conversationId = member.conversationId;
-            sendProactiveMessaageToUserAsync(memberArr, activity, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, afterMessageSent, i, delay, member, msgNotSentArr, sendErrorEmail, retryCounter);
+            sendProactiveMessaageToUserAsync(
+              memberArr,
+              activity,
+              null,
+              serviceUrl,
+              userTenantId,
+              log,
+              userAadObjId,
+              conversationId,
+              connectorClient,
+              afterMessageSent,
+              i,
+              delay,
+              member,
+              msgNotSentArr,
+              sendErrorEmail,
+              retryCounter
+            );
             console.log({ i });
           }
         } catch (err) {
           console.log(err);
           processSafetyBotError(err, "", "", userAadObjId);
         }
-      }
+      };
       console.log("fnRecursiveCall start");
       fnRecursiveCall(0, endIndex);
-    }
+    };
     sendProactiveMessage(allMembersArr);
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, "", "", userAadObjId);
     rejectFn(err);
   }
-}
+};
 
 // const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, companyData, serviceUrl, userAadObjId, userTenantId, log, resolveFn, rejectFn, runAt = null) => {
 //   try {
@@ -1770,7 +2140,7 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
 
 //         if (error == null || msgResp.errorCode == "ConversationBlockedByUser" || error == "Invalid user identity in provided tenant" || retryCounter == retryCountTill) {
 //           if (isRecurringInc) {
-//             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
+//             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error)
 //               values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
 //           } else {
 //             sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incObj.incId} and user_id = '${msgResp.userId}'; `;
@@ -1892,16 +2262,35 @@ const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, company
 //   }
 // }
 
-const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log, userAadObjId, resendSafetyCheck) => {
+const sendSafetyCheckMessageAsync = async (
+  incId,
+  teamId,
+  createdByUserInfo,
+  log,
+  userAadObjId,
+  resendSafetyCheck = false
+) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let { companyData, incData, allMembers, incGuidance, incResponseSelectedUsersList } = await incidentService.getRequiredDataToSendMessage(incId, teamId, userAadObjId, "id", "name", resendSafetyCheck);
-      const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } = incData;
-      const { serviceUrl, userTenantId,
-        userId } = companyData;
+      let {
+        companyData,
+        incData,
+        allMembers,
+        incGuidance,
+        incResponseSelectedUsersList,
+      } = await incidentService.getRequiredDataToSendMessage(
+        incId,
+        teamId,
+        userAadObjId,
+        "id",
+        "name",
+        resendSafetyCheck
+      );
+      const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
+        incData;
+      const { serviceUrl, userTenantId, userId } = companyData;
       if (resendSafetyCheck) {
-        createdByUserInfo.user_id =
-          userId
+        createdByUserInfo.user_id = userId;
       }
       let selectedMembersArr = [];
       if (selectedMembers != null && selectedMembers.split(",").length > 0) {
@@ -1910,31 +2299,38 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
 
       let allMembersArr = [];
       if (selectedMembersArr != null && selectedMembersArr.length > 0) {
-        allMembersArr = allMembers.filter((tm) => selectedMembersArr.includes(tm.id));
+        allMembersArr = allMembers.filter((tm) =>
+          selectedMembersArr.includes(tm.id)
+        );
       } else {
         allMembersArr = allMembers;
       }
-
-      await incidentService.addMembersIntoIncData(
-        incId,
-        allMembersArr,
-        incCreatedBy,
-        userAadObjId
-      );
+      if (!resendSafetyCheck) {
+        await incidentService.addMembersIntoIncData(
+          incId,
+          allMembersArr,
+          incCreatedBy,
+          userAadObjId
+        );
+      }
       // logTimeInSeconds(startTime, `addMembersIntoIncData end`);
       // startTime = (new Date()).getTime();
 
       if (Number(incTypeId) == 1 && incType == "recurringIncident") {
         const userTimeZone = createdByUserInfo.userTimeZone;
         const actionData = { incident: incData };
-        await incidentService.saveRecurrSubEventInc(actionData, companyData, userTimeZone);
+        await incidentService.saveRecurrSubEventInc(
+          actionData,
+          companyData,
+          userTimeZone
+        );
         resolve(true);
       } else {
         incGuidance = incGuidance ? incGuidance : "No details available";
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
-          name: createdByUserInfo.user_name
-        }
+          name: createdByUserInfo.user_name,
+        };
         let incObj = {
           incId,
           incTitle,
@@ -1942,9 +2338,20 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
           runAt: null,
           incCreatedBy: incCreatedByUserObj,
           incGuidance,
-          incResponseSelectedUsersList
-        }
-        sendProactiveMessageAsync(allMembersArr, incData, incObj, companyData, serviceUrl, userAadObjId, userTenantId, log, resolve, reject);
+          incResponseSelectedUsersList,
+        };
+        sendProactiveMessageAsync(
+          allMembersArr,
+          incData,
+          incObj,
+          companyData,
+          serviceUrl,
+          userAadObjId,
+          userTenantId,
+          log,
+          resolve,
+          reject
+        );
 
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
@@ -2102,27 +2509,38 @@ const sendSafetyCheckMessageAsync = async (incId, teamId, createdByUserInfo, log
       resolve(false);
     }
   });
-}
+};
 
-const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, userAadObjId) => {
+const sendSafetyCheckMessage = async (
+  incId,
+  teamId,
+  createdByUserInfo,
+  log,
+  userAadObjId
+) => {
   let safetyCheckSend = false;
   log.addLog("sendSafetyCheckMessage start");
   log.addLog(`sendSafetyCheckMessage incId: ${incId} `);
   try {
     const companyData = await getCompanyDataByTeamId(teamId, userAadObjId);
     const incData = await incidentService.getInc(incId, null, userAadObjId);
-    let allMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "id", "name", userAadObjId);
+    let allMembers = await incidentService.getAllTeamMembersByTeamId(
+      teamId,
+      "id",
+      "name",
+      userAadObjId
+    );
     const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
     const { serviceUrl, userTenantId } = companyData;
 
     let allMembersArr = allMembers.map(
       (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
+        (tm = {
+          ...tm,
+          messageDelivered: "na",
+          response: "na",
+          responseValue: "na",
+        })
     );
 
     if (selectedMembers != null && selectedMembers.split(",").length > 0) {
@@ -2145,8 +2563,8 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
       const incCreatedByUserArr = [];
       const incCreatedByUserObj = {
         id: createdByUserInfo.user_id,
-        name: createdByUserInfo.user_name
-      }
+        name: createdByUserInfo.user_name,
+      };
       incCreatedByUserArr.push(incCreatedByUserObj);
 
       log.addLog("Send Dashboard Resp Start");
@@ -2159,19 +2577,34 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
         incTitle,
         incType,
         runAt: null,
-        incCreatedBy: incCreatedByUserObj
-      }
+        incCreatedBy: incCreatedByUserObj,
+      };
       let incGuidance = await incidentService.getIncGuidance(incId);
       incGuidance = incGuidance ? incGuidance : "No details available";
 
       log.addLog("Send Safety Check Start");
-      const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, incGuidance);
+      const approvalCard = await getSaftyCheckCard(
+        incTitle,
+        incObj,
+        companyData,
+        incGuidance
+      );
       for (let i = 0; i < allMembersArr.length; i++) {
-        let member = [{
-          id: allMembersArr[i].id,
-          name: allMembersArr[i].name
-        }];
-        const msgResp = await sendProactiveMessaageToUser(member, approvalCard, null, serviceUrl, userTenantId, log, userAadObjId);
+        let member = [
+          {
+            id: allMembersArr[i].id,
+            name: allMembersArr[i].name,
+          },
+        ];
+        const msgResp = await sendProactiveMessaageToUser(
+          member,
+          approvalCard,
+          null,
+          serviceUrl,
+          userTenantId,
+          log,
+          userAadObjId
+        );
         let isMessageDelivered = 1;
         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
           isMessageDelivered = 1;
@@ -2180,16 +2613,24 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
           isMessageDelivered = 0;
           // await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 0, msgResp);
         }
-        await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, isMessageDelivered, msgResp);
+        await incidentService.updateMessageDeliveredStatus(
+          incId,
+          allMembersArr[i].id,
+          isMessageDelivered,
+          msgResp
+        );
       }
       log.addLog("Send Safety Check End");
       log.addLog(`onetime end`);
-    }
-    else if (incType == "recurringIncident") {
+    } else if (incType == "recurringIncident") {
       log.addLog(`recurringIncident start`);
       const userTimeZone = createdByUserInfo.userTimeZone;
       const actionData = { incident: incData };
-      await incidentService.saveRecurrSubEventInc(actionData, companyData, userTimeZone);
+      await incidentService.saveRecurrSubEventInc(
+        actionData,
+        companyData,
+        userTimeZone
+      );
       log.addLog(`recurringIncident end`);
     }
     safetyCheckSend = true;
@@ -2200,12 +2641,18 @@ const sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, log, use
   }
   log.addLog(`sendSafetyCheckMessage end`);
   return Promise.resolve(safetyCheckSend);
-}
+};
 
 const sendApproval = async (context) => {
   const action = context.activity.value.action;
   const { incident, companyData, sentApprovalTo } = action.data;
-  const { incId, incTitle, selectedMembers, incCreatedBy, responseSelectedUsers } = incident;
+  const {
+    incId,
+    incTitle,
+    selectedMembers,
+    incCreatedBy,
+    responseSelectedUsers,
+  } = incident;
   const serviceUrl = context.activity.serviceUrl;
   let allMembers = await getAllTeamMembers(context, companyData.teamId);
 
@@ -2213,12 +2660,12 @@ const sendApproval = async (context) => {
 
   let allMembersArr = allMembers.map(
     (tm) =>
-    (tm = {
-      ...tm,
-      messageDelivered: "na",
-      response: "na",
-      responseValue: "na",
-    })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
   );
 
   if (selectedMembers.length > 0) {
@@ -2236,7 +2683,15 @@ const sendApproval = async (context) => {
   if (action.data.incType == "onetime") {
     let dashboardCard = await getOneTimeDashboardCard(incId, null);
 
-    const activityId = await viewIncResult(incId, context, companyData, incident, null, dashboardCard, serviceUrl);
+    const activityId = await viewIncResult(
+      incId,
+      context,
+      companyData,
+      incident,
+      null,
+      dashboardCard,
+      serviceUrl
+    );
     const conversationId = context.activity.conversation.id;
 
     // send approval msg to all users
@@ -2246,18 +2701,26 @@ const sendApproval = async (context) => {
         incTitle,
         incCreatedBy: incCreatedByUserObj,
         activityId,
-        conversationId
-      }
-      var guidance = incGuidance ? incGuidance : "No details available"
-      const approvalCard = await getSaftyCheckCard(incTitle, incObj, companyData, guidance);
+        conversationId,
+      };
+      var guidance = incGuidance ? incGuidance : "No details available";
+      const approvalCard = await getSaftyCheckCard(
+        incTitle,
+        incObj,
+        companyData,
+        guidance
+      );
 
       await sendCardToIndividualUser(context, teamMember, approvalCard);
     });
     //await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
-  }
-  else if (action.data.incType == "recurringIncident") {
+  } else if (action.data.incType == "recurringIncident") {
     const userTimeZone = context.activity.entities[0].timezone;
-    await incidentService.saveRecurrSubEventInc(action.data, companyData, userTimeZone);
+    await incidentService.saveRecurrSubEventInc(
+      action.data,
+      companyData,
+      userTimeZone
+    );
   }
 };
 
@@ -2278,7 +2741,7 @@ const sendIncStatusValidation = async (context, incStatusId) => {
         body: [
           {
             type: "TextBlock",
-            text: 'This incident is no longer available.',
+            text: "This incident is no longer available.",
             wrap: true,
           },
         ],
@@ -2290,7 +2753,11 @@ const sendIncStatusValidation = async (context, incStatusId) => {
       });
     } else if (incStatusId == 2) {
       const mentionedCreatedBy = [];
-      dashboard.mentionUser(mentionedCreatedBy, incCreatedBy.id, incCreatedBy.name);
+      dashboard.mentionUser(
+        mentionedCreatedBy,
+        incCreatedBy.id,
+        incCreatedBy.name
+      );
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
@@ -2302,7 +2769,7 @@ const sendIncStatusValidation = async (context, incStatusId) => {
           },
         ],
         msteams: {
-          entities: mentionedCreatedBy
+          entities: mentionedCreatedBy,
         },
         type: "AdaptiveCard",
         version: "1.4",
@@ -2311,11 +2778,10 @@ const sendIncStatusValidation = async (context, incStatusId) => {
         attachments: [CardFactory.adaptiveCard(approvalCardResponse)],
       });
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
-}
+};
 
 const sendApprovalResponse = async (user, context) => {
   try {
@@ -2323,15 +2789,32 @@ const sendApprovalResponse = async (user, context) => {
     const { info: response, inc, companyData } = action.data;
     const { incId, incTitle, incCreatedBy } = inc;
     let respDate = new Date();
-    if (context?.activity?.rawLocalTimestamp != null && context.activity.rawLocalTimestamp.toString().split("+").length > 0) {
-      respDate = new Date(context.activity.rawLocalTimestamp.toString().split("+")[0]);
+    if (
+      context?.activity?.rawLocalTimestamp != null &&
+      context.activity.rawLocalTimestamp.toString().split("+").length > 0
+    ) {
+      respDate = new Date(
+        context.activity.rawLocalTimestamp.toString().split("+")[0]
+      );
     }
-    const respTimestamp = formatedDate('yyyy-MM-dd hh:mm:ss', respDate);
-    const runAt = (inc.runAt != null) ? inc.runAt : null;
+    const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", respDate);
+    const runAt = inc.runAt != null ? inc.runAt : null;
     if (response === "i_am_safe") {
-      await incidentService.updateIncResponseData(incId, user.id, 1, inc, respTimestamp);
+      await incidentService.updateIncResponseData(
+        incId,
+        user.id,
+        1,
+        inc,
+        respTimestamp
+      );
     } else {
-      await incidentService.updateIncResponseData(incId, user.id, 0, inc, respTimestamp);
+      await incidentService.updateIncResponseData(
+        incId,
+        user.id,
+        0,
+        inc,
+        respTimestamp
+      );
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
@@ -2349,7 +2832,7 @@ const sendApprovalResponse = async (user, context) => {
               text: `<at>${user.name}</at>`,
               mentioned: {
                 id: user.id,
-                name: user.name
+                name: user.name,
               },
             },
           ],
@@ -2359,8 +2842,17 @@ const sendApprovalResponse = async (user, context) => {
       };
       //send new msg just to emulate msg is being updated
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-      await sendApprovalResponseToSelectedMembers(incId, context, approvalCardResponse);
-      await sendApprovalResponseToSelectedTeams(incId, context, approvalCardResponse, user.aadObjectId);
+      await sendApprovalResponseToSelectedMembers(
+        incId,
+        context,
+        approvalCardResponse
+      );
+      await sendApprovalResponseToSelectedTeams(
+        incId,
+        context,
+        approvalCardResponse,
+        user.aadObjectId
+      );
     }
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
@@ -2369,14 +2861,28 @@ const sendApprovalResponse = async (user, context) => {
     //await updateIncResponseOfSelectedMembers(incId, runAt, dashboardCard, serviceUrl);
   } catch (error) {
     console.log(error);
-    processSafetyBotError(err, "", "", user.aadObjectId, "sendApprovalResponse");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      user.aadObjectId,
+      "sendApprovalResponse"
+    );
   }
 };
 
 const submitComment = async (context, user, companyData) => {
   try {
     const action = context.activity.value.action;
-    const { userId, incId, incTitle, incCreatedBy, eventResponse, commentVal, inc } = action.data;
+    const {
+      userId,
+      incId,
+      incTitle,
+      incCreatedBy,
+      eventResponse,
+      commentVal,
+      inc,
+    } = action.data;
 
     if (commentVal) {
       const approvalCardResponse = {
@@ -2396,7 +2902,7 @@ const submitComment = async (context, user, companyData) => {
               text: `<at>${user.name}</at>`,
               mentioned: {
                 id: user.id,
-                name: user.name
+                name: user.name,
               },
             },
           ],
@@ -2407,9 +2913,19 @@ const submitComment = async (context, user, companyData) => {
       //send new msg just to emulate msg is being updated
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
       await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
-      await incidentService.updateIncResponseComment(incId, userId, commentVal, inc);
+      await incidentService.updateIncResponseComment(
+        incId,
+        userId,
+        commentVal,
+        inc
+      );
 
-      await sendApprovalResponseToSelectedTeams(incId, context, approvalCardResponse, user.aadObjectId);
+      await sendApprovalResponseToSelectedTeams(
+        incId,
+        context,
+        approvalCardResponse,
+        user.aadObjectId
+      );
     }
   } catch (error) {
     console.log(error);
@@ -2481,7 +2997,6 @@ const sendContactUsForm = async (context, companyData) => {
             companyData: companyData,
           },
         },
-
       ],
     };
 
@@ -2493,7 +3008,12 @@ const sendContactUsForm = async (context, companyData) => {
   }
 };
 
-const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName = "") => {
+const sendNewContactEmail = async (
+  emailVal,
+  feedbackVal,
+  companyData,
+  userName = ""
+) => {
   try {
     const feedbackDataObj = {
       userId: companyData.userId,
@@ -2508,7 +3028,9 @@ const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName 
       "Hi,<br/> <br />" +
       "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
       "<br />" +
-      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "} ` +
+      `${
+        userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
+      } ` +
       "<b>Email: </b>" +
       emailVal +
       "<br />" +
@@ -2526,7 +3048,7 @@ const sendNewContactEmail = async (emailVal, feedbackVal, companyData, userName 
     console.log(err);
     processSafetyBotError(err, "", "");
   }
-}
+};
 
 const submitContactUsForm = async (context, companyData) => {
   try {
@@ -2613,7 +3135,6 @@ const viewSettings = async (context, companyData) => {
           companyData: companyData,
         },
       },
-
     ],
     type: "AdaptiveCard",
     version: "1.4",
@@ -2645,15 +3166,17 @@ const sendProactiveMessaageToUserTest = async () => {
     let serviceUrl = "https://smba.trafficmanager.net/amer/";
     let tenantId = "66d2bcc3-ec97-41a8-b764-803d784b248f";
 
-    let members = [{
-      id: "29:1jjP5OtI7Mig9aNRxH0ZpD64Jj3VW7Yb3CFS1P1i02eIFg8l4xlQkpdEQPV8RCNcXYgTo-ddHK2rxmy4x2UlxAw",
-      name: "IW User 03"
-    }];
+    let members = [
+      {
+        id: "29:1jjP5OtI7Mig9aNRxH0ZpD64Jj3VW7Yb3CFS1P1i02eIFg8l4xlQkpdEQPV8RCNcXYgTo-ddHK2rxmy4x2UlxAw",
+        name: "IW User 03",
+      },
+    ];
 
     const incCreatedByUserObj = {
       id: "29:1Rnu8OsmSpGVxsEyWIVtQlC4Q73YTwB4MgYPr_h_pR-3QxBEFrdD3jG-DFgWOR3InT4ApIOStPNcayMDPEE06rA",
-      name: "Global + Billing Admin 01"
-    }
+      name: "Global + Billing Admin 01",
+    };
 
     let incObj = {
       incId: 100786,
@@ -2662,45 +3185,61 @@ const sendProactiveMessaageToUserTest = async () => {
       runAt: "2022-11-03T06:05:00.000Z",
       incCreatedBy: incCreatedByUserObj,
       conversationId: null,
-      activityId: null
-    }
-    let companyData = await incidentService.getCompanyData("19:GbxQTzrKLXdE1rQ2G_IP7TuyLhKe0SdRKWTsDh5A1R81@thread.tacv2");
+      activityId: null,
+    };
+    let companyData = await incidentService.getCompanyData(
+      "19:GbxQTzrKLXdE1rQ2G_IP7TuyLhKe0SdRKWTsDh5A1R81@thread.tacv2"
+    );
     var incGuidance = await incidentService.getIncGuidance(incObj.incId);
     incGuidance = incGuidance ? incGuidance : "No details available";
-    const msgAttachment = await getSaftyCheckCard(incObj.incTitle, incObj, companyData, incGuidance);
+    const msgAttachment = await getSaftyCheckCard(
+      incObj.incTitle,
+      incObj,
+      companyData,
+      incGuidance
+    );
 
     const conversationParameters = {
       isGroup: false,
       channelData: {
         tenant: {
-          id: tenantId
-        }
+          id: tenantId,
+        },
       },
       bot: {
         id: appId,
-        name: botName
+        name: botName,
       },
-      members: members
+      members: members,
     };
 
     let activity = null;
     if (msgAttachment != null) {
-      activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+      activity = MessageFactory.attachment(
+        CardFactory.adaptiveCard(msgAttachment)
+      );
     }
 
     if (activity != null) {
       var credentials = new MicrosoftAppCredentials(appId, appPass);
-      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+      var connectorClient = new ConnectorClient(credentials, {
+        baseUri: serviceUrl,
+      });
 
-      let conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
-      let activityResp = await connectorClient.conversations.sendToConversation(conversationResp.id, activity);
+      let conversationResp =
+        await connectorClient.conversations.createConversation(
+          conversationParameters
+        );
+      let activityResp = await connectorClient.conversations.sendToConversation(
+        conversationResp.id,
+        activity
+      );
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
   return Promise.resolve(resp);
-}
+};
 
 const sendProactiveMessaageToChannel = async () => {
   try {
@@ -2718,49 +3257,63 @@ const sendProactiveMessaageToChannel = async () => {
           type: "TextBlock",
           size: "Large",
           weight: "Bolder",
-          text: "Sending message in teams channel.."
-        }
+          text: "Sending message in teams channel..",
+        },
       ],
       type: "AdaptiveCard",
       version: "1.4",
     };
     let activity = null;
     if (msgAttachment != null) {
-      activity = MessageFactory.attachment(CardFactory.adaptiveCard(msgAttachment));
+      activity = MessageFactory.attachment(
+        CardFactory.adaptiveCard(msgAttachment)
+      );
     }
     const conversationParameters = {
       bot: {
         id: appId,
-        name: botName
+        name: botName,
       },
       isGroup: true,
       conversationType: "channel",
       channelData: {
-        channel: { id: "19:-hsC9OMcGeta4Ke-bYtIVS4HFxNJZ8D8fYK50KZi7q01@thread.tacv2" }
+        channel: {
+          id: "19:-hsC9OMcGeta4Ke-bYtIVS4HFxNJZ8D8fYK50KZi7q01@thread.tacv2",
+        },
       },
       activity: {
-        type: 'message',
-        attachments: [CardFactory.adaptiveCard(msgAttachment)]
-      }
+        type: "message",
+        attachments: [CardFactory.adaptiveCard(msgAttachment)],
+      },
     };
-
-
 
     if (activity != null) {
       var credentials = new MicrosoftAppCredentials(appId, appPass);
-      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+      var connectorClient = new ConnectorClient(credentials, {
+        baseUri: serviceUrl,
+      });
 
-      let conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
+      let conversationResp =
+        await connectorClient.conversations.createConversation(
+          conversationParameters
+        );
       //let activityResp = await connectorClient.conversations.sendToConversation(conversationResp.id, activity);
     }
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
   return Promise.resolve(resp);
-}
+};
 
-const sendRecurrEventMsgAsync = async (incCreatedByUserObj, serviceUrl, userTenantId, subEventObj, incId, incTitle, log) => {
+const sendRecurrEventMsgAsync = async (
+  incCreatedByUserObj,
+  serviceUrl,
+  userTenantId,
+  subEventObj,
+  incId,
+  incTitle,
+  log
+) => {
   let incGuidance = await incidentService.getIncGuidance(incId);
   incGuidance = incGuidance ? incGuidance : "No details available";
   let incObj = {
@@ -2770,12 +3323,24 @@ const sendRecurrEventMsgAsync = async (incCreatedByUserObj, serviceUrl, userTena
     runAt: subEventObj.runAt,
     incCreatedBy: incCreatedByUserObj,
     incGuidance,
-    incResponseSelectedUsersList: null
-  }
+    incResponseSelectedUsersList: null,
+  };
   return new Promise((resolve, reject) => {
-    sendProactiveMessageAsync(subEventObj.eventMembers, subEventObj, incObj, subEventObj.companyData, serviceUrl, "", userTenantId, log, resolve, reject, subEventObj.runAt);
-  })
-}
+    sendProactiveMessageAsync(
+      subEventObj.eventMembers,
+      subEventObj,
+      incObj,
+      subEventObj.companyData,
+      serviceUrl,
+      "",
+      userTenantId,
+      log,
+      resolve,
+      reject,
+      subEventObj.runAt
+    );
+  });
+};
 
 const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
   // let successflag = true;
@@ -2788,30 +3353,46 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
       const userTenantId = subEventObj.companyData.userTenantId;
       const incCreatedByUserObj = {
         id: subEventObj.createdById,
-        name: subEventObj.createdByName
-      }
+        name: subEventObj.createdByName,
+      };
       const incCreatedByUserArr = [incCreatedByUserObj];
-      await sendRecurrEventMsgAsync(incCreatedByUserObj, serviceUrl, userTenantId, subEventObj, incId, incTitle, log)
+      await sendRecurrEventMsgAsync(
+        incCreatedByUserObj,
+        serviceUrl,
+        userTenantId,
+        subEventObj,
+        incId,
+        incTitle,
+        log
+      );
       const recurrCompletedCard = {
-        "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.5",
-        "body": [
+        type: "AdaptiveCard",
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        version: "1.5",
+        body: [
           {
-            "type": "TextBlock",
-            "text": "Incident Message:",
-            "wrap": true,
-            "weight": "Bolder"
+            type: "TextBlock",
+            text: "Incident Message:",
+            wrap: true,
+            weight: "Bolder",
           },
           {
-            "type": "TextBlock",
-            "text": `Your safety check message for **${incTitle}** has been sent to all the users`,
-            "wrap": true
-          }
-        ]
-      }
+            type: "TextBlock",
+            text: `Your safety check message for **${incTitle}** has been sent to all the users`,
+            wrap: true,
+          },
+        ],
+      };
 
-      await sendProactiveMessaageToUser(incCreatedByUserArr, recurrCompletedCard, null, serviceUrl, userTenantId, log, subEventObj.createdById);
+      await sendProactiveMessaageToUser(
+        incCreatedByUserArr,
+        recurrCompletedCard,
+        null,
+        serviceUrl,
+        userTenantId,
+        log,
+        subEventObj.createdById
+      );
       /*
       const incCreatedByUserArr = [];
       const incCreatedByUserObj = {
@@ -2885,7 +3466,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
     processSafetyBotError(err, "", "");
   }
   // return successflag;
-}
+};
 
 const sendIntroductionMessage = async (context, from) => {
   const cards = {
@@ -2920,14 +3501,18 @@ const sendIntroductionMessage = async (context, from) => {
     ],
   };
   await sendDirectMessageCard(context, from, cards);
-}
+};
 
 const navigateDashboardList = async (context, action, verb) => {
   try {
     const dashboardData = action.data;
     const companyData = dashboardData.companyData;
     const allTeamMembers = await getAllTeamMembers(context, companyData.teamId);
-    const dashboardCard = await dashboard.getIncidentTileDashboardCard(dashboardData, companyData, allTeamMembers);
+    const dashboardCard = await dashboard.getIncidentTileDashboardCard(
+      dashboardData,
+      companyData,
+      allTeamMembers
+    );
 
     const cards = CardFactory.adaptiveCard(dashboardCard);
     const message = MessageFactory.attachment(cards);
@@ -2940,12 +3525,10 @@ const navigateDashboardList = async (context, action, verb) => {
     // await updateMessage(context.activity.replyToId, activity, context.activity.conversation.id, serviceUrl);
     // return dashboardCard;
     return true;
-
-  }
-  catch (err) {
+  } catch (err) {
     console.log(err);
   }
-}
+};
 
 const addUserInfoByTeamId = async (context) => {
   try {
@@ -2960,7 +3543,7 @@ const addUserInfoByTeamId = async (context) => {
     console.log(err);
     processSafetyBotError(err, "", "");
   }
-}
+};
 
 const addteamsusers = async (context) => {
   const log = new AYSLog();
@@ -2975,16 +3558,26 @@ const addteamsusers = async (context) => {
           try {
             log.addLog(`Inside loop start teamid: ${JSON.stringify(teamid)} `);
 
-            const allTeamMembers = await getAllTeamMembersByConnectorClient(teamid, serviceUrl);
+            const allTeamMembers = await getAllTeamMembersByConnectorClient(
+              teamid,
+              serviceUrl
+            );
             if (allTeamMembers != null && allTeamMembers.length > 0) {
-              const isUserInfoSaved = await addTeamMember(teamid, allTeamMembers);
+              const isUserInfoSaved = await addTeamMember(
+                teamid,
+                allTeamMembers
+              );
               if (isUserInfoSaved) {
                 sqlUpdateIsUserInfoSavedFlag += ` update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id = ${id}; `;
               }
               log.addLog(`isUserInfoSaved: ${isUserInfoSaved} `);
             }
           } catch (err) {
-            log.addLog(`addteamsusers Error inside loop error details: ${JSON.stringify(err)} `);
+            log.addLog(
+              `addteamsusers Error inside loop error details: ${JSON.stringify(
+                err
+              )} `
+            );
             processSafetyBotError(err, "", "");
           } finally {
             log.addLog(`Inside loop start teamid: ${JSON.stringify(teamid)} `);
@@ -3003,18 +3596,31 @@ const addteamsusers = async (context) => {
     log.addLog(`addteamsusers End`);
     await log.saveLog();
   }
-}
+};
 
-const sendNSRespToTeamChannel = async (userTeamId, adaptiveCard, userAadObjId) => {
+const sendNSRespToTeamChannel = async (
+  userTeamId,
+  adaptiveCard,
+  userAadObjId
+) => {
   try {
     const sqlWhere = ` where a.tenantId = '${userTeamId}' `;
-    const channelData = await incidentService.getNAReapSelectedTeams("", userAadObjId, sqlWhere);
+    const channelData = await incidentService.getNAReapSelectedTeams(
+      "",
+      userAadObjId,
+      sqlWhere
+    );
     if (channelData && channelData.length > 0) {
       await Promise.all(
         channelData.map(async (data) => {
           const channelId = data.channelId;
           const serviceUrl = data.serviceUrl;
-          await sendProactiveMessaageToSelectedChannel(adaptiveCard, channelId, serviceUrl, userAadObjId);
+          await sendProactiveMessaageToSelectedChannel(
+            adaptiveCard,
+            channelId,
+            serviceUrl,
+            userAadObjId
+          );
         })
       );
     }
@@ -3022,14 +3628,23 @@ const sendNSRespToTeamChannel = async (userTeamId, adaptiveCard, userAadObjId) =
     console.log(err);
     processSafetyBotError(err, "", "", userAadObjId, "sendNSRespToTeamChannel");
   }
-}
+};
 
-const createTestIncident = async (context, incCreatedBy, incCreatedByName, teamsMembers, teamId, userAadObjId, from, companyData) => {
+const createTestIncident = async (
+  context,
+  incCreatedBy,
+  incCreatedByName,
+  teamsMembers,
+  teamId,
+  userAadObjId,
+  from,
+  companyData
+) => {
   const memberChoises = [];
   let selectedMembers = "";
   teamsMembers.forEach((usr) => {
     memberChoises.push({ value: usr.id, title: usr.name });
-    selectedMembers += (selectedMembers != "") ? "," + usr.id : usr.id;
+    selectedMembers += selectedMembers != "" ? "," + usr.id : usr.id;
   });
   try {
     const incData = {
@@ -3055,9 +3670,16 @@ const createTestIncident = async (context, incCreatedBy, incCreatedByName, teams
       situation: "",
       isTestRecord: true,
       isSavedAsDraft: false,
-      updatedOn: ""
+      updatedOn: "",
     };
-    const newInc = await incidentService.createNewInc(incData, incCreatedBy, memberChoises, userAadObjId, null, null);
+    const newInc = await incidentService.createNewInc(
+      incData,
+      incCreatedBy,
+      memberChoises,
+      userAadObjId,
+      null,
+      null
+    );
     return newInc;
     // if (newInc && newInc.incId) {
     //   const safetyCheckMessageText = `This is a **${incData.incTitle}** from <at>${incCreatedByName}</at>. Please click any of the buttons below to help them test the bot.`;
@@ -3099,7 +3721,7 @@ const createTestIncident = async (context, incCreatedBy, incCreatedByName, teams
     console.log(err);
     processSafetyBotError(err, "", "", userAadObjId, "createTestIncident");
   }
-}
+};
 
 const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
   try {
@@ -3119,25 +3741,46 @@ const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
     if (!adminUserInfo) {
       return;
     }
-    const incData = await createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjId, context.activity.from, companyData);
+    const incData = await createTestIncident(
+      context,
+      adminUserInfo.id,
+      adminUserInfo.name,
+      allMembersInfo,
+      teamId,
+      userAadObjId,
+      context.activity.from,
+      companyData
+    );
     if (incData) {
       const log = new AYSLog();
       const { incId, incCreatedBy, incCreatedByName } = incData;
 
       const createdByUserInfo = {
         user_id: incCreatedBy,
-        user_name: incCreatedByName
-      }
-      await sendSafetyCheckMessageAsync(incId, teamId, createdByUserInfo, log, userAadObjId);
+        user_name: incCreatedByName,
+      };
+      await sendSafetyCheckMessageAsync(
+        incId,
+        teamId,
+        createdByUserInfo,
+        log,
+        userAadObjId
+      );
 
       const msg = `Thanks! Your safety check message has been sent to all the users. \n\nClick on the **Dashboard tab** above to view the real-time safety status and access all features.`;
       await sendDirectMessage(context, context.activity.from, msg);
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId, "triggerTestSafetyCheckMessage");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "triggerTestSafetyCheckMessage"
+    );
   }
-}
+};
 
 module.exports = {
   invokeResponse,
@@ -3163,5 +3806,5 @@ module.exports = {
   sendProactiveMessaageToChannel,
   sendSafetyCheckMessageAsync,
   sendNSRespToTeamChannel,
-  createTestIncident
+  createTestIncident,
 };
