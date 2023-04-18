@@ -1012,7 +1012,9 @@ const getTeamMemeberSqlQuery = (
   whereSql,
   userIdAlias = "value",
   userNameAlias = "title",
-  superUsersLeftJoinQuery = null
+  superUsersLeftJoinQuery = null,
+  incidentId = -1,
+  resendSafetyCheck = false
 ) => {
   return (
     ` SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, ` +
@@ -1024,7 +1026,13 @@ const getTeamMemeberSqlQuery = (
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
-    ` WHERE ${whereSql} and u.hasLicense = 1 ORDER BY u.[USER_NAME]; `
+    ` WHERE ${whereSql} and u.hasLicense = 1 
+    ${
+      resendSafetyCheck == "true"
+        ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
+        : ""
+    }  
+    ORDER BY u.[USER_NAME]; `
   );
 };
 
@@ -1033,7 +1041,9 @@ const getAllTeamMembersQuery = (
   userAadObjId,
   userIdAlias = "value",
   userNameAlias = "title",
-  superUsersLeftJoinQuery = null
+  superUsersLeftJoinQuery = null,
+  incidentId = -1,
+  resendSafetyCheck = false
 ) => {
   let whereSql = "";
   if (teamId != null) {
@@ -1046,7 +1056,9 @@ const getAllTeamMembersQuery = (
     whereSql,
     userIdAlias,
     userNameAlias,
-    superUsersLeftJoinQuery
+    superUsersLeftJoinQuery,
+    incidentId,
+    resendSafetyCheck
   );
 };
 
@@ -1580,7 +1592,10 @@ const getRequiredDataToSendMessage = async (
       teamId,
       null,
       userIdAlias,
-      userNameAlias
+      userNameAlias,
+      null,
+      incId,
+      resendSafetyCheck
     );
 
     const sql = ` SELECT top 1 * FROM MSTeamsInstallationDetails where team_id = '${teamId}';
