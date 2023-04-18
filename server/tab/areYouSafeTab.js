@@ -13,14 +13,24 @@ const ENV_FILE = path.join(__dirname, "../.env");
 const db = require("../db");
 const dashboard = require("../models/dashboard");
 const bot = require("../bot/bot");
-const { getCompaniesData, updateSuperUserDataByUserAadObjId, saveNARespSelectedTeams } = require("../db/dbOperations");
+const {
+  getCompaniesData,
+  updateSuperUserDataByUserAadObjId,
+  saveNARespSelectedTeams,
+} = require("../db/dbOperations");
 
 require("dotenv").config({ path: ENV_FILE });
 
-const { ConnectorClient, MicrosoftAppCredentials } = require('botframework-connector');
+const {
+  ConnectorClient,
+  MicrosoftAppCredentials,
+} = require("botframework-connector");
 const { Promise } = require("mssql/lib/base");
 const { AYSLog } = require("../utils/log");
-const { processSafetyBotError, processBotError } = require("../models/processError");
+const {
+  processSafetyBotError,
+  processBotError,
+} = require("../models/processError");
 
 class AreYouSafeTab {
   getConversationParameters = (members, tenantId) => {
@@ -42,10 +52,16 @@ class AreYouSafeTab {
   getAllTeamMembers = async (teamId, serviceUrl) => {
     let allTeamMembers = null;
     try {
-      var credentials = new MicrosoftAppCredentials(process.env.MicrosoftAppId, process.env.MicrosoftAppPassword);
-      var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
+      var credentials = new MicrosoftAppCredentials(
+        process.env.MicrosoftAppId,
+        process.env.MicrosoftAppPassword
+      );
+      var connectorClient = new ConnectorClient(credentials, {
+        baseUri: serviceUrl,
+      });
 
-      allTeamMembers = await connectorClient.conversations.getConversationMembers(teamId);
+      allTeamMembers =
+        await connectorClient.conversations.getConversationMembers(teamId);
     } catch (err) {
       processSafetyBotError(err, "", "");
     }
@@ -56,7 +72,9 @@ class AreYouSafeTab {
     try {
       const startTime = startDate;
       const createdDate = new Date(startTime);
-      const monthName = createdDate.toLocaleString("default", { month: "long" });
+      const monthName = createdDate.toLocaleString("default", {
+        month: "long",
+      });
       const creatdDate = createdDate.getDate();
       const createdYear = createdDate.getFullYear();
       return ` ${monthName} ${creatdDate}, ${createdYear}`;
@@ -74,22 +92,21 @@ class AreYouSafeTab {
       let dateDiffInWeek = dateDiff / (60 * 60 * 24 * 7);
       let dateDiffInDay = dateDiff / (60 * 60 * 24);
       let dateDiffInHours = dateDiff / (60 * 60);
-      let dateDiffInMin = dateDiff / (60);
+      let dateDiffInMin = dateDiff / 60;
 
       if (Math.abs(parseInt(dateDiffInWeek)) >= 1)
-        return Math.abs(parseInt(dateDiffInWeek)) + 'w';
+        return Math.abs(parseInt(dateDiffInWeek)) + "w";
       else if (Math.abs(parseInt(dateDiffInDay)) >= 1)
-        return Math.abs(parseInt(dateDiffInDay)) + 'd';
+        return Math.abs(parseInt(dateDiffInDay)) + "d";
       else if (Math.abs(parseInt(dateDiffInHours)) >= 1)
-        return Math.abs(parseInt(dateDiffInHours)) + 'h';
+        return Math.abs(parseInt(dateDiffInHours)) + "h";
       else if (Math.abs(parseInt(dateDiffInMin)) >= 1)
-        return Math.abs(parseInt(dateDiffInMin)) + 'm';
-      else
-        return Math.abs(parseInt(dateDiff)) + 's';
+        return Math.abs(parseInt(dateDiffInMin)) + "m";
+      else return Math.abs(parseInt(dateDiff)) + "s";
     } catch (err) {
       processSafetyBotError(err, "", "");
     }
-  }
+  };
 
   sortMembers = (members, incTypeId) => {
     let memberObj = null;
@@ -104,7 +121,10 @@ class AreYouSafeTab {
         members.forEach((m) => {
           const { response, responseValue, msgStatus } = m;
 
-          if ((response === "na" || response === false) && msgStatus?.toString()?.trim() != null) {
+          if (
+            (response === "na" || response === false) &&
+            msgStatus?.toString()?.trim() != null
+          ) {
             memberObj.membersNotResponded.push(m);
           } else if (response === true) {
             if (responseValue === true) {
@@ -132,7 +152,6 @@ class AreYouSafeTab {
           }
         });
       }
-
     } catch (err) {
       processSafetyBotError(err, "", "");
     }
@@ -148,19 +167,36 @@ class AreYouSafeTab {
           teamObj = {};
           teamInfo.forEach((team) => {
             teamObj[team.teamId] = team.teamName;
-          })
+          });
         }
 
         incData.forEach((inc) => {
-          const { incId, incTitle: title, incCreatedByName: createdBy, membersCount, messageDeliveredCount,
-            incTypeId, additionalInfo, travelUpdate, contactInfo, situation, isTestRecord, teamId, incType, isSavedAsDraft, updatedOn } = inc;
+          const {
+            incId,
+            incTitle: title,
+            incCreatedByName: createdBy,
+            membersCount,
+            messageDeliveredCount,
+            incTypeId,
+            additionalInfo,
+            travelUpdate,
+            contactInfo,
+            situation,
+            isTestRecord,
+            teamId,
+            incType,
+            isSavedAsDraft,
+            updatedOn,
+          } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
             return;
           }
-          const status = (inc.incStatusId === 2) ? "Closed" : "In progress";
+          const status = inc.incStatusId === 2 ? "Closed" : "In progress";
           const startDate = this.getStartDate(inc.incCreatedDate);
-          const duration = this.getDurationInWeek(inc.incCreatedDate).toString();
+          const duration = this.getDurationInWeek(
+            inc.incCreatedDate
+          ).toString();
 
           let safe = null;
           let needAssistance = null;
@@ -177,7 +213,11 @@ class AreYouSafeTab {
           let deliveryInProgressCount = 0;
           let deliveredCount = 0;
 
-          if (inc.members != null && inc.members.length > 0 && !isSavedAsDraft) {
+          if (
+            inc.members != null &&
+            inc.members.length > 0 &&
+            !isSavedAsDraft
+          ) {
             const memberObj = this.sortMembers(inc.members, inc.incTypeId);
             if (memberObj != null) {
               if (!incTypeId || incTypeId == 1) {
@@ -189,9 +229,11 @@ class AreYouSafeTab {
                 notRespondedCount = memberObj.membersNotResponded.length;
 
                 if (needAssistanceCount > 0 || safeCount > 0) {
-                  responsePercentage = Math.round(
-                    ((needAssistanceCount + safeCount) * 100) / inc.members.length
-                  ).toString() + "%";
+                  responsePercentage =
+                    Math.round(
+                      ((needAssistanceCount + safeCount) * 100) /
+                        inc.members.length
+                    ).toString() + "%";
                 }
               } else {
                 notDelivered = memberObj.notDelivered;
@@ -204,13 +246,40 @@ class AreYouSafeTab {
             }
           }
 
-          const teamName = (teamObj && teamObj[teamId]) ? teamObj[teamId] : "";
+          const teamName = teamObj && teamObj[teamId] ? teamObj[teamId] : "";
 
           const incObj = {
-            incId, status, title, createdBy, startDate, duration, incTypeId,
-            safe, needAssistance, notResponded, safeCount, needAssistanceCount, notRespondedCount,
-            notDelivered, deliveryInProgress, delivered, notDeliveredCount, deliveryInProgressCount, deliveredCount,
-            responsePercentage, teamName, membersCount, messageDeliveredCount, additionalInfo, travelUpdate, contactInfo, situation, teamId, incType, isSavedAsDraft, updatedOn
+            incId,
+            status,
+            title,
+            createdBy,
+            startDate,
+            duration,
+            incTypeId,
+            safe,
+            needAssistance,
+            notResponded,
+            safeCount,
+            needAssistanceCount,
+            notRespondedCount,
+            notDelivered,
+            deliveryInProgress,
+            delivered,
+            notDeliveredCount,
+            deliveryInProgressCount,
+            deliveredCount,
+            responsePercentage,
+            teamName,
+            membersCount,
+            messageDeliveredCount,
+            additionalInfo,
+            travelUpdate,
+            contactInfo,
+            situation,
+            teamId,
+            incType,
+            isSavedAsDraft,
+            updatedOn,
           };
           incFormatedData.push(incObj);
         });
@@ -220,7 +289,7 @@ class AreYouSafeTab {
       processSafetyBotError(err, "", "", userObjId);
     }
     return incFormatedData;
-  }
+  };
 
   getTeamMembers = async (teamId, userAadObjId) => {
     let teamsMembers = null;
@@ -230,21 +299,32 @@ class AreYouSafeTab {
         const superUsers = await incidentService.getSuperUsersByTeamId(teamId);
         let superUsersLeftJoinQuery = null;
         if (superUsers.length > 0) {
-          const superUsersArr = superUsers[0]["super_users"].split(",").map((useAadObjId, index) => {
-            if (useAadObjId) {
-              if (index == 0) {
-                return ` select '${useAadObjId}' useAadObjId `;
-              } else {
-                return ` union all select '${useAadObjId}' useAadObjId `;
+          const superUsersArr = superUsers[0]["super_users"]
+            .split(",")
+            .map((useAadObjId, index) => {
+              if (useAadObjId) {
+                if (index == 0) {
+                  return ` select '${useAadObjId}' useAadObjId `;
+                } else {
+                  return ` union all select '${useAadObjId}' useAadObjId `;
+                }
               }
-            }
-          });
+            });
           if (superUsersArr.length > 0) {
-            superUsersLeftJoinQuery = `left join (Select * from (` + superUsersArr.join(' ') + ') t ) tblAadObjId on tblAadObjId.useAadObjId = u.user_aadobject_id ';
+            superUsersLeftJoinQuery =
+              `left join (Select * from (` +
+              superUsersArr.join(" ") +
+              ") t ) tblAadObjId on tblAadObjId.useAadObjId = u.user_aadobject_id ";
           }
         }
 
-        teamsMembers = await incidentService.getAllTeamMembersByTeamId(teamId, "value", "title", userAadObjId, superUsersLeftJoinQuery);
+        teamsMembers = await incidentService.getAllTeamMembersByTeamId(
+          teamId,
+          "value",
+          "title",
+          userAadObjId,
+          superUsersLeftJoinQuery
+        );
       }
       // else if (userAadObjId != null && userAadObjId != "null") {
       //   teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
@@ -274,7 +354,7 @@ class AreYouSafeTab {
       processSafetyBotError(err, teamId, "", userAadObjId);
     }
     return Promise.resolve(teamsMembers);
-  }
+  };
 
   requestAssistance = async (data, userAadObjId) => {
     let isMessageSent = false;
@@ -283,7 +363,11 @@ class AreYouSafeTab {
       let user = data[1][0];
       if (admins != null && admins.length > 0) {
         let mentionUserEntities = [];
-        dashboard.mentionUser(mentionUserEntities, user.user_id, user.user_name);
+        dashboard.mentionUser(
+          mentionUserEntities,
+          user.user_id,
+          user.user_name
+        );
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
@@ -306,7 +390,10 @@ class AreYouSafeTab {
             continue;
           }
           adminArr.push(admins[i].user_id);
-          if (admins[i].serviceUrl != null && admins[i].user_tenant_id != null) {
+          if (
+            admins[i].serviceUrl != null &&
+            admins[i].user_tenant_id != null
+          ) {
             let memberArr = [
               {
                 id: admins[i].user_id,
@@ -324,7 +411,11 @@ class AreYouSafeTab {
             );
           }
         }
-        bot.sendNSRespToTeamChannel(admins[0].user_tenant_id, approvalCardResponse, userAadObjId);
+        bot.sendNSRespToTeamChannel(
+          admins[0].user_tenant_id,
+          approvalCardResponse,
+          userAadObjId
+        );
         isMessageSent = true;
       }
     } catch (err) {
@@ -349,7 +440,8 @@ class AreYouSafeTab {
             if (userTemasObj[teamName] == null) {
               userTemasArr.push(teamName);
               userTemasObj[teamName] = [];
-              teamIds += (teamIds === "") ? element.team_id : ", " + element.team_id;
+              teamIds +=
+                teamIds === "" ? element.team_id : ", " + element.team_id;
             }
             userTemasObj[teamName].push(element.user_name);
             if (!sentToIds.includes(element.user_id)) {
@@ -363,7 +455,12 @@ class AreYouSafeTab {
           const adminsArr = userTemasObj[teamName];
           if (adminsArr && adminsArr.length > 0) {
             adminsArr.forEach((usrName, index) => {
-              sentToNames += (index == 0 ? "" : (index == (adminsArr.length - 1)) ? " and " : ", ") + usrName;
+              sentToNames +=
+                (index == 0
+                  ? ""
+                  : index == adminsArr.length - 1
+                  ? " and "
+                  : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -377,7 +474,12 @@ class AreYouSafeTab {
                 if (!allAdmins.includes(usrName)) {
                   allAdmins.push(usrName);
                   currentTeamAdminsArr.push(usrName);
-                  currentTeamsAdminsStr += (currentTeamsAdminsStr === "" ? "" : (index == (adminsArr.length - 1)) ? " and " : ", ") + usrName;
+                  currentTeamsAdminsStr +=
+                    (currentTeamsAdminsStr === ""
+                      ? ""
+                      : index == adminsArr.length - 1
+                      ? " and "
+                      : ", ") + usrName;
                 }
               });
 
@@ -398,7 +500,7 @@ class AreYouSafeTab {
             "",
             ts,
             "",
-            teamIds
+            teamIds,
           ]);
         }
       }
@@ -414,7 +516,11 @@ class AreYouSafeTab {
       let user = data[1][0];
       if (admins != null && admins.length > 0) {
         let mentionUserEntities = [];
-        dashboard.mentionUser(mentionUserEntities, user.user_id, user.user_name);
+        dashboard.mentionUser(
+          mentionUserEntities,
+          user.user_id,
+          user.user_name
+        );
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
@@ -437,7 +543,10 @@ class AreYouSafeTab {
             continue;
           }
           adminArr.push(admins[i].user_id);
-          if (admins[i].serviceUrl != null && admins[i].user_tenant_id != null) {
+          if (
+            admins[i].serviceUrl != null &&
+            admins[i].user_tenant_id != null
+          ) {
             let memberArr = [
               {
                 id: admins[i].user_id,
@@ -455,7 +564,11 @@ class AreYouSafeTab {
             );
           }
         }
-        bot.sendNSRespToTeamChannel(admins[0].user_tenant_id, approvalCardResponse, userAadObjId);
+        bot.sendNSRespToTeamChannel(
+          admins[0].user_tenant_id,
+          approvalCardResponse,
+          userAadObjId
+        );
       }
     } catch (err) {
       processSafetyBotError(err, "", "", userAadObjId);
@@ -469,13 +582,16 @@ class AreYouSafeTab {
         teamId = await incidentService.getTeamIdByUserAadObjId(userAadObjId);
       }
       if (teamId != null && teamId != "null") {
-        isDuplicate = await incidentService.verifyDuplicateInc(teamId, incTitle);
+        isDuplicate = await incidentService.verifyDuplicateInc(
+          teamId,
+          incTitle
+        );
       }
     } catch (err) {
       processSafetyBotError(err, teamId, "", userAadObjId);
     }
     return Promise.resolve(isDuplicate);
-  }
+  };
 
   getBotUserInfo = async (teamId, aadUserObjId) => {
     let userInfo = null;
@@ -491,7 +607,7 @@ class AreYouSafeTab {
       }
     }
     return Promise.resolve(userInfo);
-  }
+  };
 
   createNewIncident = async (incObj, userAadObjId) => {
     let newInc = null;
@@ -499,11 +615,14 @@ class AreYouSafeTab {
       if (incObj != null && incObj.incData != null) {
         let incData = incObj.incData;
         let incId = incObj?.incId ? incObj.incId : -1;
-        if (incData.incType === "recurringIncident" && incObj.incRecurrData != null) {
+        if (
+          incData.incType === "recurringIncident" &&
+          incObj.incRecurrData != null
+        ) {
           incData = {
             ...incData,
-            ...incObj.incRecurrData
-          }
+            ...incObj.incRecurrData,
+          };
         }
         let memberChoises = null;
         if (incObj.incMembers != null) {
@@ -522,32 +641,65 @@ class AreYouSafeTab {
           responseSelectedTeams = incObj.responseSelectedTeams;
         }
         incData.guidance = incData.guidance.toString().replace(/\\n/g, "\n\n");
-        incData.additionalInfo = incData.additionalInfo.toString().replace(/\\n/g, "\n\n");
-        incData.contactInfo = incData.contactInfo.toString().replace(/\\n/g, "\n\n");
-        incData.situation = incData.situation.toString().replace(/\\n/g, "\n\n");
-        newInc = await incidentService.createNewInc(incData, responseSelectedMembers, memberChoises, userAadObjId, responseSelectedTeams, teamIds, incId);
+        incData.additionalInfo = incData.additionalInfo
+          .toString()
+          .replace(/\\n/g, "\n\n");
+        incData.contactInfo = incData.contactInfo
+          .toString()
+          .replace(/\\n/g, "\n\n");
+        incData.situation = incData.situation
+          .toString()
+          .replace(/\\n/g, "\n\n");
+        incData.incTitle = incData.incTitle.trim();
+        newInc = await incidentService.createNewInc(
+          incData,
+          responseSelectedMembers,
+          memberChoises,
+          userAadObjId,
+          responseSelectedTeams,
+          teamIds,
+          incId
+        );
       }
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, "", "", userAadObjId);
     }
     return Promise.resolve(newInc);
-  }
+  };
 
-  sendSafetyCheckMessage = async (incId, teamId, createdByUserInfo, userAadObjId, resendSafetyCheck) => {
+  sendSafetyCheckMessage = async (
+    incId,
+    teamId,
+    createdByUserInfo,
+    userAadObjId,
+    resendSafetyCheck
+  ) => {
     const log = new AYSLog();
     try {
-      const safetyCheckSend = await bot.sendSafetyCheckMessageAsync(incId, teamId, createdByUserInfo, log, userAadObjId, resendSafetyCheck);
+      const safetyCheckSend = await bot.sendSafetyCheckMessageAsync(
+        incId,
+        teamId,
+        createdByUserInfo,
+        log,
+        userAadObjId,
+        resendSafetyCheck
+      );
       return Promise.resolve(safetyCheckSend);
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, teamId, createdByUserInfo?.user_name, userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        createdByUserInfo?.user_name,
+        userAadObjId
+      );
       return true;
     } finally {
       await log.saveLog(incId);
     }
-  }
-  
+  };
+
   getUserTeamInfo = async (userAadObjId) => {
     let userTeamInfo = null;
     try {
@@ -556,7 +708,7 @@ class AreYouSafeTab {
       processSafetyBotError(err, "", "");
     }
     return Promise.resolve(userTeamInfo);
-  }
+  };
 
   submitContactUs = async (email, msg, userId, userName) => {
     try {
@@ -567,7 +719,7 @@ class AreYouSafeTab {
     } catch (err) {
       processSafetyBotError(err, "", userName, userId);
     }
-  }
+  };
 
   getSuperUsersByTeamId = async (teamId) => {
     let superUsers = null;
@@ -577,22 +729,32 @@ class AreYouSafeTab {
       processSafetyBotError(err, teamId, "", null);
     }
     return Promise.resolve(superUsers);
-  }
+  };
 
-  saveUserSetting = async ({ teamId, superUsers, userAadObjId, selectedTeams }) => {
+  saveUserSetting = async ({
+    teamId,
+    superUsers,
+    userAadObjId,
+    selectedTeams,
+  }) => {
     let result = null;
     try {
       saveNARespSelectedTeams(teamId, selectedTeams, userAadObjId);
-      result = await updateSuperUserDataByUserAadObjId(userAadObjId, teamId, superUsers);
+      result = await updateSuperUserDataByUserAadObjId(
+        userAadObjId,
+        teamId,
+        superUsers
+      );
     } catch (err) {
       processSafetyBotError(err, teamId, "", userAadObjId);
     }
     return Promise.resolve(result);
-  }
+  };
 
   getIncDataToCopyInc = async (incId, userAadObjId) => {
     try {
-      let teamId = '', selectedUsers = "";
+      let teamId = "",
+        selectedUsers = "";
       const incData = await incidentService.getInc(incId, null, userAadObjId);
       if (incData) {
         teamId = incData.teamId;
@@ -602,8 +764,15 @@ class AreYouSafeTab {
       // const incSelectedMembersData = await incidentService.getIncSelectedMembers(selectedUsers, teamId, userAadObjId);
       // const incResponseMembersData = await incidentService.getIncResponseMembers(incId, teamId, userAadObjId);
 
-      let incSelectedMembersData = null, incResponseMembersData = null, incResponseTeamsData = null;
-      let incDataToCopy = await incidentService.getIncDataToCopyInc(incId, selectedUsers, teamId, userAadObjId);
+      let incSelectedMembersData = null,
+        incResponseMembersData = null,
+        incResponseTeamsData = null;
+      let incDataToCopy = await incidentService.getIncDataToCopyInc(
+        incId,
+        selectedUsers,
+        teamId,
+        userAadObjId
+      );
 
       if (incDataToCopy != null && incDataToCopy.length > 0) {
         incSelectedMembersData = incDataToCopy[0];
@@ -611,15 +780,20 @@ class AreYouSafeTab {
         incResponseTeamsData = incDataToCopy[2];
       }
 
-      return { incData, incResponseMembersData, incSelectedMembersData, incResponseTeamsData };
+      return {
+        incData,
+        incResponseMembersData,
+        incSelectedMembersData,
+        incResponseTeamsData,
+      };
     } catch (err) {
       processSafetyBotError(err, "", "");
     }
-  }
+  };
 
   processError = async (reqBody) => {
     processBotError(reqBody);
-  }
+  };
 }
 
 module.exports.AreYouSafeTab = AreYouSafeTab;
