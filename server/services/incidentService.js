@@ -1605,9 +1605,7 @@ const getRequiredDataToSendMessage = async (
     m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
     inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
     FROM MSTeamsIncidents inc
-    LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id ${
-      resendSafetyCheck == "true" ? " and response = 0" : ""
-    }
+    LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id 
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
     where inc.id = ${incId}
     FOR JSON AUTO , INCLUDE_NULL_VALUES;
