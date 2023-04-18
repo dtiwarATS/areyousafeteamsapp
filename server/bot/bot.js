@@ -2289,7 +2289,7 @@ const sendSafetyCheckMessageAsync = async (
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
         incData;
       const { serviceUrl, userTenantId, userId } = companyData;
-      if (resendSafetyCheck) {
+      if (resendSafetyCheck || resendSafetyCheck === "true") {
         createdByUserInfo.user_id = userId;
       }
       let selectedMembersArr = [];
@@ -2305,7 +2305,7 @@ const sendSafetyCheckMessageAsync = async (
       } else {
         allMembersArr = allMembers;
       }
-      if (!resendSafetyCheck) {
+      if (!resendSafetyCheck || resendSafetyCheck === "false") {
         await incidentService.addMembersIntoIncData(
           incId,
           allMembersArr,
