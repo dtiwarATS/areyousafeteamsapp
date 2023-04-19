@@ -2319,11 +2319,13 @@ const sendSafetyCheckMessageAsync = async (
       if (Number(incTypeId) == 1 && incType == "recurringIncident") {
         const userTimeZone = createdByUserInfo.userTimeZone;
         const actionData = { incident: incData };
-        await incidentService.saveRecurrSubEventInc(
-          actionData,
-          companyData,
-          userTimeZone
-        );
+        if (!resendSafetyCheck || resendSafetyCheck === "false") {
+          await incidentService.saveRecurrSubEventInc(
+            actionData,
+            companyData,
+            userTimeZone
+          );
+        }
         resolve(true);
       } else {
         incGuidance = incGuidance ? incGuidance : "No details available";
