@@ -186,6 +186,7 @@ class AreYouSafeTab {
             teamId,
             incType,
             isSavedAsDraft,
+            isSaveAsTemplate,
             updatedOn,
           } = inc;
 
@@ -216,7 +217,8 @@ class AreYouSafeTab {
           if (
             inc.members != null &&
             inc.members.length > 0 &&
-            !isSavedAsDraft
+            !isSavedAsDraft &&
+            !isSaveAsTemplate
           ) {
             const memberObj = this.sortMembers(inc.members, inc.incTypeId);
             if (memberObj != null) {
@@ -279,6 +281,7 @@ class AreYouSafeTab {
             teamId,
             incType,
             isSavedAsDraft,
+            isSaveAsTemplate,
             updatedOn,
           };
           incFormatedData.push(incObj);
