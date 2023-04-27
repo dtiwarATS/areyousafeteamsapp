@@ -710,7 +710,7 @@ const getLastRunAt = async (incId) => {
 const verifyDuplicateInc = async (teamId, incTitle) => {
   try {
     if (teamId != null && teamId != "") {
-      const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle.replaceApostrophe()}' AND TEAM_ID = '${teamId}'`;
+      const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle.replaceApostrophe()}' AND TEAM_ID = '${teamId}' AND (isSaveAsTemplate != 1 or isSaveAsTemplate is null)`;
       const result = await db.getDataFromDB(sqlLastRunAt);
       return result != null && result.length > 0;
     }
