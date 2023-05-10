@@ -187,6 +187,12 @@ const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
   }
 };
 
+const getTemplateList = async (userId) => {
+  const sqlQuery = `select * from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}'`;
+  const userResult = await db.getDataFromDB(sqlQuery, userId);
+  return userResult;
+};
+
 const getAdmins = async (aadObjuserId) => {
   console.log("came in method");
   try {
