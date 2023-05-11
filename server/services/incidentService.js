@@ -188,7 +188,7 @@ const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
 };
 
 const getTemplateList = async (userId) => {
-  const sqlQuery = `select id incId,template_name title from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}'`;
+  const sqlQuery = `select -1 as 'incId', 'None' as 'incTemplate' UNION select id incId,template_name 'incTemplate'  from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}'`;
   const userResult = await db.getDataFromDB(sqlQuery, userId);
   return userResult;
 };
@@ -1033,9 +1033,10 @@ const getTeamMemeberSqlQuery = (
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
-    ${resendSafetyCheck == "true"
-      ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
-      : ""
+    ${
+      resendSafetyCheck == "true"
+        ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
+        : ""
     }  
     ORDER BY u.[USER_NAME]; `
   );
@@ -1445,7 +1446,7 @@ const updateConversationId = async (teamId, userObjId) => {
           sqlUpdate = "";
           console.log(sql);
           db.updateDataIntoDBAsync(sql, dbPool, userObjId)
-            .then((resp) => { })
+            .then((resp) => {})
             .catch((err) => {
               sqlUpdate += sql;
               processSafetyBotError(err, "", "", userObjId, sql);
