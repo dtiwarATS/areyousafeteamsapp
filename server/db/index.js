@@ -50,6 +50,7 @@ const getColumns = (tableName) => {
         "isSavedAsDraft",
         "isSaveAsTemplate",
         "updatedOn",
+        "template_name",
       ];
       break;
 
@@ -165,9 +166,8 @@ const getUpdateDataIntoDBQuery = (
       let updateSql = `update ${tableName} set `;
       const columns = getColumns(tableName);
       incidentValues.forEach((colValue, index) => {
-        updateSql += ` ${index > 0 ? ", " : ""} ${
-          columns[index]
-        } = ${parseValue(colValue)} `;
+        updateSql += ` ${index > 0 ? ", " : ""} ${columns[index]
+          } = ${parseValue(colValue)} `;
       });
       updateSql += ` where  ${pkColumn} = ${pkColumnValue}; `;
       return updateSql;
