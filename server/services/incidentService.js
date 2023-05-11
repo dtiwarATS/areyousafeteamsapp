@@ -188,7 +188,7 @@ const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
 };
 
 const getTemplateList = async (userId) => {
-  const sqlQuery = `select * from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}'`;
+  const sqlQuery = `select id incId,ISNULL(template_name,inc_name) title from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}'`;
   const userResult = await db.getDataFromDB(sqlQuery, userId);
   return userResult;
 };
@@ -1898,4 +1898,5 @@ module.exports = {
   getNAReapSelectedTeams,
   getMembersCountForSubscriptionType1,
   updateSafetyCheckStatus,
+  getTemplateList,
 };
