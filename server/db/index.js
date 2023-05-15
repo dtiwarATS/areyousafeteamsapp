@@ -20,7 +20,7 @@ const getColumns = (tableName) => {
         "welcomeMessageSent",
         "serviceUrl",
         "channelId",
-        "channelName"
+        "channelName",
       ];
       break;
 
@@ -48,7 +48,9 @@ const getColumns = (tableName) => {
         "situation",
         "isTestRecord",
         "isSavedAsDraft",
-        "updatedOn"
+        "isSaveAsTemplate",
+        "updatedOn",
+        "template_name",
       ];
       break;
 
@@ -74,7 +76,7 @@ const getColumns = (tableName) => {
         "comments",
         "requested_date",
         "comment_date",
-        "team_ids"
+        "team_ids",
       ];
       break;
     default:
@@ -108,7 +110,11 @@ const processValues = (values) => {
   return processedValues;
 };
 
-const getDataFromDB = async (sqlQuery, userObjId = "", isSingleQuery = true) => {
+const getDataFromDB = async (
+  sqlQuery,
+  userObjId = "",
+  isSingleQuery = true
+) => {
   try {
     pool = await poolPromise;
     const data = await pool.request().query(sqlQuery);
@@ -125,7 +131,7 @@ const getInsertSql = (tableName, values) => {
   const columnsStr = columns.join(",");
   const valuesStr = processValues(values);
   return `insert into ${tableName}(${columnsStr}) values(${valuesStr})`;
-}
+};
 
 const insertDataIntoDB = async (tableName, values) => {
   let query = "";
@@ -148,13 +154,20 @@ const insertDataIntoDB = async (tableName, values) => {
   }
 };
 
-const getUpdateDataIntoDBQuery = (tableName, incidentValues, pkColumn, pkColumnValue, userObjId) => {
+const getUpdateDataIntoDBQuery = (
+  tableName,
+  incidentValues,
+  pkColumn,
+  pkColumnValue,
+  userObjId
+) => {
   try {
     if (pkColumn && incidentValues && tableName && pkColumnValue > 0) {
       let updateSql = `update ${tableName} set `;
       const columns = getColumns(tableName);
       incidentValues.forEach((colValue, index) => {
-        updateSql += ` ${(index > 0 ? ", " : "")} ${columns[index]} = ${parseValue(colValue)} `;
+        updateSql += ` ${index > 0 ? ", " : ""} ${columns[index]
+          } = ${parseValue(colValue)} `;
       });
       updateSql += ` where  ${pkColumn} = ${pkColumnValue}; `;
       return updateSql;
@@ -163,7 +176,7 @@ const getUpdateDataIntoDBQuery = (tableName, incidentValues, pkColumn, pkColumnV
     processSafetyBotError(err, "", "", userObjId, "getUpdateDataIntoDBQuery");
   }
   return null;
-}
+};
 
 const updateDataIntoDB = async (query, userObjId) => {
   try {
@@ -186,14 +199,16 @@ const getPoolPromise = async (userObjId) => {
     processSafetyBotError(err, "", "", userObjId);
   }
   return pool;
-}
+};
 
 const updateDataIntoDBAsync = async (query, pool, userObjId) => {
   try {
     return new Promise((resolve, reject) => {
       try {
         //console.log(`updateDataIntoDBAsync ${query}`);
-        pool.request().query(query)
+        pool
+          .request()
+          .query(query)
           .then((resp) => {
             //console.log("saved");
             resolve(resp);
@@ -239,7 +254,7 @@ const db = {
   insertData,
   updateDataIntoDBAsync,
   getPoolPromise,
-  getUpdateDataIntoDBQuery
+  getUpdateDataIntoDBQuery,
 };
 
 module.exports = db;

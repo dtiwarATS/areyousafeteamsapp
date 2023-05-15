@@ -99,7 +99,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
     if (runAt != null) {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
       inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
-      inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn,
+      inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
       inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
@@ -112,7 +112,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
     } else {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
       inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
-      inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn,
+      inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, m.is_message_delivered, 
       m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
       inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
@@ -159,7 +159,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let selectQuery = ` ${createdByVar}
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
-  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn,
+  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,
   m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
@@ -185,6 +185,12 @@ const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
     console.log(err);
     processSafetyBotError(err, teamId, "", userObjId);
   }
+};
+
+const getTemplateList = async (userId) => {
+  const sqlQuery = `select -1 as 'incId', 'None' as 'incTemplate' UNION select id incId,template_name 'incTemplate'  from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}'`;
+  const userResult = await db.getDataFromDB(sqlQuery, userId);
+  return userResult;
 };
 
 const getAdmins = async (aadObjuserId) => {
@@ -710,7 +716,7 @@ const getLastRunAt = async (incId) => {
 const verifyDuplicateInc = async (teamId, incTitle) => {
   try {
     if (teamId != null && teamId != "") {
-      const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle.replaceApostrophe()}' AND TEAM_ID = '${teamId}'`;
+      const sqlLastRunAt = `SELECT INC_NAME FROM MSTEAMSINCIDENTS WHERE INC_NAME = '${incTitle.replaceApostrophe()}' AND TEAM_ID = '${teamId}' AND (isSaveAsTemplate != 1 or isSaveAsTemplate is null)`;
       const result = await db.getDataFromDB(sqlLastRunAt);
       return result != null && result.length > 0;
     }
@@ -1892,4 +1898,5 @@ module.exports = {
   getNAReapSelectedTeams,
   getMembersCountForSubscriptionType1,
   updateSafetyCheckStatus,
+  getTemplateList,
 };

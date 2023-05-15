@@ -29,7 +29,9 @@ class Incident {
     situation,
     isTestRecord,
     isSavedAsDraft,
-    updatedOn
+    isSaveAsTemplate,
+    updatedOn,
+    template_name,
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -60,7 +62,9 @@ class Incident {
     this.situation = situation;
     this.isTestRecord = isTestRecord;
     this.isSavedAsDraft = isSavedAsDraft;
+    this.isSaveAsTemplate = isSaveAsTemplate;
     this.updatedOn = updatedOn;
+    this.incTemplate = template_name;
   }
 }
 

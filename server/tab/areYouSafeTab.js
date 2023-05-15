@@ -186,7 +186,9 @@ class AreYouSafeTab {
             teamId,
             incType,
             isSavedAsDraft,
+            isSaveAsTemplate,
             updatedOn,
+            incTemplate: incTemplate,
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -216,7 +218,8 @@ class AreYouSafeTab {
           if (
             inc.members != null &&
             inc.members.length > 0 &&
-            !isSavedAsDraft
+            !isSavedAsDraft &&
+            !isSaveAsTemplate
           ) {
             const memberObj = this.sortMembers(inc.members, inc.incTypeId);
             if (memberObj != null) {
@@ -232,7 +235,7 @@ class AreYouSafeTab {
                   responsePercentage =
                     Math.round(
                       ((needAssistanceCount + safeCount) * 100) /
-                        inc.members.length
+                      inc.members.length
                     ).toString() + "%";
                 }
               } else {
@@ -279,7 +282,9 @@ class AreYouSafeTab {
             teamId,
             incType,
             isSavedAsDraft,
+            isSaveAsTemplate,
             updatedOn,
+            incTemplate,
           };
           incFormatedData.push(incObj);
         });
@@ -459,8 +464,8 @@ class AreYouSafeTab {
                 (index == 0
                   ? ""
                   : index == adminsArr.length - 1
-                  ? " and "
-                  : ", ") + usrName;
+                    ? " and "
+                    : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -478,8 +483,8 @@ class AreYouSafeTab {
                     (currentTeamsAdminsStr === ""
                       ? ""
                       : index == adminsArr.length - 1
-                      ? " and "
-                      : ", ") + usrName;
+                        ? " and "
+                        : ", ") + usrName;
                 }
               });
 
@@ -651,6 +656,7 @@ class AreYouSafeTab {
           .toString()
           .replace(/\\n/g, "\n\n");
         incData.incTitle = incData.incTitle.trim();
+        incData.incTemplate = incData.incTemplate.trim();
         newInc = await incidentService.createNewInc(
           incData,
           responseSelectedMembers,
