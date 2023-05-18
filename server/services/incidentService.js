@@ -142,7 +142,6 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
       " order by inc.INC_STATUS_ID, CAST(inc.created_date as datetime) desc, CAST(inc.updatedOn as datetime) desc, inc.id desc , m.[timestamp] desc, m.user_name ";
   }
 
-  let createdByVar = "";
   let whereSql = "",
     userPrincipalleftJoin = "";
   if (teamId != null) {
@@ -151,12 +150,11 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   }
 
   if (aadObjuserId != null) {
-    createdByVar = `Declare @createdByUser NVARCHAR(MAX) = (select top 1 user_id from MSTeamsTeamsUsers where user_aadobject_id = '${aadObjuserId}'); `;
-    whereSql = ` where inc.created_by = @createdByUser `;
+    whereSql = ` where  inc.team_id  in (select team_id from MSTeamsInstallationDetails where (user_obj_id = '${aadObjuserId}' OR super_users like '%${aadObjuserId}%') AND uninstallation_date is null and team_id is not null and team_id <> '') `;
     //userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id `;
   }
 
-  let selectQuery = ` ${createdByVar}
+  let selectQuery = `
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
   inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,
@@ -1033,10 +1031,9 @@ const getTeamMemeberSqlQuery = (
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
-    ${
-      resendSafetyCheck == "true"
-        ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
-        : ""
+    ${resendSafetyCheck == "true"
+      ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
+      : ""
     }  
     ORDER BY u.[USER_NAME]; `
   );
@@ -1446,7 +1443,7 @@ const updateConversationId = async (teamId, userObjId) => {
           sqlUpdate = "";
           console.log(sql);
           db.updateDataIntoDBAsync(sql, dbPool, userObjId)
-            .then((resp) => {})
+            .then((resp) => { })
             .catch((err) => {
               sqlUpdate += sql;
               processSafetyBotError(err, "", "", userObjId, sql);
