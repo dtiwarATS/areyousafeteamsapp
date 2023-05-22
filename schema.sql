@@ -722,3 +722,30 @@ BEGIN
  ALTER TABLE MSTeamsIncidents ADD template_name VARCHAR(255) NULL
 END 
 GO 
+
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'EnableSafetycheckForVisitors') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD EnableSafetycheckForVisitors BIT
+END 
+GO 
+
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'SafetycheckForVisitorsQuestion1') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion1 BIT
+END 
+GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'SafetycheckForVisitorsQuestion2') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion2 BIT
+END 
+
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'SafetycheckForVisitorsQuestion3') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion3 BIT
+END 
+GO 
