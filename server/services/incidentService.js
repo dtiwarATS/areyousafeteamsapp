@@ -1193,10 +1193,11 @@ const getSuperUsersByTeamId = async (teamId) => {
 
 
 const getenablecheck=async (teamId)=>{
- let result=0;
+ let result=null;
   try{
     const getenablequery=`select EnableSafetycheckForVisitors,SafetycheckForVisitorsQuestion1,SafetycheckForVisitorsQuestion2,SafetycheckForVisitorsQuestion3 from MSTeamsInstallationDetails where team_id='${teamId}' `;
     const result=await db.getDataFromDB(getenablequery);
+    console.log(result);
   }
   catch(err){
     console.log(err);
