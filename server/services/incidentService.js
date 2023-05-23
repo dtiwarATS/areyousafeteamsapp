@@ -1191,6 +1191,20 @@ const getSuperUsersByTeamId = async (teamId) => {
   return Promise.resolve(result);
 };
 
+
+const getenablecheck=async (teamId)=>{
+  let result=null;
+  try{
+    const getenablequery=`select EnableSafetycheckForVisitors,SafetycheckForVisitorsQuestion1,SafetycheckForVisitorsQuestion2,SafetycheckForVisitorsQuestion3 from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    const result=await db.getDataFromDB(getenablequery);
+  }
+  catch(err){
+    console.log(err);
+    processSafetyBotError(err, teamId, "");
+  }
+  return Promise.resolve(result);
+};
+
 const isWelcomeMessageSend = async (userObjId) => {
   let isWelcomeMessageSent = false;
   try {
@@ -1896,4 +1910,5 @@ module.exports = {
   getMembersCountForSubscriptionType1,
   updateSafetyCheckStatus,
   getTemplateList,
+  getenablecheck,
 };

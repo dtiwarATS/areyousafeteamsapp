@@ -490,11 +490,14 @@ const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
   return Promise.resolve(isUpdated);
 };
 
-const updateSuperUserDataByUserAadObjId = async (userId, teamId, selectedUserStr = "") => {
+
+
+const updateSuperUserDataByUserAadObjId = async (userId, teamId, selectedUserStr = "",EnableSafetycheckForVisitors,SafetycheckForVisitorsQuestion1,SafetycheckForVisitorsQuestion2,SafetycheckForVisitorsQuestion3) => {
   let isUpdated = false;
   try {
     pool = await poolPromise;
-    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}' WHERE(user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',EnableSafetycheckForVisitors='${EnableSafetycheckForVisitors},SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',
+    SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' WHERE(user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
 
     const result = await pool.request().query(updateQuery);
     isUpdated = true;
