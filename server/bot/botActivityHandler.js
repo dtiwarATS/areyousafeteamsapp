@@ -29,7 +29,7 @@ const {
   getUserLicenseDetails,
   updateIsUserInfoSaved,
   getCompanyDataByTenantId,
-  renameTeam
+  renameTeam,
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
@@ -37,7 +37,7 @@ const {
   getAllTeamMembers,
   getAllTeamMembersByConnectorClient,
   sendMultipleDirectMessageCard,
-  getConversationMembers
+  getConversationMembers,
 } = require("../api/apiMethods");
 const {
   updateMainCard,
@@ -48,10 +48,18 @@ const {
   updateDeleteCard,
   updateSesttingsCard,
   updateContactSubmitCard,
+  updateSafeMessageqestion1,
+  updateSafeMessageqestion2,
+  updateSafeMessageqestion3,
 } = require("../models/UpdateCards");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
-const { getWelcomeMessageCard, getSubcriptionSelectionCard, getTestIncPreviewCard, getWelcomeMessageCardForChannel } = require("./subscriptionCard");
+const {
+  getWelcomeMessageCard,
+  getSubcriptionSelectionCard,
+  getTestIncPreviewCard,
+  getWelcomeMessageCardForChannel,
+} = require("./subscriptionCard");
 const PersonalEmail = require("../Email/personalEmail");
 
 class BotActivityHandler extends TeamsActivityHandler {
@@ -76,7 +84,10 @@ class BotActivityHandler extends TeamsActivityHandler {
         const acvtivityData = context.activity;
         const tenantId = acvtivityData?.conversation?.tenantId;
 
-        const isValidTenant = () => { (tenantId != null && tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4") };
+        const isValidTenant = () => {
+          tenantId != null &&
+            tenantId === "b9328432-f501-493e-b7f4-3105520a1cd4";
+        };
 
         if (acvtivityData.text == "sendversionupdate") {
           await bot.sendMsg(context);
@@ -96,27 +107,38 @@ class BotActivityHandler extends TeamsActivityHandler {
           if (isValidTenant) {
             await incidentService.updateConversationId();
           }
-        }
-        else {
+        } else {
           await context.sendActivities([{ type: "typing" }]);
           if (acvtivityData.conversation.conversationType === "channel") {
             await this.hanldeChannelUserMsg(context);
-          } else if (acvtivityData.conversation.conversationType === "personal") {
-
-            let companyData = null, isInstalledInTeam = true;
+          } else if (
+            acvtivityData.conversation.conversationType === "personal"
+          ) {
+            let companyData = null,
+              isInstalledInTeam = true;
             const aadObjectId = acvtivityData.from.aadObjectId;
-            ({ companyData, isInstalledInTeam, isSuperUser } = await incidentService.isBotInstalledInTeam(aadObjectId));
+            ({ companyData, isInstalledInTeam, isSuperUser } =
+              await incidentService.isBotInstalledInTeam(aadObjectId));
 
-            const userLicenseDetails = await getUserLicenseDetails(aadObjectId, companyData.teamId);
-            if (userLicenseDetails.userId != null && userLicenseDetails?.hasLicense === false) {
-              await this.notifyUserForInvalidLicense(context, userLicenseDetails, companyData, aadObjectId);
+            const userLicenseDetails = await getUserLicenseDetails(
+              aadObjectId,
+              companyData.teamId
+            );
+            if (
+              userLicenseDetails.userId != null &&
+              userLicenseDetails?.hasLicense === false
+            ) {
+              await this.notifyUserForInvalidLicense(
+                context,
+                userLicenseDetails,
+                companyData,
+                aadObjectId
+              );
               await next();
               return;
             }
 
-            const isAdmin = await isAdminUser(
-              aadObjectId
-            );
+            const isAdmin = await isAdminUser(aadObjectId);
 
             if (!isInstalledInTeam) {
               bot.sendIntroductionMessage(context, acvtivityData.from);
@@ -131,21 +153,51 @@ class BotActivityHandler extends TeamsActivityHandler {
             }
 
             try {
-              if (companyData != null && acvtivityData != null && companyData.teamId != null) {
-                if (companyData.serviceUrl == null || companyData.serviceUrl == "") {
+              if (
+                companyData != null &&
+                acvtivityData != null &&
+                companyData.teamId != null
+              ) {
+                if (
+                  companyData.serviceUrl == null ||
+                  companyData.serviceUrl == ""
+                ) {
                   await bot.updateServiceUrl(context, companyData.userTenantId);
                 }
 
                 if (!companyData.isUserInfoSaved) {
-                  const companyDataofSameTenantId = await getCompanyDataByTenantId(companyData.userTenantId, "and (isUserInfoSaved is null or isUserInfoSaved = 0)");
-                  if (companyDataofSameTenantId != null && companyDataofSameTenantId.length > 0) {
+                  const companyDataofSameTenantId =
+                    await getCompanyDataByTenantId(
+                      companyData.userTenantId,
+                      "and (isUserInfoSaved is null or isUserInfoSaved = 0)"
+                    );
+                  if (
+                    companyDataofSameTenantId != null &&
+                    companyDataofSameTenantId.length > 0
+                  ) {
                     await Promise.all(
                       companyDataofSameTenantId.map(async (cmpData) => {
-                        const allTeamMembers = await getAllTeamMembersByConnectorClient(cmpData.team_id, acvtivityData.serviceUrl);
-                        if (allTeamMembers != null && allTeamMembers.length > 0) {
-                          const isUserInfoSaved = await addTeamMember(cmpData.team_id, allTeamMembers, false);
+                        const allTeamMembers =
+                          await getAllTeamMembersByConnectorClient(
+                            cmpData.team_id,
+                            acvtivityData.serviceUrl
+                          );
+                        if (
+                          allTeamMembers != null &&
+                          allTeamMembers.length > 0
+                        ) {
+                          const isUserInfoSaved = await addTeamMember(
+                            cmpData.team_id,
+                            allTeamMembers,
+                            false
+                          );
                           if (isUserInfoSaved) {
-                            await updateIsUserInfoSaved(cmpData.id, cmpData.team_id, cmpData.user_tenant_id, true);
+                            await updateIsUserInfoSaved(
+                              cmpData.id,
+                              cmpData.team_id,
+                              cmpData.user_tenant_id,
+                              true
+                            );
                           }
                         }
                       })
@@ -177,10 +229,17 @@ class BotActivityHandler extends TeamsActivityHandler {
       if (userEmail == null) {
         userEmail = adminUserInfo?.userPrincipalName;
       }
-      let channelId = "", channelName = "";
+      let channelId = "",
+        channelName = "";
       if (context?.activity?.conversation?.conversationType == "channel") {
-        channelId = (context.activity.conversation?.id != null) ? context.activity.conversation?.id : teamId;
-        channelName = (context.activity.conversation?.name != null) ? context.activity.conversation?.name : "General";
+        channelId =
+          context.activity.conversation?.id != null
+            ? context.activity.conversation?.id
+            : teamId;
+        channelName =
+          context.activity.conversation?.name != null
+            ? context.activity.conversation?.name
+            : "General";
       }
       return {
         userId: adminUserInfo.id,
@@ -197,7 +256,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         channelId,
         channelName,
       };
-    }
+    };
 
     this.onConversationUpdate(async (context, next) => {
       let addedBot = false;
@@ -206,7 +265,8 @@ class BotActivityHandler extends TeamsActivityHandler {
       const userAadObjectId = acvtivityData?.from?.aadObjectId;
       try {
         const conversationType = acvtivityData.conversation.conversationType;
-        if (acvtivityData &&
+        if (
+          acvtivityData &&
           acvtivityData?.channelData?.eventType === "teamMemberAdded"
         ) {
           const { membersAdded } = acvtivityData;
@@ -216,7 +276,11 @@ class BotActivityHandler extends TeamsActivityHandler {
           );
 
           let teamMemberCount = 0;
-          if (allMembersInfo != null && Array.isArray(allMembersInfo) && allMembersInfo.length > 0) {
+          if (
+            allMembersInfo != null &&
+            Array.isArray(allMembersInfo) &&
+            allMembersInfo.length > 0
+          ) {
             teamMemberCount = allMembersInfo.length;
           }
           const adminUserInfo = allMembersInfo.find(
@@ -228,10 +292,25 @@ class BotActivityHandler extends TeamsActivityHandler {
               addedBot = true;
 
               if (adminUserInfo) {
-                const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, teamId, acvtivityData.channelData.team.name);
-                const companyData = await insertCompanyData(companyDataObj, allMembersInfo, conversationType);
+                const companyDataObj = getCompaniesDataJSON(
+                  context,
+                  adminUserInfo,
+                  teamId,
+                  acvtivityData.channelData.team.name
+                );
+                const companyData = await insertCompanyData(
+                  companyDataObj,
+                  allMembersInfo,
+                  conversationType
+                );
                 //const newInc = await bot.createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjectId, acvtivityData.from, companyData);
-                await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount);
+                await this.sendWelcomeMessage(
+                  context,
+                  acvtivityData,
+                  adminUserInfo,
+                  companyData,
+                  teamMemberCount
+                );
                 if (teamId != null) {
                   incidentService.updateConversationId(teamId);
                 }
@@ -243,39 +322,62 @@ class BotActivityHandler extends TeamsActivityHandler {
               if (teamMember != null) {
                 const teamMembers = [teamMember];
                 await addTeamMember(teamId, teamMembers, true);
-                if (adminUserInfo && i == (membersAdded.length - 1)) {
-                  let userEmail = adminUserInfo.email ? adminUserInfo.email : adminUserInfo.userPrincipalName;
+                if (adminUserInfo && i == membersAdded.length - 1) {
+                  let userEmail = adminUserInfo.email
+                    ? adminUserInfo.email
+                    : adminUserInfo.userPrincipalName;
                   if (userEmail) {
-                    const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, teamId, acvtivityData.channelData.team.name);
-                    await this.onMemberAddedSendSubscriptionSelectionCard(context, acvtivityData.from, userEmail, teamId, companyDataObj);
+                    const companyDataObj = getCompaniesDataJSON(
+                      context,
+                      adminUserInfo,
+                      teamId,
+                      acvtivityData.channelData.team.name
+                    );
+                    await this.onMemberAddedSendSubscriptionSelectionCard(
+                      context,
+                      acvtivityData.from,
+                      userEmail,
+                      teamId,
+                      companyDataObj
+                    );
                   }
                 }
                 if (teamMember.aadObjectId != null) {
-                  incidentService.updateConversationId(null, teamMember.aadObjectId);
+                  incidentService.updateConversationId(
+                    null,
+                    teamMember.aadObjectId
+                  );
                 }
               }
             }
           }
-        }
-        else if (
+        } else if (
           (acvtivityData &&
             acvtivityData?.channelData?.eventType === "teamDeleted") ||
           acvtivityData?.channelData?.eventType === "teamMemberRemoved"
         ) {
           if (acvtivityData?.channelData?.eventType === "teamDeleted") {
-            const isDeleted = await deleteCompanyData(teamId, acvtivityData.from.aadObjectId);
+            const isDeleted = await deleteCompanyData(
+              teamId,
+              acvtivityData.from.aadObjectId
+            );
             if (isDeleted) {
-              await this.sendUninstallationEmail(acvtivityData.from.aadObjectId);
+              await this.sendUninstallationEmail(
+                acvtivityData.from.aadObjectId
+              );
             }
           } else {
             const { membersRemoved } = acvtivityData;
 
             if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
               const isDeleted = await deleteCompanyData(
-                acvtivityData?.channelData?.team.id, acvtivityData.from.aadObjectId
+                acvtivityData?.channelData?.team.id,
+                acvtivityData.from.aadObjectId
               );
               if (isDeleted) {
-                await this.sendUninstallationEmail(acvtivityData.from.aadObjectId);
+                await this.sendUninstallationEmail(
+                  acvtivityData.from.aadObjectId
+                );
               }
             } else {
               for (let i = 0; i < membersRemoved.length; i++) {
@@ -296,94 +398,129 @@ class BotActivityHandler extends TeamsActivityHandler {
                   acvtivityData.from.id
                 );
                 if (adminUserInfo) {
-                  const companyDataObj = getCompaniesDataJSON(context, adminUserInfo, "", "");
-                  const companyData = await insertCompanyData(companyDataObj, null, conversationType);
-                  await this.sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, 0);
+                  const companyDataObj = getCompaniesDataJSON(
+                    context,
+                    adminUserInfo,
+                    "",
+                    ""
+                  );
+                  const companyData = await insertCompanyData(
+                    companyDataObj,
+                    null,
+                    conversationType
+                  );
+                  await this.sendWelcomeMessage(
+                    context,
+                    acvtivityData,
+                    adminUserInfo,
+                    companyData,
+                    0
+                  );
                 }
               }
             }
           }
-        }
-        else if (acvtivityData?.channelData?.eventType === "channelCreated" || acvtivityData?.channelData?.eventType === "channelDeleted") {
-        }
-        else if (acvtivityData?.channelData?.eventType === "teamRenamed") {
+        } else if (
+          acvtivityData?.channelData?.eventType === "channelCreated" ||
+          acvtivityData?.channelData?.eventType === "channelDeleted"
+        ) {
+        } else if (acvtivityData?.channelData?.eventType === "teamRenamed") {
           const teamName = acvtivityData?.channelData?.team?.name;
           const tenantId = acvtivityData?.conversation?.tenantId;
           if (teamName != null && tenantId != null) {
             await renameTeam(teamId, teamName, tenantId);
           }
-        }
-        else {
+        } else {
           // const welcomeMsg = `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
           //    \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.\r\nYou do not need any other software or service to use this app.\r\nEnter 'Hi' to start a conversation with the bot.
-
           //    \n\r\r\n\n Are You Safe? Bot works best when added to a Team. Please click on the arrow button next to the blue Add button and select 'Add to a team' to continue.`;
-
           // await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
         }
       } catch (err) {
-        processSafetyBotError(err, teamId, "", userAadObjectId, JSON.stringify(acvtivityData));
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          userAadObjectId,
+          JSON.stringify(acvtivityData)
+        );
       }
     });
   }
 
-  async notifyUserForInvalidLicense(context, userLicenseDetails, companyData, userAadObjId) {
+  async notifyUserForInvalidLicense(
+    context,
+    userLicenseDetails,
+    companyData,
+    userAadObjId
+  ) {
     try {
-      const { userName, userId, adminUsrId, adminUsrName, teamName } = userLicenseDetails;
+      const { userName, userId, adminUsrId, adminUsrName, teamName } =
+        userLicenseDetails;
       //const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
       let blockMessage = `You do not have the **AreYouSafe** bot license assigned for your **${teamName}** team. Please contact your admin <at>${adminUsrName}</at> to assign you the license.`;
-      if (userLicenseDetails && userLicenseDetails.isTrialExpired == true && userLicenseDetails.previousSubscriptionType == "2") {
+      if (
+        userLicenseDetails &&
+        userLicenseDetails.isTrialExpired == true &&
+        userLicenseDetails.previousSubscriptionType == "2"
+      ) {
         blockMessage = `Your license has been deactivated since the **AreYouSafe** bot free trial period for your **${teamName}** team has ended. Please contact your admin <at>${adminUsrName}</at> to upgrade to a premium subscription plan.`;
       }
 
       const cardJSON = {
-        "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.4",
-        "body": [
+        type: "AdaptiveCard",
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        version: "1.4",
+        body: [
           {
-            "type": "TextBlock",
-            "text": `Hello <at>${userName}</at>,`,
-            "wrap": true
+            type: "TextBlock",
+            text: `Hello <at>${userName}</at>,`,
+            wrap: true,
           },
           {
-            "type": "TextBlock",
-            "text": blockMessage,
-            "wrap": true
+            type: "TextBlock",
+            text: blockMessage,
+            wrap: true,
           },
           {
-            "type": "TextBlock",
-            "text": "With Gratitude,\n\nTeam AreYouSafe",
-            "wrap": true
-          }
+            type: "TextBlock",
+            text: "With Gratitude,\n\nTeam AreYouSafe",
+            wrap: true,
+          },
         ],
-        "msteams": {
-          "entities": [
+        msteams: {
+          entities: [
             {
-              "type": "mention",
-              "text": `<at>${userName}</at>`,
-              "mentioned": {
-                "id": userId,
-                "name": userName,
-              }
+              type: "mention",
+              text: `<at>${userName}</at>`,
+              mentioned: {
+                id: userId,
+                name: userName,
+              },
             },
             {
-              "type": "mention",
-              "text": `<at>${adminUsrName}</at>`,
-              "mentioned": {
-                "id": adminUsrId,
-                "name": adminUsrName,
-              }
-            }
-          ]
-        }
-      }
+              type: "mention",
+              text: `<at>${adminUsrName}</at>`,
+              mentioned: {
+                id: adminUsrId,
+                name: adminUsrName,
+              },
+            },
+          ],
+        },
+      };
       await context.sendActivity({
         attachments: [CardFactory.adaptiveCard(cardJSON)],
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", userAadObjId, "notifyUserForInvalidLicense");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "notifyUserForInvalidLicense"
+      );
     }
   }
 
@@ -392,7 +529,9 @@ class BotActivityHandler extends TeamsActivityHandler {
       var action = context.activity.action;
       const conversationType = context.activity.conversation.conversationType;
       if (action == "remove" && conversationType == "personal") {
-        await deleteCompanyDataByuserAadObjId(context?.activity?.from?.aadObjectId);
+        await deleteCompanyDataByuserAadObjId(
+          context?.activity?.from?.aadObjectId
+        );
       }
     } catch (err) {
       console.log(err);
@@ -423,10 +562,12 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {
-
         const { inc_title: incTitle } = context.activity?.value?.action?.data;
         const user = context.activity.from;
-        const isDuplicateInc = await bot.verifyDuplicateInc(companyData.teamId, incTitle);
+        const isDuplicateInc = await bot.verifyDuplicateInc(
+          companyData.teamId,
+          incTitle
+        );
         if (isDuplicateInc) {
           await bot.showDuplicateIncError(context, user, companyData);
           return {
@@ -439,7 +580,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         if (members === undefined) {
           members = "All Members";
         }
-        let recurrInc = (uVerb === "save_new_recurr_inc") ? "recurring " : "";
+        let recurrInc = uVerb === "save_new_recurr_inc" ? "recurring " : "";
         let text = `✔️ New ${recurrInc}incident '${incTitle}' created successfully.`;
         const cards = CardFactory.adaptiveCard(
           updateCard(incTitle, members, text)
@@ -455,8 +596,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
-      }
-      else if (uVerb === "view_inc_close") {
+      } else if (uVerb === "view_inc_close") {
         const { inc_title: incTitle } = context.activity?.value?.action?.data;
         let members = context.activity?.value?.action?.data?.selected_members;
         if (members === undefined) {
@@ -487,10 +627,12 @@ class BotActivityHandler extends TeamsActivityHandler {
           commentVal,
         } = action.data;
         let incGuidance = await incidentService.getIncGuidance(incId);
-        incGuidance = incGuidance ? incGuidance : "No details available"
+        incGuidance = incGuidance ? incGuidance : "No details available";
         let responseText = commentVal
-          ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance
-          : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` + incGuidance;
+          ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` +
+            incGuidance
+          : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` +
+            incGuidance;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy)
         );
@@ -502,6 +644,122 @@ class BotActivityHandler extends TeamsActivityHandler {
         let responseText = `✔️ Your feedback has been submitted successfully.`;
         const cards = CardFactory.adaptiveCard(
           updateContactSubmitCard(responseText)
+        );
+
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
+      } else if (uVerb === "safetyVisitorQuestion1") {
+        const action = context.activity.value.action;
+        const { info: response, inc, companyData } = action.data;
+        const { incId, incTitle, incCreatedBy } = inc;
+        let respnse1 = "";
+
+        if (response == "question1_yes") {
+          const Qestion2 = CardFactory.adaptiveCard(
+            updateSafeMessageqestion2(
+              incTitle,
+              "",
+              incCreatedBy,
+              response,
+              context.activity.from.id,
+              incId,
+              companyData,
+              inc,
+              incGuidance
+            )
+          );
+
+          await context.sendActivity({
+            attachments: [Qestion2],
+          });
+        } else {
+          respnse1 = `Glad you're safe! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
+        }
+
+        const entities = {
+          type: "mention",
+          text: `<at>${incCreatedBy.name}</at>`,
+          mentioned: {
+            id: incCreatedBy.id,
+            name: incCreatedBy.name,
+          },
+        };
+
+        await sendDirectMessage(
+          context,
+          context.activity.from,
+          respnse1,
+          entities
+        );
+        var incGuidance = await incidentService.getIncGuidance(incId);
+        incGuidance = incGuidance ? incGuidance : "No details available";
+      } else if (uVerb === "safetyVisitorQuestion2") {
+        const action = context.activity.value.action;
+        const { info: response, inc, companyData } = action.data;
+        const { incId, incTitle, incCreatedBy } = inc;
+        let respnse1 = "";
+        if (response == "question2_no") {
+          const Qestion3 = CardFactory.adaptiveCard(
+            updateSafeMessageqestion3(
+              incTitle,
+              "",
+              incCreatedBy,
+              response,
+              context.activity.from.id,
+              incId,
+              companyData,
+              inc,
+              incGuidance
+            )
+          );
+
+          await context.sendActivity({
+            attachments: [Qestion3],
+          });
+        } else {
+          respnse1 = `Thank God!!!!!! Glad you're safe! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
+        }
+
+        const entities = {
+          type: "mention",
+          text: `<at>${incCreatedBy.name}</at>`,
+          mentioned: {
+            id: incCreatedBy.id,
+            name: incCreatedBy.name,
+          },
+        };
+
+        await sendDirectMessage(
+          context,
+          context.activity.from,
+          respnse1,
+          entities
+        );
+        var incGuidance = await incidentService.getIncGuidance(incId);
+        incGuidance = incGuidance ? incGuidance : "No details available";
+      }
+
+      ////////////////////Question3
+      else if (uVerb === "safetyVisitorQuestion3") {
+        const action = context.activity.value.action;
+        const {
+          userId,
+          incId,
+          incTitle,
+          incCreatedBy,
+          eventResponse,
+          commentVal,
+        } = action.data;
+        let incGuidance = await incidentService.getIncGuidance(incId);
+        incGuidance = incGuidance ? incGuidance : "No details available";
+        let responseText = commentVal
+          ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` +
+            incGuidance
+          : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` +
+            incGuidance;
+        const cards = CardFactory.adaptiveCard(
+          updateSubmitCommentCard(responseText, incCreatedBy)
         );
 
         const message = MessageFactory.attachment(cards);
@@ -536,7 +794,12 @@ class BotActivityHandler extends TeamsActivityHandler {
           },
         };
 
-        await sendDirectMessage(context, context.activity.from, responseText, entities);
+        await sendDirectMessage(
+          context,
+          context.activity.from,
+          responseText,
+          entities
+        );
         var incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance ? incGuidance : "No details available";
         const cards = CardFactory.adaptiveCard(
@@ -555,6 +818,22 @@ class BotActivityHandler extends TeamsActivityHandler {
 
         await context.sendActivity({
           attachments: [cards],
+        });
+        const Qestion1 = CardFactory.adaptiveCard(
+          updateSafeMessageqestion1(
+            incTitle,
+            "",
+            incCreatedBy,
+            response,
+            context.activity.from.id,
+            incId,
+            companyData,
+            inc,
+            incGuidance
+          )
+        );
+        await context.sendActivity({
+          attachments: [Qestion1],
         });
 
         // const message = MessageFactory.attachment(cards);
@@ -579,7 +858,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           isAllMember = true;
           preTextMsg = `Should I send this message to everyone?`;
         }
-        const isRecurringInc = (action.data.incType === "recurringIncident");
+        const isRecurringInc = action.data.incType === "recurringIncident";
         const cards = CardFactory.adaptiveCard(
           updateSendApprovalMessage(
             incTitle,
@@ -639,9 +918,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
       const mainCard = await bot.invokeMainActivityBoard(context, companyData);
       await context.sendActivity({
-        attachments: [
-          CardFactory.adaptiveCard(mainCard)
-        ]
+        attachments: [CardFactory.adaptiveCard(mainCard)],
       });
     } catch (err) {
       console.log(err);
@@ -653,48 +930,57 @@ class BotActivityHandler extends TeamsActivityHandler {
     const { userName, userId, adminUsrId, adminUsrName } = userLicenseDetails;
     try {
       const cardJSON = {
-        "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.4",
-        "body": [
+        type: "AdaptiveCard",
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        version: "1.4",
+        body: [
           {
-            "type": "TextBlock",
-            "text": `Hello <at>${userName}</at>,`,
-            "wrap": true
+            type: "TextBlock",
+            text: `Hello <at>${userName}</at>,`,
+            wrap: true,
           },
           {
-            "type": "TextBlock",
-            "text": `Unfortunately, you do not have permission to initiate a safety check. Please contact your admin <at>${adminUsrName}</at> to give you admin access.`,
-            "wrap": true
-          }
+            type: "TextBlock",
+            text: `Unfortunately, you do not have permission to initiate a safety check. Please contact your admin <at>${adminUsrName}</at> to give you admin access.`,
+            wrap: true,
+          },
         ],
-        "msteams": {
-          "entities": [
+        msteams: {
+          entities: [
             {
-              "type": "mention",
-              "text": `<at>${userName}</at>`,
-              "mentioned": {
-                "id": userId,
-                "name": userName,
-              }
+              type: "mention",
+              text: `<at>${userName}</at>`,
+              mentioned: {
+                id: userId,
+                name: userName,
+              },
             },
             {
-              "type": "mention",
-              "text": `<at>${adminUsrName}</at>`,
-              "mentioned": {
-                "id": adminUsrId,
-                "name": adminUsrName,
-              }
-            }
-          ]
-        }
-      }
+              type: "mention",
+              text: `<at>${adminUsrName}</at>`,
+              mentioned: {
+                id: adminUsrId,
+                name: adminUsrName,
+              },
+            },
+          ],
+        },
+      };
       await context.sendActivity({
         attachments: [CardFactory.adaptiveCard(cardJSON)],
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", userId, JSON.stringify({ "fnName": "hanldeNonAdminUserMsg", "userLicenseDetails": userLicenseDetails }));
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userId,
+        JSON.stringify({
+          fnName: "hanldeNonAdminUserMsg",
+          userLicenseDetails: userLicenseDetails,
+        })
+      );
     }
   }
   async hanldeChannelUserMsg(context) {
@@ -710,40 +996,88 @@ class BotActivityHandler extends TeamsActivityHandler {
     }
   }
 
-  async sendSubscriptionSelectionCard(context, from, teamMemberCount, userEmail, companyDataObj) {
+  async sendSubscriptionSelectionCard(
+    context,
+    from,
+    teamMemberCount,
+    userEmail,
+    companyDataObj
+  ) {
     try {
-      const subcriptionSelectionCard = getSubcriptionSelectionCard(teamMemberCount, userEmail, companyDataObj);
+      const subcriptionSelectionCard = getSubcriptionSelectionCard(
+        teamMemberCount,
+        userEmail,
+        companyDataObj
+      );
       await sendDirectMessageCard(context, from, subcriptionSelectionCard);
     } catch (err) {
-      processSafetyBotError(err, "", "", from.aadObjectId, "sendSubscriptionSelectionCard");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        from.aadObjectId,
+        "sendSubscriptionSelectionCard"
+      );
     }
   }
 
-  async onMemberAddedSendSubscriptionSelectionCard(context, from, userEmail, teamId, companyDataObj) {
+  async onMemberAddedSendSubscriptionSelectionCard(
+    context,
+    from,
+    userEmail,
+    teamId,
+    companyDataObj
+  ) {
     try {
-      const teamMemberCount = await incidentService.getMembersCountForSubscriptionType1(teamId, from.aadObjectId);
+      const teamMemberCount =
+        await incidentService.getMembersCountForSubscriptionType1(
+          teamId,
+          from.aadObjectId
+        );
       console.log({ teamMemberCount });
       if (teamMemberCount > 10) {
-        await this.sendSubscriptionSelectionCard(context, from, teamMemberCount, userEmail, companyDataObj);
+        await this.sendSubscriptionSelectionCard(
+          context,
+          from,
+          teamMemberCount,
+          userEmail,
+          companyDataObj
+        );
       }
     } catch (err) {
-      processSafetyBotError(err, "", "", from.aadObjectId, "onMemberAddedSendSubscriptionSelectionCard");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        from.aadObjectId,
+        "onMemberAddedSendSubscriptionSelectionCard"
+      );
     }
   }
 
   async sendWelcomeMessageToChannel(context, userName, userId) {
-    const wecomeMessageCardForChannelCard = getWelcomeMessageCardForChannel(userName, userId);
-    const adaptiveCard = CardFactory.adaptiveCard(wecomeMessageCardForChannelCard);
+    const wecomeMessageCardForChannelCard = getWelcomeMessageCardForChannel(
+      userName,
+      userId
+    );
+    const adaptiveCard = CardFactory.adaptiveCard(
+      wecomeMessageCardForChannelCard
+    );
     await context.sendActivity({
       attachments: [adaptiveCard],
     });
-
   }
 
-  async sendWelcomeMessage(context, acvtivityData, adminUserInfo, companyData, teamMemberCount = 0) {
+  async sendWelcomeMessage(
+    context,
+    acvtivityData,
+    adminUserInfo,
+    companyData,
+    teamMemberCount = 0
+  ) {
     const userAadObjId = acvtivityData.from.aadObjectId;
     try {
-      console.log({ "sendWelcomeMessage": companyData });
+      console.log({ sendWelcomeMessage: companyData });
       if (companyData == null) {
         return;
       }
@@ -753,27 +1087,53 @@ class BotActivityHandler extends TeamsActivityHandler {
       //if (!isWelcomeMessageSent) {
       try {
         if (teamName != null) {
-          await this.sendWelcomeMessageToChannel(context, companyData.userName, companyData.userId);
+          await this.sendWelcomeMessageToChannel(
+            context,
+            companyData.userName,
+            companyData.userId
+          );
         }
-        const welcomeMessageCard = getWelcomeMessageCard(teamMemberCount, teamName);
+        const welcomeMessageCard = getWelcomeMessageCard(
+          teamMemberCount,
+          teamName
+        );
         if (teamMemberCount > 0) {
-          const testIncPreviewCard = getTestIncPreviewCard(teamMemberCount, companyData);
-          await sendMultipleDirectMessageCard(context, acvtivityData.from, welcomeMessageCard, testIncPreviewCard);
+          const testIncPreviewCard = getTestIncPreviewCard(
+            teamMemberCount,
+            companyData
+          );
+          await sendMultipleDirectMessageCard(
+            context,
+            acvtivityData.from,
+            welcomeMessageCard,
+            testIncPreviewCard
+          );
         } else {
-          await sendDirectMessageCard(context, acvtivityData.from, welcomeMessageCard);
+          await sendDirectMessageCard(
+            context,
+            acvtivityData.from,
+            welcomeMessageCard
+          );
         }
       } catch (err) {
         processSafetyBotError(err, "", "", userAadObjId, "welcomeMessageCard");
       }
 
-      (new PersonalEmail.PersonalEmail()).sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => { })
+      new PersonalEmail.PersonalEmail()
+        .sendWelcomEmail(companyData.userEmail, userAadObjId)
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
 
       if (teamMemberCount > 10) {
-        this.sendSubscriptionSelectionCard(context, acvtivityData.from, teamMemberCount, companyData.userEmail, companyData);
+        this.sendSubscriptionSelectionCard(
+          context,
+          acvtivityData.from,
+          teamMemberCount,
+          companyData.userEmail,
+          companyData
+        );
       }
 
       // let teamName = "";
@@ -797,18 +1157,19 @@ class BotActivityHandler extends TeamsActivityHandler {
       userAadObjId
     );
     if (userInfo && userInfo.length > 0) {
-      (new PersonalEmail.PersonalEmail()).sendUninstallationEmail(userInfo[0].email, userAadObjId)
-        .then(() => { })
+      new PersonalEmail.PersonalEmail()
+        .sendUninstallationEmail(userInfo[0].email, userAadObjId)
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
 
       await bot.sendUninstallationEmail(
-        userInfo[0].email, userInfo[0].user_name
+        userInfo[0].email,
+        userInfo[0].user_name
       );
     }
   }
-
 }
 
 module.exports.BotActivityHandler = BotActivityHandler;
