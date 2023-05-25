@@ -193,7 +193,12 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       const enablesafety = await tabObj.getenablecheck(teamId);
-      res.send(enablesafety);
+      if (enablesafety.length) {
+        const SafetycheckForVisitorsDetails = enablesafety[0];
+        res.send(SafetycheckForVisitorsDetails);
+      } else {
+        res.send(null);
+      }
     } catch (err) {
       processSafetyBotError(err, teamId, "", userAadObjId);
     }

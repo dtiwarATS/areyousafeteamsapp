@@ -1031,9 +1031,10 @@ const getTeamMemeberSqlQuery = (
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
-    ${resendSafetyCheck == "true"
-      ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
-      : ""
+    ${
+      resendSafetyCheck == "true"
+        ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
+        : ""
     }  
     ORDER BY u.[USER_NAME]; `
   );
@@ -1191,15 +1192,12 @@ const getSuperUsersByTeamId = async (teamId) => {
   return Promise.resolve(result);
 };
 
-
-const getenablecheck=async (teamId)=>{
- let result=null;
-  try{
-    const getenablequery=`select EnableSafetycheckForVisitors,SafetycheckForVisitorsQuestion1,SafetycheckForVisitorsQuestion2,SafetycheckForVisitorsQuestion3 from MSTeamsInstallationDetails where team_id='${teamId}' `;
-    const result=await db.getDataFromDB(getenablequery);
-    console.log(result);
-  }
-  catch(err){
+const getenablecheck = async (teamId) => {
+  let result = null;
+  try {
+    const getenablequery = `select EnableSafetycheckForVisitors,SafetycheckForVisitorsQuestion1,SafetycheckForVisitorsQuestion2,SafetycheckForVisitorsQuestion3 from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    result = await db.getDataFromDB(getenablequery);
+  } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "");
   }
@@ -1458,7 +1456,7 @@ const updateConversationId = async (teamId, userObjId) => {
           sqlUpdate = "";
           console.log(sql);
           db.updateDataIntoDBAsync(sql, dbPool, userObjId)
-            .then((resp) => { })
+            .then((resp) => {})
             .catch((err) => {
               sqlUpdate += sql;
               processSafetyBotError(err, "", "", userObjId, sql);
