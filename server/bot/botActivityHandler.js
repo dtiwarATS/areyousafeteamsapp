@@ -673,27 +673,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           await context.sendActivity({
             attachments: [Qestion2],
           });
-        } else {
-          respnse1 = `Glad you're safe! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
         }
-
-        const entities = {
-          type: "mention",
-          text: `<at>${incCreatedBy.name}</at>`,
-          mentioned: {
-            id: incCreatedBy.id,
-            name: incCreatedBy.name,
-          },
-        };
-
-        await sendDirectMessage(
-          context,
-          context.activity.from,
-          respnse1,
-          entities
-        );
-        var incGuidance = await incidentService.getIncGuidance(incId);
-        incGuidance = incGuidance ? incGuidance : "No details available";
       } else if (uVerb === "safetyVisitorQuestion2") {
         const action = context.activity.value.action;
         const { info: response, inc, companyData } = action.data;
@@ -717,27 +697,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           await context.sendActivity({
             attachments: [Qestion3],
           });
-        } else {
-          respnse1 = `Thank God!!!!!! Glad you're safe! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
         }
-
-        const entities = {
-          type: "mention",
-          text: `<at>${incCreatedBy.name}</at>`,
-          mentioned: {
-            id: incCreatedBy.id,
-            name: incCreatedBy.name,
-          },
-        };
-
-        await sendDirectMessage(
-          context,
-          context.activity.from,
-          respnse1,
-          entities
-        );
-        var incGuidance = await incidentService.getIncGuidance(incId);
-        incGuidance = incGuidance ? incGuidance : "No details available";
       }
 
       ////////////////////Question3

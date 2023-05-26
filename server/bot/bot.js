@@ -188,8 +188,15 @@ const selectResponseCard = async (context, user) => {
     } else if (verb === "newUsrSubscriptionType2") {
       await processnewUsrSubscriptionType2(context, action);
     } else if (verb === "triggerTestSafetyCheckMessage") {
-      await triggerTestSafetyCheckMessage(context, action, user.aadObjectId);
+      await triggerTestSafetyCheckMessage(context, action, user.aadObjectId); //
+    } else if (verb === "safetyVisitorQuestion1") {
+      await Question1safetyVisitor(context, action, 1);
+    } else if (verb === "safetyVisitorQuestion2") {
+      await Question1safetyVisitor(context, action, 2);
+    } else if (verb === "safetyVisitorQuestion3") {
+      await Question1safetyVisitor(context, action, 3);
     }
+
     return Promise.resolve(true);
   } catch (error) {
     console.log("ERROR: ", error);
@@ -2932,6 +2939,51 @@ const submitComment = async (context, user, companyData) => {
   } catch (error) {
     console.log(error);
     processSafetyBotError(err, "", "", user.aadObjectId, "submitComment");
+  }
+};
+
+const Question1safetyVisitor = async (
+  context,
+  user,
+
+  questionNumber
+) => {
+  try {
+    const action = context.activity.value.action;
+    const {
+      userId,
+      incId,
+      incTitle,
+      incCreatedBy,
+      eventResponse,
+      commentVal,
+      inc,
+      info,
+    } = action.data;
+    let dataToBeUpdated = "";
+    let loggerName = "";
+    if (questionNumber === 1) {
+      dataToBeUpdated = info == "question1_yes" ? 1 : 0;
+      loggerName = "Visittor Safety Question 1";
+    }
+    if (questionNumber === 2) {
+      dataToBeUpdated = info == "question2_yes" ? 1 : 0;
+      loggerName = "Visittor Safety Question 2";
+    } else {
+      dataToBeUpdated = commentVal;
+      loggerName = "Visittor Safety Question 3";
+    }
+    await incidentService.safteyvisiterresponseupdate(
+      incId,
+      userId,
+      commentVal,
+      inc,
+      questionNumber,
+      dataToBeUpdated
+    );
+  } catch (error) {
+    console.log(error);
+    processSafetyBotError(err, "", "", user.aadObjectId, loggerName);
   }
 };
 

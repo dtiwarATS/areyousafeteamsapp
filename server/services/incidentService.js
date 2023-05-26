@@ -656,6 +656,31 @@ const updateIncResponseComment = async (
   return Promise.resolve();
 };
 
+const safteyvisiterresponseupdate = async (
+  incidentId,
+  userId,
+  commentText = "",
+  incData,
+  qestionNumber,
+  dataToBeUpdated
+) => {
+  pool = await poolPromise;
+
+  let query = null;
+
+  if (qestionNumber == 1) {
+    query = `UPDATE MSTeamsMemberResponses SET SafetyCheckVisitorsQuestion1Response = '${dataToBeUpdated}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  } else if (qestionNumber == 2) {
+    query = `UPDATE MSTeamsMemberResponses SET SafetyCheckVisitorsQuestion2Response = '${dataToBeUpdated}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  } else if (qestionNumber == 3) {
+    query = `UPDATE MSTeamsMemberResponses SET SafetyCheckVisitorsQuestion3Response = '${dataToBeUpdated}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  }
+  console.log("update query >> ", query);
+  await pool.request().query(query);
+
+  return Promise.resolve();
+};
+
 const getAllInc = async (teamId) => {
   try {
     let eventData = [];
@@ -1910,4 +1935,5 @@ module.exports = {
   updateSafetyCheckStatus,
   getTemplateList,
   getenablecheck,
+  safteyvisiterresponseupdate,
 };
