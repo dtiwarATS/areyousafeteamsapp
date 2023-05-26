@@ -674,6 +674,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           await context.sendActivity({
             attachments: [Qestion2],
           });
+          //click yess button on all visitor safe
         }
       } else if (uVerb === "safetyVisitorQuestion2") {
         const action = context.activity.value.action;
@@ -698,7 +699,24 @@ class BotActivityHandler extends TeamsActivityHandler {
           await context.sendActivity({
             attachments: [Qestion3],
           });
+        } else {
+          respnse1 = ` <at>${incCreatedBy.name}</at> has visitors who are safe.`;
         }
+        const entities = {
+          type: "mention",
+          text: `<at>${incCreatedBy.name}</at>`,
+          mentioned: {
+            id: incCreatedBy.id,
+            name: incCreatedBy.name,
+          },
+        };
+
+        await sendDirectMessage(
+          context,
+          context.activity.from,
+          respnse1,
+          entities
+        );
       }
 
       ////////////////////Question3
@@ -726,6 +744,24 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+
+        let respnse1 = ` <at>${incCreatedBy.name}</at>has visitors who need assistance.\n\n${commentVal}`;
+
+        const entities = {
+          type: "mention",
+          text: `<at>${incCreatedBy.name}</at>`,
+          mentioned: {
+            id: incCreatedBy.id,
+            name: incCreatedBy.name,
+          },
+        };
+
+        await sendDirectMessage(
+          context,
+          context.activity.from,
+          respnse1,
+          entities
+        );
       } else if (uVerb === "send_response") {
         const action = context.activity.value.action;
         const { info: response, inc, companyData } = action.data;
