@@ -733,19 +733,39 @@ GO
 
 IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'SafetycheckForVisitorsQuestion1') 
 BEGIN 
- ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion1 BIT
+ ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion1 nvarchar(max)
 END 
 GO 
 
 IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'SafetycheckForVisitorsQuestion2') 
 BEGIN 
- ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion2 BIT
+ ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion2 nvarchar(max)
 END 
 
 GO
 
 IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'SafetycheckForVisitorsQuestion3') 
 BEGIN 
- ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion3 BIT
+ ALTER TABLE MSTeamsInstallationDetails ADD SafetycheckForVisitorsQuestion3 nvarchar(max)
+END 
+GO 
+
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponses' AND COLUMN_NAME = 'SafetyCheckVisitorsQuestion1Response') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponses ADD SafetyCheckVisitorsQuestion1Response nvarchar(max)
+END 
+GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponses' AND COLUMN_NAME = 'SafetyCheckVisitorsQuestion2Response') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponses ADD SafetyCheckVisitorsQuestion2Response nvarchar(max)
+END 
+
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponses' AND COLUMN_NAME = 'SafetyCheckVisitorsQuestion3Response') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponses ADD SafetyCheckVisitorsQuestion3Response nvarchar(max)
 END 
 GO 
