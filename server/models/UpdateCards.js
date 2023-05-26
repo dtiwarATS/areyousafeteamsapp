@@ -278,7 +278,7 @@ const updateSafeMessageqestion1 = (
     body: [
       {
         type: "TextBlock",
-        text: `1.Do you have any visitors on-site?`,
+        text: companyData.SafetycheckForVisitorsQuestion1,
         wrap: true,
       },
 
@@ -342,7 +342,7 @@ const updateSafeMessageqestion2 = (
     body: [
       {
         type: "TextBlock",
-        text: `2.Are all your visitors safe?`,
+        text: companyData.SafetycheckForVisitorsQuestion2,
         wrap: true,
       },
 
@@ -406,13 +406,13 @@ const updateSafeMessageqestion3 = (
     body: [
       {
         type: "TextBlock",
-        text: `3.Tell me, how can I help?`,
+        text: companyData.SafetycheckForVisitorsQuestion3,
         wrap: true,
       },
       {
         type: "Input.Text",
         placeholder:
-          " For example - I have a client stuck in the elevator on the 18th floor. Alex Jones - 760-319-4378",
+          "For example - I have a client stuck in the elevator on the 18th floor. Alex Jones - 760-319-4378",
         style: "text",
         id: "commentVal",
         isMultiline: true,

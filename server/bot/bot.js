@@ -2959,6 +2959,10 @@ const Question1safetyVisitor = async (
       commentVal,
       inc,
       info,
+      safetyVisitorQuestion1,
+      safetyVisitorQuestion2,
+      safetyVisitorQuestion3,
+      EnableSafetycheckForVisitors,
     } = action.data;
     let dataToBeUpdated = "";
     let loggerName = "";

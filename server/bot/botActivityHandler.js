@@ -545,6 +545,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       const uVerb = context.activity?.value?.action?.verb;
       let adaptiveCard = null;
       console.log({ uVerb });
+
       if (uVerb == "add_user_info") {
         bot.addUserInfoByTeamId(context);
       } else if (
@@ -760,8 +761,10 @@ class BotActivityHandler extends TeamsActivityHandler {
           responseText,
           entities
         );
+
         var incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance ? incGuidance : "No details available";
+
         const cards = CardFactory.adaptiveCard(
           updateSafeMessage(
             incTitle,
@@ -779,22 +782,24 @@ class BotActivityHandler extends TeamsActivityHandler {
         await context.sendActivity({
           attachments: [cards],
         });
-        const Qestion1 = CardFactory.adaptiveCard(
-          updateSafeMessageqestion1(
-            incTitle,
-            "",
-            incCreatedBy,
-            response,
-            context.activity.from.id,
-            incId,
-            companyData,
-            inc,
-            incGuidance
-          )
-        );
-        await context.sendActivity({
-          attachments: [Qestion1],
-        });
+        if (companyData.EnableSafetycheckForVisitors == true) {
+          const Qestion1 = CardFactory.adaptiveCard(
+            updateSafeMessageqestion1(
+              incTitle,
+              "",
+              incCreatedBy,
+              response,
+              context.activity.from.id,
+              incId,
+              companyData,
+              inc,
+              incGuidance
+            )
+          );
+          await context.sendActivity({
+            attachments: [Qestion1],
+          });
+        }
 
         // const message = MessageFactory.attachment(cards);
         // message.id = context.activity.replyToId;
