@@ -3728,7 +3728,9 @@ const createTestIncident = async (
       situation: "",
       isTestRecord: true,
       isSavedAsDraft: false,
+      isSaveAsTemplate: false,
       updatedOn: "",
+      template_name: "",
     };
     const newInc = await incidentService.createNewInc(
       incData,
