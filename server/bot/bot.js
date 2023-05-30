@@ -190,11 +190,11 @@ const selectResponseCard = async (context, user) => {
     } else if (verb === "triggerTestSafetyCheckMessage") {
       await triggerTestSafetyCheckMessage(context, action, user.aadObjectId); //
     } else if (verb === "safetyVisitorQuestion1") {
-      await Question1safetyVisitor(context, action, 1);
+      await Question1safetyVisitor(context, user, 1);
     } else if (verb === "safetyVisitorQuestion2") {
-      await Question1safetyVisitor(context, action, 2);
+      await Question1safetyVisitor(context, user, 2);
     } else if (verb === "safetyVisitorQuestion3") {
-      await Question1safetyVisitor(context, action, 3);
+      await Question1safetyVisitor(context, user, 3);
     }
 
     return Promise.resolve(true);
@@ -2976,51 +2976,63 @@ const Question1safetyVisitor = async (
     } else {
       dataToBeUpdated = commentVal;
       loggerName = "Visittor Safety Question 3";
-    }
-    await incidentService.safteyvisiterresponseupdate(
-      incId,
-      userId,
-      commentVal,
-      inc,
-      questionNumber,
-      dataToBeUpdated
-    );
-    if (questionNumber === 3 && commentVal) {
-      const approvalCardResponse = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: [
-          {
-            type: "TextBlock",
-            text: `User <at>${user.name}</at> has visitors who need assistance: \n\n${commentVal} `,
-            wrap: true,
-          },
-        ],
-        msteams: {
-          entities: [
+
+      await incidentService.safteyvisiterresponseupdate(
+        incId,
+        userId,
+        commentVal,
+        inc,
+        questionNumber,
+        dataToBeUpdated
+      );
+      if (questionNumber === 3 && commentVal) {
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
             {
-              type: "mention",
-              text: `<at>${user.name}</at>`,
-              mentioned: {
-                id: user.id,
-                name: user.name,
-              },
+              type: "TextBlock",
+              text: `<at>${user.name}</at> has visitors who need assistance  \n\n**${commentVal}** `,
+              wrap: true,
             },
           ],
-        },
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
-      //send new msg just to emulate msg is being updated
-      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
+          msteams: {
+            entities: [
+              {
+                type: "mention",
+                text: `<at>${user.name}</at>`,
+                mentioned: {
+                  id: user.id,
+                  name: user.name,
+                },
+              },
+            ],
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
 
-      await sendApprovalResponseToSelectedTeams(
-        incId,
-        context,
-        approvalCardResponse,
-        user.aadObjectId
-      );
+        //send new msg just to emulate msg is being updated
+        //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+        await sendCommentToSelectedMembers(
+          incId,
+          context,
+          approvalCardResponse
+        );
+        await incidentService.updateIncResponseComment(
+          incId,
+          userId,
+          commentVal,
+          inc
+        );
+
+        await sendApprovalResponseToSelectedTeams(
+          incId,
+          context,
+          approvalCardResponse,
+          user.aadObjectId
+        );
+      }
     }
   } catch (error) {
     console.log(error);
