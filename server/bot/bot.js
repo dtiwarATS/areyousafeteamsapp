@@ -2963,6 +2963,7 @@ const Question1safetyVisitor = async (
       safetyVisitorQuestion2,
       safetyVisitorQuestion3,
       EnableSafetycheckForVisitors,
+      info: response,
     } = action.data;
     let dataToBeUpdated = "";
     let loggerName = "";
@@ -2973,49 +2974,47 @@ const Question1safetyVisitor = async (
     if (questionNumber === 2) {
       dataToBeUpdated = info == "question2_yes" ? 1 : 0;
       loggerName = "Visittor Safety Question 2";
-
-      const approvalCardResponse = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: [
-          {
-            type: "TextBlock",
-            text: `<at>${user.name}</at> has visitors who are safe `,
-            wrap: true,
-          },
-        ],
-        msteams: {
-          entities: [
+      if (response == "question2_yes") {
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
             {
-              type: "mention",
-              text: `<at>${user.name}</at>`,
-              mentioned: {
-                id: user.id,
-                name: user.name,
-              },
+              type: "TextBlock",
+              text: `<at>${user.name}</at> has visitors who are safe `,
+              wrap: true,
             },
           ],
-        },
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
+          msteams: {
+            entities: [
+              {
+                type: "mention",
+                text: `<at>${user.name}</at>`,
+                mentioned: {
+                  id: user.id,
+                  name: user.name,
+                },
+              },
+            ],
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
 
-      //send new msg just to emulate msg is being updated
-      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
-      await incidentService.updateIncResponseComment(
-        incId,
-        userId,
-        commentVal,
-        inc
-      );
-
-      await sendApprovalResponseToSelectedTeams(
-        incId,
-        context,
-        approvalCardResponse,
-        user.aadObjectId
-      );
+        //send new msg just to emulate msg is being updated
+        //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+        await sendCommentToSelectedMembers(
+          incId,
+          context,
+          approvalCardResponse
+        );
+        await sendApprovalResponseToSelectedTeams(
+          incId,
+          context,
+          approvalCardResponse,
+          user.aadObjectId
+        );
+      }
     } else {
       dataToBeUpdated = commentVal;
       loggerName = "Visittor Safety Question 3";
