@@ -699,24 +699,6 @@ class BotActivityHandler extends TeamsActivityHandler {
           await context.sendActivity({
             attachments: [Qestion3],
           });
-        } else {
-          respnse1 = ` <at>${incCreatedBy.name}</at> has visitors who are safe.`;
-
-          const entities = {
-            type: "mention",
-            text: `<at>${incCreatedBy.name}</at>`,
-            mentioned: {
-              id: incCreatedBy.id,
-              name: incCreatedBy.name,
-            },
-          };
-
-          await sendDirectMessage(
-            context,
-            context.activity.from,
-            respnse1,
-            entities
-          );
         }
       }
       ////////////////////Question3
