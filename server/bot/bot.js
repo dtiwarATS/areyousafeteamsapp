@@ -2981,7 +2981,7 @@ const Question1safetyVisitor = async (
           body: [
             {
               type: "TextBlock",
-              text: `<at>${user.name}</at> has visitors who are safe `,
+              text: `<at>${user.name}</at> has visitors who are **safe** `,
               wrap: true,
             },
           ],
@@ -3034,7 +3034,7 @@ const Question1safetyVisitor = async (
           body: [
             {
               type: "TextBlock",
-              text: `<at>${user.name}</at> has visitors who need assistance  \n\n**${commentVal}** `,
+              text: `<at>${user.name}</at> has visitors who **need assistance**  \n\n${commentVal} `,
               wrap: true,
             },
           ],
