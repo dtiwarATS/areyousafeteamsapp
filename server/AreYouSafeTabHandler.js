@@ -187,6 +187,23 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getEnableSafetyCheck", async (req, res) => {
+    const teamId = req.query.teamId;
+    const userAadObjId = req.query.userAadObjId;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const enablesafety = await tabObj.getenablecheck(teamId);
+      if (enablesafety.length) {
+        const SafetycheckForVisitorsDetails = enablesafety[0];
+        res.send(SafetycheckForVisitorsDetails);
+      } else {
+        res.send(null);
+      }
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", userAadObjId);
+    }
+  });
+
   app.get("/areyousafetabhandler/getAssistanceData", (req, res) => {
     const userAadObjId = req.query.userId;
     try {

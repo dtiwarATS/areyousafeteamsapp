@@ -656,6 +656,31 @@ const updateIncResponseComment = async (
   return Promise.resolve();
 };
 
+const safteyvisiterresponseupdate = async (
+  incidentId,
+  userId,
+  commentText = "",
+  incData,
+  qestionNumber,
+  dataToBeUpdated
+) => {
+  pool = await poolPromise;
+
+  let query = null;
+
+  if (qestionNumber == 1) {
+    query = `UPDATE MSTeamsMemberResponses SET SafetyCheckVisitorsQuestion1Response = '${dataToBeUpdated}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  } else if (qestionNumber == 2) {
+    query = `UPDATE MSTeamsMemberResponses SET SafetyCheckVisitorsQuestion2Response = '${dataToBeUpdated}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  } else if (qestionNumber == 3) {
+    query = `UPDATE MSTeamsMemberResponses SET SafetyCheckVisitorsQuestion3Response = '${dataToBeUpdated}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  }
+  console.log("update query >> ", query);
+  await pool.request().query(query);
+
+  return Promise.resolve();
+};
+
 const getAllInc = async (teamId) => {
   try {
     let eventData = [];
@@ -1031,9 +1056,10 @@ const getTeamMemeberSqlQuery = (
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
-    ${resendSafetyCheck == "true"
-      ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
-      : ""
+    ${
+      resendSafetyCheck == "true"
+        ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
+        : ""
     }  
     ORDER BY u.[USER_NAME]; `
   );
@@ -1187,6 +1213,18 @@ const getSuperUsersByTeamId = async (teamId) => {
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", null);
+  }
+  return Promise.resolve(result);
+};
+
+const getenablecheck = async (teamId) => {
+  let result = null;
+  try {
+    const getenablequery = `select EnableSafetycheckForVisitors,SafetycheckForVisitorsQuestion1,SafetycheckForVisitorsQuestion2,SafetycheckForVisitorsQuestion3 from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    result = await db.getDataFromDB(getenablequery);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "");
   }
   return Promise.resolve(result);
 };
@@ -1443,7 +1481,7 @@ const updateConversationId = async (teamId, userObjId) => {
           sqlUpdate = "";
           console.log(sql);
           db.updateDataIntoDBAsync(sql, dbPool, userObjId)
-            .then((resp) => { })
+            .then((resp) => {})
             .catch((err) => {
               sqlUpdate += sql;
               processSafetyBotError(err, "", "", userObjId, sql);
@@ -1896,4 +1934,6 @@ module.exports = {
   getMembersCountForSubscriptionType1,
   updateSafetyCheckStatus,
   getTemplateList,
+  getenablecheck,
+  safteyvisiterresponseupdate,
 };

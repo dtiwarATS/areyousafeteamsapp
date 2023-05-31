@@ -16,7 +16,11 @@ class Company {
     serviceUrl,
     membersCount,
     channelId,
-    channelName
+    channelName,
+    EnableSafetycheckForVisitors,
+    SafetycheckForVisitorsQuestion1,
+    SafetycheckForVisitorsQuestion2,
+    SafetycheckForVisitorsQuestion3,
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -29,12 +33,16 @@ class Company {
     this.superUsers = super_users || [];
     this.createdDate = created_date || new Date(Date.now()).toISOString();
     this.welcomeMessageSent = welcomeMessageSent || false;
-    this.isUpdate = (isUpdate == null) ? "false" : isUpdate;
+    this.isUpdate = isUpdate == null ? "false" : isUpdate;
     this.isUserInfoSaved = isUserInfoSaved;
     this.serviceUrl = serviceUrl;
     this.membersCount = membersCount;
     this.channelId = channelId;
     this.channelName = channelName;
+    this.SafetycheckForVisitorsQuestion1 = SafetycheckForVisitorsQuestion1;
+    this.SafetycheckForVisitorsQuestion2 = SafetycheckForVisitorsQuestion2;
+    this.SafetycheckForVisitorsQuestion3 = SafetycheckForVisitorsQuestion3;
+    this.EnableSafetycheckForVisitors = EnableSafetycheckForVisitors;
   }
 }
 

@@ -295,6 +295,9 @@ class AreYouSafeTab {
     }
     return incFormatedData;
   };
+  getEnable= async (teamId, userAadObjId) => {
+    const useAadObjId = await incidentService.getenablecheck(teamId);
+  }
 
   getTeamMembers = async (teamId, userAadObjId) => {
     let teamsMembers = null;
@@ -737,19 +740,35 @@ class AreYouSafeTab {
     return Promise.resolve(superUsers);
   };
 
+  getenablecheck = async (teamId) => {
+    let superUsers = null;
+    try {
+      superUsers = await incidentService.getenablecheck(teamId);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null);
+    }
+    return Promise.resolve(superUsers);
+  };
+
   saveUserSetting = async ({
     teamId,
     superUsers,
     userAadObjId,
     selectedTeams,
+    EnableSafetycheckForVisitors,
+    SafetycheckForVisitorsQuestion1,
+    SafetycheckForVisitorsQuestion2,
+    SafetycheckForVisitorsQuestion3
   }) => {
     let result = null;
     try {
-      saveNARespSelectedTeams(teamId, selectedTeams, userAadObjId);
+      saveNARespSelectedTeams(teamId, selectedTeams, userAadObjId,);
       result = await updateSuperUserDataByUserAadObjId(
         userAadObjId,
         teamId,
-        superUsers
+        superUsers,EnableSafetycheckForVisitors,
+        SafetycheckForVisitorsQuestion1,
+        SafetycheckForVisitorsQuestion2,SafetycheckForVisitorsQuestion3
       );
     } catch (err) {
       processSafetyBotError(err, teamId, "", userAadObjId);

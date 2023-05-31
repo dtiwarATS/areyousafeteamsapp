@@ -188,8 +188,15 @@ const selectResponseCard = async (context, user) => {
     } else if (verb === "newUsrSubscriptionType2") {
       await processnewUsrSubscriptionType2(context, action);
     } else if (verb === "triggerTestSafetyCheckMessage") {
-      await triggerTestSafetyCheckMessage(context, action, user.aadObjectId);
+      await triggerTestSafetyCheckMessage(context, action, user.aadObjectId); //
+    } else if (verb === "safetyVisitorQuestion1") {
+      await Question1safetyVisitor(context, user, 1);
+    } else if (verb === "safetyVisitorQuestion2") {
+      await Question1safetyVisitor(context, user, 2);
+    } else if (verb === "safetyVisitorQuestion3") {
+      await Question1safetyVisitor(context, user, 3);
     }
+
     return Promise.resolve(true);
   } catch (error) {
     console.log("ERROR: ", error);
@@ -2935,6 +2942,146 @@ const submitComment = async (context, user, companyData) => {
   }
 };
 
+const Question1safetyVisitor = async (
+  context,
+  user,
+
+  questionNumber
+) => {
+  try {
+    const action = context.activity.value.action;
+    const {
+      userId,
+      incId,
+      incTitle,
+      incCreatedBy,
+      eventResponse,
+      commentVal,
+      inc,
+      info,
+      safetyVisitorQuestion1,
+      safetyVisitorQuestion2,
+      safetyVisitorQuestion3,
+      EnableSafetycheckForVisitors,
+      info: response,
+    } = action.data;
+    let dataToBeUpdated = "";
+    let loggerName = "";
+    if (questionNumber === 1) {
+      dataToBeUpdated = info == "question1_yes" ? 1 : 0;
+      loggerName = "Visittor Safety Question 1";
+    }
+    if (questionNumber === 2) {
+      dataToBeUpdated = info == "question2_yes" ? 1 : 0;
+      loggerName = "Visittor Safety Question 2";
+      if (response == "question2_yes") {
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: `<at>${user.name}</at> has visitors who are safe `,
+              wrap: true,
+            },
+          ],
+          msteams: {
+            entities: [
+              {
+                type: "mention",
+                text: `<at>${user.name}</at>`,
+                mentioned: {
+                  id: user.id,
+                  name: user.name,
+                },
+              },
+            ],
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+
+        //send new msg just to emulate msg is being updated
+        //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+        await sendCommentToSelectedMembers(
+          incId,
+          context,
+          approvalCardResponse
+        );
+        await sendApprovalResponseToSelectedTeams(
+          incId,
+          context,
+          approvalCardResponse,
+          user.aadObjectId
+        );
+      }
+    } else {
+      dataToBeUpdated = commentVal;
+      loggerName = "Visittor Safety Question 3";
+
+      await incidentService.safteyvisiterresponseupdate(
+        incId,
+        userId,
+        commentVal,
+        inc,
+        questionNumber,
+        dataToBeUpdated
+      );
+      if (questionNumber === 3 && commentVal) {
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: `<at>${user.name}</at> has visitors who need assistance  \n\n**${commentVal}** `,
+              wrap: true,
+            },
+          ],
+          msteams: {
+            entities: [
+              {
+                type: "mention",
+                text: `<at>${user.name}</at>`,
+                mentioned: {
+                  id: user.id,
+                  name: user.name,
+                },
+              },
+            ],
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+
+        //send new msg just to emulate msg is being updated
+        //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+        await sendCommentToSelectedMembers(
+          incId,
+          context,
+          approvalCardResponse
+        );
+        await incidentService.updateIncResponseComment(
+          incId,
+          userId,
+          commentVal,
+          inc
+        );
+
+        await sendApprovalResponseToSelectedTeams(
+          incId,
+          context,
+          approvalCardResponse,
+          user.aadObjectId
+        );
+      }
+    }
+  } catch (error) {
+    console.log(error);
+    processSafetyBotError(err, "", "", user.aadObjectId, loggerName);
+  }
+};
+
 const sendContactUsForm = async (context, companyData) => {
   try {
     const card = {
@@ -3672,7 +3819,9 @@ const createTestIncident = async (
       situation: "",
       isTestRecord: true,
       isSavedAsDraft: false,
+      isSaveAsTemplate: false,
       updatedOn: "",
+      template_name: "",
     };
     const newInc = await incidentService.createNewInc(
       incData,
