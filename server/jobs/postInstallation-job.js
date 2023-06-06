@@ -12,6 +12,7 @@ const {
   getTypeThreeSubscriptionEndCard,
   getTypeTwoSevenDayBeforeCard,
   getTypeTwoThreeDayBeforeCard,
+  getTestIncPreviewCard,
 } = require("../bot/subscriptionCard");
 const { processSafetyBotError } = require("../models/processError");
 (async () => {
@@ -33,17 +34,19 @@ const { processSafetyBotError } = require("../models/processError");
               log.addLog(`job obj - ${JSON.stringify(job)}`);
               const memberCount = job.memberCount != null ? job.memberCount : 0;
               const {
-                ExpiryDate: expiryDate,
                 team_id: teamId,
                 email: userEmailId,
-                SubscriptionType: subscriptionType,
+
                 user_aadobject_id: userAadObjId,
                 user_id: userId,
                 user_name: userName,
                 team_name: teamName,
               } = job;
 
-              let card = ""; //get the card here;
+              let card = await getTestIncPreviewCard(
+                teamMemberCount,
+                companyData
+              ); //get the card here;
 
               const member = [
                 {
@@ -67,31 +70,11 @@ const { processSafetyBotError } = require("../models/processError");
                 `send  ${subcriptionMessage} type-${subscriptionType} proactive messaage to ${job.user_id} successfully`
               );
 
-              if (
-                subcriptionMessage == "threeDayBeforeExpiry" ||
-                subcriptionMessage == "fiveDayBeforeExpiry" ||
-                subcriptionMessage == "sevenDayBeforeExpiry"
-              ) {
-                await incidentService.updateBeforeMessageSentFlag(
-                  job.ID,
-                  userAadObjId,
-                  subcriptionMessage
-                );
-              } else if (subcriptionMessage == "afterSubcriptionEnd") {
-                if (job.tenantid != null) {
-                  await incidentService.updateSubscriptionTypeToTypeOne(
-                    job.tenantid,
-                    job.ID,
-                    teamId,
-                    userAadObjId,
-                    subscriptionType
-                  );
-                  await incidentService.updateAfterExpiryMessageSentFlag(
-                    job.ID,
-                    userAadObjId
-                  );
-                }
-              }
+              await incidentService.updateAfterSentPostInstallationFlag(
+                job.ID,
+                userAadObjId,
+                subcriptionMessage
+              );
 
               saveLog = true;
               log.addLog(`End subscription ID - ${job.ID}`);
