@@ -56,6 +56,7 @@ const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const {
   getWelcomeMessageCard,
+  getWelcomeMessageCard2,
   getSubcriptionSelectionCard,
   getTestIncPreviewCard,
   getWelcomeMessageCardForChannel,
@@ -840,6 +841,13 @@ class BotActivityHandler extends TeamsActivityHandler {
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+      }
+      ////////////
+      else if (uVerb == "do_it_later") {
+        let msg =
+          "Ok! I will remind you to send the safety check message to your team members later.";
+
+        await sendDirectMessage(context, context.activity.from, msg);
       } else if (uVerb == "triggerTestSafetyCheckMessage") {
         const action = context.activity.value.action;
         const { companyData, teamMemberCount } = action.data;
@@ -851,7 +859,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         context.updateActivity(message);
       }
+
       const user = context.activity.from;
+
       if (context.activity.name === "adaptiveCard/action") {
         const card = await bot.selectResponseCard(context, user);
         if (adaptiveCard != null) {
@@ -1062,6 +1072,10 @@ class BotActivityHandler extends TeamsActivityHandler {
           teamMemberCount,
           teamName
         );
+        const welcomeMessageCard2 = getWelcomeMessageCard2(
+          teamMemberCount,
+          teamName
+        );
         if (teamMemberCount > 0) {
           const testIncPreviewCard = getTestIncPreviewCard(
             teamMemberCount,
@@ -1071,6 +1085,7 @@ class BotActivityHandler extends TeamsActivityHandler {
             context,
             acvtivityData.from,
             welcomeMessageCard,
+            welcomeMessageCard2,
             testIncPreviewCard
           );
         } else {

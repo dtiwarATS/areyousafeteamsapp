@@ -22,19 +22,24 @@ function initJob() {
     jobs: [
       {
         name: "recurr-job",
-        path: path.join(__dirname, 'jobs', 'recurr-job.js'),
-        cron: "*/1 * * * *"
+        path: path.join(__dirname, "jobs", "recurr-job.js"),
+        cron: "*/1 * * * *",
       },
       {
         name: "newSubcriptionAdded-job",
-        path: path.join(__dirname, 'jobs', 'newSubcriptionAdded-job.js'),
-        cron: "*/1 * * * *"
+        path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
+        cron: "*/1 * * * *",
       },
       {
         name: "subscription-job",
-        path: path.join(__dirname, 'jobs', 'subscription-job.js'),
-        cron: "0 0 * * *"
-      }
+        path: path.join(__dirname, "jobs", "subscription-job.js"),
+        cron: "0 0 * * *",
+      },
+      {
+        name: "postInstallation-job",
+        path: path.join(__dirname, "jobs", "postInstallation-job.js"),
+        cron: "0 0 * * *",
+      },
     ],
   });
   //cron1: "*/1 * * * *"
@@ -43,7 +48,7 @@ function initJob() {
 
   bree.start();
 }
-if (process.env.isLocal == 'false') {
+if (process.env.isLocal == "false") {
   initJob();
 }
 
@@ -65,8 +70,8 @@ app.use(
   })
 );
 
-var bodyParser = require('body-parser');
-app.use(express.json({ limit: '50mb' }));
+var bodyParser = require("body-parser");
+app.use(express.json({ limit: "50mb" }));
 // app.use(bodyParser.json({ limit: "50mb" }));
 // app.use(bodyParser.urlencoded({ limit: "50mb", extended: true, parameterLimit: 50000 }));
 
@@ -110,10 +115,10 @@ function shutDown() {
 //   res.send('500: Internal server error');
 // });
 
-process.on('uncaughtException', function (err) {
+process.on("uncaughtException", function (err) {
   processSafetyBotError(err, "", "", "", "uncaughtException");
 });
 
 String.prototype.replaceApostrophe = function () {
-  return this.replace(/'/g, "''")
-}
+  return this.replace(/'/g, "''");
+};
