@@ -86,14 +86,14 @@ const { processSafetyBotError } = require("../models/processError");
 
   const postInstallationQuery = (daysBefore) => {
     let sqlWhere = "";
-    sqlWhere = ` DATEDIFF(day, created_date ,GETDATE() ) = 15`;
+    sqlWhere = ` DATEDIFF(day, created_date ,GETDATE() ) = 15 and (fifteenDaysPostInstallation is null or fifteenDaysPostInstallation<>1)`;
 
     if (daysBefore == 2) {
-      sqlWhere = `  DATEDIFF(day, created_date ,GETDATE() ) = 2`;
+      sqlWhere = `  DATEDIFF(day, created_date ,GETDATE() ) = 2 and (twoDaysPostInstallation is null or twoDaysPostInstallation<>1)`;
     }
 
     if (daysBefore == 7) {
-      sqlWhere = `  DATEDIFF(day, created_date ,GETDATE() ) = 7`;
+      sqlWhere = `  DATEDIFF(day, created_date ,GETDATE() ) = 7 and (sevenDaysPostInstallation is null or sevenDaysPostInstallation<>1)`;
     }
 
     return ` select * from (
