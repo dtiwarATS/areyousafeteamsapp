@@ -13,6 +13,7 @@ const {
   getTypeTwoSevenDayBeforeCard,
   getTypeTwoThreeDayBeforeCard,
   getTestIncPreviewCard,
+  getTestIncPreviewCard1,
 } = require("../bot/subscriptionCard");
 const { processSafetyBotError } = require("../models/processError");
 (async () => {
@@ -36,8 +37,9 @@ const { processSafetyBotError } = require("../models/processError");
                 userEmailId: job.email,
                 userName: job.user_name,
                 userId: job.user_id,
+                teamId: job.team_id,
               };
-              let card = await getTestIncPreviewCard(0, companyData); //get the card here;
+              let card = await getTestIncPreviewCard1(0, companyData); //get the card here;
 
               const member = [
                 {

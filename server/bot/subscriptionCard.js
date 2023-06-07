@@ -162,8 +162,12 @@ const getWelcomeMessageCard2 = (teamMemberCount, teamName) => {
 const getTestIncPreviewCard = (teamMemberCount, companyData) => {
   const userEmailId = companyData.userEmailId;
   const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
-  const safetyCheckMessageText = `This is a **Test - Safety Check - Test** from <at>${companyData.userName}</at>. Please click any of the buttons below to help them test the bot.`;
+  const safetyCheckMessageText = `This is a **Sample Drill** from <at>${companyData.userName}</at>. Please click any of the buttons below to help them test the bot.`;
   const body = [
+    {
+      type: "TextBlock",
+      text: "The sample message will look like this:",
+    },
     {
       type: "TextBlock",
       size: "Large",
@@ -268,7 +272,146 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
     },
     {
       type: "TextBlock",
-      text: "[Email](mailto:help@announcebot.in) **|** [Chat](https://teams.microsoft.com/l/chat/0/0?users=vmahale@ats360.com) **|** [ScheduleCall](https://calendly.com/vipassanamahale/short-call)",
+      text: "[Email](mailto:neha.pingale@areyousafe.in) **|** [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) **|** [Schedule Call](https://calendly.com/nehapingale/short-call)",
+    },
+  ];
+
+  return {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    type: "AdaptiveCard",
+    version: "1.5",
+    body,
+    msteams: {
+      entities: [
+        {
+          type: "mention",
+          text: `<at>${companyData.userName}</at>`,
+          mentioned: {
+            id: companyData.userId,
+            name: companyData.userName,
+          },
+        },
+      ],
+    },
+  };
+};
+
+//////remender card
+
+const getTestIncPreviewCard1 = (teamMemberCount, companyData) => {
+  const userEmailId = companyData.userEmailId;
+  const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
+  const safetyCheckMessageText = `This is a **Sample Drill** from <at>${companyData.userName}</at>. Please click any of the buttons below to help them test the bot.`;
+  const body = [
+    {
+      type: "TextBlock",
+      text: "Hi! Would you like me to reach out to your team members and send the sample safety check message to them?",
+    },
+    {
+      type: "TextBlock",
+      size: "Large",
+      weight: "Bolder",
+      text: "Hello!",
+    },
+    {
+      type: "TextBlock",
+      text: " ",
+      separator: true,
+      wrap: true,
+    },
+    {
+      type: "TextBlock",
+      wrap: true,
+      text: safetyCheckMessageText,
+    },
+    {
+      type: "ActionSet",
+      actions: [
+        {
+          type: "Action.ToggleVisibility",
+          title: "I am safe",
+          targetElements: [],
+        },
+        {
+          type: "Action.ToggleVisibility",
+          title: "I need assistance",
+          targetElements: [],
+        },
+      ],
+    },
+    {
+      type: "TextBlock",
+      separator: true,
+      text: " ",
+      wrap: true,
+    },
+    // {
+    //   type: "TextBlock",
+    //   wrap: true,
+    //   separator: true,
+    //   text: `Click on **Continue** to send this message to everyone.`,
+    // },
+    {
+      type: "ColumnSet",
+      columns: [
+        {
+          type: "Column",
+          width: "auto",
+          items: [
+            {
+              type: "ActionSet",
+              actions: [
+                {
+                  type: "Action.Execute",
+                  title: "Go Ahead",
+                  verb: "triggerTestSafetyCheckMessage",
+                  style: "positive",
+                  data: {
+                    companyData,
+                    teamMemberCount,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        //
+        {
+          type: "Column",
+          width: "auto",
+          items: [
+            {
+              type: "ActionSet",
+              actions: [
+                {
+                  type: "Action.Execute",
+                  title: "Do It Later",
+                  verb: "do_it_later",
+                  style: "positive",
+                  data: {
+                    companyData,
+                    teamMemberCount,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    {
+      type: "TextBlock",
+      text: " ",
+      separator: true,
+      wrap: true,
+    },
+    {
+      type: "TextBlock",
+      text: "Have questions or want a quick demo?",
+    },
+    {
+      type: "TextBlock",
+      text: "[Email](mailto:neha.pingale@areyousafe.in) **|** [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) **|** [Schedule Call](https://calendly.com/nehapingale/short-call)",
     },
   ];
 
@@ -999,5 +1142,6 @@ module.exports = {
   getTypeTwoSevenDayBeforeCard,
   getTypeTwoThreeDayBeforeCard,
   getTestIncPreviewCard,
+  getTestIncPreviewCard1,
   getWelcomeMessageCardForChannel,
 };
