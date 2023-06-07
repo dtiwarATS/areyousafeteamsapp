@@ -32,21 +32,12 @@ const { processSafetyBotError } = require("../models/processError");
             try {
               log.addLog(`start subscription ID - ${job.ID}`);
               log.addLog(`job obj - ${JSON.stringify(job)}`);
-              const memberCount = job.memberCount != null ? job.memberCount : 0;
-              const {
-                team_id: teamId,
-                email: userEmailId,
-
-                user_aadobject_id: userAadObjId,
-                user_id: userId,
-                user_name: userName,
-                team_name: teamName,
-              } = job;
-
-              let card = await getTestIncPreviewCard(
-                teamMemberCount,
-                companyData
-              ); //get the card here;
+              let companyData = {
+                userEmailId: job.email,
+                userName: job.user_name,
+                userId: job.user_id,
+              };
+              let card = await getTestIncPreviewCard(0, companyData); //get the card here;
 
               const member = [
                 {
@@ -54,30 +45,26 @@ const { processSafetyBotError } = require("../models/processError");
                   name: job.user_name,
                 },
               ];
-              log.addLog(
-                `send  ${subcriptionMessage} type-${subscriptionType} to ${job.user_id} start`
-              );
               await sendProactiveMessaageToUser(
                 member,
                 card,
                 null,
                 job.serviceUrl,
-                job.tenantid,
+                job.user_tenant_id,
                 log,
-                userAadObjId
+                job.user_obj_id
               );
               log.addLog(
-                `send  ${subcriptionMessage} type-${subscriptionType} proactive messaage to ${job.user_id} successfully`
+                `sendig  proactive messaage to ${job.user_id} successfully`
               );
-
-              await incidentService.updateAfterSentPostInstallationFlag(
-                job.ID,
-                userAadObjId,
+              await incidentService.updatepostSentPostInstallationFlag(
+                job.id,
+                job.user_obj_id,
                 subcriptionMessage
               );
 
               saveLog = true;
-              log.addLog(`End subscription ID - ${job.ID}`);
+              log.addLog(`End subscription ID - ${job.Id}`);
             } catch (err) {
               console.log(err);
               log.addLog(`Error occured: ${err}`);
@@ -102,11 +89,11 @@ const { processSafetyBotError } = require("../models/processError");
     sqlWhere = ` DATEDIFF(day, created_date ,GETDATE() ) = 15`;
 
     if (daysBefore == 2) {
-      sqlWhere = ` where DATEDIFF(day, created_date ,GETDATE() ) = 2`;
+      sqlWhere = `  DATEDIFF(day, created_date ,GETDATE() ) = 2`;
     }
 
     if (daysBefore == 7) {
-      sqlWhere = ` where DATEDIFF(day, created_date ,GETDATE() ) = 7`;
+      sqlWhere = `  DATEDIFF(day, created_date ,GETDATE() ) = 7`;
     }
 
     return ` select * from (

@@ -1341,6 +1341,26 @@ const updateBeforeMessageSentFlag = async (
     processSafetyBotError(err, "", "", userAadObjId);
   }
 };
+const updatepostSentPostInstallationFlag = async (
+  id,
+  userAadObjId,
+  subcriptionMessage
+) => {
+  try {
+    let columnName = "";
+    if (subcriptionMessage == "twoDaysPostInstallation") {
+      columnName = "twoDaysPostInstallation";
+    } else if (subcriptionMessage == "sevenDaysPostInstallation") {
+      columnName = "sevenDaysPostInstallation";
+    } else if (subcriptionMessage == "fifteenDaysPostInstallation") {
+      columnName = "fifteenDaysPostInstallation";
+    }
+    const sqlCheckLicense = `update MSTeamsInstallationDetails set ${columnName} = 1 where ID = ${id}`;
+    await db.getDataFromDB(sqlCheckLicense, userAadObjId);
+  } catch (err) {
+    processSafetyBotError(err, "", "", userAadObjId);
+  }
+};
 
 const updateAfterExpiryMessageSentFlag = async (
   subscriptionId,
@@ -1936,4 +1956,5 @@ module.exports = {
   getTemplateList,
   getenablecheck,
   safteyvisiterresponseupdate,
+  updatepostSentPostInstallationFlag,
 };

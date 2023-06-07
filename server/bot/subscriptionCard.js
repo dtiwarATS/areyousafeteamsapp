@@ -1,4 +1,4 @@
-const { getMobileDashboardMsgBlockJSON } = require("../models/updateCards");
+const { getMobileDashboardMsgBlockJSON } = require("../models/UpdateCards");
 
 const getOldWelcomeMessageCard = () => {
   // return {
@@ -166,11 +166,6 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
   const body = [
     {
       type: "TextBlock",
-      text: "Here is how the message will look to your team members:",
-      wrap: true,
-    },
-    {
-      type: "TextBlock",
       size: "Large",
       weight: "Bolder",
       text: "Hello!",
@@ -270,6 +265,10 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
     {
       type: "TextBlock",
       text: "Have questions or want a quick demo?",
+    },
+    {
+      type: "TextBlock",
+      text: "[Email](mailto:help@announcebot.in) **|** [Chat](https://teams.microsoft.com/l/chat/0/0?users=vmahale@ats360.com) **|** [ScheduleCall](https://calendly.com/vipassanamahale/short-call)",
     },
   ];
 
