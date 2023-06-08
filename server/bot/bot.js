@@ -3918,7 +3918,7 @@ const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
         userAadObjId
       );
 
-      const msg = `Thanks! The sample safety check message has been sent to all your team members.You can view their responses in the **Dashboard tab** and access all other features as  well.`;
+      const msg = `Thanks! The sample safety check message has been sent to all your team members. You can view their responses in the **Dashboard tab** and access all other features as  well.`;
       await sendDirectMessage(context, context.activity.from, msg);
     }
   } catch (err) {

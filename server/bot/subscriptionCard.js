@@ -151,7 +151,7 @@ const getWelcomeMessageCard2 = (teamMemberCount, teamName) => {
     body: [
       {
         type: "TextBlock",
-        text: "To get started, I have created a sample Safety Check and added it to your Dashboard. I can reach out to your team members and send them the sample Safety Check.",
+        text: "To get started, I can help you create a sample Safety Check and add it to your Dashboard after it gets created. I can reach out to your team members and send them the sample Safety Check.",
         //`To get started, let's send out a test safety check message to team - **${teamName}** (${teamMemberCount} members) through a direct message.`,
         wrap: true,
       },
@@ -162,7 +162,7 @@ const getWelcomeMessageCard2 = (teamMemberCount, teamName) => {
 const getTestIncPreviewCard = (teamMemberCount, companyData) => {
   const userEmailId = companyData.userEmailId;
   const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
-  const safetyCheckMessageText = `This is a safety check from <at>${companyData.userName}</at>.We think you may be affected by **Sample Drill**. Mark yourself as safe, or ask for assistance.`;
+  const safetyCheckMessageText = `This is a safety check from <at>${companyData.userName}</at>. We think you may be affected by **Sample Drill**. Mark yourself as safe, or ask for assistance.`;
   const body = [
     {
       type: "TextBlock",
@@ -301,7 +301,7 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
 const getTestIncPreviewCard1 = (teamMemberCount, companyData) => {
   const userEmailId = companyData.userEmailId;
   const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
-  const safetyCheckMessageText = `This is a safety check from <at>${companyData.userName}</at>.We think you may be affected by **Sample Drill**. Mark yourself as safe, or ask for assistance.`;
+  const safetyCheckMessageText = `This is a safety check from <at>${companyData.userName}</at>. We think you may be affected by **Sample Drill**. Mark yourself as safe, or ask for assistance.`;
   const body = [
     {
       type: "TextBlock",
