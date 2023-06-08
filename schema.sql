@@ -769,3 +769,24 @@ BEGIN
  ALTER TABLE MSTeamsMemberResponses ADD SafetyCheckVisitorsQuestion3Response nvarchar(max)
 END 
 GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'twoDaysPostInstallation') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD twoDaysPostInstallation BIT
+END 
+GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'sevenDaysPostInstallation') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD sevenDaysPostInstallation BIT
+END 
+GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'fifteenDaysPostInstallation') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD fifteenDaysPostInstallation BIT
+END 
+GO 
+
+
+

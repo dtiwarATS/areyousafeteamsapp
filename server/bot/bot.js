@@ -3797,7 +3797,7 @@ const createTestIncident = async (
   });
   try {
     const incData = {
-      incTitle: "Test - Safety Check - Test",
+      incTitle: "Sample Drill", //Test - Safety Check - Test
       incType: "onetime",
       channelId: teamId,
       teamId,
@@ -3918,7 +3918,7 @@ const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
         userAadObjId
       );
 
-      const msg = `Thanks! Your safety check message has been sent to all the users. \n\nClick on the **Dashboard tab** above to view the real-time safety status and access all features.`;
+      const msg = `Thanks! The sample safety check message has been sent to all your team members. You can view their responses in the **Dashboard tab** and access all other features as  well.`;
       await sendDirectMessage(context, context.activity.from, msg);
     }
   } catch (err) {
