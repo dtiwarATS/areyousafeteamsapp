@@ -162,7 +162,7 @@ const getWelcomeMessageCard2 = (teamMemberCount, teamName) => {
 const getTestIncPreviewCard = (teamMemberCount, companyData) => {
   const userEmailId = companyData.userEmailId;
   const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
-  const safetyCheckMessageText = `This is a **Sample Drill** from <at>${companyData.userName}</at>. Please click any of the buttons below to help them test the bot.`;
+  const safetyCheckMessageText = `This is a safety check from <at>${companyData.userName}</at>.We think you may be affected by **Sample Drill**. Mark yourself as safe, or ask for assistance.`;
   const body = [
     {
       type: "TextBlock",
@@ -272,7 +272,7 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
     },
     {
       type: "TextBlock",
-      text: "[Email](mailto:neha.pingale@areyousafe.in) **|** [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) **|** [Schedule Call](https://calendly.com/nehapingale/short-call)",
+      text: "[Email](mailto:neha.pingale@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) | [Schedule Call](https://calendly.com/nehapingale/short-call)",
     },
   ];
 
@@ -301,7 +301,7 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
 const getTestIncPreviewCard1 = (teamMemberCount, companyData) => {
   const userEmailId = companyData.userEmailId;
   const helpActionSet = getHelpActionSet(teamMemberCount, userEmailId);
-  const safetyCheckMessageText = `This is a **Sample Drill** from <at>${companyData.userName}</at>. Please click any of the buttons below to help them test the bot.`;
+  const safetyCheckMessageText = `This is a safety check from <at>${companyData.userName}</at>.We think you may be affected by **Sample Drill**. Mark yourself as safe, or ask for assistance.`;
   const body = [
     {
       type: "TextBlock",
@@ -411,7 +411,7 @@ const getTestIncPreviewCard1 = (teamMemberCount, companyData) => {
     },
     {
       type: "TextBlock",
-      text: "[Email](mailto:neha.pingale@areyousafe.in) **|** [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) **|** [Schedule Call](https://calendly.com/nehapingale/short-call)",
+      text: "[Email](mailto:neha.pingale@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) | [Schedule Call](https://calendly.com/nehapingale/short-call)",
     },
   ];
 

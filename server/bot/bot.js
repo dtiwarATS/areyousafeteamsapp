@@ -3797,7 +3797,7 @@ const createTestIncident = async (
   });
   try {
     const incData = {
-      incTitle: "Test - Safety Check - Test",
+      incTitle: "Sample Drill", //Test - Safety Check - Test
       incType: "onetime",
       channelId: teamId,
       teamId,
