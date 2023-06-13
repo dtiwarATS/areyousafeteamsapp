@@ -271,24 +271,16 @@ const handlerForSafetyBotTab = (app) => {
 
   app.get(
     "/areyousafetabhandler/sendNeedAssistanceProactiveMessage",
-    (req, res) => {
-      console.log("came in request");
+    async (req, res) => {
       const userAadObjId = req.query.userId;
+      const incData = req.params.adminlist;
       try {
-        incidentService
-          .getAdmins(userAadObjId, "desc")
-          .then(async (incData) => {
-            const tabObj = new tab.AreYouSafeTab();
-            const isProactiveMessageSent = await tabObj.requestAssistance(
-              incData,
-              userAadObjId
-            );
-            res.send(isProactiveMessageSent);
-          })
-          .catch((err) => {
-            console.log(err);
-            processSafetyBotError(err, "", "", userAadObjId);
-          });
+        const tabObj = new tab.AreYouSafeTab();
+        const isProactiveMessageSent = await tabObj.requestAssistance(
+          incData,
+          userAadObjId
+        );
+        res.send(isProactiveMessageSent);
       } catch (err) {
         processSafetyBotError(err, "", "", userAadObjId);
       }
