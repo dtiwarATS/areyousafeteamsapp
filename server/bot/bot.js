@@ -59,7 +59,7 @@ const {
   SafetyCheckCard,
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
-const { title } = require("process");
+
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -1760,7 +1760,7 @@ const sendProactiveMessageAsync = async (
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
     );
-    //let titalmesg = `${incTitle} hiii`
+
 
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
@@ -2022,24 +2022,7 @@ const sendProactiveMessageAsync = async (
               sendErrorEmail,
               retryCounter
             );
-            // sendProactiveMessaageToUserAsync(
-            //   memberArr,
-            //   null,
-            //   titalmesg,
-            //   serviceUrl,
-            //   userTenantId,
-            //   log,
-            //   userAadObjId,
-            //   conversationId,
-            //   connectorClient,
-            //   afterMessageSent,
-            //   i,
-            //   delay,
-            //   member,
-            //   msgNotSentArr,
-            //   sendErrorEmail,
-            //   retryCounter
-            // );
+
             console.log({ i });
           }
         } catch (err) {
