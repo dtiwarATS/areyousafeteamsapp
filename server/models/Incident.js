@@ -32,6 +32,10 @@ class Incident {
     isSaveAsTemplate,
     updatedOn,
     template_name,
+    SafetyCheckVisitorsQuestion1Response,
+    SafetyCheckVisitorsQuestion2Response,
+    SafetyCheckVisitorsQuestion3Response
+
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -65,6 +69,9 @@ class Incident {
     this.isSaveAsTemplate = isSaveAsTemplate;
     this.updatedOn = updatedOn;
     this.incTemplate = template_name;
+    this.SafetyCheckVisitorsQuestion1Response = SafetyCheckVisitorsQuestion1Response;
+    this.SafetyCheckVisitorsQuestion2Response = SafetyCheckVisitorsQuestion2Response;
+    this.SafetyCheckVisitorsQuestion3Response = SafetyCheckVisitorsQuestion3Response;
   }
 }
 

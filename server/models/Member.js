@@ -12,7 +12,11 @@ class Member {
     msgStatus,
     error,
     admin_name,
-    is_marked_by_admin
+    is_marked_by_admin,
+    SafetyCheckVisitorsQuestion1Response,
+    SafetyCheckVisitorsQuestion2Response,
+    SafetyCheckVisitorsQuestion3Response,
+    EnableSafetycheckForVisitors,
   }) {
     this.respId = respId;
     this.userId = user_id;
@@ -27,6 +31,10 @@ class Member {
     this.error = error;
     this.adminName = admin_name;
     this.isMarkedByAdmin = is_marked_by_admin;
+    this.SafetyCheckVisitorsQuestion1Response = SafetyCheckVisitorsQuestion1Response;
+    this.SafetyCheckVisitorsQuestion2Response = SafetyCheckVisitorsQuestion2Response;
+    this.SafetyCheckVisitorsQuestion3Response = SafetyCheckVisitorsQuestion3Response;
+    this.EnableSafetycheckForVisitors = EnableSafetycheckForVisitors;
   }
 }
 
