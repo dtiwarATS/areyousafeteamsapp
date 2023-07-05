@@ -605,38 +605,6 @@ const addMembersIntoIncData = async (
   return Promise.resolve(incData);
 };
 
-const addMembersIntoIncDataafterqestion2send = async (
-  incId,
-  userName,
-  userId,
-
-  commentVal,
-  response_value,
-  dataToBeUpdated,
-  userAadObjId
-
-) => {
-  let incData = null;
-
-  try {
-    let insertMembersQuery = "";
-
-    insertMembersQuery += ` insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value,SafetyCheckVisitorsQuestion1Response,SafetyCheckVisitorsQuestion2Response,SafetyCheckVisitorsQuestion3Response) 
-                  values(${incId}, '${userId}', '${userName} (Visitors)',Null, '1', '${dataToBeUpdated}' ,'${dataToBeUpdated}','${dataToBeUpdated}','${dataToBeUpdated}'); `;
-
-
-    if (insertMembersQuery != "") {
-      await db.insertData(insertMembersQuery, userAadObjId);
-    }
-
-
-  } catch (err) {
-    console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId);
-  }
-
-  return Promise.resolve(incData);
-};
 
 const updateIncResponseData = async (
   incidentId,
@@ -1997,5 +1965,5 @@ module.exports = {
   getenablecheck,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
-  addMembersIntoIncDataafterqestion2send
+
 };
