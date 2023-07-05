@@ -38,7 +38,7 @@ function initJob() {
       {
         name: "postInstallation-job",
         path: path.join(__dirname, "jobs", "postInstallation-job.js"),
-        cron: "*/1 * * * *",
+        cron: "* 1 * * *",
       },
     ],
   });
