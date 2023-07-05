@@ -60,6 +60,7 @@ const {
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
 
+
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
     const emailBody =
@@ -1759,6 +1760,8 @@ const sendProactiveMessageAsync = async (
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
     );
+
+
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
 
@@ -1781,7 +1784,7 @@ const sendProactiveMessageAsync = async (
         sqlUpdateMsgDeliveryStatus = "";
         const promise = db
           .updateDataIntoDBAsync(sql, dbPool, userAadObjId)
-          .then((resp) => {})
+          .then((resp) => { })
           .catch((err) => {
             sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(err, "", "", userAadObjId, sql);
@@ -2019,6 +2022,7 @@ const sendProactiveMessageAsync = async (
               sendErrorEmail,
               retryCounter
             );
+
             console.log({ i });
           }
         } catch (err) {
@@ -2544,12 +2548,12 @@ const sendSafetyCheckMessage = async (
 
     let allMembersArr = allMembers.map(
       (tm) =>
-        (tm = {
-          ...tm,
-          messageDelivered: "na",
-          response: "na",
-          responseValue: "na",
-        })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
     );
 
     if (selectedMembers != null && selectedMembers.split(",").length > 0) {
@@ -2669,12 +2673,12 @@ const sendApproval = async (context) => {
 
   let allMembersArr = allMembers.map(
     (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
+    (tm = {
+      ...tm,
+      messageDelivered: "na",
+      response: "na",
+      responseValue: "na",
+    })
   );
 
   if (selectedMembers.length > 0) {
@@ -2964,6 +2968,8 @@ const Question1safetyVisitor = async (
       safetyVisitorQuestion3,
       EnableSafetycheckForVisitors,
       info: response,
+
+
     } = action.data;
     let dataToBeUpdated = "";
     let loggerName = "";
@@ -3001,6 +3007,7 @@ const Question1safetyVisitor = async (
           version: "1.4",
         };
 
+
         //send new msg just to emulate msg is being updated
         //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
         await sendCommentToSelectedMembers(
@@ -3014,68 +3021,72 @@ const Question1safetyVisitor = async (
           approvalCardResponse,
           user.aadObjectId
         );
+
+
       }
-    } else {
+    } if (questionNumber === 3) {
       dataToBeUpdated = commentVal;
       loggerName = "Visittor Safety Question 3";
+    }
 
-      await incidentService.safteyvisiterresponseupdate(
+    await incidentService.safteyvisiterresponseupdate(
+      incId,
+      userId,
+      commentVal,
+      inc,
+      questionNumber,
+      dataToBeUpdated
+    );
+
+    if (questionNumber === 3 && commentVal) {
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `<at>${user.name}</at> has visitors who **need assistance**  \n\n${commentVal} `,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
+            {
+              type: "mention",
+              text: `<at>${user.name}</at>`,
+              mentioned: {
+                id: user.id,
+                name: user.name,
+              },
+            },
+          ],
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+
+      //send new msg just to emulate msg is being updated
+      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      await sendCommentToSelectedMembers(
+        incId,
+        context,
+        approvalCardResponse
+      );
+      await incidentService.updateIncResponseComment(
         incId,
         userId,
         commentVal,
-        inc,
-        questionNumber,
-        dataToBeUpdated
+        inc
       );
-      if (questionNumber === 3 && commentVal) {
-        const approvalCardResponse = {
-          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-          appId: process.env.MicrosoftAppId,
-          body: [
-            {
-              type: "TextBlock",
-              text: `<at>${user.name}</at> has visitors who **need assistance**  \n\n${commentVal} `,
-              wrap: true,
-            },
-          ],
-          msteams: {
-            entities: [
-              {
-                type: "mention",
-                text: `<at>${user.name}</at>`,
-                mentioned: {
-                  id: user.id,
-                  name: user.name,
-                },
-              },
-            ],
-          },
-          type: "AdaptiveCard",
-          version: "1.4",
-        };
 
-        //send new msg just to emulate msg is being updated
-        //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-        await sendCommentToSelectedMembers(
-          incId,
-          context,
-          approvalCardResponse
-        );
-        await incidentService.updateIncResponseComment(
-          incId,
-          userId,
-          commentVal,
-          inc
-        );
-
-        await sendApprovalResponseToSelectedTeams(
-          incId,
-          context,
-          approvalCardResponse,
-          user.aadObjectId
-        );
-      }
+      await sendApprovalResponseToSelectedTeams(
+        incId,
+        context,
+        approvalCardResponse,
+        user.aadObjectId
+      );
     }
+
   } catch (error) {
     console.log(error);
     processSafetyBotError(err, "", "", user.aadObjectId, loggerName);
@@ -3177,8 +3188,7 @@ const sendNewContactEmail = async (
       "Hi,<br/> <br />" +
       "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
       "<br />" +
-      `${
-        userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
+      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
       } ` +
       "<b>Email: </b>" +
       emailVal +
@@ -3958,4 +3968,5 @@ module.exports = {
   sendSafetyCheckMessageAsync,
   sendNSRespToTeamChannel,
   createTestIncident,
+
 };

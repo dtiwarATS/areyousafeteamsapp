@@ -225,7 +225,9 @@ const sendProactiveMessaageToUserAsync = async (members, activity, msgText, serv
     // } else if (msgText != null) {
     //   activity = MessageFactory.text(msgText);
     // }
-
+    if (msgText != null) {
+      activity = MessageFactory.text(msgText);
+    }
     if (activity != null) {
       if (connectorClient == null) {
         const appId = process.env.MicrosoftAppId;

@@ -59,6 +59,11 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
               member.timestamp = recurrMemberResp.timestampR;
               member.admin_name = recurrMemberResp.admin_nameR;
               member.is_marked_by_admin = recurrMemberResp.is_marked_by_adminR;
+              member.SafetyCheckVisitorsQuestion1Response = recurrMemberResp.SafetyCheckVisitorsQuestion1Response;
+              member.SafetyCheckVisitorsQuestion2Response = recurrMemberResp.SafetyCheckVisitorsQuestion2Response;
+              member.SafetyCheckVisitorsQuestion3Response = recurrMemberResp.SafetyCheckVisitorsQuestion3Response;
+              member.EnableSafetycheckForVisitors = recurrMemberResp.EnableSafetycheckForVisitors;
+
             }
             // else {
             //   member = {
@@ -158,7 +163,10 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
   inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,
-  m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, 
+  m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value,
+  m.SafetyCheckVisitorsQuestion1Response,
+  m.SafetyCheckVisitorsQuestion2Response,
+  m.SafetyCheckVisitorsQuestion3Response ,
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
@@ -596,6 +604,7 @@ const addMembersIntoIncData = async (
 
   return Promise.resolve(incData);
 };
+
 
 const updateIncResponseData = async (
   incidentId,
@@ -1056,10 +1065,9 @@ const getTeamMemeberSqlQuery = (
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
-    ${
-      resendSafetyCheck == "true"
-        ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
-        : ""
+    ${resendSafetyCheck == "true"
+      ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
+      : ""
     }  
     ORDER BY u.[USER_NAME]; `
   );
@@ -1501,7 +1509,7 @@ const updateConversationId = async (teamId, userObjId) => {
           sqlUpdate = "";
           console.log(sql);
           db.updateDataIntoDBAsync(sql, dbPool, userObjId)
-            .then((resp) => {})
+            .then((resp) => { })
             .catch((err) => {
               sqlUpdate += sql;
               processSafetyBotError(err, "", "", userObjId, sql);
@@ -1957,4 +1965,5 @@ module.exports = {
   getenablecheck,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
+
 };

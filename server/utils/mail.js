@@ -22,6 +22,7 @@ class EmailOption {
 }
 
 const sendEmail = (transportParam, emailOption) => {
+
     try {
         const transporter = nodemailer.createTransport(transportParam);
         transporter.sendMail(emailOption, function (error, info) {
