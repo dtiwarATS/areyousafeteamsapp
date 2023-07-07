@@ -1745,6 +1745,22 @@ const sendProactiveMessageAsync = async (
       contactInfo,
       situation,
     } = incData;
+    let titalmesg = null;
+    if (incTypeId == 1) {
+      titalmesg = `Safety Check - ${incTitle}`
+    }
+    else if (incTypeId == 2) {
+      titalmesg = `Safety Alert - ${incTitle}`
+    }
+    else if (incTypeId == 3) {
+      titalmesg = `Important Bulletin - ${incTitle}`
+    }
+    else if (incTypeId == 4) {
+      titalmesg = `Travel Advisory - ${incTitle}`
+    }
+    else if (incTypeId == 5) {
+      titalmesg = `Stakeholder Notice - ${incTitle}`
+    }
     const approvalCard = await SafetyCheckCard(
       incTitle,
       incObj,
@@ -1760,7 +1776,6 @@ const sendProactiveMessageAsync = async (
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
     );
-
 
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
@@ -2006,6 +2021,24 @@ const sendProactiveMessageAsync = async (
             const conversationId = member.conversationId;
             sendProactiveMessaageToUserAsync(
               memberArr,
+              null,
+              titalmesg,
+              serviceUrl,
+              userTenantId,
+              log,
+              userAadObjId,
+              conversationId,
+              connectorClient,
+              afterMessageSent,
+              i,
+              delay,
+              member,
+              msgNotSentArr,
+              sendErrorEmail,
+              retryCounter
+            );
+            sendProactiveMessaageToUserAsync(
+              memberArr,
               activity,
               null,
               serviceUrl,
@@ -2022,6 +2055,7 @@ const sendProactiveMessageAsync = async (
               sendErrorEmail,
               retryCounter
             );
+
 
             console.log({ i });
           }
