@@ -26,7 +26,7 @@ const { getCompanyDataByTeamId } = require("../db/dbOperations");
 const { processSafetyBotError } = require("../models/processError");
 (async () => {
   const sendProactiveMessage = async (sqlQuery) => {
-    //const log = new AYSLog();
+    const log = new AYSLog();
     let saveLog = false;
     try {
       let incidentList = await db.getDataFromDB(sqlQuery);
@@ -45,67 +45,65 @@ const { processSafetyBotError } = require("../models/processError");
           "",
           false
         );
-
-        console.log({ membersNotRespondedListset });
-        membersNotRespondedListset.map(async (membersNotRespondedList) => {
-          membersNotRespondedList.map(async (memberlist) => {
-            console.log({ memberlist });
-            const {
-              inc_id,
-              inc_name,
-              inc_type_id,
-              created_by,
-              CREATED_BY_NAME,
-              GUIDANCE,
-              additionalInfo,
-              travelUpdate,
-              contactInfo,
-              situation,
-            } = memberlist;
-            const companyData = {};
-            // const companyData = await getCompanyDataByTeamId(
-            //   memberlist.team_id
-            // );
-            let incObj = {
-              inc_id,
-              inc_name,
-              inc_type_id,
-              runAt: null,
-              incCreatedBy: {
-                id: created_by,
-                name: CREATED_BY_NAME,
-              },
-            };
-            const approvalCard = await SafetyCheckCard(
-              inc_name,
-              incObj,
-              companyData,
-              GUIDANCE,
-              incObj.incResponseSelectedUsersList,
-              inc_type_id,
-              additionalInfo,
-              travelUpdate,
-              contactInfo,
-              situation
+        await Promise.all(
+          membersNotRespondedListset.map(async (membersNotRespondedList) => {
+            await Promise.all(
+              membersNotRespondedList.map(async (memberlist) => {
+                const {
+                  inc_id,
+                  inc_name,
+                  inc_type_id,
+                  created_by,
+                  CREATED_BY_NAME,
+                  GUIDANCE,
+                  additionalInfo,
+                  travelUpdate,
+                  contactInfo,
+                  situation,
+                } = memberlist;
+                const companyData = {};
+                let incObj = {
+                  incId: inc_id,
+                  incTitle: inc_name,
+                  inc_type_id,
+                  runAt: null,
+                  incCreatedBy: {
+                    id: created_by,
+                    name: CREATED_BY_NAME,
+                  },
+                };
+                const approvalCard = await SafetyCheckCard(
+                  inc_name,
+                  incObj,
+                  companyData,
+                  GUIDANCE,
+                  incObj.incResponseSelectedUsersList,
+                  inc_type_id,
+                  additionalInfo,
+                  travelUpdate,
+                  contactInfo,
+                  situation
+                );
+                console.log({ approvalCard });
+                log.addLog(
+                  `send   proactive messaage to ${memberlist.user_id} start`
+                );
+                await sendProactiveMessaageToUser(
+                  memberlist,
+                  approvalCard,
+                  null,
+                  "",
+                  "",
+                  log,
+                  ""
+                );
+                log.addLog(
+                  `send proactive messaage to ${memberlist.user_id} successfully`
+                );
+              })
             );
-
-            log.addLog(
-              `send   proactive messaage to ${memberlist.user_id} start`
-            );
-            await sendProactiveMessaageToUser(
-              memberlist,
-              approvalCard,
-              null,
-              "",
-              "",
-              log,
-              ""
-            );
-            log.addLog(
-              `send proactive messaage to ${memberlist.user_id} successfully`
-            );
-          });
-        });
+          })
+        );
       }
     } catch (err) {
       log.addLog(`Error occured: ${err}`);

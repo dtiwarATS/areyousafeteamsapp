@@ -9,6 +9,7 @@ const getSafetyCheckMessageText = async (
   incRespSelectedUsers = null,
   incTypeId = 1
 ) => {
+  console.log("inside getSafetyCheckMessageText");
   let onBehalfOf = "",
     responseUsers = "";
   if (incTypeId == 1) {
@@ -51,6 +52,7 @@ const getSafetyCheckTypeCard = async (
   incCreatedByName = null,
   isPreview = false
 ) => {
+  console.log("inside getSafetyCheckTypeCard");
   const mentionUserEntities = [];
   if (!safetyCheckMessageText) {
     safetyCheckMessageText = await getSafetyCheckMessageText(
@@ -312,6 +314,7 @@ const SafetyCheckCard = async (
   contactInfo,
   situation
 ) => {
+  console.log("inside SafetyCheckCard");
   let card = null;
   switch (incTypeId) {
     case 1: //Safety Check
@@ -363,6 +366,7 @@ const SafetyCheckCard = async (
       );
       break;
   }
+  console.log("found card", { card });
   return card;
 };
 

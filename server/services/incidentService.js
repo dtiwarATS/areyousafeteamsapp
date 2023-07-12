@@ -861,8 +861,10 @@ const saveIncResponseUserTS = async (respUserTSquery, userAadObjId) => {
 
 const getIncResponseSelectedUsersList = async (incId, userAadObjId) => {
   try {
+    console.log("inside getIncResponseSelectedUsersList", { incId });
     const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId};`;
     const result = await db.getDataFromDB(sql, userAadObjId);
+    console.log("after getIncResponseSelectedUsersList", { incId, sql });
     return Promise.resolve(result);
   } catch (err) {
     console.log(err);
