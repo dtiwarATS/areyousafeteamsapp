@@ -1785,6 +1785,8 @@ const sendProactiveMessageAsync = async (
       baseUri: serviceUrl,
     });
 
+
+
     let messageCount = 0;
 
     const dbPool = await db.getPoolPromise(userAadObjId);
@@ -2399,6 +2401,7 @@ const sendSafetyCheckMessageAsync = async (
           resolve,
           reject
         );
+
 
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
@@ -3866,6 +3869,9 @@ const createTestIncident = async (
       isSaveAsTemplate: false,
       updatedOn: "",
       template_name: "",
+      EnableSendReminders,
+      SendRemindersCount,
+      SendRemindersTime,
     };
     const newInc = await incidentService.createNewInc(
       incData,

@@ -198,6 +198,9 @@ class AreYouSafeTab {
             SafetyCheckVisitorsQuestion1Response,
             SafetyCheckVisitorsQuestion2Response,
             SafetyCheckVisitorsQuestion3Response,
+            EnableSendReminders,
+            SendRemindersCount,
+            SendRemindersTime,
 
           } = inc;
 
@@ -297,7 +300,10 @@ class AreYouSafeTab {
             incTemplate,
             SafetyCheckVisitorsQuestion1Response,
             SafetyCheckVisitorsQuestion2Response,
-            SafetyCheckVisitorsQuestion3Response
+            SafetyCheckVisitorsQuestion3Response,
+            EnableSendReminders,
+            SendRemindersCount,
+            SendRemindersTime,
           };
           incFormatedData.push(incObj);
         });
