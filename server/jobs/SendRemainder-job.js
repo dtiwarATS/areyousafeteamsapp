@@ -29,79 +29,80 @@ const { processSafetyBotError } = require("../models/processError");
     const log = new AYSLog();
     let saveLog = false;
     try {
-      let incidentList = await db.getDataFromDB(sqlQuery);
-      //log.addLog(`jobsToBeExecutedArr length - ${incidentList.length}`);
-      if (incidentList != null && incidentList.length > 0) {
-        let memberQuery = "";
-        incidentList.map(async (incident) => {
-          console.log({ incident });
-          memberQuery += `select mstm.* ,mst.*
-          from MSTeamsMemberResponses mstm
-          left join MSTeamsIncidents MST on mst.id = mstm.inc_id
-          where response=0 and inc_id=${incident.id};`;
-        });
-        let membersNotRespondedListset = await db.getDataFromDB(
-          memberQuery,
-          "",
-          false
-        );
+      let membersNotRespondedList = await db.getDataFromDB(sqlQuery);
+      if (
+        membersNotRespondedList != null &&
+        membersNotRespondedList.length > 0
+      ) {
         await Promise.all(
-          membersNotRespondedListset.map(async (membersNotRespondedList) => {
-            await Promise.all(
-              membersNotRespondedList.map(async (memberlist) => {
-                const {
-                  inc_id,
-                  inc_name,
-                  inc_type_id,
-                  created_by,
-                  CREATED_BY_NAME,
-                  GUIDANCE,
-                  additionalInfo,
-                  travelUpdate,
-                  contactInfo,
-                  situation,
-                } = memberlist;
-                const companyData = {};
-                let incObj = {
-                  incId: inc_id,
-                  incTitle: inc_name,
-                  inc_type_id,
-                  runAt: null,
-                  incCreatedBy: {
-                    id: created_by,
-                    name: CREATED_BY_NAME,
-                  },
-                };
-                const approvalCard = await SafetyCheckCard(
-                  inc_name,
-                  incObj,
-                  companyData,
-                  GUIDANCE,
-                  incObj.incResponseSelectedUsersList,
-                  inc_type_id,
-                  additionalInfo,
-                  travelUpdate,
-                  contactInfo,
-                  situation
-                );
-                console.log({ approvalCard });
-                log.addLog(
-                  `send   proactive messaage to ${memberlist.user_id} start`
-                );
-                await sendProactiveMessaageToUser(
-                  memberlist,
-                  approvalCard,
-                  null,
-                  "",
-                  "",
-                  log,
-                  ""
-                );
-                log.addLog(
-                  `send proactive messaage to ${memberlist.user_id} successfully`
-                );
-              })
+          membersNotRespondedList.map(async (memberlist) => {
+            let member = memberlist;
+            const {
+              inc_id,
+              inc_name,
+              inc_type_id,
+              created_by,
+              CREATED_BY_NAME,
+              GUIDANCE,
+              additionalInfo,
+              travelUpdate,
+              contactInfo,
+              situation,
+              user_id,
+            } = member;
+            const companyData = await getCompanyDataByTeamId(member.team_id);
+            let incObj = {
+              incId: inc_id,
+              incTitle: inc_name,
+              inc_type_id,
+              runAt: null,
+              incCreatedBy: {
+                id: created_by,
+                name: CREATED_BY_NAME,
+              },
+            };
+            const approvalCard = await SafetyCheckCard(
+              inc_name,
+              incObj,
+              companyData,
+              GUIDANCE,
+              incObj.incResponseSelectedUsersList,
+              inc_type_id,
+              additionalInfo,
+              travelUpdate,
+              contactInfo,
+              situation
             );
+            let ctime = new Date();
+            let diff =
+              memberlist.LastReminderSentAT == undefined
+                ? 0
+                : ctime - memberlist.LastReminderSentAT;
+            var diffMins = Math.round(((diff % 86400000) % 3600000) / 60000);
+            //console.log({ approvalCard });
+            if (
+              memberlist.is_message_delivered &&
+              memberlist.SendRemindersCounter < memberlist.SendRemindersCount &&
+              diffMins >= memberlist.SendRemindersTime
+            ) {
+              await sendProactiveMessaageToUser(
+                [{ id: memberlist.user_id, name: memberlist.user_name }],
+                approvalCard,
+                null,
+                companyData.serviceUrl,
+                companyData.userTenantId,
+                log,
+                "",
+                null
+              );
+              log.addLog(
+                `send proactive messaage to ${memberlist.user_id} successfully`
+              );
+              await incidentService.updateremaindercounter(
+                memberlist.inc_id,
+                memberlist.user_id
+              );
+            }
           })
         );
       }
@@ -114,7 +115,7 @@ const { processSafetyBotError } = require("../models/processError");
       }
     }
   };
-  let querry = `select * from [dbo].[MSTeamsIncidents] where EnableSendReminders=1 `;
+  let querry = `select mstm.* ,mst.* from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1 )`;
   await sendProactiveMessage(querry);
 
   // signal to parent that the job is done

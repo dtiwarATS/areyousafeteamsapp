@@ -60,7 +60,6 @@ const {
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
 
-
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
     const emailBody =
@@ -1747,19 +1746,15 @@ const sendProactiveMessageAsync = async (
     } = incData;
     let titalmesg = null;
     if (incTypeId == 1) {
-      titalmesg = `Safety Check - ${incTitle}`
-    }
-    else if (incTypeId == 2) {
-      titalmesg = `Safety Alert - ${incTitle}`
-    }
-    else if (incTypeId == 3) {
-      titalmesg = `Important Bulletin - ${incTitle}`
-    }
-    else if (incTypeId == 4) {
-      titalmesg = `Travel Advisory - ${incTitle}`
-    }
-    else if (incTypeId == 5) {
-      titalmesg = `Stakeholder Notice - ${incTitle}`
+      titalmesg = `Safety Check - ${incTitle}`;
+    } else if (incTypeId == 2) {
+      titalmesg = `Safety Alert - ${incTitle}`;
+    } else if (incTypeId == 3) {
+      titalmesg = `Important Bulletin - ${incTitle}`;
+    } else if (incTypeId == 4) {
+      titalmesg = `Travel Advisory - ${incTitle}`;
+    } else if (incTypeId == 5) {
+      titalmesg = `Stakeholder Notice - ${incTitle}`;
     }
     const approvalCard = await SafetyCheckCard(
       incTitle,
@@ -1785,8 +1780,6 @@ const sendProactiveMessageAsync = async (
       baseUri: serviceUrl,
     });
 
-
-
     let messageCount = 0;
 
     const dbPool = await db.getPoolPromise(userAadObjId);
@@ -1801,7 +1794,7 @@ const sendProactiveMessageAsync = async (
         sqlUpdateMsgDeliveryStatus = "";
         const promise = db
           .updateDataIntoDBAsync(sql, dbPool, userAadObjId)
-          .then((resp) => { })
+          .then((resp) => {})
           .catch((err) => {
             sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(err, "", "", userAadObjId, sql);
@@ -1901,7 +1894,11 @@ const sendProactiveMessageAsync = async (
             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
               values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
           } else {
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incObj.incId} and user_id = '${msgResp.userId}'; `;
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${
+              isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+            } where inc_id = ${incObj.incId} and user_id = '${
+              msgResp.userId
+            }'; `;
           }
         }
 
@@ -2057,7 +2054,6 @@ const sendProactiveMessageAsync = async (
               sendErrorEmail,
               retryCounter
             );
-
 
             console.log({ i });
           }
@@ -2402,7 +2398,6 @@ const sendSafetyCheckMessageAsync = async (
           reject
         );
 
-
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
@@ -2585,12 +2580,12 @@ const sendSafetyCheckMessage = async (
 
     let allMembersArr = allMembers.map(
       (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
+        (tm = {
+          ...tm,
+          messageDelivered: "na",
+          response: "na",
+          responseValue: "na",
+        })
     );
 
     if (selectedMembers != null && selectedMembers.split(",").length > 0) {
@@ -2710,12 +2705,12 @@ const sendApproval = async (context) => {
 
   let allMembersArr = allMembers.map(
     (tm) =>
-    (tm = {
-      ...tm,
-      messageDelivered: "na",
-      response: "na",
-      responseValue: "na",
-    })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
   );
 
   if (selectedMembers.length > 0) {
@@ -3005,8 +3000,6 @@ const Question1safetyVisitor = async (
       safetyVisitorQuestion3,
       EnableSafetycheckForVisitors,
       info: response,
-
-
     } = action.data;
     let dataToBeUpdated = "";
     let loggerName = "";
@@ -3044,7 +3037,6 @@ const Question1safetyVisitor = async (
           version: "1.4",
         };
 
-
         //send new msg just to emulate msg is being updated
         //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
         await sendCommentToSelectedMembers(
@@ -3058,10 +3050,9 @@ const Question1safetyVisitor = async (
           approvalCardResponse,
           user.aadObjectId
         );
-
-
       }
-    } if (questionNumber === 3) {
+    }
+    if (questionNumber === 3) {
       dataToBeUpdated = commentVal;
       loggerName = "Visittor Safety Question 3";
     }
@@ -3104,11 +3095,7 @@ const Question1safetyVisitor = async (
 
       //send new msg just to emulate msg is being updated
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-      await sendCommentToSelectedMembers(
-        incId,
-        context,
-        approvalCardResponse
-      );
+      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
       await incidentService.updateIncResponseComment(
         incId,
         userId,
@@ -3123,7 +3110,6 @@ const Question1safetyVisitor = async (
         user.aadObjectId
       );
     }
-
   } catch (error) {
     console.log(error);
     processSafetyBotError(err, "", "", user.aadObjectId, loggerName);
@@ -3225,7 +3211,8 @@ const sendNewContactEmail = async (
       "Hi,<br/> <br />" +
       "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
       "<br />" +
-      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
+      `${
+        userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
       } ` +
       "<b>Email: </b>" +
       emailVal +
@@ -4008,5 +3995,4 @@ module.exports = {
   sendSafetyCheckMessageAsync,
   sendNSRespToTeamChannel,
   createTestIncident,
-
 };

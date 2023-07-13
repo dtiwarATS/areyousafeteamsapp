@@ -1393,15 +1393,13 @@ const updatepostSentPostInstallationFlag = async (
   }
 };
 
-const updateremaindercounter = async (inc_id, userAadObjId) => {
+const updateremaindercounter = async (inc_id, user_id) => {
   try {
     let counter = 0;
-    const counteradd = `uppdate MSTeamsMemberResponses set SendRemindersCounter=${
-      counter + 1
-    } where id=${inc_id}`;
-    await db.getDataFromDB(counteradd, userAadObjId);
+    const counteradd = `update MSTeamsMemberResponses set SendRemindersCounter=SendRemindersCounter + 1, LastReminderSentAT = GETDATE() where inc_id=${inc_id} and user_id='${user_id}'`;
+    await db.getDataFromDB(counteradd);
   } catch (err) {
-    processSafetyBotError(err, "", "", userAadObjId);
+    processSafetyBotError(err, "", "", user_id);
   }
 };
 
