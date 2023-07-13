@@ -60,7 +60,6 @@ const {
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
 
-
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
     const emailBody =
@@ -1745,6 +1744,18 @@ const sendProactiveMessageAsync = async (
       contactInfo,
       situation,
     } = incData;
+    let titalmesg = null;
+    if (incTypeId == 1) {
+      titalmesg = `Safety Check - ${incTitle}`;
+    } else if (incTypeId == 2) {
+      titalmesg = `Safety Alert - ${incTitle}`;
+    } else if (incTypeId == 3) {
+      titalmesg = `Important Bulletin - ${incTitle}`;
+    } else if (incTypeId == 4) {
+      titalmesg = `Travel Advisory - ${incTitle}`;
+    } else if (incTypeId == 5) {
+      titalmesg = `Stakeholder Notice - ${incTitle}`;
+    }
     const approvalCard = await SafetyCheckCard(
       incTitle,
       incObj,
@@ -1760,7 +1771,6 @@ const sendProactiveMessageAsync = async (
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
     );
-
 
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
@@ -1784,7 +1794,7 @@ const sendProactiveMessageAsync = async (
         sqlUpdateMsgDeliveryStatus = "";
         const promise = db
           .updateDataIntoDBAsync(sql, dbPool, userAadObjId)
-          .then((resp) => { })
+          .then((resp) => {})
           .catch((err) => {
             sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(err, "", "", userAadObjId, sql);
@@ -1932,8 +1942,9 @@ const sendProactiveMessageAsync = async (
           updateStartTime = null;
           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
         }
-
-        if (messageCount == allMembersArr.length) {
+        const totalMessageCountAfterTitleNotification =
+          allMembersArr.length * 2;
+        if (messageCount == totalMessageCountAfterTitleNotification) {
           if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
             reSendMessage();
           } else {
@@ -2004,6 +2015,24 @@ const sendProactiveMessageAsync = async (
               },
             ];
             const conversationId = member.conversationId;
+            sendProactiveMessaageToUserAsync(
+              memberArr,
+              null,
+              titalmesg,
+              serviceUrl,
+              userTenantId,
+              log,
+              userAadObjId,
+              conversationId,
+              connectorClient,
+              afterMessageSent,
+              i,
+              delay,
+              member,
+              msgNotSentArr,
+              sendErrorEmail,
+              retryCounter
+            );
             sendProactiveMessaageToUserAsync(
               memberArr,
               activity,
@@ -2548,12 +2577,12 @@ const sendSafetyCheckMessage = async (
 
     let allMembersArr = allMembers.map(
       (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
+        (tm = {
+          ...tm,
+          messageDelivered: "na",
+          response: "na",
+          responseValue: "na",
+        })
     );
 
     if (selectedMembers != null && selectedMembers.split(",").length > 0) {
@@ -2673,12 +2702,12 @@ const sendApproval = async (context) => {
 
   let allMembersArr = allMembers.map(
     (tm) =>
-    (tm = {
-      ...tm,
-      messageDelivered: "na",
-      response: "na",
-      responseValue: "na",
-    })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
   );
 
   if (selectedMembers.length > 0) {
@@ -2968,8 +2997,6 @@ const Question1safetyVisitor = async (
       safetyVisitorQuestion3,
       EnableSafetycheckForVisitors,
       info: response,
-
-
     } = action.data;
     let dataToBeUpdated = "";
     let loggerName = "";
@@ -3007,7 +3034,6 @@ const Question1safetyVisitor = async (
           version: "1.4",
         };
 
-
         //send new msg just to emulate msg is being updated
         //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
         await sendCommentToSelectedMembers(
@@ -3021,10 +3047,9 @@ const Question1safetyVisitor = async (
           approvalCardResponse,
           user.aadObjectId
         );
-
-
       }
-    } if (questionNumber === 3) {
+    }
+    if (questionNumber === 3) {
       dataToBeUpdated = commentVal;
       loggerName = "Visittor Safety Question 3";
     }
@@ -3067,11 +3092,7 @@ const Question1safetyVisitor = async (
 
       //send new msg just to emulate msg is being updated
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-      await sendCommentToSelectedMembers(
-        incId,
-        context,
-        approvalCardResponse
-      );
+      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
       await incidentService.updateIncResponseComment(
         incId,
         userId,
@@ -3086,7 +3107,6 @@ const Question1safetyVisitor = async (
         user.aadObjectId
       );
     }
-
   } catch (error) {
     console.log(error);
     processSafetyBotError(err, "", "", user.aadObjectId, loggerName);
@@ -3188,7 +3208,8 @@ const sendNewContactEmail = async (
       "Hi,<br/> <br />" +
       "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
       "<br />" +
-      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
+      `${
+        userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
       } ` +
       "<b>Email: </b>" +
       emailVal +
@@ -3968,5 +3989,4 @@ module.exports = {
   sendSafetyCheckMessageAsync,
   sendNSRespToTeamChannel,
   createTestIncident,
-
 };
