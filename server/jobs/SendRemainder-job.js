@@ -66,7 +66,7 @@ const { processSafetyBotError } = require("../models/processError");
               incObj,
               companyData,
               GUIDANCE,
-              incObj.incResponseSelectedUsersList,
+              [],
               inc_type_id,
               additionalInfo,
               travelUpdate,
@@ -79,7 +79,7 @@ const { processSafetyBotError } = require("../models/processError");
                 ? 0
                 : ctime - memberlist.LastReminderSentAT;
             var diffMins = Math.round(((diff % 86400000) % 3600000) / 60000);
-            //console.log({ approvalCard });
+
             if (
               memberlist.is_message_delivered &&
               memberlist.SendRemindersCounter < memberlist.SendRemindersCount &&
