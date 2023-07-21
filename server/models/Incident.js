@@ -32,6 +32,9 @@ class Incident {
     isSaveAsTemplate,
     updatedOn,
     template_name,
+    EnableSendReminders,
+    SendRemindersCount,
+    SendRemindersTime,
     SafetyCheckVisitorsQuestion1Response,
     SafetyCheckVisitorsQuestion2Response,
     SafetyCheckVisitorsQuestion3Response,
@@ -75,7 +78,9 @@ class Incident {
       SafetyCheckVisitorsQuestion2Response;
     this.SafetyCheckVisitorsQuestion3Response =
       SafetyCheckVisitorsQuestion3Response;
-    //this.incidentMediafiles = incidentMediafiles;
+    this.EnableSendReminders = EnableSendReminders;
+    this.SendRemindersCount = SendRemindersCount;
+    this.SendRemindersTime = SendRemindersTime;
   }
 }
 

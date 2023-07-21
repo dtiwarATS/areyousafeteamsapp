@@ -40,6 +40,11 @@ function initJob() {
         path: path.join(__dirname, "jobs", "postInstallation-job.js"),
         cron: "* 1 * * *",
       },
+      {
+        name: "SendRemainder-job",
+        path: path.join(__dirname, "jobs", "SendRemainder-job.js"),
+        cron: "*/1 * * * *",
+      },
     ],
   });
   //cron1: "*/1 * * * *"

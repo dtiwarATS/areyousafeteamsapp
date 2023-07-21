@@ -51,6 +51,9 @@ const getColumns = (tableName) => {
         "isSaveAsTemplate",
         "updatedOn",
         "template_name",
+        "EnableSendReminders",
+        "SendRemindersCount",
+        "SendRemindersTime",
       ];
       break;
 

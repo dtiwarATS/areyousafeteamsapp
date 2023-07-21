@@ -789,4 +789,41 @@ END
 GO 
 
 
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsIncidents' AND COLUMN_NAME = 'EnableSendReminders') 
+BEGIN 
+ ALTER TABLE MSTeamsIncidents ADD EnableSendReminders BIT
+END 
+GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsIncidents' AND COLUMN_NAME = 'SendRemindersCount') 
+BEGIN 
+ ALTER TABLE MSTeamsIncidents ADD SendRemindersCount  int DEFAULT  0 not null
+
+END 
+GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsIncidents' AND COLUMN_NAME = 'SendRemindersTime') 
+BEGIN 
+ ALTER TABLE MSTeamsIncidents ADD SendRemindersTime  int DEFAULT  0 not null
+
+END 
+GO 
+
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponses' AND COLUMN_NAME = 'SendRemindersCounter') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponses ADD SendRemindersCounter  int DEFAULT  0 not null
+
+END 
+GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponses' AND COLUMN_NAME = 'LastReminderSentAT') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponses ADD LastReminderSentAT  DATETIME
+
+END 
+GO 
+
+
+
 

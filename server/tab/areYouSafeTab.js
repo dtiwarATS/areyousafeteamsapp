@@ -211,7 +211,9 @@ class AreYouSafeTab {
             SafetyCheckVisitorsQuestion1Response,
             SafetyCheckVisitorsQuestion2Response,
             SafetyCheckVisitorsQuestion3Response,
-            //incidentMediafiles,
+            EnableSendReminders,
+            SendRemindersCount,
+            SendRemindersTime,
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -311,7 +313,9 @@ class AreYouSafeTab {
             SafetyCheckVisitorsQuestion1Response,
             SafetyCheckVisitorsQuestion2Response,
             SafetyCheckVisitorsQuestion3Response,
-            //incidentMediafiles,
+            EnableSendReminders,
+            SendRemindersCount,
+            SendRemindersTime,
           };
           incFormatedData.push(incObj);
         });
