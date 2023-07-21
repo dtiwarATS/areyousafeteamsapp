@@ -1732,7 +1732,8 @@ const sendProactiveMessageAsync = async (
   log,
   resolveFn,
   rejectFn,
-  runAt = null
+  runAt = null,
+  incFilesData = null
 ) => {
   try {
     const isRecurringInc = runAt != null;
@@ -1771,6 +1772,17 @@ const sendProactiveMessageAsync = async (
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
     );
+    if (incFilesData != null && incFilesData.length > 0) {
+      incFilesData.forEach((incFile) => {
+        let extension = incFile.File_name.split('.')[1];
+        let attachment = {
+          name: incFile.File_name,
+          contentType: 'image/' + extension,
+          contentUrl: incFile.Blob
+        };
+        activity.attachments.push(attachment);
+      })
+    }
 
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
@@ -2318,6 +2330,7 @@ const sendSafetyCheckMessageAsync = async (
         allMembers,
         incGuidance,
         incResponseSelectedUsersList,
+        incFilesData
       } = await incidentService.getRequiredDataToSendMessage(
         incId,
         teamId,
@@ -2392,7 +2405,9 @@ const sendSafetyCheckMessageAsync = async (
           userTenantId,
           log,
           resolve,
-          reject
+          reject,
+          null,
+          incFilesData
         );
 
         /*const incCreatedByUserArr = [];

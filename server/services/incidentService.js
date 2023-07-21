@@ -1691,6 +1691,8 @@ const getRequiredDataToSendMessage = async (
 
     select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} 
     and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});
+
+    select * from filesdata where inc_id = ${incId}; 
     `;
 
     const data = await db.getDataFromDB(sql, userAadObjId, false);
@@ -1713,13 +1715,14 @@ const getRequiredDataToSendMessage = async (
       }
 
       let incResponseSelectedUsersList = data[4];
-
+      let incFilesData = data[5];
       return {
         companyData,
         incData,
         allMembers,
         incGuidance,
         incResponseSelectedUsersList,
+        incFilesData
       };
     }
   } catch (err) {
