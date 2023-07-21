@@ -1697,7 +1697,7 @@ const getRequiredDataToSendMessage = async (
 
     const data = await db.getDataFromDB(sql, userAadObjId, false);
 
-    if (data != null && Array.isArray(data) && data.length == 5) {
+    if (data != null && Array.isArray(data) && data.length == 6) {
       let companyData = data[0];
       companyData = parseCompanyData(companyData);
 
@@ -1722,7 +1722,7 @@ const getRequiredDataToSendMessage = async (
         allMembers,
         incGuidance,
         incResponseSelectedUsersList,
-        incFilesData
+        incFilesData,
       };
     }
   } catch (err) {
