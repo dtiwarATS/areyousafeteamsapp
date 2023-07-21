@@ -59,11 +59,14 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
               member.timestamp = recurrMemberResp.timestampR;
               member.admin_name = recurrMemberResp.admin_nameR;
               member.is_marked_by_admin = recurrMemberResp.is_marked_by_adminR;
-              member.SafetyCheckVisitorsQuestion1Response = recurrMemberResp.SafetyCheckVisitorsQuestion1Response;
-              member.SafetyCheckVisitorsQuestion2Response = recurrMemberResp.SafetyCheckVisitorsQuestion2Response;
-              member.SafetyCheckVisitorsQuestion3Response = recurrMemberResp.SafetyCheckVisitorsQuestion3Response;
-              member.EnableSafetycheckForVisitors = recurrMemberResp.EnableSafetycheckForVisitors;
-
+              member.SafetyCheckVisitorsQuestion1Response =
+                recurrMemberResp.SafetyCheckVisitorsQuestion1Response;
+              member.SafetyCheckVisitorsQuestion2Response =
+                recurrMemberResp.SafetyCheckVisitorsQuestion2Response;
+              member.SafetyCheckVisitorsQuestion3Response =
+                recurrMemberResp.SafetyCheckVisitorsQuestion3Response;
+              member.EnableSafetycheckForVisitors =
+                recurrMemberResp.EnableSafetycheckForVisitors;
             }
             // else {
             //   member = {
@@ -335,7 +338,8 @@ const createNewInc = async (
   userAadObjId,
   responseSelectedTeams,
   teamIds,
-  incId
+  incId,
+  tempincid
 ) => {
   let newInc = null;
   try {
@@ -378,6 +382,8 @@ const createNewInc = async (
     }
     if (newInc != null) {
       if (selectedMembersResp && selectedMembersResp != "") {
+        const updatefilequerry = `update filesdata set inc_id=${newInc.incId} where inc_id=${tempincid}`;
+        const res = await db.updateDataIntoDB(updatefilequerry);
         await saveIncResponseSelectedUsers(
           newInc.incId,
           selectedMembersResp,
@@ -604,7 +610,6 @@ const addMembersIntoIncData = async (
 
   return Promise.resolve(incData);
 };
-
 
 const updateIncResponseData = async (
   incidentId,
@@ -1065,9 +1070,10 @@ const getTeamMemeberSqlQuery = (
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
-    ${resendSafetyCheck == "true"
-      ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
-      : ""
+    ${
+      resendSafetyCheck == "true"
+        ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
+        : ""
     }  
     ORDER BY u.[USER_NAME]; `
   );
@@ -1509,7 +1515,7 @@ const updateConversationId = async (teamId, userObjId) => {
           sqlUpdate = "";
           console.log(sql);
           db.updateDataIntoDBAsync(sql, dbPool, userObjId)
-            .then((resp) => { })
+            .then((resp) => {})
             .catch((err) => {
               sqlUpdate += sql;
               processSafetyBotError(err, "", "", userObjId, sql);
@@ -1965,5 +1971,4 @@ module.exports = {
   getenablecheck,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
-
 };

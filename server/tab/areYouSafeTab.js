@@ -119,7 +119,12 @@ class AreYouSafeTab {
         };
 
         members.forEach((m) => {
-          const { response, responseValue, msgStatus, SafetyCheckVisitorsQuestion2Response } = m;
+          const {
+            response,
+            responseValue,
+            msgStatus,
+            SafetyCheckVisitorsQuestion2Response,
+          } = m;
 
           if (
             (response === "na" || response === false) &&
@@ -128,13 +133,21 @@ class AreYouSafeTab {
             memberObj.membersNotResponded.push(m);
           } else if (response === true) {
             if (responseValue === true) {
-              memberObj.membersSafe.push({ ...m, SafetyCheckVisitorsQuestion3Response: null });
+              memberObj.membersSafe.push({
+                ...m,
+                SafetyCheckVisitorsQuestion3Response: null,
+              });
               if (SafetyCheckVisitorsQuestion2Response == 0) {
-                memberObj.membersUnsafe.push({ ...m, userName: `${m.userName} (Visitors)` });
+                memberObj.membersUnsafe.push({
+                  ...m,
+                  userName: `${m.userName} (Visitors)`,
+                });
               } else if (SafetyCheckVisitorsQuestion2Response == 1) {
-                memberObj.membersSafe.push({ ...m, userName: `${m.userName} (Visitors)` });
+                memberObj.membersSafe.push({
+                  ...m,
+                  userName: `${m.userName} (Visitors)`,
+                });
               }
-
             } else if (responseValue === false || responseValue == null) {
               memberObj.membersUnsafe.push(m);
             }
@@ -198,7 +211,6 @@ class AreYouSafeTab {
             SafetyCheckVisitorsQuestion1Response,
             SafetyCheckVisitorsQuestion2Response,
             SafetyCheckVisitorsQuestion3Response,
-
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -245,7 +257,7 @@ class AreYouSafeTab {
                   responsePercentage =
                     Math.round(
                       ((needAssistanceCount + safeCount) * 100) /
-                      inc.members.length
+                        inc.members.length
                     ).toString() + "%";
                 }
               } else {
@@ -297,7 +309,7 @@ class AreYouSafeTab {
             incTemplate,
             SafetyCheckVisitorsQuestion1Response,
             SafetyCheckVisitorsQuestion2Response,
-            SafetyCheckVisitorsQuestion3Response
+            SafetyCheckVisitorsQuestion3Response,
           };
           incFormatedData.push(incObj);
         });
@@ -310,7 +322,7 @@ class AreYouSafeTab {
   };
   getEnable = async (teamId, userAadObjId) => {
     const useAadObjId = await incidentService.getenablecheck(teamId);
-  }
+  };
 
   getTeamMembers = async (teamId, userAadObjId) => {
     let teamsMembers = null;
@@ -480,8 +492,8 @@ class AreYouSafeTab {
                 (index == 0
                   ? ""
                   : index == adminsArr.length - 1
-                    ? " and "
-                    : ", ") + usrName;
+                  ? " and "
+                  : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -499,8 +511,8 @@ class AreYouSafeTab {
                     (currentTeamsAdminsStr === ""
                       ? ""
                       : index == adminsArr.length - 1
-                        ? " and "
-                        : ", ") + usrName;
+                      ? " and "
+                      : ", ") + usrName;
                 }
               });
 
@@ -680,7 +692,8 @@ class AreYouSafeTab {
           userAadObjId,
           responseSelectedTeams,
           teamIds,
-          incId
+          incId,
+          incObj.tempfileincId
         );
       }
     } catch (err) {
@@ -688,6 +701,12 @@ class AreYouSafeTab {
       processSafetyBotError(err, "", "", userAadObjId);
     }
     return Promise.resolve(newInc);
+  };
+  InsertFileIntoDB = async (filedata, userAadObjId) => {
+    let filevalues = Object.keys(filedata).map((key) => filedata[key]);
+
+    const res = await db.insertDataIntoDB("filesdata", filevalues);
+    console.log(res);
   };
 
   sendSafetyCheckMessage = async (
@@ -771,17 +790,19 @@ class AreYouSafeTab {
     EnableSafetycheckForVisitors,
     SafetycheckForVisitorsQuestion1,
     SafetycheckForVisitorsQuestion2,
-    SafetycheckForVisitorsQuestion3
+    SafetycheckForVisitorsQuestion3,
   }) => {
     let result = null;
     try {
-      saveNARespSelectedTeams(teamId, selectedTeams, userAadObjId,);
+      saveNARespSelectedTeams(teamId, selectedTeams, userAadObjId);
       result = await updateSuperUserDataByUserAadObjId(
         userAadObjId,
         teamId,
-        superUsers, EnableSafetycheckForVisitors,
+        superUsers,
+        EnableSafetycheckForVisitors,
         SafetycheckForVisitorsQuestion1,
-        SafetycheckForVisitorsQuestion2, SafetycheckForVisitorsQuestion3
+        SafetycheckForVisitorsQuestion2,
+        SafetycheckForVisitorsQuestion3
       );
     } catch (err) {
       processSafetyBotError(err, teamId, "", userAadObjId);

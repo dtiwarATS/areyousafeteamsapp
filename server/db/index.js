@@ -58,6 +58,10 @@ const getColumns = (tableName) => {
       columns = ["user_id", "team_id", "email", "content"];
       break;
 
+    case "filesdata":
+      columns = ["inc_id", "File_name", "File_size", "Blob"];
+      break;
+
     case "MSTEAMS_SUB_EVENT":
       columns = [
         "INC_ID",
@@ -166,8 +170,9 @@ const getUpdateDataIntoDBQuery = (
       let updateSql = `update ${tableName} set `;
       const columns = getColumns(tableName);
       incidentValues.forEach((colValue, index) => {
-        updateSql += ` ${index > 0 ? ", " : ""} ${columns[index]
-          } = ${parseValue(colValue)} `;
+        updateSql += ` ${index > 0 ? ", " : ""} ${
+          columns[index]
+        } = ${parseValue(colValue)} `;
       });
       updateSql += ` where  ${pkColumn} = ${pkColumnValue}; `;
       return updateSql;
