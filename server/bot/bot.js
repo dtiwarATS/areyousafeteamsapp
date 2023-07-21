@@ -1745,17 +1745,18 @@ const sendProactiveMessageAsync = async (
       contactInfo,
       situation,
     } = incData;
-    let titalmesg = null;
+
+    let titalmessage = null;
     if (incTypeId == 1) {
-      titalmesg = `Safety Check - ${incTitle}`;
+      titalmessage = `Safety Check - ${incTitle}`;
     } else if (incTypeId == 2) {
-      titalmesg = `Safety Alert - ${incTitle}`;
+      titalmessage = `Safety Alert - ${incTitle}`;
     } else if (incTypeId == 3) {
-      titalmesg = `Important Bulletin - ${incTitle}`;
+      titalmessage = `Important Bulletin - ${incTitle}`;
     } else if (incTypeId == 4) {
-      titalmesg = `Travel Advisory - ${incTitle}`;
+      titalmessage = `Travel Advisory - ${incTitle}`;
     } else if (incTypeId == 5) {
-      titalmesg = `Stakeholder Notice - ${incTitle}`;
+      titalmessage = `Stakeholder Notice - ${incTitle}`;
     }
     const approvalCard = await SafetyCheckCard(
       incTitle,
@@ -1906,7 +1907,11 @@ const sendProactiveMessageAsync = async (
             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
               values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
           } else {
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incObj.incId} and user_id = '${msgResp.userId}'; `;
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${
+              isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+            } where inc_id = ${incObj.incId} and user_id = '${
+              msgResp.userId
+            }'; `;
           }
         }
 
@@ -2030,7 +2035,7 @@ const sendProactiveMessageAsync = async (
             sendProactiveMessaageToUserAsync(
               memberArr,
               null,
-              titalmesg,
+              titalmessage,
               serviceUrl,
               userTenantId,
               log,
@@ -2045,25 +2050,41 @@ const sendProactiveMessageAsync = async (
               sendErrorEmail,
               retryCounter
             );
-            sendProactiveMessaageToUserAsync(
-              memberArr,
-              activity,
-              null,
-              serviceUrl,
-              userTenantId,
-              log,
-              userAadObjId,
-              conversationId,
-              connectorClient,
-              afterMessageSent,
-              i,
-              delay,
-              member,
-              msgNotSentArr,
-              sendErrorEmail,
-              retryCounter
-            );
+            setTimeout(() => {
+              sendProactiveMessaageToUserAsync(
+                memberArr,
 
+                activity,
+
+                null,
+
+                serviceUrl,
+
+                userTenantId,
+
+                log,
+
+                userAadObjId,
+
+                conversationId,
+
+                connectorClient,
+
+                afterMessageSent,
+
+                i,
+
+                delay,
+
+                member,
+
+                msgNotSentArr,
+
+                sendErrorEmail,
+
+                retryCounter
+              );
+            }, 1000);
             console.log({ i });
           }
         } catch (err) {
@@ -3868,6 +3889,9 @@ const createTestIncident = async (
       isSaveAsTemplate: false,
       updatedOn: "",
       template_name: "",
+      EnableSendReminders,
+      SendRemindersCount,
+      SendRemindersTime,
     };
     const newInc = await incidentService.createNewInc(
       incData,

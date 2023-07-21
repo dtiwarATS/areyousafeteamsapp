@@ -110,7 +110,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
-      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
+      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime, GLI.[STATUS]
       FROM MSTeamsIncidents inc
       LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
       LEFT JOIN MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id
@@ -123,7 +123,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, m.is_message_delivered, 
       m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
-      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
+      inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime, GLI.[STATUS]
       FROM MSTeamsIncidents inc
       LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
       LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
@@ -165,11 +165,12 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let selectQuery = `
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
-  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,
+  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime,
   m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value,
   m.SafetyCheckVisitorsQuestion1Response,
   m.SafetyCheckVisitorsQuestion2Response,
   m.SafetyCheckVisitorsQuestion3Response ,
+
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
@@ -863,8 +864,10 @@ const saveIncResponseUserTS = async (respUserTSquery, userAadObjId) => {
 
 const getIncResponseSelectedUsersList = async (incId, userAadObjId) => {
   try {
+    console.log("inside getIncResponseSelectedUsersList", { incId });
     const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId};`;
     const result = await db.getDataFromDB(sql, userAadObjId);
+    console.log("after getIncResponseSelectedUsersList", { incId, sql });
     return Promise.resolve(result);
   } catch (err) {
     console.log(err);
@@ -1243,6 +1246,23 @@ const getenablecheck = async (teamId) => {
   return Promise.resolve(result);
 };
 
+const getremaindercheck = async (inc_id) => {
+  let result = null;
+  try {
+    const getremaindercheck = `
+    select MST.EnableSendReminders,MST.SendRemindersCount,MST.SendRemindersTime,MST.id,MSR.user_name,MSR.inc_id,MSR.is_message_delivered,MSR.response,MSR.response_value,MSR.timestamp,MSR.SendRemindersCounter from 
+    [dbo].[MSTeamsIncidents] as MST
+    inner join MSTeamsMemberResponses as MSR
+    on MST.id=MSR.inc_id
+    where inc_id=${inc_id} `;
+    result = await db.getDataFromDB(getremaindercheck);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "");
+  }
+  return Promise.resolve(result);
+};
+
 const isWelcomeMessageSend = async (userObjId) => {
   let isWelcomeMessageSent = false;
   try {
@@ -1373,6 +1393,16 @@ const updatepostSentPostInstallationFlag = async (
     await db.getDataFromDB(sqlCheckLicense, userAadObjId);
   } catch (err) {
     processSafetyBotError(err, "", "", userAadObjId);
+  }
+};
+
+const updateremaindercounter = async (inc_id, user_id) => {
+  try {
+    let counter = 0;
+    const counteradd = `update MSTeamsMemberResponses set SendRemindersCounter=SendRemindersCounter + 1, LastReminderSentAT = GETDATE() where inc_id=${inc_id} and user_id='${user_id}'`;
+    await db.getDataFromDB(counteradd);
+  } catch (err) {
+    processSafetyBotError(err, "", "", user_id);
   }
 };
 
@@ -1678,7 +1708,7 @@ const getRequiredDataToSendMessage = async (
     SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
     inc.selected_members, inc.created_by, inc.GUIDANCE, inc.inc_type_id, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
     m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
-    inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID, GLI.[STATUS]
+    inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime, GLI.[STATUS]
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id 
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID
@@ -1974,4 +2004,6 @@ module.exports = {
   getenablecheck,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
+  updateremaindercounter,
+  getremaindercheck,
 };
