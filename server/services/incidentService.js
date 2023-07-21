@@ -24,7 +24,9 @@ const {
 
 const parseEventData = (result, updateRecurrMemebersResp = false) => {
   let parsedDataArr = [];
-  // console.log("result >>", result);
+  //let allmedialist = `select * from filesdata`;
+  //const myfiledata = await db.getDataFromDB(allmedialist);
+  console.log("result >>", result);
   if (result != null && result.length > 0) {
     let resultObj = result[0];
     // TODO: need to improve this logic of parsing
@@ -82,13 +84,18 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
 
           return new Member(member);
         });
-
+        // get all media data
+        // const mydata = []
+        // incidentMediafils:mydata.filter((data)=>data.IncId==parsedData.id)
         parsedData = {
           ...parsedData,
           selectedMembers: selectedMembers,
           m: memberResponseData,
           membersCount,
           messageDeliveredCount,
+          // incidentMediafiles: myfiledata.filter(
+          //   (data) => data.inc_id == parsedData.id
+          // ),
         };
 
         parsedDataArr.push(new Incident(parsedData));
@@ -171,13 +178,17 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   m.SafetyCheckVisitorsQuestion2Response,
   m.SafetyCheckVisitorsQuestion3Response ,
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
+  
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
   mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID
+  
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+  
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
   Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
+  
   ${whereSql} ${orderBySql}
   FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 

@@ -211,6 +211,7 @@ class AreYouSafeTab {
             SafetyCheckVisitorsQuestion1Response,
             SafetyCheckVisitorsQuestion2Response,
             SafetyCheckVisitorsQuestion3Response,
+            //incidentMediafiles,
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -310,6 +311,7 @@ class AreYouSafeTab {
             SafetyCheckVisitorsQuestion1Response,
             SafetyCheckVisitorsQuestion2Response,
             SafetyCheckVisitorsQuestion3Response,
+            //incidentMediafiles,
           };
           incFormatedData.push(incObj);
         });
