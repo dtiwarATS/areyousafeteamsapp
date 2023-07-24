@@ -261,7 +261,7 @@ class AreYouSafeTab {
                   responsePercentage =
                     Math.round(
                       ((needAssistanceCount + safeCount) * 100) /
-                        inc.members.length
+                      inc.members.length
                     ).toString() + "%";
                 }
               } else {
@@ -500,8 +500,8 @@ class AreYouSafeTab {
                 (index == 0
                   ? ""
                   : index == adminsArr.length - 1
-                  ? " and "
-                  : ", ") + usrName;
+                    ? " and "
+                    : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -519,8 +519,8 @@ class AreYouSafeTab {
                     (currentTeamsAdminsStr === ""
                       ? ""
                       : index == adminsArr.length - 1
-                      ? " and "
-                      : ", ") + usrName;
+                        ? " and "
+                        : ", ") + usrName;
                 }
               });
 
@@ -719,7 +719,7 @@ class AreYouSafeTab {
   };
 
   DeleteFile = async (filedata, userAadObjId) => {
-    let deletfile = `delete from filesdata where id=${filedata.tempfileincId} and File_name='${filedata.filename}'`;
+    let deletfile = `delete from filesdata where inc_id=${filedata.tempfileincId} and File_name='${filedata.filename}'`;
     const res = await db.updateDataIntoDB(deletfile);
 
     console.log(res);

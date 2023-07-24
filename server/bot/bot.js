@@ -1775,14 +1775,7 @@ const sendProactiveMessageAsync = async (
     );
     if (incFilesData != null && incFilesData.length > 0) {
       const cardBody = [];
-      incFilesData.forEach((incFile) => {
-        // let extension = incFile.File_name.split('.')[1];
-        // let attachment = {
-        //   name: incFile.File_name,
-        //   contentType: 'image/' + extension,
-        //   contentUrl: incFile.Blob
-        // };
-        // activity.attachments.push(attachment);
+      if (incFilesData.length == 1) {
         cardBody.push(
           {
             "type": "Image",
@@ -1791,8 +1784,36 @@ const sendProactiveMessageAsync = async (
               "allowExpand": true
             }
           }
-        )
-      });
+        );
+      } else {
+        let columns = [];
+        incFilesData.forEach((incFile, index) => {
+          if (index % 2 == 0) {
+            columns = [];
+            let cs = {
+              "type": "ColumnSet",
+              "columns": columns
+            };
+            cardBody.push(cs);
+          }
+          let columnItems = [];
+          columnItems.push(
+            {
+              "type": "Image",
+              "url": incFile.Blob,
+              "msTeams": {
+                "allowExpand": true
+              }
+            }
+          );
+          let column =
+          {
+            "type": "Column",
+            "items": columnItems
+          };
+          columns.push(column);
+        });
+      }
       let card = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
