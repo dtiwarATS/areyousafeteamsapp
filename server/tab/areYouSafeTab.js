@@ -214,6 +214,7 @@ class AreYouSafeTab {
             EnableSendReminders,
             SendRemindersCount,
             SendRemindersTime,
+            incidentMediafiles,
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -316,6 +317,7 @@ class AreYouSafeTab {
             EnableSendReminders,
             SendRemindersCount,
             SendRemindersTime,
+            incidentMediafiles,
           };
           incFormatedData.push(incObj);
         });
@@ -712,6 +714,14 @@ class AreYouSafeTab {
     let filevalues = Object.keys(filedata).map((key) => filedata[key]);
 
     const res = await db.insertDataIntoDB("filesdata", filevalues);
+
+    console.log(res);
+  };
+
+  DeleteFile = async (filedata, userAadObjId) => {
+    let deletfile = `delete from filesdata where id=${filedata.tempfileincId} and File_name='${filedata.filename}'`;
+    const res = await db.updateDataIntoDB(deletfile);
+
     console.log(res);
   };
 
@@ -831,7 +841,8 @@ class AreYouSafeTab {
 
       let incSelectedMembersData = null,
         incResponseMembersData = null,
-        incResponseTeamsData = null;
+        incResponseTeamsData = null,
+        incidentMediafiles = null;
       let incDataToCopy = await incidentService.getIncDataToCopyInc(
         incId,
         selectedUsers,
@@ -843,6 +854,7 @@ class AreYouSafeTab {
         incSelectedMembersData = incDataToCopy[0];
         incResponseMembersData = incDataToCopy[1];
         incResponseTeamsData = incDataToCopy[2];
+        incidentMediafiles = incDataToCopy[3];
       }
 
       return {
@@ -850,6 +862,7 @@ class AreYouSafeTab {
         incResponseMembersData,
         incSelectedMembersData,
         incResponseTeamsData,
+        incidentMediafiles,
       };
     } catch (err) {
       processSafetyBotError(err, "", "");

@@ -38,7 +38,7 @@ class Incident {
     SafetyCheckVisitorsQuestion1Response,
     SafetyCheckVisitorsQuestion2Response,
     SafetyCheckVisitorsQuestion3Response,
-    //incidentMediafiles,
+    incidentMediafiles,
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -81,6 +81,7 @@ class Incident {
     this.EnableSendReminders = EnableSendReminders;
     this.SendRemindersCount = SendRemindersCount;
     this.SendRemindersTime = SendRemindersTime;
+    this.incidentMediafiles = incidentMediafiles;
   }
 }
 

@@ -22,10 +22,12 @@ const {
   getConversationParameters,
 } = require("../api/apiMethods");
 
-const parseEventData = (result, updateRecurrMemebersResp = false) => {
+const parseEventData = (
+  result,
+  updateRecurrMemebersResp = false,
+  myfiledata = []
+) => {
   let parsedDataArr = [];
-  //let allmedialist = `select * from filesdata`;
-  //const myfiledata = await db.getDataFromDB(allmedialist);
   console.log("result >>", result);
   if (result != null && result.length > 0) {
     let resultObj = result[0];
@@ -93,9 +95,9 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
           m: memberResponseData,
           membersCount,
           messageDeliveredCount,
-          // incidentMediafiles: myfiledata.filter(
-          //   (data) => data.inc_id == parsedData.id
-          // ),
+          incidentMediafiles: myfiledata.filter(
+            (data) => data.inc_id == parsedData.id
+          ),
         };
 
         parsedDataArr.push(new Incident(parsedData));
@@ -200,6 +202,7 @@ const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
   try {
     const selectQuery = getAllIncQuery(teamId, null, orderBy);
     const result = await db.getDataFromDB(selectQuery, userObjId);
+
     let parsedResult = await parseEventData(result, true);
     return Promise.resolve(parsedResult);
   } catch (err) {
@@ -320,7 +323,9 @@ const getAllIncByUserId = async (aadObjuserId, orderBy) => {
   try {
     const selectQuery = getAllIncQuery(null, aadObjuserId, orderBy);
     const result = await db.getDataFromDB(selectQuery, aadObjuserId);
-    let parsedResult = await parseEventData(result, true);
+    let allmedialist = `select * from filesdata`;
+    const myfiledata = await db.getDataFromDB(allmedialist);
+    let parsedResult = await parseEventData(result, true, myfiledata);
     return Promise.resolve(parsedResult);
   } catch (err) {
     console.log(err);
@@ -1849,9 +1854,11 @@ const getIncDataToCopyInc = async (
 
     const sqlSelectedTeams = ` select teamId, teamName , channelId, channelName from MSTeamsIncResponseSelectedTeams where incId = ${incId}; `;
 
+    const sqlSelectedIncidentMediaFiles = ` select id,inc_id,[File_name] as 'name',File_size,Blob as 'blobdata' From filesdata where inc_id = ${incId}`;
     const sqlCopyData = `${sqlSelectedMembers} 
                           ${sqlResponseMembers}
-                          ${sqlSelectedTeams}`;
+                          ${sqlSelectedTeams} 
+                          ${sqlSelectedIncidentMediaFiles}`;
 
     result = await db.getDataFromDB(sqlCopyData, userAadObjId, false);
   } catch (err) {
