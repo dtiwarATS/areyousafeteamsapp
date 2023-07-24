@@ -1774,15 +1774,33 @@ const sendProactiveMessageAsync = async (
       CardFactory.adaptiveCard(approvalCard)
     );
     if (incFilesData != null && incFilesData.length > 0) {
+      const cardBody = [];
       incFilesData.forEach((incFile) => {
-        let extension = incFile.File_name.split('.')[1];
-        let attachment = {
-          name: incFile.File_name,
-          contentType: 'image/' + extension,
-          contentUrl: incFile.Blob
-        };
-        activity.attachments.push(attachment);
-      })
+        // let extension = incFile.File_name.split('.')[1];
+        // let attachment = {
+        //   name: incFile.File_name,
+        //   contentType: 'image/' + extension,
+        //   contentUrl: incFile.Blob
+        // };
+        // activity.attachments.push(attachment);
+        cardBody.push(
+          {
+            "type": "Image",
+            "url": incFile.Blob,
+            "msTeams": {
+              "allowExpand": true
+            }
+          }
+        )
+      });
+      let card = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: cardBody,
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      activity.attachments.push(CardFactory.adaptiveCard(card));
     }
 
     const appId = process.env.MicrosoftAppId;
