@@ -205,12 +205,13 @@ const updateSafeMessage = (
     body: [
       {
         type: "TextBlock",
-        text: `If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`,
+        text: `Additional Comments`,
         wrap: true,
       },
       {
         type: "Input.Text",
-        placeholder: "Add additional comment",
+        placeholder:
+          "For example - Daniel Foster is stuck in the elevator on the 7th floor.",
         style: "text",
         id: "commentVal",
         isMultiline: true,
@@ -221,7 +222,7 @@ const updateSafeMessage = (
           {
             type: "Action.Execute",
             verb: "submit_comment",
-            title: "Submit Comment",
+            title: "Send",
             data: {
               eventResponse: response,
               userId: userId,
