@@ -198,6 +198,8 @@ const updateSafeMessage = (
   inc,
   incGuidance
 ) => {
+  var isVisi = false;
+  if (incGuidance != "") isVisi = true;
   var card = {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -239,7 +241,8 @@ const updateSafeMessage = (
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `**Guidance:**\n\n` + incGuidance,
+        isVisible: isVisi,
+        text: "**Guidance:**\n\n" + incGuidance,
       },
     ],
     // msteams: {
