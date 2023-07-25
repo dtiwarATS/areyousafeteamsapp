@@ -222,6 +222,19 @@ const getCompanyDataByTeamId = async (teamId, userAadObjId) => {
   return Promise.resolve(companyData);
 };
 
+const getFilesByIncId = async (IncId, userAadObjId) => {
+  let filesData = null;
+  try {
+    const selectQuery = `SELECT * FROM filesdata where inc_id = '${IncId}'`;
+    let res = await db.getDataFromDB(selectQuery, userAadObjId);
+    filesData = res;
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, IncId, "", userAadObjId);
+  }
+  return Promise.resolve(filesData);
+};
+
 const removeTeamMember = async (teamId, userId) => {
   try {
     pool = await poolPromise;
@@ -726,4 +739,5 @@ module.exports = {
   parseCompanyData,
   renameTeam,
   saveNARespSelectedTeams,
+  getFilesByIncId
 };

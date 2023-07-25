@@ -21,7 +21,7 @@ const {
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
 
-const { getCompanyDataByTeamId } = require("../db/dbOperations");
+const { getCompanyDataByTeamId, getFilesByIncId } = require("../db/dbOperations");
 
 const { processSafetyBotError } = require("../models/processError");
 (async () => {
@@ -51,6 +51,7 @@ const { processSafetyBotError } = require("../models/processError");
               user_id,
             } = member;
             const companyData = await getCompanyDataByTeamId(member.team_id);
+            const filesData = await getFilesByIncId(inc_id);
             let incObj = {
               incId: inc_id,
               incTitle: inc_name,
@@ -93,7 +94,9 @@ const { processSafetyBotError } = require("../models/processError");
                 companyData.userTenantId,
                 log,
                 "",
-                null
+                null,
+                null,
+                filesData
               );
               log.addLog(
                 `send proactive messaage to ${memberlist.user_id} successfully`

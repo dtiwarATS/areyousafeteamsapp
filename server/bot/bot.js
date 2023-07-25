@@ -1776,35 +1776,40 @@ const sendProactiveMessageAsync = async (
     if (incFilesData != null && incFilesData.length > 0) {
       const cardBody = [];
       if (incFilesData.length == 1) {
-        cardBody.push({
-          type: "Image",
-          url: incFilesData[0].Blob,
-          msTeams: {
-            allowExpand: true,
-          },
-        });
+        cardBody.push(
+          {
+            "type": "Image",
+            "url": incFilesData[0].Blob,
+            "msTeams": {
+              "allowExpand": true
+            }
+          }
+        );
       } else {
         let columns = [];
         incFilesData.forEach((incFile, index) => {
           if (index % 2 == 0) {
             columns = [];
             let cs = {
-              type: "ColumnSet",
-              columns: columns,
+              "type": "ColumnSet",
+              "columns": columns
             };
             cardBody.push(cs);
           }
           let columnItems = [];
-          columnItems.push({
-            type: "Image",
-            url: incFile.Blob,
-            msTeams: {
-              allowExpand: true,
-            },
-          });
-          let column = {
-            type: "Column",
-            items: columnItems,
+          columnItems.push(
+            {
+              "type": "Image",
+              "url": incFile.Blob,
+              "msTeams": {
+                "allowExpand": true
+              }
+            }
+          );
+          let column =
+          {
+            "type": "Column",
+            "items": columnItems
           };
           columns.push(column);
         });
@@ -1995,6 +2000,7 @@ const sendProactiveMessageAsync = async (
         }
         const totalMessageCountAfterTitleNotification =
           allMembersArr.length * 2;
+        console.log({ messageCount, totalMessageCountAfterTitleNotification, sqlUpdateMsgDeliveryStatus });
         if (messageCount == totalMessageCountAfterTitleNotification) {
           if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
             reSendMessage();
@@ -2385,7 +2391,7 @@ const sendSafetyCheckMessageAsync = async (
         allMembers,
         incGuidance,
         incResponseSelectedUsersList,
-        incFilesData,
+        incFilesData
       } = await incidentService.getRequiredDataToSendMessage(
         incId,
         teamId,
