@@ -436,14 +436,12 @@ const insertCompanyData = async (
       ? ""
       : companyDataObj.teamId;
   try {
-    console.log("inside insertCompanyData start");
-
     let values = Object.keys(companyDataObj).map((key) => companyDataObj[key]);
 
     let res = null;
 
     const insertSql = db.getInsertSql("MSTeamsInstallationDetails", values);
-    console.log(insertSql);
+
     const sqlAddCompanyData = `IF('personal' = '${conversationType}')
     BEGIN
       IF EXISTS(SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${
@@ -499,7 +497,6 @@ const insertCompanyData = async (
               SELECT * FROM MSTeamsInstallationDetails WHERE id = SCOPE_IDENTITY();
         END
     END`;
-    console.log(sqlAddCompanyData);
     res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
@@ -525,7 +522,6 @@ const insertCompanyData = async (
         );
       }
     }
-    console.log("inside insertCompanyData end");
 
     if (res != null && res.length > 0) {
       let companyData = new Company(res[0]);
@@ -649,7 +645,7 @@ const updateCompanyData = async (userId, teamId, teamName = "") => {
   try {
     pool = await poolPromise;
     const updateQuery = `UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', team_name = '${teamName}' WHERE user_id = '${userId}' `;
-    console.log("update query Company>> ", updateQuery);
+
     await pool.request().query(updateQuery);
 
     // return Promise.resolve();

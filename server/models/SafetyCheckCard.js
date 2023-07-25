@@ -363,7 +363,6 @@ const SafetyCheckCard = async (
       );
       break;
   }
-  console.log("found card", { card });
   return card;
 };
 
