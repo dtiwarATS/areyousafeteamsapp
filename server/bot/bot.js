@@ -3596,7 +3596,8 @@ const sendRecurrEventMsgAsync = async (
       log,
       resolve,
       reject,
-      subEventObj.runAt
+      subEventObj.runAt,
+      subEventObj.filesData
     );
   });
 };
