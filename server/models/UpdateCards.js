@@ -461,7 +461,9 @@ const updateSafeMessageqestion3 = (
   return card;
 };
 
-const updateSubmitCommentCard = (responseText, incCreatedBy) => {
+const updateSubmitCommentCard = (responseText, incCreatedBy, incGuidance) => {
+  var isVisi = false;
+  if (incGuidance != "") isVisi = true;
   return {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -471,6 +473,12 @@ const updateSubmitCommentCard = (responseText, incCreatedBy) => {
         type: "TextBlock",
         text: responseText,
         wrap: true,
+      },
+      {
+        type: "TextBlock",
+        wrap: true,
+        isVisible: isVisi,
+        text: "**Guidance:**\n\n" + incGuidance,
       },
     ],
     msteams: {
