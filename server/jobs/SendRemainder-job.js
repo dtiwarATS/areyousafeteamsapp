@@ -51,7 +51,6 @@ const { processSafetyBotError } = require("../models/processError");
               user_id,
             } = member;
             const companyData = await getCompanyDataByTeamId(member.team_id);
-            const filesData = await getFilesByIncId(inc_id);
             let incObj = {
               incId: inc_id,
               incTitle: inc_name,
@@ -86,6 +85,7 @@ const { processSafetyBotError } = require("../models/processError");
               memberlist.SendRemindersCounter < memberlist.SendRemindersCount &&
               diffMins >= memberlist.SendRemindersTime
             ) {
+              const filesData = await getFilesByIncId(inc_id);
               await sendProactiveMessaageToUser(
                 [{ id: memberlist.user_id, name: memberlist.user_name }],
                 approvalCard,
