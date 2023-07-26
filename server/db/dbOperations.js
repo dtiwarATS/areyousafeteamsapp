@@ -7,7 +7,7 @@ const parseCompanyData = (result) => {
   let parsedCompanyObj = {};
   // console.log("result >>", result);
   try {
-    if (result.length > 0) {
+    if (result != undefined && result.length > 0) {
       let resultObj;
       if (result.length > 1) {
         for (i = 0; i < result.length; i++) {
