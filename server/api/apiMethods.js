@@ -427,6 +427,9 @@ const sendProactiveMessaageToUser = async (
         cardBody.push({
           type: "Image",
           url: filesData[0].Blob,
+          msTeams: {
+            allowExpand: true,
+          },
         });
       } else {
         let columns = [];
