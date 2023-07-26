@@ -198,6 +198,8 @@ const updateSafeMessage = (
   inc,
   incGuidance
 ) => {
+  var isVisi = false;
+  if (incGuidance != "") isVisi = true;
   var card = {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -205,12 +207,13 @@ const updateSafeMessage = (
     body: [
       {
         type: "TextBlock",
-        text: `If you have any additional comments, please type them in the message box below and click on the Submit Comment button (optional)`,
+        text: `Additional Comments`,
         wrap: true,
       },
       {
         type: "Input.Text",
-        placeholder: "Add additional comment",
+        placeholder:
+          "For example - Daniel Foster is stuck in the elevator on the 7th floor.",
         style: "text",
         id: "commentVal",
         isMultiline: true,
@@ -221,7 +224,7 @@ const updateSafeMessage = (
           {
             type: "Action.Execute",
             verb: "submit_comment",
-            title: "Submit Comment",
+            title: "Send",
             data: {
               eventResponse: response,
               userId: userId,
@@ -238,7 +241,8 @@ const updateSafeMessage = (
         type: "TextBlock",
         separator: true,
         wrap: true,
-        text: `**Guidance:**\n\n` + incGuidance,
+        isVisible: isVisi,
+        text: "**Guidance:**\n\n" + incGuidance,
       },
     ],
     // msteams: {

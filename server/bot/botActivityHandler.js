@@ -629,12 +629,12 @@ class BotActivityHandler extends TeamsActivityHandler {
           commentVal,
         } = action.data;
         let incGuidance = await incidentService.getIncGuidance(incId);
-        incGuidance = incGuidance ? incGuidance : "No details available";
+        incGuidance = incGuidance; //? incGuidance : "No details available";
         let responseText = commentVal
           ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` +
-          incGuidance
+            incGuidance
           : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` +
-          incGuidance;
+            incGuidance;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy)
         );
@@ -700,8 +700,6 @@ class BotActivityHandler extends TeamsActivityHandler {
           await context.sendActivity({
             attachments: [Qestion3],
           });
-
-
         }
       }
       ////////////////////Question3
@@ -716,12 +714,12 @@ class BotActivityHandler extends TeamsActivityHandler {
           commentVal,
         } = action.data;
         let incGuidance = await incidentService.getIncGuidance(incId);
-        incGuidance = incGuidance ? incGuidance : "No details available";
+        incGuidance = incGuidance; //? incGuidance : "No details available";
         let responseText = commentVal
           ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` +
-          incGuidance
+            incGuidance
           : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.\n\n**Guidance:**\n\n` +
-          incGuidance;
+            incGuidance;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy)
         );
@@ -766,7 +764,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         );
 
         var incGuidance = await incidentService.getIncGuidance(incId);
-        incGuidance = incGuidance ? incGuidance : "No details available";
+        incGuidance = incGuidance; //? incGuidance : "No details available";
 
         const cards = CardFactory.adaptiveCard(
           updateSafeMessage(
@@ -1103,7 +1101,7 @@ class BotActivityHandler extends TeamsActivityHandler {
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => { })
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
@@ -1141,7 +1139,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     if (userInfo && userInfo.length > 0) {
       new PersonalEmail.PersonalEmail()
         .sendUninstallationEmail(userInfo[0].email, userAadObjId)
-        .then(() => { })
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
