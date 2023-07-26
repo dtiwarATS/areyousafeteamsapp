@@ -35,8 +35,8 @@ const { processSafetyBotError } = require("../models/processError");
         membersNotRespondedList.length > 0
       ) {
         await Promise.all(
-          membersNotRespondedList.map(async (memberlist) => {
-            let member = memberlist;
+          membersNotRespondedList.map(async (memberObj) => {
+            let member = memberObj;
             const {
               inc_id,
               inc_name,
@@ -50,7 +50,20 @@ const { processSafetyBotError } = require("../models/processError");
               situation,
               user_id,
             } = member;
-            const companyData = await getCompanyDataByTeamId(member.team_id);
+
+            let ctime = new Date();
+            let diff =
+              member.LastReminderSentAT == undefined
+                ? 0
+                : ctime - member.LastReminderSentAT;
+            var diffMins = Math.round(((diff % 86400000) % 3600000) / 60000);
+
+            if (
+              member.is_message_delivered &&
+              member.SendRemindersCounter < member.SendRemindersCount &&
+              diffMins >= member.SendRemindersTime
+            ) {
+              const companyData = await getCompanyDataByTeamId(member.team_id);
             let incObj = {
               incId: inc_id,
               incTitle: inc_name,
@@ -73,21 +86,9 @@ const { processSafetyBotError } = require("../models/processError");
               contactInfo,
               situation
             );
-            let ctime = new Date();
-            let diff =
-              memberlist.LastReminderSentAT == undefined
-                ? 0
-                : ctime - memberlist.LastReminderSentAT;
-            var diffMins = Math.round(((diff % 86400000) % 3600000) / 60000);
-
-            if (
-              memberlist.is_message_delivered &&
-              memberlist.SendRemindersCounter < memberlist.SendRemindersCount &&
-              diffMins >= memberlist.SendRemindersTime
-            ) {
               const filesData = await getFilesByIncId(inc_id);
               await sendProactiveMessaageToUser(
-                [{ id: memberlist.user_id, name: memberlist.user_name }],
+                [{ id: member.user_id, name: member.user_name }],
                 approvalCard,
                 null,
                 companyData.serviceUrl,
@@ -99,11 +100,11 @@ const { processSafetyBotError } = require("../models/processError");
                 filesData
               );
               log.addLog(
-                `send proactive messaage to ${memberlist.user_id} successfully`
+                `send proactive messaage to ${member.user_id} successfully`
               );
               await incidentService.updateremaindercounter(
-                memberlist.inc_id,
-                memberlist.user_id
+                member.inc_id,
+                member.user_id
               );
             }
           })
