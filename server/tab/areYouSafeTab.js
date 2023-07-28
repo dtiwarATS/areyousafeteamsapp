@@ -186,6 +186,7 @@ class AreYouSafeTab {
           teamObj = {};
           teamInfo.forEach((team) => {
             teamObj[team.teamId] = team.teamName;
+            teamObj["userid"] = team.userid;
           });
         }
 
@@ -261,7 +262,7 @@ class AreYouSafeTab {
                   responsePercentage =
                     Math.round(
                       ((needAssistanceCount + safeCount) * 100) /
-                      inc.members.length
+                        inc.members.length
                     ).toString() + "%";
                 }
               } else {
@@ -276,7 +277,7 @@ class AreYouSafeTab {
           }
 
           const teamName = teamObj && teamObj[teamId] ? teamObj[teamId] : "";
-
+          const userid = teamObj && teamObj["userid"] ? teamObj["userid"] : "";
           const incObj = {
             incId,
             status,
@@ -318,6 +319,7 @@ class AreYouSafeTab {
             SendRemindersCount,
             SendRemindersTime,
             incidentMediafiles,
+            userid,
           };
           incFormatedData.push(incObj);
         });
@@ -500,8 +502,8 @@ class AreYouSafeTab {
                 (index == 0
                   ? ""
                   : index == adminsArr.length - 1
-                    ? " and "
-                    : ", ") + usrName;
+                  ? " and "
+                  : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -519,8 +521,8 @@ class AreYouSafeTab {
                     (currentTeamsAdminsStr === ""
                       ? ""
                       : index == adminsArr.length - 1
-                        ? " and "
-                        : ", ") + usrName;
+                      ? " and "
+                      : ", ") + usrName;
                 }
               });
 
