@@ -22,9 +22,13 @@ const {
   getConversationParameters,
 } = require("../api/apiMethods");
 
-const parseEventData = (result, updateRecurrMemebersResp = false) => {
+const parseEventData = (
+  result,
+  updateRecurrMemebersResp = false,
+  myfiledata = []
+) => {
   let parsedDataArr = [];
-  // console.log("result >>", result);
+  console.log("result >>", result);
   if (result != null && result.length > 0) {
     let resultObj = result[0];
     // TODO: need to improve this logic of parsing
@@ -82,13 +86,18 @@ const parseEventData = (result, updateRecurrMemebersResp = false) => {
 
           return new Member(member);
         });
-
+        // get all media data
+        // const mydata = []
+        // incidentMediafils:mydata.filter((data)=>data.IncId==parsedData.id)
         parsedData = {
           ...parsedData,
           selectedMembers: selectedMembers,
           m: memberResponseData,
           membersCount,
           messageDeliveredCount,
+          incidentMediafiles: myfiledata.filter(
+            (data) => data.inc_id == parsedData.id
+          ),
         };
 
         parsedDataArr.push(new Incident(parsedData));
@@ -172,13 +181,17 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   m.SafetyCheckVisitorsQuestion3Response ,
 
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
+  
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
   mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID
+  
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+  
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
   Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
+  
   ${whereSql} ${orderBySql}
   FOR JSON AUTO , INCLUDE_NULL_VALUES`;
 
@@ -189,6 +202,7 @@ const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
   try {
     const selectQuery = getAllIncQuery(teamId, null, orderBy);
     const result = await db.getDataFromDB(selectQuery, userObjId);
+
     let parsedResult = await parseEventData(result, true);
     return Promise.resolve(parsedResult);
   } catch (err) {
@@ -309,7 +323,9 @@ const getAllIncByUserId = async (aadObjuserId, orderBy) => {
   try {
     const selectQuery = getAllIncQuery(null, aadObjuserId, orderBy);
     const result = await db.getDataFromDB(selectQuery, aadObjuserId);
-    let parsedResult = await parseEventData(result, true);
+    let allmedialist = `select * from filesdata`;
+    const myfiledata = await db.getDataFromDB(allmedialist);
+    let parsedResult = await parseEventData(result, true, myfiledata);
     return Promise.resolve(parsedResult);
   } catch (err) {
     console.log(err);
@@ -339,7 +355,8 @@ const createNewInc = async (
   userAadObjId,
   responseSelectedTeams,
   teamIds,
-  incId
+  incId,
+  tempincid
 ) => {
   let newInc = null;
   try {
@@ -382,6 +399,8 @@ const createNewInc = async (
     }
     if (newInc != null) {
       if (selectedMembersResp && selectedMembersResp != "") {
+        const updatefilequerry = `update filesdata set inc_id=${newInc.incId} where inc_id=${tempincid}`;
+        const res = await db.updateDataIntoDB(updatefilequerry);
         await saveIncResponseSelectedUsers(
           newInc.incId,
           selectedMembersResp,
@@ -1210,7 +1229,7 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select team_id teamId, team_name teamName, channelId, isnull(team_name, '') + ' - ' + isnull(channelName, '') channelName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
+    const sqlTeamInfo = `select user_id userid,team_id teamId, team_name teamName, channelId, isnull(team_name, '') + ' - ' + isnull(channelName, '') channelName from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
     result = await db.getDataFromDB(sqlTeamInfo, userAadObjId);
   } catch (err) {
     console.log(err);
@@ -1718,11 +1737,13 @@ const getRequiredDataToSendMessage = async (
 
     select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId} 
     and user_id not in (select created_by from MSTeamsIncidents where id = ${incId});
+
+    select * from filesdata where inc_id = ${incId}; 
     `;
 
     const data = await db.getDataFromDB(sql, userAadObjId, false);
 
-    if (data != null && Array.isArray(data) && data.length == 5) {
+    if (data != null && Array.isArray(data) && data.length == 6) {
       let companyData = data[0];
       companyData = parseCompanyData(companyData);
 
@@ -1740,13 +1761,14 @@ const getRequiredDataToSendMessage = async (
       }
 
       let incResponseSelectedUsersList = data[4];
-
+      let incFilesData = data[5];
       return {
         companyData,
         incData,
         allMembers,
         incGuidance,
         incResponseSelectedUsersList,
+        incFilesData,
       };
     }
   } catch (err) {
@@ -1832,9 +1854,11 @@ const getIncDataToCopyInc = async (
 
     const sqlSelectedTeams = ` select teamId, teamName , channelId, channelName from MSTeamsIncResponseSelectedTeams where incId = ${incId}; `;
 
+    const sqlSelectedIncidentMediaFiles = ` select id,inc_id,[File_name] as 'name',File_size,Blob as 'blobdata' From filesdata where inc_id = ${incId}`;
     const sqlCopyData = `${sqlSelectedMembers} 
                           ${sqlResponseMembers}
-                          ${sqlSelectedTeams}`;
+                          ${sqlSelectedTeams} 
+                          ${sqlSelectedIncidentMediaFiles}`;
 
     result = await db.getDataFromDB(sqlCopyData, userAadObjId, false);
   } catch (err) {

@@ -7,6 +7,7 @@ const incidentService = require("../services/incidentService");
 const moment = require("moment-timezone");
 const { AYSLog } = require("../utils/log");
 const { processSafetyBotError } = require("../models/processError");
+const { getFilesByIncId } = require("../db/dbOperations");
 
 (async () => {
   //get filter job from database
@@ -55,10 +56,12 @@ const { processSafetyBotError } = require("../models/processError");
           if (eventMembers?.length > 0) {
 
             let companyData = await incidentService.getCompanyData(teamId);
+            const filesData = await getFilesByIncId(incId);
             job = {
               ...job,
               eventMembers,
-              companyData
+              companyData,
+              filesData
             }
 
             let interval = parser.parseExpression(cron, options);

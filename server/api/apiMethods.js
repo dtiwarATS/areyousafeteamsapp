@@ -399,7 +399,8 @@ const sendProactiveMessaageToUser = async (
   log,
   userAadObjId,
   conversationId = null,
-  connectorClient = null
+  connectorClient = null,
+  filesData = null
 ) => {
   if (log == null) {
     log = new AYSLog();
@@ -420,7 +421,51 @@ const sendProactiveMessaageToUser = async (
     } else if (msgText != null) {
       activity = MessageFactory.text(msgText);
     }
-
+    if (filesData != null && filesData.length > 0) {
+      const cardBody = [];
+      if (filesData.length == 1) {
+        cardBody.push({
+          type: "Image",
+          url: filesData[0].Blob,
+          msTeams: {
+            allowExpand: true,
+          },
+        });
+      } else {
+        let columns = [];
+        filesData.forEach((incFile, index) => {
+          if (index % 2 == 0) {
+            columns = [];
+            let cs = {
+              type: "ColumnSet",
+              columns: columns,
+            };
+            cardBody.push(cs);
+          }
+          let columnItems = [];
+          columnItems.push({
+            type: "Image",
+            url: incFile.Blob,
+            msTeams: {
+              allowExpand: true,
+            },
+          });
+          let column = {
+            type: "Column",
+            items: columnItems,
+          };
+          columns.push(column);
+        });
+      }
+      let card = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: cardBody,
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      activity.attachments.push(CardFactory.adaptiveCard(card));
+    }
     if (activity != null) {
       if (connectorClient == null) {
         const appId = process.env.MicrosoftAppId;

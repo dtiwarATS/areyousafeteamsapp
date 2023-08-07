@@ -824,6 +824,16 @@ BEGIN
 END 
 GO 
 
-
+IF (NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'filesdata'))
+BEGIN
+	CREATE TABLE filesdata (
+	id int primary key identity(1,1),
+	inc_id int,
+	File_name nvarchar(200),
+	File_size nvarchar(100),
+	Blob nvarchar(max)
+	);
+END
+GO
 
 

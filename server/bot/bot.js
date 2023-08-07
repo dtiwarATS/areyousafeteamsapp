@@ -1732,7 +1732,8 @@ const sendProactiveMessageAsync = async (
   log,
   resolveFn,
   rejectFn,
-  runAt = null
+  runAt = null,
+  incFilesData = null
 ) => {
   try {
     const isRecurringInc = runAt != null;
@@ -1772,6 +1773,51 @@ const sendProactiveMessageAsync = async (
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
     );
+    if (incFilesData != null && incFilesData.length > 0) {
+      const cardBody = [];
+      if (incFilesData.length == 1) {
+        cardBody.push({
+          type: "Image",
+          url: incFilesData[0].Blob,
+          msTeams: {
+            allowExpand: true,
+          },
+        });
+      } else {
+        let columns = [];
+        incFilesData.forEach((incFile, index) => {
+          if (index % 2 == 0) {
+            columns = [];
+            let cs = {
+              type: "ColumnSet",
+              columns: columns,
+            };
+            cardBody.push(cs);
+          }
+          let columnItems = [];
+          columnItems.push({
+            type: "Image",
+            url: incFile.Blob,
+            msTeams: {
+              allowExpand: true,
+            },
+          });
+          let column = {
+            type: "Column",
+            items: columnItems,
+          };
+          columns.push(column);
+        });
+      }
+      let card = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: cardBody,
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      activity.attachments.push(CardFactory.adaptiveCard(card));
+    }
 
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
@@ -1876,7 +1922,11 @@ const sendProactiveMessageAsync = async (
         //console.log({ "end i ": index, messageCount });
 
         let isMessageDelivered = 0;
-        if (msgResp?.conversationId != null && msgResp?.activityId != null) {
+        if (
+          msgResp?.conversationId != null &&
+          (msgResp?.activityId != null ||
+            msgResp?.memberObj?.isResponseReceived)
+        ) {
           isMessageDelivered = 1;
         }
         const status = msgResp?.status == null ? null : Number(msgResp?.status);
@@ -1949,6 +1999,11 @@ const sendProactiveMessageAsync = async (
         }
         const totalMessageCountAfterTitleNotification =
           allMembersArr.length * 2;
+        console.log({
+          messageCount,
+          totalMessageCountAfterTitleNotification,
+          sqlUpdateMsgDeliveryStatus,
+        });
         if (messageCount == totalMessageCountAfterTitleNotification) {
           if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
             reSendMessage();
@@ -2339,6 +2394,7 @@ const sendSafetyCheckMessageAsync = async (
         allMembers,
         incGuidance,
         incResponseSelectedUsersList,
+        incFilesData,
       } = await incidentService.getRequiredDataToSendMessage(
         incId,
         teamId,
@@ -2413,7 +2469,9 @@ const sendSafetyCheckMessageAsync = async (
           userTenantId,
           log,
           resolve,
-          reject
+          reject,
+          null,
+          incFilesData
         );
 
         /*const incCreatedByUserArr = [];
@@ -3538,7 +3596,8 @@ const sendRecurrEventMsgAsync = async (
       log,
       resolve,
       reject,
-      subEventObj.runAt
+      subEventObj.runAt,
+      subEventObj.filesData
     );
   });
 };

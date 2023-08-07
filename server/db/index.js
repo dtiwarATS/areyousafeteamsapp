@@ -61,6 +61,10 @@ const getColumns = (tableName) => {
       columns = ["user_id", "team_id", "email", "content"];
       break;
 
+    case "filesdata":
+      columns = ["inc_id", "File_name", "File_size", "Blob"];
+      break;
+
     case "MSTEAMS_SUB_EVENT":
       columns = [
         "INC_ID",
@@ -209,7 +213,7 @@ const updateDataIntoDBAsync = async (query, pool, userObjId) => {
   try {
     return new Promise((resolve, reject) => {
       try {
-        //console.log(`updateDataIntoDBAsync ${query}`);
+        console.log(`updateDataIntoDBAsync ${query}`);
         pool
           .request()
           .query(query)

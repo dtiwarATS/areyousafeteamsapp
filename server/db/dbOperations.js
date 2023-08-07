@@ -7,7 +7,7 @@ const parseCompanyData = (result) => {
   let parsedCompanyObj = {};
   // console.log("result >>", result);
   try {
-    if (result.length > 0) {
+    if (result != undefined && result.length > 0) {
       let resultObj;
       if (result.length > 1) {
         for (i = 0; i < result.length; i++) {
@@ -220,6 +220,19 @@ const getCompanyDataByTeamId = async (teamId, userAadObjId) => {
     processSafetyBotError(err, teamId, "", userAadObjId);
   }
   return Promise.resolve(companyData);
+};
+
+const getFilesByIncId = async (IncId, userAadObjId) => {
+  let filesData = null;
+  try {
+    const selectQuery = `SELECT * FROM filesdata where inc_id = '${IncId}'`;
+    let res = await db.getDataFromDB(selectQuery, userAadObjId);
+    filesData = res;
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, IncId, "", userAadObjId);
+  }
+  return Promise.resolve(filesData);
 };
 
 const removeTeamMember = async (teamId, userId) => {
@@ -436,14 +449,12 @@ const insertCompanyData = async (
       ? ""
       : companyDataObj.teamId;
   try {
-    console.log("inside insertCompanyData start");
-
     let values = Object.keys(companyDataObj).map((key) => companyDataObj[key]);
 
     let res = null;
 
     const insertSql = db.getInsertSql("MSTeamsInstallationDetails", values);
-    console.log(insertSql);
+
     const sqlAddCompanyData = `IF('personal' = '${conversationType}')
     BEGIN
       IF EXISTS(SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${
@@ -499,7 +510,6 @@ const insertCompanyData = async (
               SELECT * FROM MSTeamsInstallationDetails WHERE id = SCOPE_IDENTITY();
         END
     END`;
-    console.log(sqlAddCompanyData);
     res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
@@ -525,7 +535,6 @@ const insertCompanyData = async (
         );
       }
     }
-    console.log("inside insertCompanyData end");
 
     if (res != null && res.length > 0) {
       let companyData = new Company(res[0]);
@@ -649,7 +658,7 @@ const updateCompanyData = async (userId, teamId, teamName = "") => {
   try {
     pool = await poolPromise;
     const updateQuery = `UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', team_name = '${teamName}' WHERE user_id = '${userId}' `;
-    console.log("update query Company>> ", updateQuery);
+
     await pool.request().query(updateQuery);
 
     // return Promise.resolve();
@@ -730,4 +739,5 @@ module.exports = {
   parseCompanyData,
   renameTeam,
   saveNARespSelectedTeams,
+  getFilesByIncId
 };

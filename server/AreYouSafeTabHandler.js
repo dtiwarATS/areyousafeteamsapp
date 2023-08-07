@@ -353,6 +353,34 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.post("/areyousafetabhandler/FileSave", async (req, res) => {
+    try {
+      const reqBody = req.body;
+      const qs = req.query;
+      const userAadObjId = qs.userAadObjId;
+      const tabObj = new tab.AreYouSafeTab();
+      const FileData = await tabObj.InsertFileIntoDB(reqBody, userAadObjId);
+      res.send(FileData);
+    } catch (err) {
+      console.log(err);
+      res.send({ error: "Error: Please try again" });
+    }
+  });
+
+  app.post("/areyousafetabhandler/DeleteFile", async (req, res) => {
+    try {
+      const reqBody = req.body;
+      const qs = req.query;
+      const userAadObjId = qs.userAadObjId;
+      const tabObj = new tab.AreYouSafeTab();
+      const DeleteFileData = await tabObj.DeleteFile(reqBody, userAadObjId);
+      res.send(DeleteFileData);
+    } catch (err) {
+      console.log(err);
+      res.send({ error: "Error: Please try again" });
+    }
+  });
+
   app.post("/areyousafetabhandler/sendSafetyCheckMessage", async (req, res) => {
     try {
       const qs = req.query;
