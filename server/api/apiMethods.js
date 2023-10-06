@@ -260,6 +260,7 @@ const sendProactiveMessaageToUserAsync = async (
     memberObj,
     newConversationId: null,
     retryCounter,
+    //isSafetyCheckTitleResponse: false,
   };
   try {
     // let activity = null;
@@ -270,6 +271,7 @@ const sendProactiveMessaageToUserAsync = async (
     // }
     if (msgText != null) {
       activity = MessageFactory.text(msgText);
+      //resp.isSafetyCheckTitleResponse = true;
     }
     if (activity != null) {
       if (connectorClient == null) {

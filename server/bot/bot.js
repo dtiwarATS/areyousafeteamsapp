@@ -2001,6 +2001,7 @@ const sendProactiveMessageAsync = async (
           Number(updateEndTime) >= 2
         ) {
           updateStartTime = null;
+          console.log("inside first ", { msgResp });
           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
         }
         const totalMessageCountAfterTitleNotification =
@@ -2023,6 +2024,7 @@ const sendProactiveMessageAsync = async (
               }
             }
             if (sqlUpdateMsgDeliveryStatus != "") {
+              console.log("inside second ", { msgResp });
               updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
             }
             console.log({ retryLog });
