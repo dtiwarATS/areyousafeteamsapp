@@ -1422,6 +1422,16 @@ const updateremaindercounter = async (inc_id, user_id) => {
   }
 };
 
+const updateRecurrremaindercounter = async (id) => {
+  try {
+    let counter = 0;
+    const counteradd = `update MSTeamsMemberResponsesRecurr set SendRemindersCounter=SendRemindersCounter + 1, LastReminderSentAT = GETDATE() where id=${id}`;
+    await db.getDataFromDB(counteradd);
+  } catch (err) {
+    processSafetyBotError(err, "", "", user_id);
+  }
+};
+
 const updateAfterExpiryMessageSentFlag = async (
   subscriptionId,
   userAadObjId
@@ -2023,5 +2033,6 @@ module.exports = {
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
   updateremaindercounter,
+  updateRecurrremaindercounter,
   getremaindercheck,
 };
