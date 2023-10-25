@@ -399,8 +399,10 @@ const createNewInc = async (
     }
     if (newInc != null) {
       if (selectedMembersResp && selectedMembersResp != "") {
-        const updatefilequerry = `update filesdata set inc_id=${newInc.incId} where inc_id=${tempincid}`;
-        const res = await db.updateDataIntoDB(updatefilequerry);
+        if (tempincid != null) {
+          const updatefilequerry = `update filesdata set inc_id=${newInc.incId} where inc_id=${tempincid}`;
+          const res = await db.updateDataIntoDB(updatefilequerry);
+        }
         await saveIncResponseSelectedUsers(
           newInc.incId,
           selectedMembersResp,
