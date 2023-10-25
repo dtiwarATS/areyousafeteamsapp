@@ -1942,8 +1942,19 @@ const sendProactiveMessageAsync = async (
           retryCounter == retryCountTill
         ) {
           if (isRecurringInc) {
-            sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
-              values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
+            if (
+              msgResp.isSafetyCheckTitleResponse === undefined ||
+              !msgResp.isSafetyCheckTitleResponse
+            ) {
+              sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT) 
+              values(${
+                respMemberObj.memberResponsesId
+              }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${
+                msgResp?.conversationId
+              }', '${msgResp?.activityId}', ${status}, '${error}', ${
+                isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+              }); `;
+            }
           } else {
             sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${
               isMessageDelivered == 1 ? "GETDATE()" : "NULL"
@@ -1995,6 +2006,7 @@ const sendProactiveMessageAsync = async (
           Number(updateEndTime) >= 2
         ) {
           updateStartTime = null;
+          console.log("inside first ", { msgResp });
           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
         }
         const totalMessageCountAfterTitleNotification =
@@ -2017,6 +2029,7 @@ const sendProactiveMessageAsync = async (
               }
             }
             if (sqlUpdateMsgDeliveryStatus != "") {
+              console.log("inside second ", { msgResp });
               updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
             }
             console.log({ retryLog });
@@ -2046,7 +2059,10 @@ const sendProactiveMessageAsync = async (
           : membersToSendMessageArray.length;
 
       const afterMessageSent = (msgResp, index) => {
+        console.log({ msgResp });
         callbackFn(msgResp, index);
+
+        //callbackFn(msgResp, index);
         if (endIndex < membersToSendMessageArray.length) {
           let startIndex = endIndex;
           endIndex = endIndex + 1;

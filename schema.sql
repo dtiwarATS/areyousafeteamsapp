@@ -837,3 +837,19 @@ END
 GO
 
 
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponsesRecurr' AND COLUMN_NAME = 'SendRemindersCounter') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponsesRecurr ADD SendRemindersCounter  int DEFAULT  0 not null
+
+END 
+GO 
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponsesRecurr' AND COLUMN_NAME = 'LastReminderSentAT') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponsesRecurr ADD LastReminderSentAT  DATETIME
+
+END 
+GO
+
+
+

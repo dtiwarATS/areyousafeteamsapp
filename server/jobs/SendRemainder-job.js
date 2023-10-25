@@ -21,15 +21,24 @@ const {
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
 
-const { getCompanyDataByTeamId, getFilesByIncId } = require("../db/dbOperations");
+const {
+  getCompanyDataByTeamId,
+  getFilesByIncId,
+} = require("../db/dbOperations");
 
 const { processSafetyBotError } = require("../models/processError");
 (async () => {
-  const sendProactiveMessage = async (sqlQuery) => {
+  const sendProactiveMessage = async (sqlQuery, sqlQueryquerryReccuring) => {
     const log = new AYSLog();
     let saveLog = false;
     try {
-      let membersNotRespondedList = await db.getDataFromDB(sqlQuery);
+      let membersNotRespondedList = [];
+      let membersNotRespondedOneTimeList = await db.getDataFromDB(sqlQuery);
+      let membersNotRespondedRecurringList = await db.getDataFromDB(
+        sqlQueryquerryReccuring
+      );
+      membersNotRespondedList = membersNotRespondedOneTimeList;
+      membersNotRespondedList.push(...membersNotRespondedRecurringList);
       if (
         membersNotRespondedList != null &&
         membersNotRespondedList.length > 0
@@ -49,6 +58,8 @@ const { processSafetyBotError } = require("../models/processError");
               contactInfo,
               situation,
               user_id,
+              inc_type,
+              MemberResponsesRecurrId,
             } = member;
 
             let ctime = new Date();
@@ -64,28 +75,28 @@ const { processSafetyBotError } = require("../models/processError");
               diffMins >= member.SendRemindersTime
             ) {
               const companyData = await getCompanyDataByTeamId(member.team_id);
-            let incObj = {
-              incId: inc_id,
-              incTitle: inc_name,
-              inc_type_id,
-              runAt: null,
-              incCreatedBy: {
-                id: created_by,
-                name: CREATED_BY_NAME,
-              },
-            };
-            const approvalCard = await SafetyCheckCard(
-              inc_name,
-              incObj,
-              companyData,
-              GUIDANCE,
-              [],
-              inc_type_id,
-              additionalInfo,
-              travelUpdate,
-              contactInfo,
-              situation
-            );
+              let incObj = {
+                incId: inc_id,
+                incTitle: inc_name,
+                inc_type_id,
+                runAt: null,
+                incCreatedBy: {
+                  id: created_by,
+                  name: CREATED_BY_NAME,
+                },
+              };
+              const approvalCard = await SafetyCheckCard(
+                inc_name,
+                incObj,
+                companyData,
+                GUIDANCE,
+                [],
+                inc_type_id,
+                additionalInfo,
+                travelUpdate,
+                contactInfo,
+                situation
+              );
               const filesData = await getFilesByIncId(inc_id);
               await sendProactiveMessaageToUser(
                 [{ id: member.user_id, name: member.user_name }],
@@ -102,9 +113,14 @@ const { processSafetyBotError } = require("../models/processError");
               log.addLog(
                 `send proactive messaage to ${member.user_id} successfully`
               );
-              await incidentService.updateremaindercounter(
-                member.inc_id,
-                member.user_id
+              if (member.inc_type == "onetime") {
+                await incidentService.updateremaindercounter(
+                  member.inc_id,
+                  member.user_id
+                );
+              }
+              await incidentService.updateRecurrremaindercounter(
+                member.MemberResponsesRecurrId
               );
             }
           })
@@ -119,8 +135,15 @@ const { processSafetyBotError } = require("../models/processError");
       }
     }
   };
-  let querry = `select mstm.* ,mst.* from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 )`;
-  await sendProactiveMessage(querry);
+  //let querry = `select mstm.* ,mst.* from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 )`;
+  let querry = `select mstm.* ,mst.*
+  from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id 
+  IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 ) and MST.inc_type='onetime'`;
+
+  let querryReccuring = `select distinct  Mmrr.* ,mst.*,mstm.user_id,mstm.inc_id,Mmrr.id as 'MemberResponsesRecurrId'
+  from  MSTeamsMemberResponsesRecurr Mmrr left join MSTeamsMemberResponses mstm on mstm.id=Mmrr.memberResponsesId  left join MSTeamsIncidents MST on mst.id = mstm.inc_id where Mmrr.response=0 and inc_id 
+  IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 ) and MST.inc_type='recurringIncident'`;
+  await sendProactiveMessage(querry, querryReccuring);
 
   // signal to parent that the job is done
   if (parentPort) parentPort.postMessage("done");
