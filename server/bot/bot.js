@@ -3933,9 +3933,9 @@ const createTestIncident = async (
       isSaveAsTemplate: false,
       updatedOn: "",
       template_name: "",
-      EnableSendReminders,
-      SendRemindersCount,
-      SendRemindersTime,
+      EnableSendReminders: false,
+      SendRemindersCount: 3,
+      SendRemindersTime: 5,
     };
     const newInc = await incidentService.createNewInc(
       incData,
