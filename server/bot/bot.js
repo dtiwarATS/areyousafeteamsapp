@@ -1764,7 +1764,7 @@ const sendProactiveMessageAsync = async (
     log.addLog(
       `Start Saftey Check card Sending:IncId-${incObj.incId},TeamId-${incData.teamId}, SelectedMember-${incData.selectedMembers},CreatedByUSerId-${companyData.userId}`
     );
-
+    log.addLog(`${JSON.stringify(incData)}`);
     const approvalCard = await SafetyCheckCard(
       incTitle,
       incObj,
