@@ -420,6 +420,13 @@ class AreYouSafeTab {
               text: `User <at>${user.user_name}</at> needs assistance.`,
               wrap: true,
             },
+            {
+              type: "Image",
+              url: "https://maps.googleapis.com/maps/api/staticmap?center=%7B19.022003,72.843677%7D&zoom=15&size=400x300&markers=color:red%7C%7B19.022003,72.843677%7D&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg",
+              size: "Medium",
+              width: "500px",
+              height: "500px",
+            },
           ],
           msteams: {
             entities: mentionUserEntities,
@@ -427,6 +434,7 @@ class AreYouSafeTab {
           type: "AdaptiveCard",
           version: "1.4",
         };
+
         const adminArr = [];
         for (let i = 0; i < admins.length; i++) {
           if (adminArr.includes(admins[i].user_id)) {
