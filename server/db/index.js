@@ -84,6 +84,7 @@ const getColumns = (tableName) => {
         "requested_date",
         "comment_date",
         "team_ids",
+        "UserLocation",
       ];
       break;
     default:

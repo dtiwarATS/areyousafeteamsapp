@@ -224,6 +224,8 @@ const handlerForSafetyBotTab = (app) => {
   app.get("/areyousafetabhandler/requestAssistance", (req, res) => {
     console.log("came in request");
     const userAadObjId = req.query.userId;
+    const userlocation = req.query.loc;
+
     try {
       incidentService
         .getAdmins(userAadObjId, "desc")
@@ -249,7 +251,8 @@ const handlerForSafetyBotTab = (app) => {
               admins,
               user,
               ts,
-              userAadObjId
+              userAadObjId,
+              userlocation
             );
           }
           console.log(assistanceData);
@@ -274,11 +277,13 @@ const handlerForSafetyBotTab = (app) => {
     async (req, res) => {
       const userAadObjId = req.query.userId;
       const incData = JSON.parse(req.query.adminlist);
+      const userlocation = JSON.parse(req.query.ulocData);
       try {
         const tabObj = new tab.AreYouSafeTab();
         const isProactiveMessageSent = await tabObj.requestAssistance(
           incData,
-          userAadObjId
+          userAadObjId,
+          userlocation
         );
         res.send(isProactiveMessageSent);
       } catch (err) {

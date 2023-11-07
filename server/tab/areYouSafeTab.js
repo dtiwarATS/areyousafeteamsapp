@@ -399,7 +399,7 @@ class AreYouSafeTab {
     return Promise.resolve(teamsMembers);
   };
 
-  requestAssistance = async (data, userAadObjId) => {
+  requestAssistance = async (data, userAadObjId, userlocation) => {
     let isMessageSent = false;
     try {
       let admins = data[0];
@@ -411,6 +411,24 @@ class AreYouSafeTab {
           user.user_id,
           user.user_name
         );
+        // var LocationUrl =
+        //   "https://maps.googleapis.com/maps/api/staticmap?center=" +
+        //   userlocation.lat +
+        //   "," +
+        //   userlocation.lon +
+        //   "&zoom=14&size=400x400&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
+
+        var LocationUrl =
+          "https://maps.googleapis.com/maps/api/staticmap?center=" +
+          userlocation.lat +
+          "," +
+          userlocation.lon +
+          "&zoom=20&size=400x400&&markers=color:red%7Clabel:%7C" +
+          userlocation.lat +
+          "," +
+          userlocation.lon +
+          "&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
+        console.log({ LocationUrl });
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
@@ -420,12 +438,31 @@ class AreYouSafeTab {
               text: `User <at>${user.user_name}</at> needs assistance.`,
               wrap: true,
             },
+            // {
+            //   type: "Action.Image",
+            //   url: `${LocationUrl}`,
+            //   size: "Medium",
+            //   width: "500px",
+            //   height: "500px",
+            // },
             {
               type: "Image",
-              url: "https://maps.googleapis.com/maps/api/staticmap?center=%7B19.022003,72.843677%7D&zoom=15&size=400x300&markers=color:red%7C%7B19.022003,72.843677%7D&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg",
-              size: "Medium",
-              width: "500px",
-              height: "500px",
+              url: `${LocationUrl}`,
+              selectAction: {
+                type: "Action.OpenUrl",
+                url:
+                  "https://www.bing.com/maps?rtp=adr.%7Epos." +
+                  userlocation.lat +
+                  "_" +
+                  userlocation.lon +
+                  "&cp=" +
+                  userlocation.lat +
+                  "%7E" +
+                  userlocation.lon +
+                  "&lvl=14.5",
+
+                role: "Link",
+              },
             },
           ],
           msteams: {
@@ -476,7 +513,7 @@ class AreYouSafeTab {
     return isMessageSent;
   };
 
-  saveAssistance = async (adminsData, user, ts, userAadObjId) => {
+  saveAssistance = async (adminsData, user, ts, userAadObjId, userlocation) => {
     let res = null;
     try {
       if (adminsData != null && adminsData.length > 0) {
@@ -552,6 +589,7 @@ class AreYouSafeTab {
             ts,
             "",
             teamIds,
+            userlocation,
           ]);
         }
       }
