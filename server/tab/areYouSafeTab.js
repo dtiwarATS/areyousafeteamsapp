@@ -489,8 +489,9 @@ class AreYouSafeTab {
               role: "Link",
             },
           };
+          approvalCardResponse.body.push(cardLocation);
         }
-        approvalCardResponse.body.push(cardLocation);
+
         const adminArr = [];
         for (let i = 0; i < admins.length; i++) {
           if (adminArr.includes(admins[i].user_id)) {
