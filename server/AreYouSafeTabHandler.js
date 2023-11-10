@@ -277,7 +277,10 @@ const handlerForSafetyBotTab = (app) => {
     async (req, res) => {
       const userAadObjId = req.query.userId;
       const incData = JSON.parse(req.query.adminlist);
-      const userlocation = JSON.parse(req.query.ulocData);
+      var userlocation = null;
+      if (req.query.ulocData != undefined) {
+        userlocation = JSON.parse(req.query.ulocData);
+      }
       try {
         const tabObj = new tab.AreYouSafeTab();
         const isProactiveMessageSent = await tabObj.requestAssistance(

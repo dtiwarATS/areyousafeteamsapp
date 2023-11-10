@@ -401,6 +401,10 @@ class AreYouSafeTab {
 
   requestAssistance = async (data, userAadObjId, userlocation) => {
     let isMessageSent = false;
+    var isVisi = false;
+    var LocationUrl;
+    var MapUrl;
+
     try {
       let admins = data[0];
       let user = data[1][0];
@@ -418,17 +422,6 @@ class AreYouSafeTab {
         //   userlocation.lon +
         //   "&zoom=14&size=400x400&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
 
-        var LocationUrl =
-          "https://maps.googleapis.com/maps/api/staticmap?center=" +
-          userlocation.lat +
-          "," +
-          userlocation.lon +
-          "&zoom=20&size=400x400&&markers=color:red%7Clabel:%7C" +
-          userlocation.lat +
-          "," +
-          userlocation.lon +
-          "&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
-        console.log({ LocationUrl });
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
@@ -445,25 +438,16 @@ class AreYouSafeTab {
             //   width: "500px",
             //   height: "500px",
             // },
-            {
-              type: "Image",
-              url: `${LocationUrl}`,
-              selectAction: {
-                type: "Action.OpenUrl",
-                url:
-                  "https://www.bing.com/maps?rtp=adr.%7Epos." +
-                  userlocation.lat +
-                  "_" +
-                  userlocation.lon +
-                  "&cp=" +
-                  userlocation.lat +
-                  "%7E" +
-                  userlocation.lon +
-                  "&lvl=14.5",
-
-                role: "Link",
-              },
-            },
+            // {
+            //   type: "Image",
+            //   url: `${LocationUrl}`,
+            //   isVisible: isVisi,
+            //   selectAction: {
+            //     type: "Action.OpenUrl",
+            //     url: `${MapUrl}`,
+            //     role: "Link",
+            //   },
+            // },
           ],
           msteams: {
             entities: mentionUserEntities,
@@ -471,7 +455,42 @@ class AreYouSafeTab {
           type: "AdaptiveCard",
           version: "1.4",
         };
-
+        var cardLocation;
+        if (userlocation != null) {
+          isVisi = true;
+          LocationUrl =
+            "https://maps.googleapis.com/maps/api/staticmap?center=" +
+            userlocation.lat +
+            "," +
+            userlocation.lon +
+            "&zoom=20&size=400x400&&markers=color:red%7Clabel:%7C" +
+            userlocation.lat +
+            "," +
+            userlocation.lon +
+            "&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
+          console.log({ LocationUrl });
+          MapUrl =
+            "https://www.bing.com/maps?rtp=adr.%7Epos." +
+            userlocation.lat +
+            "_" +
+            userlocation.lon +
+            "&cp=" +
+            userlocation.lat +
+            "%7E" +
+            userlocation.lon +
+            "&lvl=14.5";
+          cardLocation = {
+            type: "Image",
+            url: `${LocationUrl}`,
+            isVisible: isVisi,
+            selectAction: {
+              type: "Action.OpenUrl",
+              url: `${MapUrl}`,
+              role: "Link",
+            },
+          };
+        }
+        approvalCardResponse.body.push(cardLocation);
         const adminArr = [];
         for (let i = 0; i < admins.length; i++) {
           if (adminArr.includes(admins[i].user_id)) {
