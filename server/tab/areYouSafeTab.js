@@ -533,7 +533,14 @@ class AreYouSafeTab {
     return isMessageSent;
   };
 
-  saveAssistance = async (adminsData, user, ts, userAadObjId, userlocation) => {
+  saveAssistance = async (
+    adminsData,
+    user,
+    ts,
+    userAadObjId,
+    userlocation,
+    UserDataUpdateID
+  ) => {
     let res = null;
     try {
       if (adminsData != null && adminsData.length > 0) {
@@ -600,7 +607,7 @@ class AreYouSafeTab {
           });
         }
 
-        if (sentToIds != "") {
+        if (sentToIds != "" && UserDataUpdateID == null) {
           res = await db.insertDataIntoDB("MSTeamsAssistance", [
             user.user_id,
             sentToIds.join(","),
@@ -609,8 +616,11 @@ class AreYouSafeTab {
             ts,
             "",
             teamIds,
-            userlocation,
+            "null",
           ]);
+        } else {
+          const updatequerry = `update MSTeamsAssistance set UserLocation='${userlocation}' where id=${UserDataUpdateID}`;
+          res = await db.updateDataIntoDB(updatequerry);
         }
       }
     } catch (err) {

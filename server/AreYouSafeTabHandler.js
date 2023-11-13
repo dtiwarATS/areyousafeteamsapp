@@ -224,8 +224,14 @@ const handlerForSafetyBotTab = (app) => {
   app.get("/areyousafetabhandler/requestAssistance", (req, res) => {
     console.log("came in request");
     const userAadObjId = req.query.userId;
-    const userlocation = req.query.loc;
-
+    var userlocation = "null";
+    if (req.query.loc != undefined) {
+      userlocation = req.query.loc;
+    }
+    var UserDataUpdateID = null;
+    if (req.query.ID != undefined) {
+      UserDataUpdateID = req.query.ID;
+    }
     try {
       incidentService
         .getAdmins(userAadObjId, "desc")
@@ -252,7 +258,8 @@ const handlerForSafetyBotTab = (app) => {
               user,
               ts,
               userAadObjId,
-              userlocation
+              userlocation,
+              UserDataUpdateID
             );
           }
           console.log(assistanceData);
@@ -278,8 +285,8 @@ const handlerForSafetyBotTab = (app) => {
       const userAadObjId = req.query.userId;
       const incData = JSON.parse(req.query.adminlist);
       var userlocation = null;
-      if (req.query.ulocData != undefined) {
-        userlocation = JSON.parse(req.query.ulocData);
+      if (req.query.Location != undefined) {
+        userlocation = JSON.parse(req.query.Location);
       }
       try {
         const tabObj = new tab.AreYouSafeTab();
