@@ -399,8 +399,12 @@ class AreYouSafeTab {
     return Promise.resolve(teamsMembers);
   };
 
-  requestAssistance = async (data, userAadObjId) => {
+  requestAssistance = async (data, userAadObjId, userlocation) => {
     let isMessageSent = false;
+    var isVisi = false;
+    var LocationUrl;
+    var MapUrl;
+
     try {
       let admins = data[0];
       let user = data[1][0];
@@ -411,6 +415,13 @@ class AreYouSafeTab {
           user.user_id,
           user.user_name
         );
+        // var LocationUrl =
+        //   "https://maps.googleapis.com/maps/api/staticmap?center=" +
+        //   userlocation.lat +
+        //   "," +
+        //   userlocation.lon +
+        //   "&zoom=14&size=400x400&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
+
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
@@ -420,6 +431,23 @@ class AreYouSafeTab {
               text: `User <at>${user.user_name}</at> needs assistance.`,
               wrap: true,
             },
+            // {
+            //   type: "Action.Image",
+            //   url: `${LocationUrl}`,
+            //   size: "Medium",
+            //   width: "500px",
+            //   height: "500px",
+            // },
+            // {
+            //   type: "Image",
+            //   url: `${LocationUrl}`,
+            //   isVisible: isVisi,
+            //   selectAction: {
+            //     type: "Action.OpenUrl",
+            //     url: `${MapUrl}`,
+            //     role: "Link",
+            //   },
+            // },
           ],
           msteams: {
             entities: mentionUserEntities,
@@ -427,6 +455,43 @@ class AreYouSafeTab {
           type: "AdaptiveCard",
           version: "1.4",
         };
+        var cardLocation;
+        if (userlocation != null) {
+          isVisi = true;
+          LocationUrl =
+            "https://maps.googleapis.com/maps/api/staticmap?center=" +
+            userlocation.lat +
+            "," +
+            userlocation.lon +
+            "&zoom=20&size=400x400&&markers=color:red%7Clabel:%7C" +
+            userlocation.lat +
+            "," +
+            userlocation.lon +
+            "&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
+          console.log({ LocationUrl });
+          MapUrl =
+            "https://www.bing.com/maps?rtp=adr.%7Epos." +
+            userlocation.lat +
+            "_" +
+            userlocation.lon +
+            "&cp=" +
+            userlocation.lat +
+            "%7E" +
+            userlocation.lon +
+            "&lvl=14.5";
+          cardLocation = {
+            type: "Image",
+            url: `${LocationUrl}`,
+            isVisible: isVisi,
+            selectAction: {
+              type: "Action.OpenUrl",
+              url: `${MapUrl}`,
+              role: "Link",
+            },
+          };
+          approvalCardResponse.body.push(cardLocation);
+        }
+
         const adminArr = [];
         for (let i = 0; i < admins.length; i++) {
           if (adminArr.includes(admins[i].user_id)) {
@@ -468,7 +533,14 @@ class AreYouSafeTab {
     return isMessageSent;
   };
 
-  saveAssistance = async (adminsData, user, ts, userAadObjId) => {
+  saveAssistance = async (
+    adminsData,
+    user,
+    ts,
+    userAadObjId,
+    userlocation,
+    UserDataUpdateID
+  ) => {
     let res = null;
     try {
       if (adminsData != null && adminsData.length > 0) {
@@ -535,7 +607,7 @@ class AreYouSafeTab {
           });
         }
 
-        if (sentToIds != "") {
+        if (sentToIds != "" && UserDataUpdateID == null) {
           res = await db.insertDataIntoDB("MSTeamsAssistance", [
             user.user_id,
             sentToIds.join(","),
@@ -544,7 +616,11 @@ class AreYouSafeTab {
             ts,
             "",
             teamIds,
+            "null",
           ]);
+        } else {
+          const updatequerry = `update MSTeamsAssistance set UserLocation='${userlocation}' where id=${UserDataUpdateID}`;
+          res = await db.updateDataIntoDB(updatequerry);
         }
       }
     } catch (err) {
