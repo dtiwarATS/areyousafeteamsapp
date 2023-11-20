@@ -301,7 +301,19 @@ const handlerForSafetyBotTab = (app) => {
       }
     }
   );
+  app.get(
+    "/areyousafetabhandler/DeleteNeedAssistanceData",
+    async (req, res) => {
+      const AssistanceID = req.query.id;
+      const Deletassistancedata = await tabObj.DeleteNeedAssistanceData(
+        AssistanceID
+      );
+      res.send(Deletassistancedata);
 
+      console.log(res);
+      console.log({ AssistanceID });
+    }
+  );
   app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
     const data = req.query;
     const reqBody = req.body;
