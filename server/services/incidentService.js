@@ -217,11 +217,19 @@ const getTemplateList = async (userId) => {
   return userResult;
 };
 
-const getAdmins = async (aadObjuserId) => {
+const getAdmins = async (aadObjuserId, TeamID) => {
   console.log("came in method");
   try {
-    const userSql = `select user_obj_id, super_users, team_id, team_name from msteamsinstallationdetails where team_id in
-    (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name`;
+    const adminData = [];
+
+    let userSql;
+    if (TeamID != "null") {
+      userSql = `select * from MSTeamsInstallationDetails where team_id='${TeamID}'`;
+    } else {
+      userSql = `select user_obj_id, super_users, team_id, team_name from msteamsinstallationdetails where team_id in
+      (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name`;
+    }
+
     const userResult = await db.getDataFromDB(userSql, aadObjuserId);
     const teamsIds = [];
     if (userResult != null && userResult.length > 0) {
@@ -254,7 +262,7 @@ const getAdmins = async (aadObjuserId) => {
     }
 
     let allTeamsAdminsData = [];
-    const adminData = [];
+
     if (teamsIds && teamsIds.length > 0) {
       await Promise.all(
         teamsIds.map(async (teamObj) => {
@@ -287,9 +295,11 @@ const getAdmins = async (aadObjuserId) => {
       );
       const usersQuery = ` select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'; `;
       const userResult = await db.getDataFromDB(usersQuery, aadObjuserId);
+
       adminData.push(allTeamsAdminsData);
       adminData.push(userResult);
     }
+
     return Promise.resolve(adminData);
   } catch (err) {
     console.log(err);

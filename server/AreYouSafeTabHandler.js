@@ -225,6 +225,7 @@ const handlerForSafetyBotTab = (app) => {
     console.log("came in request");
     const userAadObjId = req.query.userId;
     var userlocation = "null";
+    const TeamId = req.query.teamid;
     if (req.query.loc != undefined) {
       userlocation = req.query.loc;
     }
@@ -234,7 +235,7 @@ const handlerForSafetyBotTab = (app) => {
     }
     try {
       incidentService
-        .getAdmins(userAadObjId, "desc")
+        .getAdmins(userAadObjId, TeamId)
         .then(async (incData) => {
           if (
             incData === null ||
@@ -318,6 +319,7 @@ const handlerForSafetyBotTab = (app) => {
     const data = req.query;
     const reqBody = req.body;
     const userAadObjId = data.userAadObjId;
+    const TeamId = req.query.teamid;
     try {
       if (reqBody && reqBody.comment != null && reqBody.comment != "") {
         let ts = req.query.ts;
@@ -327,7 +329,7 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
           .addComment(data.assistId, reqBody.comment, ts, userAadObjId)
           .then((respData) => {
-            incidentService.getAdmins(userAadObjId, "desc").then((userData) => {
+            incidentService.getAdmins(userAadObjId, TeamId).then((userData) => {
               const tabObj = new tab.AreYouSafeTab();
               tabObj.sendUserCommentToAdmin(
                 userData,
@@ -620,11 +622,12 @@ const handlerForSafetyBotTab = (app) => {
     console.log("came in request");
 
     const userAadObjId = req.query.userId;
+    const TeamId = req.query.teamid;
 
     try {
       incidentService
 
-        .getAdmins(userAadObjId)
+        .getAdmins(userAadObjId, TeamId)
 
         .then(async (adminData) => {
           if (
