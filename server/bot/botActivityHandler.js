@@ -1150,18 +1150,22 @@ class BotActivityHandler extends TeamsActivityHandler {
     const userInfo = await incidentService.getUserInfoByUserAadObjId(
       userAadObjId
     );
+    let userEmailId = userInfo[0].email;
+    let user_name = userInfo[0].user_name;
+    if (!userEmailId) {
+      const companyData = await getCompaniesData(userAadObjId);
+      userEmailId = companyData?.userEmail;
+      user_name = companyData?.userName;
+    }
     if (userInfo && userInfo.length > 0) {
       new PersonalEmail.PersonalEmail()
-        .sendUninstallationEmail(userInfo[0].email, userAadObjId)
+        .sendUninstallationEmail(userEmailId, userAadObjId)
         .then(() => {})
         .catch((err) => {
           console.log(err);
         });
 
-      await bot.sendUninstallationEmail(
-        userInfo[0].email,
-        userInfo[0].user_name
-      );
+      await bot.sendUninstallationEmail(userEmailId, user_name);
     }
   }
 }
