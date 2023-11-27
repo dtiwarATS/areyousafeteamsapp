@@ -306,6 +306,7 @@ const getTestIncPreviewCard1 = (teamMemberCount, companyData) => {
     {
       type: "TextBlock",
       text: "Hi! Would you like me to reach out to your team members and send the sample safety check message to them?",
+      wrap: true,
     },
     {
       type: "TextBlock",

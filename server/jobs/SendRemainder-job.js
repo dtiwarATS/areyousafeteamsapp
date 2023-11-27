@@ -151,7 +151,7 @@ const { processSafetyBotError } = require("../models/processError");
   IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 ) and MST.inc_type='onetime'`;
 
   let querryReccuring = `select distinct  Mmrr.* ,mst.*,mstm.user_id,mstm.inc_id,Mmrr.id as 'MemberResponsesRecurrId'
-  from  MSTeamsMemberResponsesRecurr Mmrr left join MSTeamsMemberResponses mstm on mstm.id=Mmrr.memberResponsesId  left join MSTeamsIncidents MST on mst.id = mstm.inc_id where Mmrr.response=0 and inc_id 
+  from  MSTeamsMemberResponsesRecurr Mmrr left join MSTeamsMemberResponses mstm on mstm.id=Mmrr.memberResponsesId  left join MSTeamsIncidents MST on mst.id = mstm.inc_id where Mmrr.response=0 and mstm.inc_id 
   IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 ) and MST.inc_type='recurringIncident'`;
   await sendProactiveMessage(querry, querryReccuring);
 
