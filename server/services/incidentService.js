@@ -333,8 +333,7 @@ const getAllIncByUserId = async (aadObjuserId, orderBy) => {
   try {
     const selectQuery = getAllIncQuery(null, aadObjuserId, orderBy);
     const result = await db.getDataFromDB(selectQuery, aadObjuserId);
-    let allmedialist = `select * from filesdata`;
-    const myfiledata = await db.getDataFromDB(allmedialist);
+    const myfiledata = [];
     let parsedResult = await parseEventData(result, true, myfiledata);
     return Promise.resolve(parsedResult);
   } catch (err) {
