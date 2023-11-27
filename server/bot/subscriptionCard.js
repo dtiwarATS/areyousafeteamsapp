@@ -189,14 +189,12 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
       type: "ActionSet",
       actions: [
         {
-          type: "Action.ToggleVisibility",
+          type: "Action.Execute",
           title: "I am safe",
-          targetElements: [],
         },
         {
-          type: "Action.ToggleVisibility",
+          type: "Action.Execute",
           title: "I need assistance",
-          targetElements: [],
         },
       ],
     },
