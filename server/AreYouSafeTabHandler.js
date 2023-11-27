@@ -224,9 +224,18 @@ const handlerForSafetyBotTab = (app) => {
   app.get("/areyousafetabhandler/requestAssistance", (req, res) => {
     console.log("came in request");
     const userAadObjId = req.query.userId;
+    var userlocation = "null";
+    const TeamId = req.query.teamid;
+    if (req.query.loc != undefined) {
+      userlocation = req.query.loc;
+    }
+    var UserDataUpdateID = null;
+    if (req.query.ID != undefined) {
+      UserDataUpdateID = req.query.ID;
+    }
     try {
       incidentService
-        .getAdmins(userAadObjId, "desc")
+        .getAdmins(userAadObjId, TeamId)
         .then(async (incData) => {
           if (
             incData === null ||
@@ -249,7 +258,9 @@ const handlerForSafetyBotTab = (app) => {
               admins,
               user,
               ts,
-              userAadObjId
+              userAadObjId,
+              userlocation,
+              UserDataUpdateID
             );
           }
           console.log(assistanceData);
@@ -274,11 +285,16 @@ const handlerForSafetyBotTab = (app) => {
     async (req, res) => {
       const userAadObjId = req.query.userId;
       const incData = JSON.parse(req.query.adminlist);
+      var userlocation = null;
+      if (req.query.Location != undefined) {
+        userlocation = JSON.parse(req.query.Location);
+      }
       try {
         const tabObj = new tab.AreYouSafeTab();
         const isProactiveMessageSent = await tabObj.requestAssistance(
           incData,
-          userAadObjId
+          userAadObjId,
+          userlocation
         );
         res.send(isProactiveMessageSent);
       } catch (err) {
@@ -286,11 +302,24 @@ const handlerForSafetyBotTab = (app) => {
       }
     }
   );
+  app.get(
+    "/areyousafetabhandler/DeleteNeedAssistanceData",
+    async (req, res) => {
+      const AssistanceID = req.query.id;
+      const Deletassistancedata = await tabObj.DeleteNeedAssistanceData(
+        AssistanceID
+      );
+      res.send(Deletassistancedata);
 
+      console.log(res);
+      console.log({ AssistanceID });
+    }
+  );
   app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
     const data = req.query;
     const reqBody = req.body;
     const userAadObjId = data.userAadObjId;
+    const TeamId = req.query.teamid;
     try {
       if (reqBody && reqBody.comment != null && reqBody.comment != "") {
         let ts = req.query.ts;
@@ -300,7 +329,7 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
           .addComment(data.assistId, reqBody.comment, ts, userAadObjId)
           .then((respData) => {
-            incidentService.getAdmins(userAadObjId, "desc").then((userData) => {
+            incidentService.getAdmins(userAadObjId, TeamId).then((userData) => {
               const tabObj = new tab.AreYouSafeTab();
               tabObj.sendUserCommentToAdmin(
                 userData,
@@ -593,11 +622,12 @@ const handlerForSafetyBotTab = (app) => {
     console.log("came in request");
 
     const userAadObjId = req.query.userId;
+    const TeamId = req.query.teamid;
 
     try {
       incidentService
 
-        .getAdmins(userAadObjId)
+        .getAdmins(userAadObjId, TeamId)
 
         .then(async (adminData) => {
           if (

@@ -30,11 +30,11 @@ function initJob() {
         path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
         cron: "*/1 * * * *",
       },
-      {
-        name: "subscription-job",
-        path: path.join(__dirname, "jobs", "subscription-job.js"),
-        cron: "0 0 * * *",
-      },
+      // {
+      //   name: "subscription-job",
+      //   path: path.join(__dirname, "jobs", "subscription-job.js"),
+      //   cron: "0 0 * * *",
+      // },
       {
         name: "postInstallation-job",
         path: path.join(__dirname, "jobs", "postInstallation-job.js"),

@@ -4,6 +4,7 @@
 const path = require("path");
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
+const { AYSLog } = require("../utils/log");
 const {
   TeamsActivityHandler,
   CardFactory,
@@ -542,6 +543,7 @@ class BotActivityHandler extends TeamsActivityHandler {
 
   async onInvokeActivity(context) {
     try {
+      let log = new AYSLog();
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;
       let adaptiveCard = null;
@@ -726,10 +728,13 @@ class BotActivityHandler extends TeamsActivityHandler {
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
       } else if (uVerb === "send_response") {
+        log.addLog("After Click On Im_Safte or need assistance start. ");
         const action = context.activity.value.action;
         const { info: response, inc, companyData } = action.data;
         const { incId, incTitle, incCreatedBy } = inc;
-
+        log.addLog(
+          `After Click On Im_Safte or need assistance start.:${incId} `
+        );
         const incStatusId = await incidentService.getIncStatus(incId);
         if (incStatusId == -1 || incStatusId == 2) {
           await bot.sendIncStatusValidation(context, incStatusId);
@@ -760,7 +765,9 @@ class BotActivityHandler extends TeamsActivityHandler {
           responseText,
           entities
         );
-
+        log.addLog(
+          "After Click On Im_Safte or need assistance  Text message Send successfully. "
+        );
         var incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance; //? incGuidance : "No details available";
 
@@ -781,7 +788,13 @@ class BotActivityHandler extends TeamsActivityHandler {
         await context.sendActivity({
           attachments: [cards],
         });
+        log.addLog(
+          "After Click On Im_Safte or need assistance comment section card Send successfully. "
+        );
         if (companyData.EnableSafetycheckForVisitors == true) {
+          log.addLog(
+            "In setting EnableSafetycheckForVisitors is true card sending"
+          );
           const Qestion1 = CardFactory.adaptiveCard(
             updateSafeMessageqestion1(
               incTitle,
@@ -798,6 +811,9 @@ class BotActivityHandler extends TeamsActivityHandler {
           await context.sendActivity({
             attachments: [Qestion1],
           });
+          log.addLog(
+            "In setting EnableSafetycheckForVisitors is true card sending successsfully"
+          );
         }
 
         // const message = MessageFactory.attachment(cards);

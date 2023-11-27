@@ -74,6 +74,9 @@ const { processSafetyBotError } = require("../models/processError");
               member.SendRemindersCounter < member.SendRemindersCount &&
               diffMins >= member.SendRemindersTime
             ) {
+              log.addLog(
+                `send proactive reminder messaage to ${member.user_id} Start`
+              );
               const companyData = await getCompanyDataByTeamId(member.team_id);
               let incObj = {
                 incId: inc_id,
@@ -111,17 +114,24 @@ const { processSafetyBotError } = require("../models/processError");
                 filesData
               );
               log.addLog(
-                `send proactive messaage to ${member.user_id} successfully`
+                `send proactive reminder messaage to ${member.user_id} successfully`
               );
               if (member.inc_type == "onetime") {
                 await incidentService.updateremaindercounter(
                   member.inc_id,
                   member.user_id
                 );
+                log.addLog(
+                  `Update oneTime reminder message count in DB  ${member.user_id} successfully`
+                );
+              } else {
+                await incidentService.updateRecurrremaindercounter(
+                  member.MemberResponsesRecurrId
+                );
+                log.addLog(
+                  `Update Reccuring reminder message count in DB  ${member.user_id} successfully`
+                );
               }
-              await incidentService.updateRecurrremaindercounter(
-                member.MemberResponsesRecurrId
-              );
             }
           })
         );

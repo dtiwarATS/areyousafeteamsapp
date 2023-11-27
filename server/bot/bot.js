@@ -1736,6 +1736,9 @@ const sendProactiveMessageAsync = async (
   incFilesData = null
 ) => {
   try {
+    if (log == null) {
+      log = new AYSLog();
+    }
     const isRecurringInc = runAt != null;
     const {
       incTitle,
@@ -1758,6 +1761,10 @@ const sendProactiveMessageAsync = async (
     } else if (incTypeId == 5) {
       titalmessage = `Stakeholder Notice - ${incTitle}`;
     }
+    log.addLog(
+      `Start Saftey Check card Sending:IncId-${incObj.incId},TeamId-${incData.teamId}, SelectedMember-${incData.selectedMembers},CreatedByUSerId-${companyData.userId}`
+    );
+    log.addLog(`${JSON.stringify(incData)}`);
     const approvalCard = await SafetyCheckCard(
       incTitle,
       incObj,
@@ -1773,6 +1780,7 @@ const sendProactiveMessageAsync = async (
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
     );
+    log.addLog(`Card Create Successfully `);
     if (incFilesData != null && incFilesData.length > 0) {
       const cardBody = [];
       if (incFilesData.length == 1) {
@@ -1946,6 +1954,7 @@ const sendProactiveMessageAsync = async (
               msgResp.isSafetyCheckTitleResponse === undefined ||
               !msgResp.isSafetyCheckTitleResponse
             ) {
+              log.addLog(`For isRecurringInc Incident`);
               sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT) 
               values(${
                 respMemberObj.memberResponsesId
@@ -1956,6 +1965,7 @@ const sendProactiveMessageAsync = async (
               }); `;
             }
           } else {
+            log.addLog(`For OneTime Incident`);
             sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${
               isMessageDelivered == 1 ? "GETDATE()" : "NULL"
             } where inc_id = ${incObj.incId} and user_id = '${
@@ -2156,9 +2166,12 @@ const sendProactiveMessageAsync = async (
     };
     sendProactiveMessage(allMembersArr);
   } catch (err) {
+    log.addLog(` An Error occured: ${JSON.stringify(err)}`);
     console.log(err);
     processSafetyBotError(err, "", "", userAadObjId);
     rejectFn(err);
+  } finally {
+    log.addLog(` Send SafteyCheck card  end.`);
   }
 };
 
