@@ -628,19 +628,19 @@ const updateSuperUserDataByUserAadObjId = async (
 
 const saveNARespSelectedTeams = async (teamId, selectedTeams, userAadObjId) => {
   try {
-    if (selectedTeams && selectedTeams.length > 0) {
+    const selectQuery = `select user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}';`;
+    let res = await db.getDataFromDB(selectQuery, userAadObjId);
+    if (res != null && res.length > 0) {
+      const tenantId = res[0]["user_tenant_id"];
+      let sqlSave = `Delete from MSTeamsNAResponseSelectedTeams where tenantId = '${tenantId}'; `;
       pool = await poolPromise;
-      const selectQuery = `select user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}';`;
-      let res = await db.getDataFromDB(selectQuery, userAadObjId);
-      if (res != null && res.length > 0) {
-        const tenantId = res[0]["user_tenant_id"];
-        let sqlSave = `Delete from MSTeamsNAResponseSelectedTeams where tenantId = '${tenantId}'; `;
+      if (selectedTeams && selectedTeams.length > 0) {
         selectedTeams.forEach((team) => {
           const { teamId, teamName, channelId, channelName } = team;
           sqlSave += ` insert into MSTeamsNAResponseSelectedTeams (tenantId, teamId, teamName, channelId, channelName) values ('${tenantId}', '${teamId}', '${teamName}', '${channelId}', '${channelName}'); `;
         });
-        pool.request().query(sqlSave);
       }
+      pool.request().query(sqlSave);
     }
   } catch (err) {
     console.log(err);
@@ -739,5 +739,5 @@ module.exports = {
   parseCompanyData,
   renameTeam,
   saveNARespSelectedTeams,
-  getFilesByIncId
+  getFilesByIncId,
 };
