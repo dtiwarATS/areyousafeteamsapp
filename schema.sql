@@ -860,3 +860,4 @@ END
 GO
 
 
+ALTER TABLE MSTeamsTeamsUsers ALTER COLUMN user_name VARCHAR(256)
