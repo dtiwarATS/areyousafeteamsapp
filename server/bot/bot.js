@@ -2439,8 +2439,8 @@ const sendSafetyCheckMessageAsync = async (
         createdByUserInfo.user_id = userId;
       }
       let selectedMembersArr = [];
-      if (selectedMembers != null && selectedMembers.split(",").length > 0) {
-        selectedMembersArr = selectedMembers.split(",");
+      if (selectedMembers != null && selectedMembers?.split(",").length > 0) {
+        selectedMembersArr = selectedMembers?.split(",");
       }
 
       let allMembersArr = [];
@@ -2693,9 +2693,9 @@ const sendSafetyCheckMessage = async (
         })
     );
 
-    if (selectedMembers != null && selectedMembers.split(",").length > 0) {
+    if (selectedMembers != null && selectedMembers?.split(",").length > 0) {
       allMembersArr = allMembersArr.filter((m) =>
-        selectedMembers.split(",").includes(m.id)
+        selectedMembers?.split(",").includes(m.id)
       );
     }
 
