@@ -35,7 +35,6 @@ const {
   getCompanyDataByTeamId,
 } = require("../db/dbOperations");
 
-const { updateMainCard, updateCard } = require("../models/UpdateCards");
 const dashboard = require("../models/dashboard");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
@@ -44,6 +43,19 @@ const ALL_USERS = "allusers";
 const SELECTED_USERS = "selectedusers";
 const db = require("../db");
 const { AYSLog } = require("../utils/log");
+const {
+  updateMainCard,
+  updateCard,
+  updateSendApprovalMessage,
+  updateSubmitCommentCard,
+  updateSafeMessage,
+  updateDeleteCard,
+  updateSesttingsCard,
+  updateContactSubmitCard,
+  updateSafeMessageqestion1,
+  updateSafeMessageqestion2,
+  updateSafeMessageqestion3,
+} = require("../models/UpdateCards");
 
 const newIncident = require("../view/newIncident");
 const { processSafetyBotError } = require("../models/processError");
@@ -152,7 +164,7 @@ const selectResponseCard = async (context, user) => {
     } else if (verb && verb === "cancel_send_approval") {
       await cancelSendApproval(context, user);
     } else if (verb && verb === "send_response") {
-      await sendApprovalResponse(user, context);
+      sendApprovalResponse(user, context);
     } else if (verb && verb === "submit_comment") {
       await submitComment(context, user, companyData);
     } else if (verb && verb === "contact_us") {
@@ -2950,7 +2962,7 @@ const sendApprovalResponse = async (user, context) => {
     const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", respDate);
     const runAt = inc.runAt != null ? inc.runAt : null;
     if (response === "i_am_safe") {
-      await incidentService.updateIncResponseData(
+      incidentService.updateIncResponseData(
         incId,
         user.id,
         1,
@@ -2958,7 +2970,7 @@ const sendApprovalResponse = async (user, context) => {
         respTimestamp
       );
     } else {
-      await incidentService.updateIncResponseData(
+      incidentService.updateIncResponseData(
         incId,
         user.id,
         0,
@@ -4075,6 +4087,354 @@ const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
     );
   }
 };
+const onInvokeActivity = async (context) => {
+  try {
+    let log = new AYSLog();
+    const companyData = context.activity?.value?.action?.data?.companyData;
+    const uVerb = context.activity?.value?.action?.verb;
+    let adaptiveCard = null;
+    console.log({ uVerb });
+
+    if (uVerb == "add_user_info") {
+      addUserInfoByTeamId(context);
+    } else if (
+      uVerb === "create_onetimeincident" ||
+      uVerb === "contact_us" ||
+      uVerb === "view_settings" ||
+      uVerb === "list_inc" ||
+      uVerb === "list_delete_inc"
+    ) {
+      await context.sendActivities([{ type: "typing" }]);
+      adaptiveCard = updateMainCard(companyData);
+      const card = CardFactory.adaptiveCard(updateMainCard(companyData));
+
+      const message = MessageFactory.attachment(card);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } else if (uVerb === "save_new_inc" || uVerb === "save_new_recurr_inc") {
+      const { inc_title: incTitle } = context.activity?.value?.action?.data;
+      const user = context.activity.from;
+      const isDuplicateInc = await verifyDuplicateInc(
+        companyData.teamId,
+        incTitle
+      );
+      if (isDuplicateInc) {
+        await showDuplicateIncError(context, user, companyData);
+        return {
+          status: StatusCodes.OK,
+        };
+      }
+
+      await context.sendActivities([{ type: "typing" }]);
+      let members = context.activity?.value?.action?.data?.selected_members;
+      if (members === undefined) {
+        members = "All Members";
+      }
+      let recurrInc = uVerb === "save_new_recurr_inc" ? "recurring " : "";
+      let text = `✔️ New ${recurrInc}incident '${incTitle}' created successfully.`;
+      const cards = CardFactory.adaptiveCard(
+        updateCard(incTitle, members, text)
+      );
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } else if (uVerb === "Cancel_button") {
+      const text = `Ok.. No Problem... We can do this later. Thank you for your time.`;
+      adaptiveCard = updateCard(null, null, text);
+      const cards = CardFactory.adaptiveCard(adaptiveCard);
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } else if (uVerb === "view_inc_close") {
+      const { inc_title: incTitle } = context.activity?.value?.action?.data;
+      let members = context.activity?.value?.action?.data?.selected_members;
+      if (members === undefined) {
+        members = "All Members";
+      }
+      let text = `Hello! You do not have any incident running at the moment!!!`;
+      const cards = CardFactory.adaptiveCard(
+        updateCard(incTitle, members, text)
+      );
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } else if (uVerb === "submit_settings") {
+      const cards = CardFactory.adaptiveCard(updateSesttingsCard());
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } else if (uVerb === "submit_comment") {
+      const action = context.activity.value.action;
+      const {
+        userId,
+        incId,
+        incTitle,
+        incCreatedBy,
+        eventResponse,
+        commentVal,
+      } = action.data;
+      let incGuidance = await incidentService.getIncGuidance(incId);
+      incGuidance = incGuidance; //? incGuidance : "No details available";
+      let responseText = commentVal
+        ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
+        : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
+
+      const cards = CardFactory.adaptiveCard(
+        updateSubmitCommentCard(responseText, incCreatedBy, incGuidance)
+      );
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } else if (uVerb === "submit_contact_us") {
+      let responseText = `✔️ Your feedback has been submitted successfully.`;
+      const cards = CardFactory.adaptiveCard(
+        updateContactSubmitCard(responseText)
+      );
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } else if (uVerb === "safetyVisitorQuestion1") {
+      const action = context.activity.value.action;
+      const { info: response, inc, companyData } = action.data;
+      const { incId, incTitle, incCreatedBy } = inc;
+      let respnse1 = "";
+
+      if (response == "question1_yes") {
+        const Qestion2 = CardFactory.adaptiveCard(
+          updateSafeMessageqestion2(
+            incTitle,
+            "",
+            incCreatedBy,
+            response,
+            context.activity.from.id,
+            incId,
+            companyData,
+            inc,
+            incGuidance
+          )
+        );
+
+        await context.sendActivity({
+          attachments: [Qestion2],
+        });
+        //click yess button on all visitor safe
+      }
+    } else if (uVerb === "safetyVisitorQuestion2") {
+      const action = context.activity.value.action;
+      const { info: response, inc, companyData } = action.data;
+      const { incId, incTitle, incCreatedBy } = inc;
+      let respnse1 = "";
+      if (response == "question2_no") {
+        const Qestion3 = CardFactory.adaptiveCard(
+          updateSafeMessageqestion3(
+            incTitle,
+            "",
+            incCreatedBy,
+            response,
+            context.activity.from.id,
+            incId,
+            companyData,
+            inc,
+            incGuidance
+          )
+        );
+
+        await context.sendActivity({
+          attachments: [Qestion3],
+        });
+      }
+    }
+    ////////////////////Question3
+    else if (uVerb === "safetyVisitorQuestion3") {
+      const action = context.activity.value.action;
+      const {
+        userId,
+        incId,
+        incTitle,
+        incCreatedBy,
+        eventResponse,
+        commentVal,
+      } = action.data;
+      let incGuidance = await incidentService.getIncGuidance(incId);
+      incGuidance = incGuidance; //? incGuidance : "No details available";
+      let responseText = commentVal
+        ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
+        : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`;
+
+      const cards = CardFactory.adaptiveCard(
+        updateSubmitCommentCard(responseText, incCreatedBy, incGuidance)
+      );
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } else if (uVerb === "send_response") {
+      await context.sendActivities([{ type: "typing" }]);
+      log.addLog("After Click On Im_Safte or need assistance start. ");
+      const action = context.activity.value.action;
+      const { info: response, inc, companyData } = action.data;
+      const { incId, incTitle, incCreatedBy } = inc;
+      log.addLog(`After Click On Im_Safte or need assistance start.:${incId} `);
+      const incStatusId = await incidentService.getIncStatus(incId);
+      if (incStatusId == -1 || incStatusId == 2) {
+        await sendIncStatusValidation(context, incStatusId);
+        return {
+          status: StatusCodes.OK,
+        };
+      }
+
+      let responseText = "";
+      if (response === "i_am_safe") {
+        responseText = `Glad you're safe! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
+      } else {
+        responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
+      }
+
+      const entities = {
+        type: "mention",
+        text: `<at>${incCreatedBy.name}</at>`,
+        mentioned: {
+          id: incCreatedBy.id,
+          name: incCreatedBy.name,
+        },
+      };
+
+      await sendDirectMessage(
+        context,
+        context.activity.from,
+        responseText,
+        entities
+      );
+      log.addLog(
+        "After Click On Im_Safte or need assistance  Text message Send successfully. "
+      );
+      var incGuidance = await incidentService.getIncGuidance(incId);
+      incGuidance = incGuidance; //? incGuidance : "No details available";
+
+      const cards = CardFactory.adaptiveCard(
+        updateSafeMessage(
+          incTitle,
+          "",
+          incCreatedBy,
+          response,
+          context.activity.from.id,
+          incId,
+          companyData,
+          inc,
+          incGuidance
+        )
+      );
+
+      await context.sendActivity({
+        attachments: [cards],
+      });
+      log.addLog(
+        "After Click On Im_Safte or need assistance comment section card Send successfully. "
+      );
+      if (companyData.EnableSafetycheckForVisitors == true) {
+        log.addLog(
+          "In setting EnableSafetycheckForVisitors is true card sending"
+        );
+        const Qestion1 = CardFactory.adaptiveCard(
+          updateSafeMessageqestion1(
+            incTitle,
+            "",
+            incCreatedBy,
+            response,
+            context.activity.from.id,
+            incId,
+            companyData,
+            inc,
+            incGuidance
+          )
+        );
+        await context.sendActivity({
+          attachments: [Qestion1],
+        });
+        log.addLog(
+          "In setting EnableSafetycheckForVisitors is true card sending successsfully"
+        );
+      }
+
+      // const message = MessageFactory.attachment(cards);
+      // message.id = context.activity.replyToId;
+      // await context.updateActivity(message);
+    } else if (uVerb === "send_approval" || uVerb === "cancel_send_approval") {
+      // if (uVerb === "send_approval") {
+      //   await context.sendActivities([{ type: "typing" }]);
+      // }
+      const action = context.activity.value.action;
+      const { incTitle: incTitle } = action.data.incident;
+      const { inc_created_by: incCreatedBy } =
+        context.activity?.value?.action?.data;
+      let preTextMsg = "";
+      let isAllMember = false;
+      if (context.activity?.value?.action.data.selected_members) {
+        preTextMsg = `Should I send this message to the selected user(s)?`;
+      } else {
+        isAllMember = true;
+        preTextMsg = `Should I send this message to everyone?`;
+      }
+      const isRecurringInc = action.data.incType === "recurringIncident";
+      const cards = CardFactory.adaptiveCard(
+        updateSendApprovalMessage(
+          incTitle,
+          incCreatedBy,
+          preTextMsg,
+          uVerb === "send_approval" ? true : false,
+          isAllMember,
+          isRecurringInc,
+          action.data.safetyCheckMessageText,
+          action.data.mentionUserEntities,
+          action.data.guidance
+        )
+      );
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    }
+    ////////////
+    else if (uVerb == "do_it_later") {
+      let msg =
+        "Ok! I will remind you to send the safety check message to your team members later.";
+
+      await sendDirectMessage(context, context.activity.from, msg);
+    } else if (uVerb == "triggerTestSafetyCheckMessage") {
+      const action = context.activity.value.action;
+      const { companyData, teamMemberCount } = action.data;
+      const cards = CardFactory.adaptiveCard(
+        getTestIncPreviewCard(teamMemberCount, companyData)
+      );
+
+      const message = MessageFactory.attachment(cards);
+      message.id = context.activity.replyToId;
+      context.updateActivity(message);
+    }
+
+    const user = context.activity.from;
+
+    if (context.activity.name === "adaptiveCard/action") {
+      const card = await selectResponseCard(context, user);
+      if (adaptiveCard != null) {
+        return invokeResponse(adaptiveCard);
+      } else if (card) {
+        return invokeResponse(card);
+      } else {
+        return {
+          status: StatusCodes.OK,
+        };
+      }
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", "", "onInvokeActivity");
+  }
+};
 
 module.exports = {
   invokeResponse,
@@ -4101,4 +4461,5 @@ module.exports = {
   sendSafetyCheckMessageAsync,
   sendNSRespToTeamChannel,
   createTestIncident,
+  onInvokeActivity,
 };
