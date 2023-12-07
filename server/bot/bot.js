@@ -2010,6 +2010,7 @@ const sendProactiveMessageAsync = async (
           ) {
             let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${userAadObjId}'`;
             db.getDataFromDB(sqlUpdateBlockedByUser, userAadObjId);
+            isMessageDelivered = 0;
           }
           if (isRecurringInc) {
             if (

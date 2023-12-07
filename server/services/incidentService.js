@@ -1486,15 +1486,16 @@ const updateMessageDeliveredStatus = async (
     let sqlUpdate = "";
     const status = msgResp?.status == null ? null : Number(msgResp?.status);
     const error = msgResp?.error == null ? null : msgResp?.error;
-    sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
-    db.getDataFromDB(sqlUpdate, userId);
     if (
       msgResp.errorCode == "ConversationBlockedByUser" ||
       status == "User blocked the conversation with the bot."
     ) {
       let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_id='${userId}'`;
       db.getDataFromDB(sqlUpdateBlockedByUser, userId);
+      isMessageDelivered = 0;
     }
+    sqlUpdate = `update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incId} and user_id = '${userId}';`;
+    db.getDataFromDB(sqlUpdate, userId);
   } catch (err) {
     console.log(err);
     processSafetyBotError(
