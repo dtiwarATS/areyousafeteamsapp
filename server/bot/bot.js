@@ -71,6 +71,7 @@ const {
   SafetyCheckCard,
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
+const { json } = require("body-parser");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -92,7 +93,7 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
       await sendEmail(userEmailId, subject, emailBody);
     }
   } catch (err) {
-    processSafetyBotError(err, "", userName);
+    processSafetyBotError(err, teamName, userName, userEmailId);
   }
 };
 
@@ -116,7 +117,7 @@ const sendUninstallationEmail = async (userEmailId, userName) => {
       await sendEmail(userEmailId, subject, emailBody);
     }
   } catch (err) {
-    processSafetyBotError(err, "", userName);
+    processSafetyBotError(err, "", userName, userEmailId);
   }
 };
 
@@ -226,7 +227,16 @@ const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
     message.id = context.activity.replyToId;
     await context.updateActivity(message);
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in processnewUsrSubscriptionType1 companyData=" +
+        JSON.stringify(companyData) +
+        " userEmail=" +
+        action?.data?.userEmail
+    );
   }
 };
 
@@ -246,7 +256,14 @@ const processnewUsrSubscriptionType2 = async (context, action) => {
     const tenantId = context?.activity?.conversation?.tenantId;
     await incidentService.updateSubscriptionType(2, tenantId, "1");
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in processnewUsrSubscriptionType2 companyData=" +
+        JSON.stringify(action?.data?.companyData)
+    );
   }
 };
 
@@ -1288,7 +1305,13 @@ const getOneTimeDashboardCard = async (
       },
     };
   } catch (err) {
-    processSafetyBotError(err, "", "", userObjId);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in incidentId=" + incidentId
+    );
   }
   return card;
 };
@@ -1337,7 +1360,8 @@ const viewIncResult = async (
   if (
     incData != null &&
     incData.activityId != null &&
-    incData.conversationId != null
+    incData.conversationId != null &&
+    incData.conversationId != "null"
   ) {
     activityId = incData.activityId;
     const conversationId = incData.conversationId;
@@ -1576,8 +1600,8 @@ const updateIncResponseOfSelectedMembers = async (
 
         const activity = MessageFactory.attachment(dashboardAdaptiveCard);
         activity.id = activityId;
-
-        await updateMessage(activityId, activity, conversationId, serviceUrl);
+        if (conversationId && conversationId != "null")
+          await updateMessage(activityId, activity, conversationId, serviceUrl);
       }
     }
   } catch (err) {
@@ -1864,7 +1888,13 @@ const sendProactiveMessageAsync = async (
           .then((resp) => {})
           .catch((err) => {
             sqlUpdateMsgDeliveryStatus += sql;
-            processSafetyBotError(err, "", "", userAadObjId, sql);
+            processSafetyBotError(
+              err,
+              "",
+              "",
+              userAadObjId,
+              "error in updateMsgDeliveryStatus -> then - > sql=" + sql
+            );
           });
 
         if (!promise) {
@@ -1898,7 +1928,13 @@ const sendProactiveMessageAsync = async (
         }
       } catch (err) {
         console.log(err);
-        processSafetyBotError(err, "", "", userAadObjId);
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          userAadObjId,
+          "error in respTimeInterval"
+        );
       }
     }, 50000);
 
@@ -1927,7 +1963,13 @@ const sendProactiveMessageAsync = async (
         sendProactiveMessage(allMembersArr);
       } catch (err) {
         console.log(err);
-        processSafetyBotError(err, "", "", userAadObjId);
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          userAadObjId,
+          "error in reSendMessage"
+        );
       }
     };
 
@@ -1944,6 +1986,7 @@ const sendProactiveMessageAsync = async (
         let isMessageDelivered = 0;
         if (
           msgResp?.conversationId != null &&
+          msgResp?.conversationId != "null" &&
           (msgResp?.activityId != null ||
             msgResp?.memberObj?.isResponseReceived)
         ) {
@@ -1961,6 +2004,13 @@ const sendProactiveMessageAsync = async (
           error == "Invalid user identity in provided tenant" ||
           retryCounter == retryCountTill
         ) {
+          if (
+            msgResp.errorCode == "ConversationBlockedByUser" ||
+            status == "User blocked the conversation with the bot."
+          ) {
+            let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${userAadObjId}'`;
+            db.getDataFromDB(sqlUpdateBlockedByUser, userAadObjId);
+          }
           if (isRecurringInc) {
             if (
               msgResp.isSafetyCheckTitleResponse === undefined ||
@@ -1988,7 +2038,8 @@ const sendProactiveMessageAsync = async (
 
         if (
           respMemberObj.conversationId == null &&
-          msgResp.newConversationId != null
+          msgResp.newConversationId != null &&
+          msgResp.newConversationId != "null"
         ) {
           respMemberObj.conversationId = msgResp.newConversationId;
 
@@ -2047,7 +2098,13 @@ const sendProactiveMessageAsync = async (
                 clearInterval(respTimeInterval);
               } catch (err) {
                 console.log(err);
-                processSafetyBotError(err, "", "", userAadObjId);
+                processSafetyBotError(
+                  err,
+                  "",
+                  "",
+                  userAadObjId,
+                  "error in clear respTimeInterval"
+                );
               }
             }
             if (sqlUpdateMsgDeliveryStatus != "") {
@@ -2060,7 +2117,13 @@ const sendProactiveMessageAsync = async (
           }
         }
       } catch (err) {
-        processSafetyBotError(err, "", "", userAadObjId);
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          userAadObjId,
+          "error in callbackFn msgResp=" + msgResp + " index=" + index
+        );
       }
     };
 
@@ -2170,7 +2233,16 @@ const sendProactiveMessageAsync = async (
           }
         } catch (err) {
           console.log(err);
-          processSafetyBotError(err, "", "", userAadObjId);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            " error in fnRecursiveCall startIndex=" +
+              startIndex +
+              " endIndex=" +
+              endIndex
+          );
         }
       };
       console.log("fnRecursiveCall start");
@@ -2180,7 +2252,16 @@ const sendProactiveMessageAsync = async (
   } catch (err) {
     log.addLog(` An Error occured: ${JSON.stringify(err)}`);
     console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in sendProactiveMessageAsync incData=" +
+        JSON.stringify(incData) +
+        " companyData=" +
+        JSON.stringify(companyData)
+    );
     rejectFn(err);
   } finally {
     log.addLog(` Send SafteyCheck card  end.`);
@@ -2667,7 +2748,18 @@ const sendSafetyCheckMessageAsync = async (
       }
     } catch (err) {
       console.log(`sendSafetyCheckMessage error: ${err} `);
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in sendSafetyCheckMessageAsync incId=" +
+          incId +
+          " createdByUserInfo=" +
+          JSON.stringify(createdByUserInfo) +
+          " resendSafetyCheck=" +
+          resendSafetyCheck
+      );
       resolve(false);
     }
   });
@@ -2768,7 +2860,11 @@ const sendSafetyCheckMessage = async (
           userAadObjId
         );
         let isMessageDelivered = 1;
-        if (msgResp?.conversationId != null && msgResp?.activityId != null) {
+        if (
+          msgResp?.conversationId != "null" &&
+          msgResp?.conversationId != null &&
+          msgResp?.activityId != null
+        ) {
           isMessageDelivered = 1;
           // await incidentService.updateMessageDeliveredStatus(incId, allMembersArr[i].id, 1, msgResp);
         } else {
@@ -2799,7 +2895,16 @@ const sendSafetyCheckMessage = async (
   } catch (err) {
     log.addLog(`sendSafetyCheckMessage error: ${err.toString()} `);
     console.log(`sendSafetyCheckMessage error: ${err} `);
-    processSafetyBotError(err, "", "", userAadObjId);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userAadObjId,
+      "error in sendSafetyCheckMessageAsync incId=" +
+        incId +
+        " createdByUserInfo=" +
+        JSON.stringify(createdByUserInfo)
+    );
   }
   log.addLog(`sendSafetyCheckMessage end`);
   return Promise.resolve(safetyCheckSend);
@@ -3024,7 +3129,7 @@ const sendApprovalResponse = async (user, context) => {
   } catch (error) {
     console.log(error);
     processSafetyBotError(
-      err,
+      error,
       "",
       "",
       user.aadObjectId,
@@ -3091,7 +3196,16 @@ const submitComment = async (context, user, companyData) => {
     }
   } catch (error) {
     console.log(error);
-    processSafetyBotError(err, "", "", user.aadObjectId, "submitComment");
+    processSafetyBotError(
+      error,
+      "",
+      user.name,
+      user.aadObjectId,
+      "error in submitComment context=" +
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData)
+    );
   }
 };
 
@@ -3229,7 +3343,18 @@ const Question1safetyVisitor = async (
     }
   } catch (error) {
     console.log(error);
-    processSafetyBotError(err, "", "", user.aadObjectId, loggerName);
+    processSafetyBotError(
+      error,
+      "",
+      user.name,
+      user.aadObjectId,
+      "error in Question1safetyVisitor loggerName=" +
+        loggerName +
+        " context=" +
+        JSON.stringify(context) +
+        " questionNumber=" +
+        questionNumber
+    );
   }
 };
 
@@ -3346,7 +3471,13 @@ const sendNewContactEmail = async (
     await sendEmail(emailVal, subject, emailBody);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      "",
+      userName,
+      "",
+      "error in sendNewContactEmail emailVal=" + emailVal
+    );
   }
 };
 
@@ -3764,7 +3895,20 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
   } catch (err) {
     //successflag = false;
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in sendRecurrEventMsg subEventObj=" +
+        JSON.stringify(subEventObj) +
+        " incId=" +
+        incId +
+        " incTitle=" +
+        incTitle +
+        " log=" +
+        log
+    );
   }
   // return successflag;
 };
@@ -3842,7 +3986,13 @@ const addUserInfoByTeamId = async (context) => {
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in addUserInfoByTeamId context=" + JSON.stringify(context)
+    );
   }
 };
 
@@ -3879,7 +4029,14 @@ const addteamsusers = async (context) => {
                 err
               )} `
             );
-            processSafetyBotError(err, "", "");
+            processSafetyBotError(
+              err,
+              teamid,
+              "",
+              "",
+              "error in addteamsusers ->  getAllTeamMembersByConnectorClient -> cmpData=" +
+                JSON.stringify(cmpData)
+            );
           } finally {
             log.addLog(`Inside loop start teamid: ${JSON.stringify(teamid)} `);
           }
@@ -3892,7 +4049,13 @@ const addteamsusers = async (context) => {
   } catch (err) {
     log.addLog(`addteamsusers Error ${JSON.stringify(err)} `);
     console.log(err);
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in addteamsusers context=" + JSON.stringify(context)
+    );
   } finally {
     log.addLog(`addteamsusers End`);
     await log.saveLog();
@@ -3927,7 +4090,14 @@ const sendNSRespToTeamChannel = async (
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId, "sendNSRespToTeamChannel");
+    processSafetyBotError(
+      err,
+      userTeamId,
+      "",
+      userAadObjId,
+      "error in sendNSRespToTeamChannel adaptiveCard=" +
+        JSON.stringify(adaptiveCard)
+    );
   }
 };
 
@@ -4025,7 +4195,13 @@ const createTestIncident = async (
     // }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId, "createTestIncident");
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userAadObjId,
+      "error in createTestIncident teamsMembers=" + JSON.stringify(teamsMembers)
+    );
   }
 };
 
@@ -4432,7 +4608,13 @@ const onInvokeActivity = async (context) => {
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", "", "onInvokeActivity");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in onInvokeActivity context=" + JSON.stringify(context)
+    );
   }
 };
 

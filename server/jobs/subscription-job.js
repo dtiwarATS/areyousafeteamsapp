@@ -124,14 +124,30 @@ const { processSafetyBotError } = require("../models/processError");
             } catch (err) {
               console.log(err);
               log.addLog(`Error occured: ${err}`);
-              processSafetyBotError(err, "", "", job.user_aadobject_id);
+              processSafetyBotError(
+                err,
+                "",
+                "",
+                job.user_aadobject_id,
+                "error in subscriptionjob sendProactiveMessage job.id" +
+                  job.ID +
+                  " jobsToBeExecutedArr=" +
+                  JSON.stringify(jobsToBeExecutedArr)
+              );
             }
           })
         );
       }
     } catch (err) {
       log.addLog(`Error occured: ${err}`);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in subscriptionjob sendProactiveMessage jobsToBeExecutedArr=" +
+          JSON.stringify(jobsToBeExecutedArr)
+      );
     } finally {
       log.addLog(`End sendProactiveMessage -  ${subcriptionMessage}`);
       if (saveLog) {

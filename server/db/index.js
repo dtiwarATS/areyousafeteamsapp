@@ -130,7 +130,13 @@ const getDataFromDB = async (
     return isSingleQuery ? data.recordset : data.recordsets;
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userObjId, sqlQuery);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in getDataFromDB sqlQuery=" + sqlQuery
+    );
   }
 };
 
@@ -157,7 +163,13 @@ const insertDataIntoDB = async (tableName, values) => {
     return result.recordset;
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", "", query);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in insertDataIntoDB query=" + query
+    );
     return null;
   }
 };
@@ -182,7 +194,20 @@ const getUpdateDataIntoDBQuery = (
       return updateSql;
     }
   } catch (err) {
-    processSafetyBotError(err, "", "", userObjId, "getUpdateDataIntoDBQuery");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in getUpdateDataIntoDBQuery tableName=" +
+        tableName +
+        " incidentValues=" +
+        incidentValues +
+        " pkColumn=" +
+        pkColumn +
+        " pkColumnValue=" +
+        pkColumnValue
+    );
   }
   return null;
 };
@@ -195,7 +220,13 @@ const updateDataIntoDB = async (query, userObjId) => {
     return Promise.resolve(res);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userObjId, query);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in updateDataIntoDB query= " + query
+    );
     return null;
   }
 };
@@ -205,7 +236,7 @@ const getPoolPromise = async (userObjId) => {
   try {
     pool = await poolPromise;
   } catch (err) {
-    processSafetyBotError(err, "", "", userObjId);
+    processSafetyBotError(err, "", "", userObjId, "error in getPoolPromise");
   }
   return pool;
 };
@@ -224,18 +255,36 @@ const updateDataIntoDBAsync = async (query, pool, userObjId) => {
           })
           .catch((err) => {
             console.log(err);
-            processSafetyBotError(err, "", "", userObjId, query);
+            processSafetyBotError(
+              err,
+              "",
+              "",
+              userObjId,
+              "error in updateDataIntoDBAsync then query= " + query
+            );
             reject(err);
           });
       } catch (err) {
         console.log(err);
-        processSafetyBotError(err, "", "", userObjId, query);
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          userObjId,
+          "error in updateDataIntoDBAsync query= " + query
+        );
         reject(err);
       }
     });
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userObjId, query);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in updateDataIntoDBAsync query=" + query
+    );
   }
   return false;
 };
@@ -249,7 +298,13 @@ const insertData = async (sqlInsertQuery, userObjId) => {
       result = await pool.request().query(sqlInsertQuery, userObjId);
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", userObjId, sqlInsertQuery);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userObjId,
+        "error in insertData=" + sqlInsertQuery
+      );
     }
   }
   return result;

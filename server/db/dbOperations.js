@@ -34,7 +34,13 @@ const parseCompanyData = (result) => {
       parsedCompanyObj = new Company(resultObj);
     }
   } catch (err) {
-    processSafetyBotError(err, "", "", null);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in parseCompanyData result=" + JSON.stringify(result)
+    );
   }
 
   return parsedCompanyObj;
@@ -64,7 +70,13 @@ const isAdminUser = async (userObjId) => {
     return Promise.resolve(adminUserLogin);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userObjId);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in isAdminUser userObjId=" + userObjId
+    );
   }
 };
 
@@ -74,7 +86,13 @@ const verifyAdminUserForDashboardTab = async (userObjId) => {
     isAdmin = await isAdminUser(userObjId);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userObjId);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in verifyAdminUserForDashboardTab userObjId=" + userObjId
+    );
   }
   return {
     isAdmin,
@@ -94,6 +112,13 @@ const getInstallationData = async () => {
     return res;
   } catch (err) {
     console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in getInstallationData"
+    );
   }
 };
 
@@ -114,7 +139,13 @@ const getCompaniesDataBySuperUserId = async (
     return Promise.resolve(companyData);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", superUserId);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in getCompaniesDataBySuperUserId superUserId=" + superUserId
+    );
   }
 };
 
@@ -157,7 +188,13 @@ const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "", userAadObjId);
+    processSafetyBotError(
+      err,
+      teamId,
+      userName,
+      userAadObjId,
+      "error in getUserLicenseDetails"
+    );
   }
   return Promise.resolve({
     hasLicense,
@@ -205,7 +242,13 @@ const getCompaniesData = async (
     return Promise.resolve(companyData);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "", userObjId);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userObjId,
+      "error in getCompaniesData"
+    );
   }
 };
 
@@ -217,7 +260,13 @@ const getCompanyDataByTeamId = async (teamId, userAadObjId) => {
     companyData = await parseCompanyData(res);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "", userAadObjId);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userAadObjId,
+      "error in getCompanyDataByTeamId"
+    );
   }
   return Promise.resolve(companyData);
 };
@@ -230,7 +279,13 @@ const getFilesByIncId = async (IncId, userAadObjId) => {
     filesData = res;
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, IncId, "", userAadObjId);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in getCompanyDataByTeamId IncId=" + IncId
+    );
   }
   return Promise.resolve(filesData);
 };
@@ -242,7 +297,7 @@ const removeTeamMember = async (teamId, userId) => {
     await pool.request().query(sqlRemoveMember);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "", userId);
+    processSafetyBotError(err, teamId, "", userId, "error in removeTeamMember");
   }
 };
 
@@ -253,7 +308,13 @@ const removeAllTeamMember = async (teamId) => {
     await pool.request().query(sqlRemoveMember);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "", null);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      null,
+      "error in removeAllTeamMember"
+    );
   }
 };
 
@@ -326,7 +387,13 @@ const addTeamMember = async (
         await pool.request().query(delSql);
       } catch (err) {
         console.log(err);
-        processSafetyBotError(err, teamId, "", "", delSql);
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          "",
+          "error in addTeamMember delSql=" + delSql
+        );
       }
     }
 
@@ -337,7 +404,13 @@ const addTeamMember = async (
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "", "", sqlInserUsers);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in addTeamMember" + sqlInserUsers
+    );
   }
   return isUserInfoSaved;
 };
@@ -368,7 +441,13 @@ const updateUserLicenseStatus = async (teamId, tenantId, userObjId) => {
       `;
     await pool.request().query(sqlUpdateLicenseStatus);
   } catch (err) {
-    processSafetyBotError(err, teamId, "", userObjId, sqlUpdateLicenseStatus);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userObjId,
+      "error in updateUserLicenseStatus" + sqlUpdateLicenseStatus
+    );
   }
 };
 
@@ -403,7 +482,7 @@ const addTypeOneSubscriptionDetails = async (
       teamId,
       "",
       userAadObjId,
-      sqlSubscriptionDetails
+      "error in addTypeOneSubscriptionDetails" + sqlSubscriptionDetails
     );
   }
 };
@@ -435,7 +514,13 @@ const updateIsUserInfoSaved = async (
     }
     await pool.request().query(sqlUpdateUserInfo);
   } catch (err) {
-    processSafetyBotError(err, teamId, "", "", sqlUpdateUserInfo);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in updateIsUserInfoSaved" + sqlUpdateUserInfo
+    );
   }
 };
 
@@ -544,7 +629,16 @@ const insertCompanyData = async (
     }
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "", companyDataObj.userObjId);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      companyDataObj.userObjId,
+      "error in insertCompanyData companyDataObj=" +
+        JSON.stringify(companyDataObj) +
+        " allMembersInfo=" +
+        JSON.stringify(allMembersInfo)
+    );
   }
 };
 
@@ -559,6 +653,13 @@ const deleteCompanyDataByuserAadObjId = async (userObjId) => {
     }
   } catch (err) {
     console.log(err);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      companyDataObj.userObjId,
+      "error in deleteCompanyDataByuserAadObjId "
+    );
   }
 };
 
@@ -578,7 +679,13 @@ const deleteCompanyData = async (teamId, userObjId) => {
     isDelete = true;
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, "", "", userObjId);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userObjId,
+      "error in deleteCompanyData"
+    );
   }
   return isDelete;
 };
@@ -595,6 +702,13 @@ const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
   } catch (err) {
     console.log(err);
     isUpdated = false;
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userId,
+      "error in updateSuperUserData selectedUserStr=" + selectedUserStr
+    );
   }
   return Promise.resolve(isUpdated);
 };
@@ -621,7 +735,13 @@ const updateSuperUserDataByUserAadObjId = async (
   } catch (err) {
     console.log(err);
     isUpdated = false;
-    processSafetyBotError(err, teamId, "", userId);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userId,
+      "error in updateSuperUserDataByUserAadObjId"
+    );
   }
   return Promise.resolve(isUpdated);
 };
@@ -649,7 +769,7 @@ const saveNARespSelectedTeams = async (teamId, selectedTeams, userAadObjId) => {
       teamId,
       "",
       userAadObjId,
-      "saveNARespSelectedTeams"
+      "error in saveNARespSelectedTeams selectedTeams=" + selectedTeams
     );
   }
 };
@@ -699,7 +819,16 @@ const getCompanyDataByTenantId = async (tenantId, filter = null) => {
     where user_tenant_id = '${tenantId}' ${filter} `;
     result = await db.getDataFromDB(sqlCompanyData);
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in getCompanyDataByTenantId tenantId=" +
+        tenantId +
+        " filter=" +
+        filter
+    );
   }
   return Promise.resolve(result);
 };
@@ -710,7 +839,13 @@ const renameTeam = async (teamId, teamName, tenantId) => {
     const sqlUpdateTeamName = `update msteamsinstallationdetails set team_name = '${teamName.replaceApostrophe()}' where team_id = '${teamId}' and user_tenant_id = '${tenantId}'`;
     result = await db.updateDataIntoDB(sqlUpdateTeamName);
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in renameTeam tenantId=" + tenantId + " teamName=" + teamName
+    );
   }
   return Promise.resolve(result);
 };

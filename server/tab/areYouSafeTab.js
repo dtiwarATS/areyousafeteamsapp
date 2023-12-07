@@ -31,6 +31,7 @@ const {
   processSafetyBotError,
   processBotError,
 } = require("../models/processError");
+const { json } = require("body-parser");
 
 class AreYouSafeTab {
   getConversationParameters = (members, tenantId) => {
@@ -63,7 +64,13 @@ class AreYouSafeTab {
       allTeamMembers =
         await connectorClient.conversations.getConversationMembers(teamId);
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        "",
+        "error in getAllTeamMembers serviceUrl=" + serviceUrl
+      );
     }
     return Promise.resolve(allTeamMembers);
   };
@@ -79,7 +86,13 @@ class AreYouSafeTab {
       const createdYear = createdDate.getFullYear();
       return ` ${monthName} ${creatdDate}, ${createdYear}`;
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in getStartDate startDate=" + startDate
+      );
     }
   };
 
@@ -104,7 +117,13 @@ class AreYouSafeTab {
         return Math.abs(parseInt(dateDiffInMin)) + "m";
       else return Math.abs(parseInt(dateDiff)) + "s";
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in getDurationInWeek startDate=" + startDate
+      );
     }
   };
 
@@ -172,7 +191,16 @@ class AreYouSafeTab {
         });
       }
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in sortMembers members=" +
+          JSON.stringify(members) +
+          " incTypeId=" +
+          incTypeId
+      );
     }
     return memberObj;
   };
@@ -326,7 +354,16 @@ class AreYouSafeTab {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", userObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userObjId,
+        "error in getFormatedIncData incData=" +
+          JSON.stringify(incData) +
+          " teamInfo=" +
+          JSON.stringify(teamInfo)
+      );
     }
     return incFormatedData;
   };
@@ -394,7 +431,13 @@ class AreYouSafeTab {
       //   teamsMembers = teamsMembersWithsSuperUserFlag;
       // }
     } catch (err) {
-      processSafetyBotError(err, teamId, "", userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in getTeamMembers"
+      );
     }
     return Promise.resolve(teamsMembers);
   };
@@ -528,7 +571,13 @@ class AreYouSafeTab {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in requestAssistance data=" + data
+      );
     }
     return isMessageSent;
   };
@@ -624,7 +673,13 @@ class AreYouSafeTab {
         }
       }
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in saveAssistance adminsData=" + JSON.stringify(adminsData)
+      );
     }
     return res;
   };
@@ -690,7 +745,13 @@ class AreYouSafeTab {
         );
       }
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in sendUserCommentToAdmin data=" + JSON.stringify(data)
+      );
     }
   };
 
@@ -707,7 +768,13 @@ class AreYouSafeTab {
         );
       }
     } catch (err) {
-      processSafetyBotError(err, teamId, "", userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in checkDuplicateInc incTitle=" + incTitle
+      );
     }
     return Promise.resolve(isDuplicate);
   };
@@ -722,7 +789,13 @@ class AreYouSafeTab {
         userInfo = await incidentService.getUserInfo(teamId, aadUserObjId);
       } catch (err) {
         console.log(err);
-        processSafetyBotError(err, teamId, "", aadUserObjId);
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          aadUserObjId,
+          "error in getBotUserInfo"
+        );
       }
     }
     return Promise.resolve(userInfo);
@@ -784,7 +857,13 @@ class AreYouSafeTab {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in createNewIncident incObj=" + incObj
+      );
     }
     return Promise.resolve(newInc);
   };
@@ -832,7 +911,11 @@ class AreYouSafeTab {
         err,
         teamId,
         createdByUserInfo?.user_name,
-        userAadObjId
+        userAadObjId,
+        "error in sendSafetyCheckMessage incId=" +
+          incId +
+          " resendSafetyCheck=" +
+          resendSafetyCheck
       );
       return true;
     } finally {
@@ -845,7 +928,7 @@ class AreYouSafeTab {
     try {
       userTeamInfo = await incidentService.getUserTeamInfo(userAadObjId);
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", "", "error in getUserTeamInfo");
     }
     return Promise.resolve(userTeamInfo);
   };
@@ -857,7 +940,13 @@ class AreYouSafeTab {
         bot.sendNewContactEmail(email, msg, companyData, userName);
       }
     } catch (err) {
-      processSafetyBotError(err, "", userName, userId);
+      processSafetyBotError(
+        err,
+        "",
+        userName,
+        userId,
+        "error in submitContactUs email=" + email + " msg=" + msg
+      );
     }
   };
 
@@ -866,7 +955,13 @@ class AreYouSafeTab {
     try {
       superUsers = await incidentService.getSuperUsersByTeamId(teamId);
     } catch (err) {
-      processSafetyBotError(err, teamId, "", null);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in getSuperUsersByTeamId"
+      );
     }
     return Promise.resolve(superUsers);
   };
@@ -876,7 +971,7 @@ class AreYouSafeTab {
     try {
       superUsers = await incidentService.getenablecheck(teamId);
     } catch (err) {
-      processSafetyBotError(err, teamId, "", null);
+      processSafetyBotError(err, teamId, "", null, "error in getenablecheck");
     }
     return Promise.resolve(superUsers);
   };
@@ -904,7 +999,13 @@ class AreYouSafeTab {
         SafetycheckForVisitorsQuestion3
       );
     } catch (err) {
-      processSafetyBotError(err, teamId, "", userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in saveUserSetting"
+      );
     }
     return Promise.resolve(result);
   };
@@ -948,7 +1049,7 @@ class AreYouSafeTab {
         incidentMediafiles,
       };
     } catch (err) {
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(err, "", "", "", "error in getIncDataToCopyInc");
     }
   };
 

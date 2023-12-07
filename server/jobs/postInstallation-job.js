@@ -70,14 +70,27 @@ const { processSafetyBotError } = require("../models/processError");
             } catch (err) {
               console.log(err);
               log.addLog(`Error occured: ${err}`);
-              processSafetyBotError(err, "", "", job.user_aadobject_id);
+              processSafetyBotError(
+                err,
+                "",
+                "",
+                job.user_aadobject_id,
+                "Error in postInstallation job senProactiveMessage job.Id=" +
+                  job.Id
+              );
             }
           })
         );
       }
     } catch (err) {
       log.addLog(`Error occured: ${err}`);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "Error in postInstallation job senProactiveMessage sqlQuery=" + sqlQuery
+      );
     } finally {
       log.addLog(`End sendProactiveMessage -  ${subcriptionMessage}`);
       if (saveLog) {

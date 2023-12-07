@@ -861,3 +861,6 @@ GO
 
 
 ALTER TABLE MSTeamsTeamsUsers ALTER COLUMN user_name VARCHAR(256)
+
+ALTER TABLE MSTeamsInstallationDetails ADD BotBlockedByTenant bit
+ALTER TABLE MSTeamsTeamsUsers ADD BotBlockedByUser bit

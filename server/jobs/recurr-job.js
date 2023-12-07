@@ -13,7 +13,7 @@ const { getFilesByIncId } = require("../db/dbOperations");
   //get filter job from database
   //console.log("recurr job : start");
   const log = new AYSLog();
-  let currentDateTime = moment(new Date()).utc().format('YYYY-MM-DD HH:mm');
+  let currentDateTime = moment(new Date()).utc().format("YYYY-MM-DD HH:mm");
   log.addLog(`recurr job : currentDateTime - ${currentDateTime}`);
   console.log("recurr job : currentDateTime - " + currentDateTime);
   let sqlJob = `SELECT A.ID AS INC_ID, B.ID AS SUB_EVENT_ID, B.CRON, B.TIMEZONE, A.INC_TYPE AS incType, A.INC_NAME, A.INC_NAME incTitle, A.CREATED_BY AS createdById, 
@@ -31,17 +31,29 @@ const { getFilesByIncId } = require("../db/dbOperations");
     // send msgs
     await Promise.all(
       jobsToBeExecutedArr.map(async (job) => {
-        // send teams msg and change the runAt time of the job to next interval        
+        // send teams msg and change the runAt time of the job to next interval
         try {
-
-          const { CRON: cron, TIMEZONE: timeZone, INC_ID: incId, SUB_EVENT_ID: subEventId, TEAM_ID: teamId, INC_NAME: incTitle, eventEndDate, eventEndTime } = job;
+          const {
+            CRON: cron,
+            TIMEZONE: timeZone,
+            INC_ID: incId,
+            SUB_EVENT_ID: subEventId,
+            TEAM_ID: teamId,
+            INC_NAME: incTitle,
+            eventEndDate,
+            eventEndTime,
+          } = job;
           const options = { tz: timeZone };
 
           log.addLog(`incId: ${incId} subEventId: ${subEventId}`);
           log.addLog(`incTitle: ${incTitle} start`);
           const endDateTime = new Date(eventEndDate + " " + eventEndTime);
 
-          const usrTZCurrentTime = new Date(moment.tz(new Date().toUTCString(), timeZone).format('MM-DD-YYYY HH:mm'));
+          const usrTZCurrentTime = new Date(
+            moment
+              .tz(new Date().toUTCString(), timeZone)
+              .format("MM-DD-YYYY HH:mm")
+          );
 
           if (usrTZCurrentTime > endDateTime) {
             return true;
@@ -54,15 +66,14 @@ const { getFilesByIncId } = require("../db/dbOperations");
           let eventMembers = await db.getDataFromDB(eventMembersSql);
 
           if (eventMembers?.length > 0) {
-
             let companyData = await incidentService.getCompanyData(teamId);
             const filesData = await getFilesByIncId(incId);
             job = {
               ...job,
               eventMembers,
               companyData,
-              filesData
-            }
+              filesData,
+            };
 
             let interval = parser.parseExpression(cron, options);
             let nextRunAtUTC = interval.next().toISOString();
@@ -70,7 +81,12 @@ const { getFilesByIncId } = require("../db/dbOperations");
             db.updateDataIntoDB(sqlUpdate, job?.createdById);
 
             log.addLog("send recurring safety message start");
-            let allEventMsgDelivered = await bot.sendRecurrEventMsg(job, incId, incTitle, log);
+            let allEventMsgDelivered = await bot.sendRecurrEventMsg(
+              job,
+              incId,
+              incTitle,
+              log
+            );
             log.addLog("send recurring safety message end");
 
             // if (allEventMsgDelivered) {
@@ -85,7 +101,16 @@ const { getFilesByIncId } = require("../db/dbOperations");
         } catch (err) {
           console.log(err);
           log.addLog(`Recurring inc error: ${err}`);
-          processSafetyBotError(err, "", "", job.createdById);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            job.createdById,
+            "error in recurr-job job.id=" +
+              job.ID +
+              " jobsToBeExecutedArr=" +
+              JSON.stringify(jobsToBeExecutedArr)
+          );
         }
       })
     );

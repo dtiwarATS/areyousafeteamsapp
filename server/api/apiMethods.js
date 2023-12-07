@@ -8,7 +8,7 @@ const {
 const path = require("path");
 const ENV_FILE = path.join(__dirname, "../.env");
 require("dotenv").config({ path: ENV_FILE });
-
+const db = require("../db");
 const {
   ConnectorClient,
   MicrosoftAppCredentials,
@@ -51,7 +51,16 @@ const getConversationMembers = async (
       return userInfo[0];
     }
   } catch (err) {
-    processSafetyBotError(err, "", "", userAadObjId, "getConversationMembers");
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      userAadObjId,
+      "error in getConversationMembers -> teamUserId=" +
+        teamUserId +
+        " serviceUrl=" +
+        serviceUrl
+    );
   }
   return null;
 };
@@ -108,7 +117,13 @@ const sendDirectMessage = async (
       });
     });
   } catch (err) {
-    processSafetyBotError(err, "", "");
+    processSafetyBotError(
+      err,
+      "",
+      teamMember?.name,
+      teamMember?.id,
+      "error in sendDirectMessage"
+    );
   }
 };
 
@@ -132,7 +147,13 @@ const sendDirectMessageCard = async (
       });
     });
   } catch (err) {
-    processSafetyBotError(err, "", "", "", JSON.stringify(teamMember));
+    processSafetyBotError(
+      err,
+      "",
+      teamMember?.name,
+      teamMember?.aadObjectId,
+      "error in sendDirectMessageCard " + JSON.stringify(teamMember)
+    );
   }
 };
 
@@ -156,7 +177,13 @@ const sendMultipleDirectMessageCard = async (
       });
     });
   } catch (err) {
-    processSafetyBotError(err, "", "", "", JSON.stringify(teamMember));
+    processSafetyBotError(
+      err,
+      "",
+      teamMember?.name,
+      teamMember?.aadObjectId,
+      "error in sendMultipleDirectMessageCard " + JSON.stringify(teamMember)
+    );
   }
 };
 
@@ -224,8 +251,22 @@ const getUsersConversationId = async (
       resp.errObj = err;
     }
     //console.log(err);
-    if (sendErrorEmail) {
-      processSafetyBotError(err, members[0]?.name, members[0]?.id, null);
+    //if (sendErrorEmail)
+    {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in getUsersConversationId -> members=" +
+          JSON.stringify(members) +
+          " tenantId=" +
+          tenantId +
+          " appId=" +
+          appId +
+          " botName=" +
+          botName
+      );
     }
   }
   return userConversationId;
@@ -315,6 +356,14 @@ const sendProactiveMessaageToUserAsync = async (
               err.message != "Invalid user identity in provided tenant"
             ) {
               msgNotSentArr.push(memberObj);
+              sendErrorEmail = false;
+            }
+            if (
+              err.code == "ConversationBlockedByUser" ||
+              err.status == "User blocked the conversation with the bot."
+            ) {
+              let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_id='${members[0]?.id}'`;
+              db.getDataFromDB(sqlUpdateBlockedByUser, members[0]?.id);
             }
             if (sendErrorEmail) {
               processSafetyBotError(
@@ -338,7 +387,7 @@ const sendProactiveMessaageToUserAsync = async (
             }
           });
       };
-      if (conversationId == null) {
+      if (conversationId == null || conversationId == "null") {
         conversationId = await getUsersConversationId(
           tenantId,
           members,
@@ -347,11 +396,11 @@ const sendProactiveMessaageToUserAsync = async (
           sendErrorEmail,
           resp
         );
-        if (conversationId != null) {
+        if (conversationId != null && conversationId != "null") {
           resp.newConversationId = conversationId;
         }
       }
-      if (conversationId != null) {
+      if (conversationId != null && conversationId != "null") {
         sendToConversation();
         // setTimeout(async () => {
         //   sendToConversation();
@@ -379,13 +428,14 @@ const sendProactiveMessaageToUserAsync = async (
       msgNotSentArr.push(memberObj);
       callbackFn(resp, index);
     }
-    if (sendErrorEmail) {
+    //if (sendErrorEmail)
+    {
       processSafetyBotError(
         err,
         "",
         members[0]?.name,
         members[0]?.id,
-        userAadObjId
+        "error in sendProactiveMessaageToUserAsync " + userAadObjId
       );
     }
   }
@@ -479,7 +529,7 @@ const sendProactiveMessaageToUser = async (
         });
       }
 
-      if (conversationId == null) {
+      if (conversationId == null || conversationId == "null") {
         conversationId = await getUsersConversationId(
           tenantId,
           members,
@@ -506,7 +556,7 @@ const sendProactiveMessaageToUser = async (
       // 503	                  The service is temporarily unavailable.
 
       let activityResp = null;
-      if (conversationId != null) {
+      if (conversationId != null && conversationId != "null") {
         activityResp = await connectorClient.conversations.sendToConversation(
           conversationId,
           activity
@@ -546,7 +596,13 @@ const sendProactiveMessaageToUser = async (
     log.addLog(JSON.stringify(err));
     log.addLog(`Error occured for user: ${JSON.stringify(members)}`);
     console.log(err);
-    processSafetyBotError(err, "", "", userAadObjId, JSON.stringify(members));
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in sendProactiveMessaageToUser" + JSON.stringify(members)
+    );
     resp.error = JSON.stringify(err);
   } finally {
     log.addLog("sendProactiveMessaageToUser end");

@@ -59,10 +59,22 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
-          processSafetyBotError(err, "", "", userObjId);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userObjId,
+            "Error in /areyousafetabhandler/getUserPermission -> verifyAdminUserForDashboardTab"
+          );
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userObjId,
+        "Error in /areyousafetabhandler/getUserPermission"
+      );
     }
   });
 
@@ -78,7 +90,13 @@ const handlerForSafetyBotTab = (app) => {
           console.log(err);
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userObjId,
+        "error in /areyousafetabhandler/getTemplateList"
+      );
     }
   });
 
@@ -132,10 +150,22 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
-          processSafetyBotError(err, "", "", userObjId);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userObjId,
+            "error in /areyousafetabhandler/getAllIncData -> verifyAdminUserForDashboardTab"
+          );
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userObjId,
+        "error in /areyousafetabhandler/getAllIncData"
+      );
     }
   });
 
@@ -149,10 +179,23 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
-          processSafetyBotError(err, "", "", userAadObjId);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/deleteIncident -> deleteInc then incId=" +
+              req.query.incid
+          );
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/deleteIncident incId=" + req.query.incid
+      );
     }
   });
 
@@ -168,10 +211,28 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
-          processSafetyBotError(err, "", "", userAadObjId);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/updateincstatus then -> incId=" +
+              incId +
+              " incStatus=" +
+              incStatus
+          );
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/updateincstatus -> incId=" +
+          incId +
+          " incStatus=" +
+          incStatus
+      );
     }
   });
 
@@ -183,7 +244,13 @@ const handlerForSafetyBotTab = (app) => {
       const teamsMember = await tabObj.getTeamMembers(teamId, userAadObjId);
       res.send(teamsMember);
     } catch (err) {
-      processSafetyBotError(err, teamId, "", userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getTeamsMembers"
+      );
     }
   });
 
@@ -200,7 +267,13 @@ const handlerForSafetyBotTab = (app) => {
         res.send(null);
       }
     } catch (err) {
-      processSafetyBotError(err, teamId, "", userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getEnableSafetyCheck"
+      );
     }
   });
 
@@ -214,10 +287,22 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
-          processSafetyBotError(err, "", "", userAadObjId);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/getAssistanceData -> then"
+          );
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getAssistanceData"
+      );
     }
   });
 
@@ -273,10 +358,22 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
-          processSafetyBotError(err, "", "", userAadObjId);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/requestAssistance -> then "
+          );
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/requestAssistance"
+      );
     }
   });
 
@@ -298,7 +395,16 @@ const handlerForSafetyBotTab = (app) => {
         );
         res.send(isProactiveMessageSent);
       } catch (err) {
-        processSafetyBotError(err, "", "", userAadObjId);
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          userAadObjId,
+          "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
+            userlocation +
+            " req.query.adminlist=" +
+            req.query.adminlist
+        );
       }
     }
   );
@@ -342,12 +448,26 @@ const handlerForSafetyBotTab = (app) => {
           })
           .catch((err) => {
             console.log(err);
-            processSafetyBotError(err, "", "", userAadObjId);
+            processSafetyBotError(
+              err,
+              TeamId,
+              "",
+              userAadObjId,
+              "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
+                reqBody.comment
+            );
             res.send(false);
           });
       }
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        TeamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
+          reqBody.comment
+      );
     }
   });
 
@@ -363,7 +483,14 @@ const handlerForSafetyBotTab = (app) => {
       res.send(isDuplicate);
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, qs.teamId, "", qs.userAadObjId);
+      processSafetyBotError(
+        err,
+        qs.teamId,
+        "",
+        qs.userAadObjId,
+        "error in /areyousafetabhandler/checkduplicateInc -> qs.incTitle=" +
+          qs.incTitle
+      );
       res.send({ error: "Error: Please try again" });
     }
   });
@@ -378,6 +505,13 @@ const handlerForSafetyBotTab = (app) => {
       res.send(newInc);
     } catch (err) {
       console.log(err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        req.query.userAadObjId,
+        "error in /areyousafetabhandler/createnewincident"
+      );
       res.send({ error: "Error: Please try again" });
     }
   });
@@ -392,6 +526,13 @@ const handlerForSafetyBotTab = (app) => {
       res.send(FileData);
     } catch (err) {
       console.log(err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        req.query.userAadObjId,
+        "error in /areyousafetabhandler/FileSave"
+      );
       res.send({ error: "Error: Please try again" });
     }
   });
@@ -406,6 +547,13 @@ const handlerForSafetyBotTab = (app) => {
       res.send(DeleteFileData);
     } catch (err) {
       console.log(err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        req.query.userAadObjId,
+        "error in /areyousafetabhandler/DeleteFile"
+      );
       res.send({ error: "Error: Please try again" });
     }
   });
@@ -429,6 +577,14 @@ const handlerForSafetyBotTab = (app) => {
       res.send(safetyCheckSend);
     } catch (err) {
       console.log(err);
+      processSafetyBotError(
+        err,
+        req.query.teamId,
+        "",
+        req.query.userAadObjId,
+        "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
+          req.query.incId
+      );
       res.send({ error: "Error: Please try again" });
     }
   });
@@ -451,7 +607,16 @@ const handlerForSafetyBotTab = (app) => {
       res.send(true);
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", userName, userId);
+      processSafetyBotError(
+        err,
+        "",
+        userName,
+        userId,
+        "error in /areyousafetabhandler/contactus -> email=" +
+          email +
+          " msg=" +
+          msg
+      );
       res.send(false);
     }
   });
@@ -463,7 +628,13 @@ const handlerForSafetyBotTab = (app) => {
       const superUsers = await tabObj.getSuperUsersByTeamId(teamId);
       res.send(superUsers);
     } catch (err) {
-      processSafetyBotError(err, teamId, "", null);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in /areyousafetabhandler/getSuperUsersByTeamId"
+      );
     }
   });
 
@@ -479,7 +650,13 @@ const handlerForSafetyBotTab = (app) => {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", reqBody.userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        reqBody.userAadObjId,
+        "error in /areyousafetabhandler/saveUserSetting"
+      );
       res.send({ error: "Error: Please try again" });
     }
   });
@@ -495,7 +672,13 @@ const handlerForSafetyBotTab = (app) => {
         res.send(null);
       }
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getIncDataToCopyInc incId=" + incId
+      );
     }
   });
 
@@ -521,11 +704,29 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
-          processSafetyBotError(err, "", "", userAadObjId);
+          processSafetyBotError(
+            err,
+            teamId,
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
+              incid +
+              " incType=" +
+              incType
+          );
           res.send(0);
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
+          incid +
+          " incType=" +
+          incType
+      );
       res.send(0);
     }
   });
@@ -541,11 +742,23 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
-          processSafetyBotError(err, "", "", userAadObjId);
+          processSafetyBotError(
+            err,
+            teamId,
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/getNAReapSelectedTeams then"
+          );
           res.send(0);
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getNAReapSelectedTeams"
+      );
       res.send(0);
     }
   });
@@ -562,15 +775,27 @@ const handlerForSafetyBotTab = (app) => {
           console.log(err);
           processSafetyBotError(
             err,
-            "",
+            teamId,
             "",
             userAadObjId,
-            "areyousafetabhandler/getMemberInfo"
+            "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
+              serviceUrl +
+              " teamUserId=" +
+              teamUserId
           );
           res.send(0);
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
+          serviceUrl +
+          " teamUserId=" +
+          teamUserId
+      );
       res.send(0);
     }
   });
@@ -608,12 +833,18 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             userAadObjId,
-            "areyousafetabhandler/getMemberInfo"
+            "error in /areyousafetabhandler/updateSafetyCheckStatus"
           );
           res.send("false");
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/updateSafetyCheckStatus"
+      );
       res.send("false");
     }
   });
@@ -645,12 +876,24 @@ const handlerForSafetyBotTab = (app) => {
         .catch((err) => {
           console.log(err);
 
-          processSafetyBotError(err, "", "", userAadObjId);
+          processSafetyBotError(
+            err,
+            TeamId,
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/getAdminList"
+          );
 
           res.send(null);
         });
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getAdminList"
+      );
     }
   });
 };

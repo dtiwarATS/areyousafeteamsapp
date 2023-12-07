@@ -138,7 +138,16 @@ const { processSafetyBotError } = require("../models/processError");
       }
     } catch (err) {
       log.addLog(`Error occured: ${err}`);
-      processSafetyBotError(err, "", "");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in SendRemainder job sendProactiveMessage sqlQuery=" +
+          sqlQuery +
+          " sqlQueryquerryReccuring=" +
+          sqlQueryquerryReccuring
+      );
     } finally {
       if (saveLog) {
         await log.saveLog();

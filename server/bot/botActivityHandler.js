@@ -63,6 +63,7 @@ const {
   getWelcomeMessageCardForChannel,
 } = require("./subscriptionCard");
 const PersonalEmail = require("../Email/personalEmail");
+const { json } = require("body-parser");
 
 class BotActivityHandler extends TeamsActivityHandler {
   constructor() {
@@ -208,7 +209,14 @@ class BotActivityHandler extends TeamsActivityHandler {
                 }
               }
             } catch (err) {
-              processSafetyBotError(err, "", "", "", "onMessage - personal");
+              processSafetyBotError(
+                err,
+                "",
+                "",
+                "",
+                "error in onMessage - personal context=" +
+                  JSON.stringify(context)
+              );
             }
 
             if (isAdmin || isSuperUser) {
@@ -222,7 +230,13 @@ class BotActivityHandler extends TeamsActivityHandler {
           await next();
         }
       } catch (err) {
-        processSafetyBotError(err, "", "", "", "onMessage");
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          "",
+          "error in onMessageactivity context=" + context
+        );
       }
     });
 
@@ -439,13 +453,17 @@ class BotActivityHandler extends TeamsActivityHandler {
           // await sendDirectMessage(context, acvtivityData.from, welcomeMsg);
         }
       } catch (err) {
-        processSafetyBotError(
-          err,
-          teamId,
-          "",
-          userAadObjectId,
-          JSON.stringify(acvtivityData)
-        );
+        if (err.message == "The tenant admin disabled this bot") {
+          let sqlUpdateBlockedByUser = `UPDATE MSTeamsInstallationDetails set BotBlockedByTenant=1 where team_id='${teamId}'`;
+          db.getDataFromDB(sqlUpdateBlockedByUser, userId);
+        } else
+          processSafetyBotError(
+            err,
+            teamId,
+            "",
+            userAadObjectId,
+            "error in onConversationUpdate +" + JSON.stringify(acvtivityData)
+          );
       }
     });
   }
@@ -537,7 +555,13 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", "", "onInstallationUpdateActivity");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "onInstallationUpdateActivity context=" + context
+      );
     }
   }
 
@@ -565,7 +589,16 @@ class BotActivityHandler extends TeamsActivityHandler {
       });
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", "", "hanldeAdminOrSuperUserMsg");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in hanldeAdminOrSuperUserMsg context=" +
+          JSON.stringify(context) +
+          " companyData=" +
+          JSON.stringify(companyData)
+      );
     }
   }
 
@@ -635,7 +668,13 @@ class BotActivityHandler extends TeamsActivityHandler {
       );
     } catch (err) {
       console.log(err);
-      processSafetyBotError(err, "", "", "", "hanldeChannelUserMsg");
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in hanldeChannelUserMsg context=" + JSON.stringify(context)
+      );
     }
   }
 
@@ -659,7 +698,12 @@ class BotActivityHandler extends TeamsActivityHandler {
         "",
         "",
         from.aadObjectId,
-        "sendSubscriptionSelectionCard"
+        "error in sendSubscriptionSelectionCard context=" +
+          JSON.stringify(context) +
+          " userEmail=" +
+          userEmail +
+          " companyDataObj=" +
+          JSON.stringify(companyDataObj)
       );
     }
   }
@@ -764,7 +808,13 @@ class BotActivityHandler extends TeamsActivityHandler {
           );
         }
       } catch (err) {
-        processSafetyBotError(err, "", "", userAadObjId, "welcomeMessageCard");
+        processSafetyBotError(
+          err,
+          "",
+          acvtivityData.from.name,
+          userAadObjId,
+          "error in welcomeMessageCard"
+        );
       }
 
       new PersonalEmail.PersonalEmail()
@@ -796,7 +846,13 @@ class BotActivityHandler extends TeamsActivityHandler {
       );
       //}
     } catch (err) {
-      processSafetyBotError(err, "", "", userAadObjId, "sendWelcomeMessage");
+      processSafetyBotError(
+        err,
+        "",
+        acvtivityData.from.name,
+        userAadObjId,
+        "error in sendWelcomeMessage context=" + JSON.stringify(context)
+      );
     }
   }
 
