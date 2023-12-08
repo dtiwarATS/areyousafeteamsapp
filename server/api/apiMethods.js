@@ -263,9 +263,9 @@ const getUsersConversationId = async (
           " tenantId=" +
           tenantId +
           " appId=" +
-          appId +
+          process?.env?.MicrosoftAppId +
           " botName=" +
-          botName
+          process?.env?.BotName
       );
     }
   }

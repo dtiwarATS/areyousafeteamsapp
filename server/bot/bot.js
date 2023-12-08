@@ -4451,7 +4451,7 @@ const onInvokeActivity = async (context) => {
       message.id = context.activity.replyToId;
       await context.updateActivity(message);
     } else if (uVerb === "send_response") {
-      await context.sendActivities([{ type: "typing" }]);
+      // await context.sendActivities([{ type: "typing" }]);
       log.addLog("After Click On Im_Safte or need assistance start. ");
       const action = context.activity.value.action;
       const { info: response, inc, companyData } = action.data;
