@@ -147,13 +147,23 @@ const sendDirectMessageCard = async (
       });
     });
   } catch (err) {
-    processSafetyBotError(
-      err,
-      "",
-      teamMember?.name,
-      teamMember?.aadObjectId,
-      "error in sendDirectMessageCard " + JSON.stringify(teamMember)
-    );
+    let sendErrorEmail = true;
+    if (
+      err.code == "ConversationBlockedByUser" ||
+      err.status == "User blocked the conversation with the bot."
+    ) {
+      let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${teamMember?.aadObjectId}'`;
+      db.getDataFromDB(sqlUpdateBlockedByUser, members[0]?.id);
+      sendErrorEmail = false;
+    }
+    if (sendErrorEmail)
+      processSafetyBotError(
+        err,
+        "",
+        teamMember?.name,
+        teamMember?.aadObjectId,
+        "error in sendDirectMessageCard " + JSON.stringify(teamMember)
+      );
   }
 };
 
@@ -182,7 +192,7 @@ const sendMultipleDirectMessageCard = async (
       err.code == "ConversationBlockedByUser" ||
       err.status == "User blocked the conversation with the bot."
     ) {
-      let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_id='${members[0]?.id}'`;
+      let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${teamMember?.aadObjectId}'`;
       db.getDataFromDB(sqlUpdateBlockedByUser, members[0]?.id);
       sendErrorEmail = false;
     }
