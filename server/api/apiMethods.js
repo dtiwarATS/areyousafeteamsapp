@@ -177,13 +177,23 @@ const sendMultipleDirectMessageCard = async (
       });
     });
   } catch (err) {
-    processSafetyBotError(
-      err,
-      "",
-      teamMember?.name,
-      teamMember?.aadObjectId,
-      "error in sendMultipleDirectMessageCard " + JSON.stringify(teamMember)
-    );
+    let sendErrorEmail = true;
+    if (
+      err.code == "ConversationBlockedByUser" ||
+      err.status == "User blocked the conversation with the bot."
+    ) {
+      let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_id='${members[0]?.id}'`;
+      db.getDataFromDB(sqlUpdateBlockedByUser, members[0]?.id);
+      sendErrorEmail = false;
+    }
+    if (sendErrorEmail)
+      processSafetyBotError(
+        err,
+        "",
+        teamMember?.name,
+        teamMember?.aadObjectId,
+        "error in sendMultipleDirectMessageCard " + JSON.stringify(teamMember)
+      );
   }
 };
 
@@ -356,7 +366,6 @@ const sendProactiveMessaageToUserAsync = async (
               err.message != "Invalid user identity in provided tenant"
             ) {
               msgNotSentArr.push(memberObj);
-              sendErrorEmail = false;
             }
             if (
               err.code == "ConversationBlockedByUser" ||
@@ -364,6 +373,7 @@ const sendProactiveMessaageToUserAsync = async (
             ) {
               let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_id='${members[0]?.id}'`;
               db.getDataFromDB(sqlUpdateBlockedByUser, members[0]?.id);
+              sendErrorEmail = false;
             }
             if (sendErrorEmail) {
               processSafetyBotError(
