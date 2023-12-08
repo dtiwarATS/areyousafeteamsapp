@@ -153,7 +153,7 @@ const sendDirectMessageCard = async (
       err.status == "User blocked the conversation with the bot."
     ) {
       let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${teamMember?.aadObjectId}'`;
-      db.getDataFromDB(sqlUpdateBlockedByUser, members[0]?.id);
+      db.getDataFromDB(sqlUpdateBlockedByUser, teamMember?.aadObjectId);
       sendErrorEmail = false;
     }
     if (sendErrorEmail)
