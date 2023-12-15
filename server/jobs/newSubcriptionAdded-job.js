@@ -98,7 +98,7 @@ const { processSafetyBotError } = require("../models/processError");
     }
   };
 
-  let sqlNewSubcription = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, usr.tenantid, inst.serviceUrl, sd.SubscriptionType, 
+  let sqlNewSubcription = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, sd.TenantId tenantid, inst.serviceUrl, sd.SubscriptionType, 
     sd.TermUnit, convert(varchar, sd.SubscriptionDate, 101) SubscriptionDate, convert(varchar, sd.ExpiryDate, 101) ExpiryDate,
     sd.UserLimit memberCount
     from MSTeamsSubscriptionDetails sd

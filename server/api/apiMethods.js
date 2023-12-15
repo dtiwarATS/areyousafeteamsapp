@@ -20,9 +20,9 @@ const getAllTeamMembers = async (context, teamId) => {
   console.log({ teamId });
   let allMembers = null;
   try {
-    allMembers = await (
-      await TeamsInfo.getTeamMembers(context, teamId)
-    ).filter((tm) => tm.aadObjectId);
+    allMembers = await TeamsInfo.getTeamMembers(context, teamId);
+    if (allMembers && allMembers?.length)
+      allMembers = allMembers.filter((tm) => tm.aadObjectId);
   } catch (err) {
     console.log(err);
   }
@@ -46,10 +46,12 @@ const getConversationMembers = async (
     const result = await connectorClient.conversations.getConversationMembers(
       teamId
     );
-    const userInfo = result.filter((usr) => usr.id == teamUserId);
-    if (userInfo?.length > 0) {
-      return userInfo[0];
-    }
+    if (result && result?.length) {
+      const userInfo = result.filter((usr) => usr.id == teamUserId);
+      if (userInfo?.length > 0) {
+        return userInfo[0];
+      }
+    } else return null;
   } catch (err) {
     processSafetyBotError(
       err,
@@ -193,7 +195,7 @@ const sendMultipleDirectMessageCard = async (
       err.status == "User blocked the conversation with the bot."
     ) {
       let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${teamMember?.aadObjectId}'`;
-      db.getDataFromDB(sqlUpdateBlockedByUser, members[0]?.id);
+      db.getDataFromDB(sqlUpdateBlockedByUser, teamMember?.aadObjectId);
       sendErrorEmail = false;
     }
     if (sendErrorEmail)
@@ -279,7 +281,7 @@ const getUsersConversationId = async (
         "",
         userAadObjId,
         "error in getUsersConversationId -> members=" +
-          JSON.stringify(members) +
+          (members ? JSON.stringify(members) : "") +
           " tenantId=" +
           tenantId +
           " appId=" +
