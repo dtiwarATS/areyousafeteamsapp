@@ -174,15 +174,15 @@ const { processSafetyBotError } = require("../models/processError");
         " where sd.SubscriptionType in (2,3) and GETDATE() > sd.ExpiryDate and ISNULL(sd.isAfterExpiryMessageSent, 0) <> 1 ";
     }
 
-    return (sqlBeforeExpiry = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name, usr.tenantid, inst.serviceUrl, sd.SubscriptionType, 
+    return (sqlBeforeExpiry = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name,sd.TenantId tenantid, inst.serviceUrl, sd.SubscriptionType, 
           sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate,
           (select count (user_aadobject_id) from (
-          select distinct user_aadobject_id from MSTeamsTeamsUsers where tenantid = usr.tenantid and hasLicense = 1
+          select distinct user_aadobject_id from MSTeamsTeamsUsers where tenantid = sd.TenantId and hasLicense = 1
           ) t) memberCount, inst.team_id, inst.email, inst.team_name
           from MSTeamsSubscriptionDetails sd
           left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
           left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
-          ${sqlWhere} and serviceUrl is not null and INST.team_id IS NOT NULL AND INST.team_id!='' AND USR.user_id IS NOT NULL AND INST.id IS NOT NULL  and inst.uninstallation_date is null`);
+          ${sqlWhere} and serviceUrl is not null and INST.team_id IS NOT NULL AND INST.team_id!='' AND USR.user_id IS NOT NULL AND INST.id IS NOT NULL  and inst.uninstallation_date is null AND sd.TenantId IS NOT NULL`);
   };
 
   let sqlFiveDayBeforeExpiry = beforeExpiryQuery(true, 5);
