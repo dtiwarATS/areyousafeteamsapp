@@ -1235,7 +1235,7 @@ const getAllTeamMembersQuery = (
   let whereSql = "";
   if (teamId != null) {
     whereSql = ` u.TEAM_ID = '${teamId}'`;
-  } else {
+  } else if (userAadObjId != null) {
     whereSql = ` u.TEAM_ID in (SELECT top 1 team_id FROM MSTEAMSTEAMSUSERS WHERE USER_AADOBJECT_ID = '${userAadObjId}' order by id desc)`;
   }
 
@@ -1300,11 +1300,13 @@ const getIncResponseMembers = async (incId, teamId, userAadObjId) => {
 
 const getIncSelectedMembers = async (selectedUsers, teamId, userAadObjId) => {
   let result = null;
+  let sqlSelectedUser = "";
   try {
     if (selectedUsers && selectedUsers.length > 0) {
       selectedUsers = "'" + selectedUsers.split(",").join("','") + "'";
+      sqlSelectedUser = ` and u.user_id in (${selectedUsers}) `;
     }
-    const sqlWhere = ` u.team_id = '${teamId}' and u.user_id in (${selectedUsers})`;
+    const sqlWhere = ` u.team_id = '${teamId}' ` + sqlSelectedUser;
     const sqlTeamMembers = getTeamMemeberSqlQuery(sqlWhere);
     result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
   } catch (err) {
@@ -2173,10 +2175,13 @@ const getIncDataToCopyInc = async (
 ) => {
   let result = null;
   try {
+    let sqlSelectedUser = "";
     if (selectedUsers && selectedUsers.length > 0) {
       selectedUsers = "'" + selectedUsers.split(",").join("','") + "'";
+      sqlSelectedUser = ` and u.user_id in (${selectedUsers}) `;
     }
-    const sqlWhereSelectedMembers = ` u.team_id = '${teamId}' and u.user_id in (${selectedUsers})`;
+    const sqlWhereSelectedMembers =
+      ` u.team_id = '${teamId}' ` + sqlSelectedUser;
     const sqlSelectedMembers = getTeamMemeberSqlQuery(sqlWhereSelectedMembers);
 
     const sqlWhereResponseMembers = ` u.team_id = '${teamId}' and u.user_id in (select user_id from MSTeamsIncResponseSelectedUsers where inc_id = ${incId})`;

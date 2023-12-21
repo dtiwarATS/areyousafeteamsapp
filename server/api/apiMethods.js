@@ -618,13 +618,24 @@ const sendProactiveMessaageToUser = async (
     log.addLog(JSON.stringify(err));
     log.addLog(`Error occured for user: ${JSON.stringify(members)}`);
     console.log(err);
-    processSafetyBotError(
-      err,
-      "",
-      "",
-      userAadObjId,
-      "error in sendProactiveMessaageToUser" + JSON.stringify(members)
-    );
+    let sendErrorEmail = true;
+    if (
+      err?.code == "ConversationBlockedByUser" ||
+      err?.status == "User blocked the conversation with the bot." ||
+      err?.message == "User blocked the conversation with the bot."
+    ) {
+      // let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${teamMember?.aadObjectId}'`;
+      // db.getDataFromDB(sqlUpdateBlockedByUser, teamMember?.aadObjectId);
+      sendErrorEmail = false;
+    }
+    if (sendErrorEmail)
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in sendProactiveMessaageToUser" + JSON.stringify(members)
+      );
     resp.error = JSON.stringify(err);
   } finally {
     log.addLog("sendProactiveMessaageToUser end");
