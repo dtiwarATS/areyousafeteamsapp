@@ -622,7 +622,8 @@ const sendProactiveMessaageToUser = async (
     if (
       err?.code == "ConversationBlockedByUser" ||
       err?.status == "User blocked the conversation with the bot." ||
-      err?.message == "User blocked the conversation with the bot."
+      err?.message == "User blocked the conversation with the bot." ||
+      err?.message == "Tenant is deprovisioned."
     ) {
       // let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${teamMember?.aadObjectId}'`;
       // db.getDataFromDB(sqlUpdateBlockedByUser, teamMember?.aadObjectId);
