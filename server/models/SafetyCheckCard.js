@@ -121,6 +121,7 @@ const getSafetyCheckTypeCard = async (
       type: "TextBlock",
       separator: true,
       wrap: true,
+      isVisible: incGuidance ? true : false,
       text: `**Guidance:**\n\n` + incGuidance,
     });
   }
@@ -166,11 +167,13 @@ const getImpBulletineTypeCard = async (
     {
       type: "TextBlock",
       wrap: true,
+      isVisible: incGuidance ? true : false,
       text: `**Guidance:**\n\n` + incGuidance,
     },
     {
       type: "TextBlock",
       wrap: true,
+      isVisible: additionalInfo ? true : false,
       text: `**Additional Information:**\n\n` + additionalInfo,
     },
   ];
@@ -219,16 +222,19 @@ const getTravelAdvisoryTypeCard = async (
     {
       type: "TextBlock",
       wrap: true,
+      isVisible: travelUpdate ? true : false,
       text: `**Travel Update:**\n\n` + travelUpdate,
     },
     {
       type: "TextBlock",
       wrap: true,
+      isVisible: incGuidance ? true : false,
       text: `**Guidance:**\n\n` + incGuidance,
     },
     {
       type: "TextBlock",
       wrap: true,
+      isVisible: contactInfo ? true : false,
       text: `**Contact Information:**\n\n` + contactInfo,
     },
   ];
@@ -277,11 +283,13 @@ const getStakeholderNoticeTypeCard = async (
     {
       type: "TextBlock",
       wrap: true,
+      isVisible: situation ? true : false,
       text: `**Situation:**\n\n` + situation,
     },
     {
       type: "TextBlock",
       wrap: true,
+      isVisible: additionalInfo ? true : false,
       text: `**Additional Information:**\n\n` + additionalInfo,
     },
   ];

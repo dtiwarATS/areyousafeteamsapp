@@ -153,6 +153,7 @@ const updateSendApprovalMessage = (
         type: "TextBlock",
         separator: true,
         wrap: true,
+        isVisible: guidance ? true : false,
         text: `**Guidance:**\n\n` + guidance,
       },
       {

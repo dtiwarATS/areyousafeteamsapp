@@ -931,9 +931,7 @@ const saveInc = async (context, action, companyData, user) => {
     preTextMsg = `Should I send this message to everyone?`;
     sentApprovalTo = ALL_USERS;
   }
-  var guidance = action.data.guidance
-    ? action.data.guidance
-    : "No details available";
+  var guidance = action.data.guidance ? action.data.guidance : "";
   const card = await getIncConfirmationCard(
     inc_created_by,
     incTitle,
@@ -996,9 +994,7 @@ const saveRecurrInc = async (context, action, companyData) => {
   )} ${convertToAMPM(
     action.data.startTime
   )} according to the recurrence pattern selected?`;
-  var guidance = action.data.guidance
-    ? action.data.guidance
-    : "No details available";
+  var guidance = action.data.guidance ? action.data.guidance : "";
 
   const card = await getIncConfirmationCard(
     inc_created_by,
@@ -2568,7 +2564,7 @@ const sendSafetyCheckMessageAsync = async (
         }
         resolve(true);
       } else {
-        incGuidance = incGuidance ? incGuidance : "No details available";
+        incGuidance = incGuidance ? incGuidance : "";
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
           name: createdByUserInfo.user_name,
@@ -2612,7 +2608,7 @@ const sendSafetyCheckMessageAsync = async (
           incCreatedBy: incCreatedByUserObj,
           startTime
         }
-        incGuidance = incGuidance ? incGuidance : "No details available";
+        incGuidance = incGuidance ? incGuidance : "";
  
         const approvalCard = await SafetyCheckCard(incTitle, incObj, companyData, incGuidance, incResponseSelectedUsersList, incTypeId, additionalInfo, travelUpdate, contactInfo, situation);
  
@@ -2835,7 +2831,7 @@ const sendSafetyCheckMessage = async (
         incCreatedBy: incCreatedByUserObj,
       };
       let incGuidance = await incidentService.getIncGuidance(incId);
-      incGuidance = incGuidance ? incGuidance : "No details available";
+      incGuidance = incGuidance ? incGuidance : "";
 
       log.addLog("Send Safety Check Start");
       const approvalCard = await getSaftyCheckCard(
@@ -2971,7 +2967,7 @@ const sendApproval = async (context) => {
         activityId,
         conversationId,
       };
-      var guidance = incGuidance ? incGuidance : "No details available";
+      var guidance = incGuidance ? incGuidance : "";
       const approvalCard = await getSaftyCheckCard(
         incTitle,
         incObj,
@@ -3623,7 +3619,7 @@ const sendProactiveMessaageToUserTest = async () => {
       "19:GbxQTzrKLXdE1rQ2G_IP7TuyLhKe0SdRKWTsDh5A1R81@thread.tacv2"
     );
     var incGuidance = await incidentService.getIncGuidance(incObj.incId);
-    incGuidance = incGuidance ? incGuidance : "No details available";
+    incGuidance = incGuidance ? incGuidance : "";
     const msgAttachment = await getSaftyCheckCard(
       incObj.incTitle,
       incObj,
@@ -3747,7 +3743,7 @@ const sendRecurrEventMsgAsync = async (
   log
 ) => {
   let incGuidance = await incidentService.getIncGuidance(incId);
-  incGuidance = incGuidance ? incGuidance : "No details available";
+  incGuidance = incGuidance ? incGuidance : "";
   let incObj = {
     incId,
     incTitle,
@@ -3845,7 +3841,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
         incCreatedBy: incCreatedByUserObj
       }
       var incGuidance = await incidentService.getIncGuidance(incId);
-      incGuidance = incGuidance ? incGuidance : "No details available";
+      incGuidance = incGuidance ? incGuidance : "";
       const approvalCard = await getSaftyCheckCard(incTitle, incObj, subEventObj.companyData, incGuidance);
 
       for (let i = 0; i < subEventObj.eventMembers.length; i++) {
@@ -4354,7 +4350,7 @@ const onInvokeActivity = async (context) => {
         commentVal,
       } = action.data;
       let incGuidance = await incidentService.getIncGuidance(incId);
-      incGuidance = incGuidance; //? incGuidance : "No details available";
+      incGuidance = incGuidance; //? incGuidance : "";
       let responseText = commentVal
         ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
         : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
@@ -4438,7 +4434,7 @@ const onInvokeActivity = async (context) => {
         commentVal,
       } = action.data;
       let incGuidance = await incidentService.getIncGuidance(incId);
-      incGuidance = incGuidance; //? incGuidance : "No details available";
+      incGuidance = incGuidance; //? incGuidance : "";
       let responseText = commentVal
         ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
         : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`;
@@ -4491,7 +4487,7 @@ const onInvokeActivity = async (context) => {
         "After Click On Im_Safte or need assistance  Text message Send successfully. "
       );
       var incGuidance = await incidentService.getIncGuidance(incId);
-      incGuidance = incGuidance; //? incGuidance : "No details available";
+      incGuidance = incGuidance; //? incGuidance : "";
 
       const cards = CardFactory.adaptiveCard(
         updateSafeMessage(
