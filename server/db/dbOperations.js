@@ -325,7 +325,7 @@ const teamMemberInsertQuery = (teamId, m) => {
   }')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[hasLicense])
-    VALUES('${teamId}', '${m.objectId}', '${m.id}', '${m.name.replace(
+    VALUES('${teamId}', '${m.objectId}', '${m.id}', N'${m.name.replace(
     /'/g,
     "''"
   )}', '${m.tenantId}', '${m.userRole}',0);
@@ -563,7 +563,7 @@ const insertCompanyData = async (
         }' and (TEAM_ID is null OR TEAM_ID = ''))
         BEGIN
           UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null, team_id = '${teamId}',
-          team_name = '${companyDataObj.teamName.replace(
+          team_name = N'${companyDataObj.teamName.replace(
             /'/g,
             "''"
           )}' WHERE user_id = '${
@@ -757,7 +757,7 @@ const saveNARespSelectedTeams = async (teamId, selectedTeams, userAadObjId) => {
       if (selectedTeams && selectedTeams.length > 0) {
         selectedTeams.forEach((team) => {
           const { teamId, teamName, channelId, channelName } = team;
-          sqlSave += ` insert into MSTeamsNAResponseSelectedTeams (tenantId, teamId, teamName, channelId, channelName) values ('${tenantId}', '${teamId}', '${teamName}', '${channelId}', '${channelName}'); `;
+          sqlSave += ` insert into MSTeamsNAResponseSelectedTeams (tenantId, teamId, teamName, channelId, channelName) values ('${tenantId}', '${teamId}', N'${teamName}', '${channelId}', N'${channelName}'); `;
         });
       }
       pool.request().query(sqlSave);
@@ -777,7 +777,7 @@ const saveNARespSelectedTeams = async (teamId, selectedTeams, userAadObjId) => {
 const updateCompanyData = async (userId, teamId, teamName = "") => {
   try {
     pool = await poolPromise;
-    const updateQuery = `UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', team_name = '${teamName}' WHERE user_id = '${userId}' `;
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', team_name = N'${teamName}' WHERE user_id = '${userId}' `;
 
     await pool.request().query(updateQuery);
 
@@ -836,7 +836,7 @@ const getCompanyDataByTenantId = async (tenantId, filter = null) => {
 const renameTeam = async (teamId, teamName, tenantId) => {
   let result = null;
   try {
-    const sqlUpdateTeamName = `update msteamsinstallationdetails set team_name = '${teamName.replaceApostrophe()}' where team_id = '${teamId}' and user_tenant_id = '${tenantId}'`;
+    const sqlUpdateTeamName = `update msteamsinstallationdetails set team_name = N'${teamName.replaceApostrophe()}' where team_id = '${teamId}' and user_tenant_id = '${tenantId}'`;
     result = await db.updateDataIntoDB(sqlUpdateTeamName);
   } catch (err) {
     processSafetyBotError(

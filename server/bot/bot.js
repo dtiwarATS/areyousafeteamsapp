@@ -1542,7 +1542,7 @@ const sendApprovalResponseToSelectedMembers = async (
 
 const sendApprovalResponseToSelectedTeams = async (
   incId,
-  context,
+  serviceUrl,
   approvalCardResponse,
   userAadObjId
 ) => {
@@ -1550,7 +1550,7 @@ const sendApprovalResponseToSelectedTeams = async (
   try {
     const incRespSelectedChannels =
       await incidentService.getIncResponseSelectedChannelList(incId);
-    const serviceUrl = context?.activity?.serviceUrl;
+    // const serviceUrl = context?.activity?.serviceUrl;
     if (incRespSelectedChannels != null && incRespSelectedChannels.length > 0) {
       for (let i = 0; i < incRespSelectedChannels.length; i++) {
         const channelId = incRespSelectedChannels[i]?.channelId;
@@ -3106,6 +3106,7 @@ const sendApprovalResponse = async (user, context) => {
       };
       //send new msg just to emulate msg is being updated
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      const serviceUrl = context?.activity?.serviceUrl;
       await sendApprovalResponseToSelectedMembers(
         incId,
         context,
@@ -3113,7 +3114,7 @@ const sendApprovalResponse = async (user, context) => {
       );
       await sendApprovalResponseToSelectedTeams(
         incId,
-        context,
+        serviceUrl,
         approvalCardResponse,
         user.aadObjectId
       );
@@ -3176,6 +3177,7 @@ const submitComment = async (context, user, companyData) => {
       };
       //send new msg just to emulate msg is being updated
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      const serviceUrl = context?.activity?.serviceUrl;
       await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
       await incidentService.updateIncResponseComment(
         incId,
@@ -3183,10 +3185,9 @@ const submitComment = async (context, user, companyData) => {
         commentVal,
         inc
       );
-
       await sendApprovalResponseToSelectedTeams(
         incId,
-        context,
+        serviceUrl,
         approvalCardResponse,
         user.aadObjectId
       );
@@ -3267,6 +3268,7 @@ const Question1safetyVisitor = async (
 
         //send new msg just to emulate msg is being updated
         //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+        const serviceUrl = context?.activity?.serviceUrl;
         await sendCommentToSelectedMembers(
           incId,
           context,
@@ -3274,7 +3276,7 @@ const Question1safetyVisitor = async (
         );
         await sendApprovalResponseToSelectedTeams(
           incId,
-          context,
+          serviceUrl,
           approvalCardResponse,
           user.aadObjectId
         );
@@ -3323,6 +3325,7 @@ const Question1safetyVisitor = async (
 
       //send new msg just to emulate msg is being updated
       //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      const serviceUrl = context?.activity?.serviceUrl;
       await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
       await incidentService.updateIncResponseComment(
         incId,
@@ -3333,7 +3336,7 @@ const Question1safetyVisitor = async (
 
       await sendApprovalResponseToSelectedTeams(
         incId,
-        context,
+        serviceUrl,
         approvalCardResponse,
         user.aadObjectId
       );
