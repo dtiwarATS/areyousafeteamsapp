@@ -758,10 +758,10 @@ class AreYouSafeTab {
   checkDuplicateInc = async (incTitle, teamId, userAadObjId) => {
     let isDuplicate = false;
     try {
-      if (teamId == null || teamId == "null") {
+      if (teamId == null || teamId == "null" || teamId == "") {
         teamId = await incidentService.getTeamIdByUserAadObjId(userAadObjId);
       }
-      if (teamId != null && teamId != "null") {
+      if ((teamId != null && teamId != "null") || teamId != "") {
         isDuplicate = await incidentService.verifyDuplicateInc(
           teamId,
           incTitle
