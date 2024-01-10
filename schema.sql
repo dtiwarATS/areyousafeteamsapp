@@ -860,7 +860,10 @@ END
 GO
 
 
-ALTER TABLE MSTeamsTeamsUsers ALTER COLUMN user_name VARCHAR(256)
+ALTER TABLE MSTeamsTeamsUsers ALTER COLUMN user_name NVARCHAR(256)
 
 ALTER TABLE MSTeamsInstallationDetails ADD BotBlockedByTenant bit
 ALTER TABLE MSTeamsTeamsUsers ADD BotBlockedByUser bit
+
+ALTER TABLE MSTeamsInstallationDetails ALTER COLUMN user_name NVARCHAR(255)
+ALTER TABLE MSTeamsInstallationDetails ALTER COLUMN team_name NVARCHAR(255)
