@@ -321,7 +321,10 @@ const getAdmins = async (aadObjuserId, TeamID) => {
 
 const addComment = async (assistanceId, comment, ts, aadObjuserId) => {
   try {
-    let sqlUpdate = `UPDATE MSTeamsAssistance SET comments = '${comment}', comment_date = '${ts}' WHERE id = ${assistanceId}`;
+    let sqlUpdate = `UPDATE MSTeamsAssistance SET comments = '${comment.replaceAll(
+      "'",
+      "''"
+    )}', comment_date = '${ts}' WHERE id = ${assistanceId}`;
     let res = await db.updateDataIntoDB(sqlUpdate, aadObjuserId);
     console.log(res);
   } catch (err) {

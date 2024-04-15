@@ -883,8 +883,10 @@ class AreYouSafeTab {
   };
 
   DeleteNeedAssistanceData = async (id) => {
-    let DeleteAssistance = `delete from MSTeamsAssistance where id=${id}`;
-    const res = await db.updateDataIntoDB(DeleteAssistance);
+    if (id) {
+      let DeleteAssistance = `delete from MSTeamsAssistance where id=${id}`;
+      const res = await db.updateDataIntoDB(DeleteAssistance);
+    }
   };
 
   sendSafetyCheckMessage = async (
