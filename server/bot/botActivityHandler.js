@@ -548,9 +548,9 @@ class BotActivityHandler extends TeamsActivityHandler {
       var action = context.activity.action;
       const conversationType = context.activity.conversation.conversationType;
       if (action == "remove" && conversationType == "personal") {
-        await deleteCompanyDataByuserAadObjId(
-          context?.activity?.from?.aadObjectId
-        );
+        // await deleteCompanyDataByuserAadObjId(
+        //   context?.activity?.from?.aadObjectId
+        // );
       }
     } catch (err) {
       console.log(err);
