@@ -4,7 +4,7 @@ name: Deploy Node.js to Azure Web App
 on:
   push:
     branches:
-      - Development
+      - NewDeploySettings
 
 # CONFIGURATION
 # For help,  go to  https://github.com/Azure/Actions
@@ -15,10 +15,10 @@ on:
 # 2. Change these variables for your configuration:
 env:
   # Test Deployment Settings
-  # AZURE_WEBAPP_NAME: testTeamBoardTab
+  # AZURE_WEBAPP_NAME: testProdAreYouSafeTeamsBotService
   # Prod Deployment Settings
 
-  AZURE_WEBAPP_NAME: TeamBoardTabProd
+  AZURE_WEBAPP_NAME: ProdAreYouSafeTeamsBotService
 
   AZURE_WEBAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
   NODE_VERSION: "18.x" # set this to the node version to usess
@@ -50,7 +50,7 @@ jobs:
           slot-name:
             "Production" # <-- this property wasn't in suggested file
             #Test  Deployment Settings
-          #  publish-profile: ${{ secrets.AZURE_WEB_APP_TEST_OLD_PUBLISH_PROFILE }} # taken  from original file
+          #  publish-profile: ${{ secrets.AZURE_WEB_APP_TEST_PUBLISH_PROFILE }} # taken  from original file
           #Prod Deployment Settings
 
           publish-profile: ${{ secrets.AZURE_WEB_APP_PROD_PUBLISH_PROFILE }} # taken  from original file
