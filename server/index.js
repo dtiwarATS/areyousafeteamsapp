@@ -85,7 +85,7 @@ areYouSafeTabHandler.handlerForSafetyBotTab(app);
 
 app.get("/", (req, res) => {
   res.send(
-    `<h2>The Are You Safe app is running</h2>
+    `<h2>The Are You Safe app is running with new settings</h2>
     <p>Follow the instructions in the README to configure the Microsoft Teams App and your environment variables.</p>`
   );
 });
