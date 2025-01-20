@@ -2267,6 +2267,41 @@ const sendProactiveMessageAsync = async (
 
 const sendSafetyCheckMsgViaSMS = async (tenantId, refresh_token, users) => {
   let usrPhones = getUserPhone(tenantId, refresh_token, users);
+  for (let phones of usrPhones) {
+    let phone = phones.phone;
+    let safeUrl =
+      process.env.BOT_END_POINT +
+      "/posresp?userId=" +
+      encodeURIComponent(userid) +
+      "&eventId=" +
+      encodeURIComponent(eventId);
+    let notSafeUrl =
+      process.env.BOT_END_POINT +
+      "/negresp?userId=" +
+      encodeURIComponent(userid) +
+      "&eventId=" +
+      encodeURIComponent(eventId);
+
+    let body =
+      "Safety check from " +
+      compData.team_name +
+      " - " +
+      incident +
+      " \nWe're checking to see if you are safe. \nClick " +
+      safeUrl +
+      " if you are safe, " +
+      "or " +
+      notSafeUrl +
+      " if you need help.";
+    await tClient.messages
+      .create({
+        body: body,
+        from: "+18023277232",
+        shortenUrls: true,
+        messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+        to: phone,
+      });
+  }
 }
 
 const getUserPhone = async (refreshToken, tenantId, arrIds) => {
