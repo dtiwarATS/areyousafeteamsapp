@@ -867,3 +867,15 @@ ALTER TABLE MSTeamsTeamsUsers ADD BotBlockedByUser bit
 
 ALTER TABLE MSTeamsInstallationDetails ALTER COLUMN user_name NVARCHAR(255)
 ALTER TABLE MSTeamsInstallationDetails ALTER COLUMN team_name NVARCHAR(255)
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'refresh_token') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD refresh_token  nvarchar(max)
+END 
+GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'send_sms') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD send_sms  bit 
+END 
+GO

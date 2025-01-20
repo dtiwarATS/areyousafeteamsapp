@@ -2265,6 +2265,149 @@ const sendProactiveMessageAsync = async (
   }
 };
 
+const sendSafetyCheckMsgViaSMS = async (tenantId, refresh_token, users) => {
+  let usrPhones = getUserPhone(tenantId, refresh_token, users);
+}
+
+const getUserPhone = async (refreshToken, tenantId, arrIds) => {
+  let data = new FormData();
+  data.append("grant_type", "refresh_token");
+  data.append("client_Id", process.env.MicrosoftAppId);
+  data.append("client_secret", process.env.MicrosoftAppPassword);
+  data.append("refresh_token", refreshToken);
+
+  let config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: `https://login.microsoftonline.com/${tenantId}/oauth2/token`,
+    data: data,
+    // timeout: 10000,
+  };
+  var s = await axios
+    .request(config)
+    .then(async (response) => {
+      // console.log(response.data);
+      if (response.data.scope?.indexOf("User.Read.All") == -1) {
+        res.json({ NoPhonePermission: true });
+      } else {
+        let accessToken = response.data.access_token;
+        ids = ids.replace(/'/g, "").replace(/ /g, "");
+        // console.log({ arrIds });
+        var startIndex = 0;
+        var endIndex = 14;
+        if (endIndex > arrIds.length) endIndex = arrIds.length;
+        var teamData = {
+          refreshToken: refreshToken,
+          tenantId: tenantId,
+          Ids: ids,
+        };
+        var phone = [""];
+        phone.pop();
+        // console.log({ endIndex });
+        while (endIndex <= arrIds.length && startIndex != endIndex) {
+          var userIds = arrIds.slice(startIndex, endIndex).toString();
+          if (userIds.length) {
+            userIds = "'" + userIds.replaceAll(",", "','") + "'";
+            // console.log({ userIds });
+            startIndex = endIndex;
+            endIndex = startIndex + 14;
+            if (endIndex > arrIds.length) endIndex = arrIds.length;
+
+            let config = {
+              method: "get",
+              maxBodyLength: Infinity,
+              // timeout: 10000,
+              url:
+                "https://graph.microsoft.com/v1.0/users?$select=displayName,id,businessPhones" +
+                "&$filter=id in (" +
+                userIds +
+                ")",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + accessToken,
+              },
+              // data: data,
+            };
+            var requestDate = new Date();
+            var a = await axios
+              .request(config)
+              .then((response) => {
+                phone.push(...response.data.value);
+                // console.log({ phone });
+                // var data = {
+                //   status: status,
+                //   teamData: teamData,
+                // };
+              })
+              .catch((error) => {
+                console.log({
+                  "error in get users phone number requestDate": error,
+                });
+                processBotError(
+                  error,
+                  teamId,
+                  "",
+                  "",
+                  "error in get users phone number requestDateTime : " +
+                  requestDate +
+                  " ErrorDateTime: " +
+                  new Date(),
+                  TeamName,
+                  false,
+                  clientVersion
+                );
+                res.json({ error: error });
+              });
+          } else {
+            return;
+          }
+        }
+        // console.log({ finalphone: phone });
+        return phone;
+
+        // ids = ids.replace(/'/g, "").replace(/ /g, "");
+        // let data = JSON.stringify({
+        //   ids: ids.split(","),
+        // });
+      }
+    })
+    .catch((error) => {
+      console.log("error at get access token in get users phone number");
+      // console.log(error);
+      if (
+        error.response.data.error == "invalid_grant" &&
+        error.response.data.error_description &&
+        error.response.data.error_description
+          .toString()
+          .indexOf("The refresh token has expired due to inactivity.") >= 0 //&&
+        //  teamId == "19:3684c109f05f44efb4fb54a988d70286@thread.tacv2"
+      ) {
+        res.json({ authFailed: true });
+      } else if (
+        error.response.data.error == "invalid_grant" ||
+        error.response.data.error == "interaction_required" ||
+        error.response.data.error == "insufficient_claims"
+      ) {
+        res.json({ invalid_grant: true });
+      } else {
+        console.log({
+          "error in get access token from microsoft at get users phone number":
+            error,
+        });
+        processBotError(
+          error,
+          teamId,
+          "",
+          "",
+          "error in get access token from microsoft at get users phone number",
+          TeamName,
+          false,
+          clientVersion
+        );
+        res.json({ error: error });
+      }
+    });
+}
 // const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, companyData, serviceUrl, userAadObjId, userTenantId, log, resolveFn, rejectFn, runAt = null) => {
 //   try {
 //     const isRecurringInc = (runAt != null);
@@ -2597,7 +2740,9 @@ const sendSafetyCheckMessageAsync = async (
           null,
           incFilesData
         );
-
+        if (companyData.send_sms) {
+          sendSafetyCheckMsgViaSMS(companyData.user_tenant_id, companyData.refresh_token, allMembersArr);
+        }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,

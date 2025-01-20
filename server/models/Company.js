@@ -21,6 +21,8 @@ class Company {
     SafetycheckForVisitorsQuestion1,
     SafetycheckForVisitorsQuestion2,
     SafetycheckForVisitorsQuestion3,
+    refresh_token,
+    send_sms
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -43,6 +45,8 @@ class Company {
     this.SafetycheckForVisitorsQuestion2 = SafetycheckForVisitorsQuestion2;
     this.SafetycheckForVisitorsQuestion3 = SafetycheckForVisitorsQuestion3;
     this.EnableSafetycheckForVisitors = EnableSafetycheckForVisitors;
+    this.refresh_token = refresh_token;
+    this.send_sms = send_sms
   }
 }
 

@@ -1440,7 +1440,43 @@ const getenablecheck = async (teamId) => {
   }
   return Promise.resolve(result);
 };
-
+const getSendSMS = async (teamId) => {
+  let result = null;
+  try {
+    const qry = `select refresh_token, send_sms from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    result = await db.getDataFromDB(qry);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in getSendSMS");
+  }
+  return Promise.resolve(result);
+};
+const setSendSMS = async (teamId, sendSMS) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set send_sms = ${sendSMS} where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in setSendSMS");
+  }
+  return Promise.resolve(result);
+};
+const saveRefreshToken = async (teamId, refresh_token) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set refresh_token = '${refresh_token}', send_sms = 1 where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in saveRefreshToken");
+  }
+  return Promise.resolve(result);
+};
 const getremaindercheck = async (inc_id) => {
   let result = null;
   try {
@@ -2380,6 +2416,9 @@ module.exports = {
   updateSafetyCheckStatus,
   getTemplateList,
   getenablecheck,
+  getSendSMS,
+  setSendSMS,
+  saveRefreshToken,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
   updateremaindercounter,

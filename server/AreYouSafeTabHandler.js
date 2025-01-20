@@ -3,6 +3,7 @@ const path = require("path");
 const poolPromise = require("./db/dbConn");
 const db = require("./db");
 const dbOperation = require("./db/dbOperations");
+const axios = require("axios");
 const tab = require("./tab/AreYouSafeTab");
 const { processSafetyBotError } = require("./models/processError");
 const { getConversationMembers } = require("./api/apiMethods");
@@ -273,6 +274,72 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getEnableSafetyCheck"
+      );
+    }
+  });
+
+  app.get("/areyousafetabhandler/getSendSMS", async (req, res) => {
+    const teamId = req.query.teamId;
+    const userAadObjId = req.query.userAadObjId;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const data = await tabObj.getSendSMS(teamId);
+      if (data.length) {
+        const sendSMSDetails = data[0];
+        res.send(sendSMSDetails);
+      } else {
+        res.send(null);
+      }
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSendSMS"
+      );
+    }
+  });
+
+  app.post("/areyousafetabhandler/setSendSMS", async (req, res) => {
+    const teamId = req.query.teamId;
+    const sendSMS = req.query.sendSMS;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setSendSMS(teamId, sendSMS);
+      res.send('success');
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSendSMS"
+      );
+    }
+  });
+
+  app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
+    const teamId = req.query.teamId;
+    const refresh_token = req.query.refresh_token;
+    console.log({ teamId, refresh_token });
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const data = await tabObj.saveRefreshToken(teamId, refresh_token);
+      console.log(data);
+      if (data.length) {
+        res.send('success');
+      } else {
+        res.send(null);
+      }
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setRefreshToken"
       );
     }
   });
@@ -894,6 +961,101 @@ const handlerForSafetyBotTab = (app) => {
         userAadObjId,
         "error in /areyousafetabhandler/getAdminList"
       );
+    }
+  });
+  const Phonescope =
+    "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
+  app.get("/areyousafetabhandler/AdminConsentInfo", async (req, res) => {
+    const SSOCode = req.query.code || "";
+    var details = req.query.state?.toString();
+    const Tdata = details?.split("$$$");
+    const teamId = Tdata?.[0];
+    console.log({ AdminconsentinfoteamId: teamId });
+    var Tscope = "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
+    //log("Got the resposne in AdminConsentInfo", { query: req.query });
+    const aadTokenEndPoint =
+      "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+    if (SSOCode == "") {
+      res.json("No authentication.");
+      return;
+    } else {
+      const oAuthOBOParams = {
+        grant_type: "authorization_code",
+        client_Id: process.env.MicrosoftAppId,
+        client_secret: process.env.MicrosoftAppPassword,
+        // client_Id: client_id,
+        // client_secret: client_secret,
+        code: SSOCode,
+        scope: Tscope,
+        redirect_uri: `${process.env.serviceUrl}/areyousafetabhandler/AdminConsentInfo`,
+      };
+
+      const oAuthOboRequest = Object.keys(oAuthOBOParams)
+        .map((key, index) => `${key}=${encodeURIComponent(oAuthOBOParams[key])}`)
+        .join("&");
+
+      const HEADERS = {
+        "content-type": "application/x-www-form-urlencoded",
+      };
+
+      try {
+        const response = await axios.post(aadTokenEndPoint, oAuthOboRequest, {
+          headers: HEADERS,
+          // timeout: 10000,
+        });
+        if (response.status === 200) {
+          const refreshToken = response.data.refresh_token
+            ? response.data.refresh_token
+            : "";
+          // log({ refreshToken });
+          // log(teamId);
+          let config = {
+            method: "post",
+            maxBodyLength: Infinity,
+            url: `${process.env.serviceUrl}/areyousafetabhandler/setRefreshToken?teamId=${teamId}&refresh_token=${refreshToken}`,
+            // timeout: 10000,
+          };
+          axios
+            .request(config)
+
+            .then((response) => {
+              const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Team Board</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://teamboard.in/AppImages/TBIcon.png" style=" width: 150px;"></div>Go back to Teams and reload the Areyousafe tab</div>`;
+              res.status(200).send(msg);
+            })
+            .catch((error) => {
+              console.log({ "Error in Saving refresh token": error });
+              processBotError(
+                error,
+                teamId,
+                "",
+                "",
+                "Error in Saving refresh token, isRefershTokenBlank: " +
+                (refreshToken ? "true" : "false")
+              );
+            });
+        } else {
+          if (
+            response.data.error === "invalid_grant" ||
+            response.data.error === "interaction_required" ||
+            response.data.error == "insufficient_claims"
+          ) {
+            res.status(403).json({ error: "consent_required" });
+          } else {
+            res.status(500).json({ error: "Could not exchange access token" });
+          }
+        }
+      } catch (error) {
+        console.log({ "Calling the Axios": JSON.stringify(error) });
+        processBotError(
+          error,
+          teamId,
+          "",
+          "",
+          "Error in processing grant permission in adminconsentinfo"
+        );
+        //log({ error: `unknown error ${error}` });
+        res.status(400).json({ error: `unknown error ${error}` });
+      }
     }
   });
 };
