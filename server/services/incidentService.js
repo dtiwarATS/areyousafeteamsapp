@@ -115,7 +115,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
     let selectQuery = "";
     if (runAt != null) {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
-      inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+      inc.selected_members, inc.created_by, inc.CREATED_BY_NAME, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
@@ -128,7 +128,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     } else {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
-      inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+      inc.selected_members, inc.created_by, inc.CREATED_BY_NAME, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, m.is_message_delivered, 
       m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
@@ -2359,9 +2359,9 @@ const updateSafetyCheckStatusViaSMSLink = async (
 ) => {
   try {
     let sql = "";
-    sql = `update MSTeamsMemberResponses set response = ${resp} , response_value = ${resp}, timestamp = GETDATE(),
+    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = GETDATE()
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}')`;
-    const result = await db.updateDataIntoDB(sql, userAadObjId);
+    const result = await db.updateDataIntoDB(sql, user_aadobject_id);
     return result?.rowsAffected?.length > 0;
   } catch (err) {
     processSafetyBotError(

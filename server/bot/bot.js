@@ -2314,43 +2314,64 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
 
 const proccessSMSLinkClick = async (userId, eventId, text) => {
   if (userId && eventId) {
-    incidentService.updateSafetyCheckStatusViaSMSLink(eventId, text == "YES" ? 1 : 0, userId);
-    var userData = {};
-    if (userData) {
-      var teamExists = bot.teamDetails?.filter((details) => {
-        return details.teamId == userData.TEAM_ID;
-      });
-      let eventData = await slackapi.getEventData(eventId);
-      var responseMetadata = null;
-      if (text.trim().toLowerCase().indexOf("yes") < 0) {
-        responseMetadata = {
-          channelId: "",
-          msgTimeStamp: "",
-          selectedChannelsIncResponse: [],
-          selectedUsersIncResponse: [],
-        };
+    const incData = await incidentService.getInc(eventId, null, userId);
+    const compData = await incidentService.getCompanyData(incData.teamId);
+    const users = await incidentService.getUserInfo(incData.teamId, userId);
+    let user = users[0];
+    let context = {
+      activity: {
+        serviceUrl: compData.serviceUrl,
+        conversation: {
+          tenantId: compData.userTenantId
+        }
       }
-      if (text.trim().toLowerCase().indexOf("yes") < 0) {
-        responseMetadata = {
-          channelId: "",
-          msgTimeStamp: "",
-          selectedChannelsIncResponse: [],
-          selectedUsersIncResponse: [],
-        };
-        console.log("step 7:" + new Date());
-        const eventCreatorMsgtext = `Hi, ${userData.USR_NAME} needs assistance for incident: *${eventData.eventname}*.`;
-        await this.sendAnnouncementResponse(
-          eventData,
-          eventData.createdby,
-          eventCreatorMsgtext,
-          responseMetadata,
-          teamObj
-        );
-      }
-      //this.acknowledgeSMSReplyInSlack(eventData, userData, teamObj, text.trim().toLowerCase());
     }
+    incidentService.updateSafetyCheckStatusViaSMSLink(eventId, text == "YES" ? 1 : 0, userId);
+    if (text != "YES") {
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `User <at>${user.user_name}</at> needs assistance for Incident: **${incData.incTitle}** `,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
+            {
+              type: "mention",
+              text: `<at>${user.name}</at>`,
+              mentioned: {
+                id: user.user_id,
+                name: user.user_name,
+              },
+            },
+          ],
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      //send new msg just to emulate msg is being updated
+      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      const serviceUrl = context?.activity?.serviceUrl;
+      await sendApprovalResponseToSelectedMembers(
+        eventId,
+        context,
+        approvalCardResponse
+      );
+      await sendApprovalResponseToSelectedTeams(
+        eventId,
+        serviceUrl,
+        approvalCardResponse,
+        userId
+      );
+    }
+    //this.acknowledgeSMSReplyInSlack(eventData, userData, teamObj, text.trim().toLowerCase());
   }
 }
+
 
 const getUserPhone = async (refreshToken, tenantId, arrIds) => {
   let data = new FormData();
@@ -3810,6 +3831,7 @@ const submitSettings = async (context, companyData) => {
     selected_superusers
   );
 };
+
 
 const sendProactiveMessaageToUserTest = async () => {
   try {
