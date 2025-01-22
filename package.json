@@ -36,6 +36,7 @@
     "nodemailer": "^6.7.0",
     "path": "^0.12.7",
     "tedious": "^14.4.0",
+    "twilio": "^5.4.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

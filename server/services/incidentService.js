@@ -2352,6 +2352,33 @@ const updateSafetyCheckStatus = async (
   return false;
 };
 
+const updateSafetyCheckStatusViaSMSLink = async (
+  incId,
+  resp,
+  user_aadobject_id,
+) => {
+  try {
+    let sql = "";
+    sql = `update MSTeamsMemberResponses set response = ${resp} , response_value = ${resp}, timestamp = GETDATE(),
+      where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}')`;
+    const result = await db.updateDataIntoDB(sql, userAadObjId);
+    return result?.rowsAffected?.length > 0;
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in updateSafetyCheckStatus incId=" +
+      incId +
+      " response=" +
+      resp +
+      " respTimestamp=" +
+      new date().toString()
+    );
+  }
+  return false;
+};
 module.exports = {
   saveInc,
   deleteInc,
@@ -2424,4 +2451,5 @@ module.exports = {
   updateremaindercounter,
   updateRecurrremaindercounter,
   getremaindercheck,
+  updateSafetyCheckStatusViaSMSLink
 };

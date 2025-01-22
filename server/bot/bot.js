@@ -35,6 +35,9 @@ const {
   getCompanyDataByTeamId,
 } = require("../db/dbOperations");
 
+const accountSid = process.env.TWILIO_ACCOUNT_ID;
+const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
+const tClient = require("twilio")(accountSid, authToken);
 const dashboard = require("../models/dashboard");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
@@ -2265,42 +2268,87 @@ const sendProactiveMessageAsync = async (
   }
 };
 
-const sendSafetyCheckMsgViaSMS = async (tenantId, refresh_token, users) => {
-  let usrPhones = getUserPhone(tenantId, refresh_token, users);
-  for (let phones of usrPhones) {
-    let phone = phones.phone;
-    let safeUrl =
-      process.env.BOT_END_POINT +
-      "/posresp?userId=" +
-      encodeURIComponent(userid) +
-      "&eventId=" +
-      encodeURIComponent(eventId);
-    let notSafeUrl =
-      process.env.BOT_END_POINT +
-      "/negresp?userId=" +
-      encodeURIComponent(userid) +
-      "&eventId=" +
-      encodeURIComponent(eventId);
+const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => {
+  let tenantId = companyData.userTenantId;
+  let refresh_token = companyData.refresh_token;
+  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  for (let user of usrPhones) {
+    if (user.businessPhones.length > 0 && user.businessPhones[0] != "") {
+      let phone = user.businessPhones[0];
+      let safeUrl =
+        process.env.serviceUrl +
+        "/posresp?userId=" +
+        encodeURIComponent(user.id) +
+        "&eventId=" +
+        encodeURIComponent(incId);
+      let notSafeUrl =
+        process.env.serviceUrl +
+        "/negresp?userId=" +
+        encodeURIComponent(user.id) +
+        "&eventId=" +
+        encodeURIComponent(incId);
 
-    let body =
-      "Safety check from " +
-      compData.team_name +
-      " - " +
-      incident +
-      " \nWe're checking to see if you are safe. \nClick " +
-      safeUrl +
-      " if you are safe, " +
-      "or " +
-      notSafeUrl +
-      " if you need help.";
-    await tClient.messages
-      .create({
-        body: body,
-        from: "+18023277232",
-        shortenUrls: true,
-        messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-        to: phone,
+      let body =
+        "Safety check from " +
+        companyData.teamName +
+        " - " +
+        incTitle +
+        " \nWe're checking to see if you are safe. \nClick " +
+        safeUrl +
+        " if you are safe, " +
+        "or " +
+        notSafeUrl +
+        " if you need help.";
+      await tClient.messages
+        .create({
+          body: body,
+          from: "+18023277232",
+          shortenUrls: true,
+          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+          to: phone,
+        });
+    }
+  }
+}
+
+
+const proccessSMSLinkClick = async (userId, eventId, text) => {
+  if (userId && eventId) {
+    incidentService.updateSafetyCheckStatusViaSMSLink(eventId, text == "YES" ? 1 : 0, userId);
+    var userData = {};
+    if (userData) {
+      var teamExists = bot.teamDetails?.filter((details) => {
+        return details.teamId == userData.TEAM_ID;
       });
+      let eventData = await slackapi.getEventData(eventId);
+      var responseMetadata = null;
+      if (text.trim().toLowerCase().indexOf("yes") < 0) {
+        responseMetadata = {
+          channelId: "",
+          msgTimeStamp: "",
+          selectedChannelsIncResponse: [],
+          selectedUsersIncResponse: [],
+        };
+      }
+      if (text.trim().toLowerCase().indexOf("yes") < 0) {
+        responseMetadata = {
+          channelId: "",
+          msgTimeStamp: "",
+          selectedChannelsIncResponse: [],
+          selectedUsersIncResponse: [],
+        };
+        console.log("step 7:" + new Date());
+        const eventCreatorMsgtext = `Hi, ${userData.USR_NAME} needs assistance for incident: *${eventData.eventname}*.`;
+        await this.sendAnnouncementResponse(
+          eventData,
+          eventData.createdby,
+          eventCreatorMsgtext,
+          responseMetadata,
+          teamObj
+        );
+      }
+      //this.acknowledgeSMSReplyInSlack(eventData, userData, teamObj, text.trim().toLowerCase());
+    }
   }
 }
 
@@ -2317,7 +2365,9 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
     url: `https://login.microsoftonline.com/${tenantId}/oauth2/token`,
     data: data,
     // timeout: 10000,
-  };
+  };       
+  var phone = [""];
+  phone.pop();
   var s = await axios
     .request(config)
     .then(async (response) => {
@@ -2326,18 +2376,10 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
         res.json({ NoPhonePermission: true });
       } else {
         let accessToken = response.data.access_token;
-        ids = ids.replace(/'/g, "").replace(/ /g, "");
         // console.log({ arrIds });
         var startIndex = 0;
         var endIndex = 14;
-        if (endIndex > arrIds.length) endIndex = arrIds.length;
-        var teamData = {
-          refreshToken: refreshToken,
-          tenantId: tenantId,
-          Ids: ids,
-        };
-        var phone = [""];
-        phone.pop();
+        if (endIndex > arrIds.length) endIndex = arrIds.length; 
         // console.log({ endIndex });
         while (endIndex <= arrIds.length && startIndex != endIndex) {
           var userIds = arrIds.slice(startIndex, endIndex).toString();
@@ -2398,12 +2440,6 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
           }
         }
         // console.log({ finalphone: phone });
-        return phone;
-
-        // ids = ids.replace(/'/g, "").replace(/ /g, "");
-        // let data = JSON.stringify({
-        //   ids: ids.split(","),
-        // });
       }
     })
     .catch((error) => {
@@ -2442,6 +2478,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
         res.json({ error: error });
       }
     });
+  return phone;
 }
 // const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, companyData, serviceUrl, userAadObjId, userTenantId, log, resolveFn, rejectFn, runAt = null) => {
 //   try {
@@ -2776,7 +2813,8 @@ const sendSafetyCheckMessageAsync = async (
           incFilesData
         );
         if (companyData.send_sms) {
-          sendSafetyCheckMsgViaSMS(companyData.user_tenant_id, companyData.refresh_token, allMembersArr);
+          let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
+          sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
         }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
@@ -4830,4 +4868,6 @@ module.exports = {
   sendNSRespToTeamChannel,
   createTestIncident,
   onInvokeActivity,
+  sendSafetyCheckMsgViaSMS,
+  proccessSMSLinkClick
 };

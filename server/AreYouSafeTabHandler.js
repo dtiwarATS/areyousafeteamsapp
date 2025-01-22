@@ -8,6 +8,7 @@ const tab = require("./tab/AreYouSafeTab");
 const { processSafetyBotError } = require("./models/processError");
 const { getConversationMembers } = require("./api/apiMethods");
 const { formatedDate } = require("./utils/index");
+const bot = require('./bot/bot');
 
 const handlerForSafetyBotTab = (app) => {
   const tabObj = new tab.AreYouSafeTab();
@@ -1057,6 +1058,34 @@ const handlerForSafetyBotTab = (app) => {
         res.status(400).json({ error: `unknown error ${error}` });
       }
     }
+  });
+
+  app.get("/areyousafetabhandler/test", (req, res) => {
+    bot.sendSafetyCheckMsgViaSMS(null, null);
+  });
+
+  app.get("/posresp", async (req, res) => {
+    console.log("got reply for sms", req.query);
+    let { userId, eventId } = req.query;
+    console.log({ userId, eventId });
+    await bot.proccessSMSLinkClick(userId, eventId, "YES");
+    //slackapi.SaveSmsLog(userId, "YES", "YES", eventId, userId);
+    res.redirect(process.env.SMS_CONFIRMATION_URL + "?userId=" + userId + "&eventId=" + eventId);
+  });
+  app.get("/negresp", async (req, res) => {
+    console.log("got reply for sms", req.query);
+    let { userId, eventId } = req.query;
+    console.log({ userId, eventId });
+    await bot.proccessSMSLinkClick(userId, eventId, "NO");
+    slackapi.SaveSmsLog(userId, "NO", "NO", eventId, userId);
+    res.redirect(process.env.SMS_CONFIRMATION_URL + "?userId=" + userId + "&eventId=" + eventId);
+  });
+  app.post("/smscomment", async (req, res) => {
+    console.log("got reply for sms comment", req.body);
+    let { userId, eventId, comments } = req.body;
+    console.log({ userId, eventId, comments });
+    await bot.processCommentViaLink(userId, eventId, comments);
+    res.status(200);
   });
 };
 
