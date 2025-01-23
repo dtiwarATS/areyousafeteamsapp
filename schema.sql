@@ -879,3 +879,13 @@ BEGIN
  ALTER TABLE MSTeamsInstallationDetails ADD send_sms  bit 
 END 
 GO
+
+CREATE TABLE [dbo].[MSTeamsSMSlogs](
+	[SMS_LOG_ID] [int] IDENTITY(101,1) NOT NULL,
+	[USR_ID] [nvarchar](255) NOT NULL,
+	[STATUS] [nvarchar](255) NOT NULL,
+	[SMS_TEXT] [nvarchar](255) NOT NULL,
+	[SMS_DATETIME] [datetime] DEFAULT GETDATE(),
+	[RAW_DATA] [nvarchar](max) NULL
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO

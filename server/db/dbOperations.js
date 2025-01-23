@@ -321,23 +321,23 @@ const removeAllTeamMember = async (teamId) => {
 const teamMemberInsertQuery = (teamId, m) => {
   return `
     IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-    m.objectId
+    m.aadObjectId 
   }')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[hasLicense])
-    VALUES('${teamId}', '${m.objectId}', '${m.id}', N'${m.name.replace(
+    VALUES('${teamId}', '${m.aadObjectId}', '${m.id}', N'${m.name.replace(
     /'/g,
     "''"
   )}', '${m.tenantId}', '${m.userRole}',0);
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-    m.objectId
+    m.aadObjectId 
   }' AND userPrincipalName is null)
     BEGIN
       UPDATE MSTeamsTeamsUsers SET tenantid = '${m.tenantId}', userRole = '${
     m.userRole
   }'
-      WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}';
+      WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.aadObjectId }';
     END`;
 };
 

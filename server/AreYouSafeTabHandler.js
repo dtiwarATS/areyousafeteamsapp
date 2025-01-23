@@ -1069,7 +1069,7 @@ const handlerForSafetyBotTab = (app) => {
     let { userId, eventId } = req.query;
     console.log({ userId, eventId });
     await bot.proccessSMSLinkClick(userId, eventId, "YES");
-    //slackapi.SaveSmsLog(userId, "YES", "YES", eventId, userId);
+    bot.SaveSmsLog(userId, "INCOMING", "YES", JSON.stringify({ eventId, userId }));
     res.redirect(process.env.SMS_CONFIRMATION_URL + "?userId=" + userId + "&eventId=" + eventId);
   });
   app.get("/negresp", async (req, res) => {
@@ -1077,7 +1077,7 @@ const handlerForSafetyBotTab = (app) => {
     let { userId, eventId } = req.query;
     console.log({ userId, eventId });
     await bot.proccessSMSLinkClick(userId, eventId, "NO");
-    slackapi.SaveSmsLog(userId, "NO", "NO", eventId, userId);
+    bot.SaveSmsLog(userId, "INCOMING", "NO", JSON.stringify({ eventId, userId }));
     res.redirect(process.env.SMS_CONFIRMATION_URL + "?userId=" + userId + "&eventId=" + eventId);
   });
   app.post("/smscomment", async (req, res) => {

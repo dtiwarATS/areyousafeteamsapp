@@ -2342,7 +2342,7 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
           entities: [
             {
               type: "mention",
-              text: `<at>${user.name}</at>`,
+              text: `<at>${user.user_name}</at>`,
               mentioned: {
                 id: user.user_id,
                 name: user.user_name,
@@ -2370,6 +2370,17 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
     }
     //this.acknowledgeSMSReplyInSlack(eventData, userData, teamObj, text.trim().toLowerCase());
   }
+}
+
+
+const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
+  let superUsers = null;
+  try {
+    superUsers = await incidentService.SaveSmsLog(userid, status, SMS_TEXT, RAW_DATA);
+  } catch (err) {
+    processSafetyBotError(err, teamId, "", null, "error in getSendSMS");
+  }
+  return Promise.resolve(superUsers);
 }
 
 
@@ -4891,5 +4902,6 @@ module.exports = {
   createTestIncident,
   onInvokeActivity,
   sendSafetyCheckMsgViaSMS,
-  proccessSMSLinkClick
+  proccessSMSLinkClick,
+  SaveSmsLog
 };
