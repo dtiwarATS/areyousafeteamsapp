@@ -2326,7 +2326,7 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
         }
       }
     }
-    incidentService.updateSafetyCheckStatusViaSMSLink(eventId, text == "YES" ? 1 : 0, userId);
+    incidentService.updateSafetyCheckStatusViaSMSLink(eventId, text == "YES" ? 1 : 0, userId, compData.teamId);
     if (text != "YES") {
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -2378,7 +2378,7 @@ const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
   try {
     superUsers = await incidentService.SaveSmsLog(userid, status, SMS_TEXT, RAW_DATA);
   } catch (err) {
-    processSafetyBotError(err, teamId, "", null, "error in getSendSMS");
+    processSafetyBotError(err, "", "", null, "error in getSendSMS");
   }
   return Promise.resolve(superUsers);
 }
@@ -2452,7 +2452,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
                 console.log({
                   "error in get users phone number requestDate": error,
                 });
-                processBotError(
+                processSafetyBotError(
                   error,
                   teamId,
                   "",
@@ -2497,7 +2497,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
           "error in get access token from microsoft at get users phone number":
             error,
         });
-        processBotError(
+        processSafetyBotError(
           error,
           teamId,
           "",

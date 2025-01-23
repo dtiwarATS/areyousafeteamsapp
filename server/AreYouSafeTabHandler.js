@@ -1025,7 +1025,7 @@ const handlerForSafetyBotTab = (app) => {
             })
             .catch((error) => {
               console.log({ "Error in Saving refresh token": error });
-              processBotError(
+              processSafetyBotError(
                 error,
                 teamId,
                 "",
@@ -1047,7 +1047,7 @@ const handlerForSafetyBotTab = (app) => {
         }
       } catch (error) {
         console.log({ "Calling the Axios": JSON.stringify(error) });
-        processBotError(
+        processSafetyBotError(
           error,
           teamId,
           "",
