@@ -2072,7 +2072,8 @@ const getRequiredDataToSendMessage = async (
       resendSafetyCheck
     );
 
-    const sql = ` SELECT top 1 * FROM MSTeamsInstallationDetails where team_id = '${teamId}';
+    const sql = ` SELECT top 1  ind.*, sd.SubscriptionType FROM MSTeamsInstallationDetails ind
+left join MSTeamsSubscriptionDetails sd on sd.id = ind.SubscriptionDetailsId where team_id = '${teamId}';
     
     SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
     inc.selected_members, inc.created_by, inc.GUIDANCE, inc.inc_type_id, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
@@ -2360,7 +2361,7 @@ const updateSafetyCheckStatusViaSMSLink = async (
 ) => {
   try {
     let sql = "";
-    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = GETDATE()
+    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}', response_via = 'SMS'
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
     const result = await db.updateDataIntoDB(sql, user_aadobject_id);
@@ -2386,6 +2387,19 @@ const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
   try {
     const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data) 
           values('${userid}', '${status}', '${SMS_TEXT}', '${RAW_DATA}')`;
+
+    //console.log("insert query => ", recurrRespQuery);
+    await pool.request().query(recurrRespQuery);
+  } catch (err) {
+    console.log();
+  }
+};
+
+const updateSentSMSCount = async (team_id, counter) => {
+  try {
+    const recurrRespQuery = `update MSTeamsInstallationDetails set sent_sms_count = ISNULL(sent_sms_count, 0) + ${counter}
+where team_id = '${team_id}'
+and SubscriptionDetailsId in (select id from MSTeamsSubscriptionDetails where SubscriptionType = 1)`;
 
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
@@ -2466,5 +2480,6 @@ module.exports = {
   updateRecurrremaindercounter,
   getremaindercheck,
   updateSafetyCheckStatusViaSMSLink,
-  saveSMSlogs
+  saveSMSlogs,
+  updateSentSMSCount
 };

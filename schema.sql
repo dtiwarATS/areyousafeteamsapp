@@ -880,6 +880,19 @@ BEGIN
 END 
 GO
 
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsInstallationDetails' AND COLUMN_NAME = 'sent_sms_count') 
+BEGIN 
+ ALTER TABLE MSTeamsInstallationDetails ADD sent_sms_count  int 
+END 
+GO
+
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponses' AND COLUMN_NAME = 'response_via') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponses ADD response_via varchar(20) 
+END 
+GO
+
 CREATE TABLE [dbo].[MSTeamsSMSlogs](
 	[SMS_LOG_ID] [int] IDENTITY(101,1) NOT NULL,
 	[USR_ID] [nvarchar](255) NOT NULL,

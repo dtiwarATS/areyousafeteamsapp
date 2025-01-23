@@ -75,6 +75,7 @@ const {
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
 const { json } = require("body-parser");
+const { count } = require("console");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -2197,35 +2198,20 @@ const sendProactiveMessageAsync = async (
             setTimeout(() => {
               sendProactiveMessaageToUserAsync(
                 memberArr,
-
                 activity,
-
                 null,
-
                 serviceUrl,
-
                 userTenantId,
-
                 log,
-
                 userAadObjId,
-
                 conversationId,
-
                 connectorClient,
-
                 afterMessageSent,
-
                 i,
-
                 delay,
-
                 member,
-
                 msgNotSentArr,
-
                 sendErrorEmail,
-
                 retryCounter
               );
             }, 1000);
@@ -2272,42 +2258,51 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
   let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  let counter = 0;
   for (let user of usrPhones) {
-    if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
-      let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
-        user.businessPhones[0] : user.mobilePhone;
-      let safeUrl =
-        process.env.serviceUrl +
-        "/posresp?userId=" +
-        encodeURIComponent(user.id) +
-        "&eventId=" +
-        encodeURIComponent(incId);
-      let notSafeUrl =
-        process.env.serviceUrl +
-        "/negresp?userId=" +
-        encodeURIComponent(user.id) +
-        "&eventId=" +
-        encodeURIComponent(incId);
+    try {
+      if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
+        let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
+          user.businessPhones[0] : user.mobilePhone;
+        let safeUrl =
+          process.env.serviceUrl +
+          "/posresp?userId=" +
+          encodeURIComponent(user.id) +
+          "&eventId=" +
+          encodeURIComponent(incId);
+        let notSafeUrl =
+          process.env.serviceUrl +
+          "/negresp?userId=" +
+          encodeURIComponent(user.id) +
+          "&eventId=" +
+          encodeURIComponent(incId);
 
-      let body =
-        "Safety check from " +
-        companyData.teamName +
-        " - " +
-        incTitle +
-        " \nWe're checking to see if you are safe. \nClick " +
-        safeUrl +
-        " if you are safe, " +
-        "or " +
-        notSafeUrl +
-        " if you need help.";
-      await tClient.messages
-        .create({
-          body: body,
-          from: "+18023277232",
-          shortenUrls: true,
-          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-          to: phone,
-        });
+        let body =
+          "Safety check from " +
+          companyData.teamName +
+          " - " +
+          incTitle +
+          " \nWe're checking to see if you are safe. \nClick " +
+          safeUrl +
+          " if you are safe, " +
+          "or " +
+          notSafeUrl +
+          " if you need help.";
+        await tClient.messages
+          .create({
+            body: body,
+            from: "+18023277232",
+            shortenUrls: true,
+            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+            to: phone,
+          });
+        counter++;
+      }
+      if (companyData.SubscriptionType == 1) {
+        incidentService.updateSentSMSCount(companyData.teamId, counter);
+      }
+    } catch (err) {
+      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
     }
   }
 }
@@ -2379,7 +2374,7 @@ const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
   try {
     superUsers = await incidentService.SaveSmsLog(userid, status, SMS_TEXT, RAW_DATA);
   } catch (err) {
-    processSafetyBotError(err, "", "", null, "error in getSendSMS");
+    processSafetyBotError(err, "", "", null, "error in saveSMSLog");
   }
   return Promise.resolve(superUsers);
 }
@@ -2845,7 +2840,7 @@ const sendSafetyCheckMessageAsync = async (
           null,
           incFilesData
         );
-        if (companyData.send_sms) {
+        if (companyData.send_sms && (companyData.SubscriptionType != 1 || companyData.sent_sms_count < 50)) {
           let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
           sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
         }
