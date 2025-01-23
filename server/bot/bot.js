@@ -2273,8 +2273,9 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
   let refresh_token = companyData.refresh_token;
   let usrPhones = await getUserPhone(refresh_token, tenantId, users);
   for (let user of usrPhones) {
-    if (user.businessPhones.length > 0 && user.businessPhones[0] != "") {
-      let phone = user.businessPhones[0];
+    if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
+      let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
+        user.businessPhones[0] : user.mobilePhone;
       let safeUrl =
         process.env.serviceUrl +
         "/posresp?userId=" +
@@ -2427,7 +2428,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
               maxBodyLength: Infinity,
               // timeout: 10000,
               url:
-                "https://graph.microsoft.com/v1.0/users?$select=displayName,id,businessPhones" +
+                "https://graph.microsoft.com/v1.0/users?$select=displayName,id,businessPhones,mobilePhone" +
                 "&$filter=id in (" +
                 userIds +
                 ")",

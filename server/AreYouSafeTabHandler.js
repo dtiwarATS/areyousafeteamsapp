@@ -1020,7 +1020,7 @@ const handlerForSafetyBotTab = (app) => {
             .request(config)
 
             .then((response) => {
-              const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Team Board</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://teamboard.in/AppImages/TBIcon.png" style=" width: 150px;"></div>Go back to Teams and reload the Areyousafe tab</div>`;
+              const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Are You Safe?</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://areyousafe.in/img/SafetyBot%20Icon.png" style=" width: 150px;"></div>Go back to Teams and reload the Areyousafe tab</div>`;
               res.status(200).send(msg);
             })
             .catch((error) => {
