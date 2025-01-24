@@ -6,6 +6,7 @@ class Member {
     is_message_delivered,
     response,
     response_value,
+    response_via,
     comment,
     timestamp,
     tu,
@@ -24,6 +25,7 @@ class Member {
     this.isMessageDelivered = is_message_delivered != null ? is_message_delivered : null;
     this.response = response;
     this.responseValue = response_value;
+    this.responseVia = response_via;
     this.comment = comment;
     this.timestamp = timestamp;
     this.userPrincipalName = (tu && tu.length > 0) ? tu[0].userPrincipalName : null;

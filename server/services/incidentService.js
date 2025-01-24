@@ -181,7 +181,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
   inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime,
-  m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value,
+  m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, m.response_via,
   m.SafetyCheckVisitorsQuestion1Response,
   m.SafetyCheckVisitorsQuestion2Response,
   m.SafetyCheckVisitorsQuestion3Response ,
