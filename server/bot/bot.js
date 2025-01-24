@@ -2297,6 +2297,7 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
             to: phone,
           });
         counter++;
+        SaveSmsLog(users[0], "OUTGOING", body, JSON.stringify({ eventId: incId, userId: users[0] }));
       }
       if (companyData.SubscriptionType == 2) {
         incidentService.updateSentSMSCount(companyData.teamId, counter);
@@ -2436,10 +2437,61 @@ const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
   return Promise.resolve(superUsers);
 }
 
-const processCommentViaLink = async (userid, status, SMS_TEXT, RAW_DATA) => {
+const processCommentViaLink = async (userId, incId, comment) => {
   let superUsers = null;
   try {
-    superUsers = await incidentService.updateCommentViaSMSLink(userid, incId, comment);
+    if (comment == "") {
+      return;
+    }
+    if (userId && incId) {
+      const incData = await incidentService.getInc(eventId, null, userId);
+      const compData = await incidentService.getCompanyData(incData.teamId);
+      const users = await incidentService.getUserInfo(incData.teamId, userId);
+      let user = users[0];
+      let context = {
+        activity: {
+          serviceUrl: compData.serviceUrl,
+          conversation: {
+            tenantId: compData.userTenantId
+          }
+        }
+      }
+      await incidentService.updateCommentViaSMSLink(userId, incId, comment);
+
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `User <at>${user.user_name}</at> has commented for incident **${incData.incTitle}**: \n${comment} `,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
+            {
+              type: "mention",
+              text: `<at>${user.user_name}</at>`,
+              mentioned: {
+                id: user.user_id,
+                name: user.user_name,
+              },
+            },
+          ],
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      const serviceUrl = context?.activity?.serviceUrl;
+      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
+      await sendApprovalResponseToSelectedTeams(
+        incId,
+        serviceUrl,
+        approvalCardResponse,
+        user.aadObjectId
+      );
+    }
   } catch (err) {
     processSafetyBotError(err, "", "", null, "error in saveSMSLog");
   }

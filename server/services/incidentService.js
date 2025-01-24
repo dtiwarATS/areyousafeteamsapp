@@ -2387,7 +2387,7 @@ const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
   try {
     const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data) 
           values('${userid}', '${status}', '${SMS_TEXT}', '${RAW_DATA}')`;
-
+    pool = await poolPromise;
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
   } catch (err) {
@@ -2400,7 +2400,7 @@ const updateCommentViaSMSLink = async (userId, incId, comment) => {
     const recurrRespQuery = `update MSTeamsMemberResponses set comment = '${comment}' where inc_id = ${incId} and user_id = 
   (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${userId}' 
   and team_id = (select team_id from MSTeamsIncidents where id = ${incId}))`;
-
+    pool = await poolPromise;
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
   } catch (err) {
