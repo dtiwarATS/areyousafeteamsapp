@@ -3430,6 +3430,7 @@ const sendApprovalResponse = async (user, context) => {
         approvalCardResponse,
         user.aadObjectId
       );
+      sendAcknowledmentinSMS(companyData, [user.aadObjectId], response === "i_am_safe" ? "I am safe" : "I need assistance");
     }
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
@@ -3447,6 +3448,38 @@ const sendApprovalResponse = async (user, context) => {
     );
   }
 };
+
+const sendAcknowledmentinSMS = async (companyData, users, text) => {
+  let tenantId = companyData.userTenantId;
+  let refresh_token = companyData.refresh_token;
+  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  let counter = 0;
+  for (let user of usrPhones) {
+    try {
+      if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
+        let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
+          user.businessPhones[0] : user.mobilePhone;
+
+        let body =
+          `Your safety status has been recorded as ${text} and ${companyData.teamName} teams has been notified`;
+        await tClient.messages
+          .create({
+            body: body,
+            from: "+18023277232",
+            shortenUrls: true,
+            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+            to: phone,
+          });
+        counter++;
+      }
+      if (companyData.SubscriptionType == 2) {
+        incidentService.updateSentSMSCount(companyData.teamId, counter);
+      }
+    } catch (err) {
+      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending acknowledgement via SMS");
+    }
+  }
+}
 
 const submitComment = async (context, user, companyData) => {
   try {
@@ -4959,6 +4992,7 @@ module.exports = {
   createTestIncident,
   onInvokeActivity,
   sendSafetyCheckMsgViaSMS,
+  sendAcknowledmentinSMS,
   proccessSMSLinkClick,
   SaveSmsLog,
   acknowledgeSMSReplyInTeams
