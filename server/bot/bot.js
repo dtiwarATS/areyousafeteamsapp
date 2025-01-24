@@ -2429,7 +2429,17 @@ const acknowledgeSMSReplyInTeams = async (msgText, companyData, incCreatedById, 
 const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
   let superUsers = null;
   try {
-    superUsers = await incidentService.SaveSmsLog(userid, status, SMS_TEXT, RAW_DATA);
+    superUsers = await incidentService.saveSMSlogs(userid, status, SMS_TEXT, RAW_DATA);
+  } catch (err) {
+    processSafetyBotError(err, "", "", null, "error in saveSMSLog");
+  }
+  return Promise.resolve(superUsers);
+}
+
+const processCommentViaLink = async (userid, status, SMS_TEXT, RAW_DATA) => {
+  let superUsers = null;
+  try {
+    superUsers = await incidentService.updateCommentViaSMSLink(userid, incId, comment);
   } catch (err) {
     processSafetyBotError(err, "", "", null, "error in saveSMSLog");
   }
@@ -4995,5 +5005,6 @@ module.exports = {
   sendAcknowledmentinSMS,
   proccessSMSLinkClick,
   SaveSmsLog,
-  acknowledgeSMSReplyInTeams
+  acknowledgeSMSReplyInTeams,
+  processCommentViaLink
 };

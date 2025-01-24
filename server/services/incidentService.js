@@ -2395,6 +2395,19 @@ const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
   }
 };
 
+const updateCommentViaSMSLink = async (userId, incId, comment) => {
+  try {
+    const recurrRespQuery = `update MSTeamsMemberResponses set comment = '${comment}' where inc_id = ${incId} and user_id = 
+  (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${userId}' 
+  and team_id = (select team_id from MSTeamsIncidents where id = ${incId}))`;
+
+    //console.log("insert query => ", recurrRespQuery);
+    await pool.request().query(recurrRespQuery);
+  } catch (err) {
+    console.log();
+  }
+};
+
 const updateSentSMSCount = async (team_id, counter) => {
   try {
     const recurrRespQuery = `update MSTeamsInstallationDetails set sent_sms_count = ISNULL(sent_sms_count, 0) + ${counter}
@@ -2480,5 +2493,6 @@ module.exports = {
   getremaindercheck,
   updateSafetyCheckStatusViaSMSLink,
   saveSMSlogs,
-  updateSentSMSCount
+  updateSentSMSCount,
+  updateCommentViaSMSLink
 };
