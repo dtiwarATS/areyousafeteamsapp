@@ -2444,7 +2444,7 @@ const processCommentViaLink = async (userId, incId, comment) => {
       return;
     }
     if (userId && incId) {
-      const incData = await incidentService.getInc(eventId, null, userId);
+      const incData = await incidentService.getInc(incId, null, userId);
       const compData = await incidentService.getCompanyData(incData.teamId);
       const users = await incidentService.getUserInfo(incData.teamId, userId);
       let user = users[0];
@@ -2963,7 +2963,7 @@ const sendSafetyCheckMessageAsync = async (
           null,
           incFilesData
         );
-        if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count <= 50))) {
+        if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count <= 50))) {
           let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
           sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
         }
