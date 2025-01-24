@@ -2298,7 +2298,7 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
           });
         counter++;
       }
-      if (companyData.SubscriptionType == 1) {
+      if (companyData.SubscriptionType == 2) {
         incidentService.updateSentSMSCount(companyData.teamId, counter);
       }
     } catch (err) {
@@ -2364,10 +2364,67 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
         userId
       );
     }
-    //this.acknowledgeSMSReplyInSlack(eventData, userData, teamObj, text.trim().toLowerCase());
+    acknowledgeSMSReplyInTeams(text, compData, incData.incCreatedBy, incData.incCreatedByName, user);
   }
 }
 
+const acknowledgeSMSReplyInTeams = async (msgText, companyData, incCreatedById, incCreatedByName, user) => {
+  try {
+    let responseText = "";
+    if (msgText === "YES") {
+      responseText = `Glad you're safe! Your safety status has been sent to <at>${incCreatedByName}</at>`;
+    } else {
+      responseText = `Sorry to hear that! We have informed <at>${incCreatedByName}</at> of your situation and someone will be reaching out to you as soon as possible.`;
+    }
+
+    const { serviceUrl, userTenantId } = companyData;
+    const incData = await incidentService.getInc(100662);
+
+    const approvalCard = {
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      appId: process.env.MicrosoftAppId,
+      body: [
+        {
+          type: "TextBlock",
+          text: responseText,
+          wrap: true,
+        },
+      ],
+      msteams: {
+        entities: [
+          {
+            type: "mention",
+            text: `<at>${incCreatedByName}</at>`,
+            mentioned: {
+              id: incCreatedById,
+              name: incCreatedByName,
+            },
+          },
+        ],
+      },
+      type: "AdaptiveCard",
+      version: "1.4",
+    };
+    let member = [
+      {
+        id: user.user_id,
+        name: user.user_name,
+      },
+    ];
+    const response = await sendProactiveMessaageToUser(
+      member,
+      approvalCard,
+      null,
+      serviceUrl,
+      userTenantId,
+      null,
+      user.user_aadobject_id
+    );
+    console.log(response);
+  } catch (err) {
+    console.log(err);
+  }
+}
 
 const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
   let superUsers = null;
@@ -2381,7 +2438,8 @@ const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
 
 
 const getUserPhone = async (refreshToken, tenantId, arrIds) => {
-  let data = new FormData();
+  try {
+    let data = new FormData();
   data.append("grant_type", "refresh_token");
   data.append("client_Id", process.env.MicrosoftAppId);
   data.append("client_secret", process.env.MicrosoftAppPassword);
@@ -2396,7 +2454,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
   };       
   var phone = [""];
   phone.pop();
-  var s = await axios
+    await axios
     .request(config)
     .then(async (response) => {
       // console.log(response.data);
@@ -2507,6 +2565,9 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
       }
     });
   return phone;
+  } catch (err) {
+    console.log(err);
+  }
 }
 // const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, companyData, serviceUrl, userAadObjId, userTenantId, log, resolveFn, rejectFn, runAt = null) => {
 //   try {
@@ -2840,7 +2901,7 @@ const sendSafetyCheckMessageAsync = async (
           null,
           incFilesData
         );
-        if (companyData.send_sms && (companyData.SubscriptionType != 1 || companyData.sent_sms_count < 50)) {
+        if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count <= 50))) {
           let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
           sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
         }
@@ -4899,5 +4960,6 @@ module.exports = {
   onInvokeActivity,
   sendSafetyCheckMsgViaSMS,
   proccessSMSLinkClick,
-  SaveSmsLog
+  SaveSmsLog,
+  acknowledgeSMSReplyInTeams
 };

@@ -720,7 +720,7 @@ const updateIncResponseData = async (
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   } else {
-    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
   if (updateRespRecurrQuery != null) {
@@ -2398,8 +2398,7 @@ const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
 const updateSentSMSCount = async (team_id, counter) => {
   try {
     const recurrRespQuery = `update MSTeamsInstallationDetails set sent_sms_count = ISNULL(sent_sms_count, 0) + ${counter}
-where team_id = '${team_id}'
-and SubscriptionDetailsId in (select id from MSTeamsSubscriptionDetails where SubscriptionType = 1)`;
+where team_id = '${team_id}'`;
 
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);

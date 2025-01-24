@@ -255,7 +255,8 @@ const getCompaniesData = async (
 const getCompanyDataByTeamId = async (teamId, userAadObjId) => {
   let companyData = null;
   try {
-    const selectQuery = `SELECT * FROM MSTeamsInstallationDetails where team_id = '${teamId}'`;
+    const selectQuery = `SELECT top 1 ind.*, sd.SubscriptionType FROM MSTeamsInstallationDetails ind
+left join MSTeamsSubscriptionDetails sd on sd.id = ind.SubscriptionDetailsId where team_id = '${teamId}'`;
     let res = await db.getDataFromDB(selectQuery, userAadObjId);
     companyData = await parseCompanyData(res);
   } catch (err) {
