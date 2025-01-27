@@ -3523,7 +3523,7 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
           user.businessPhones[0] : user.mobilePhone;
 
         let body =
-          `Your safety status has been recorded as ${text} and ${companyData.teamName} teams has been notified`;
+          `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
         await tClient.messages
           .create({
             body: body,
