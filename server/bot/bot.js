@@ -2258,8 +2258,10 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
   let usrPhones = await getUserPhone(refresh_token, tenantId, users);
-  let counter = 0;
+  let counter = Number(companyData.sent_sms_count && companyData.sent_sms_count != "" ? companyData.sent_sms_count : "0");
   for (let user of usrPhones) {
+    if (counter == 50 && companyData.SubscriptionType == 2)
+      break;
     try {
       if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
         let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
@@ -2963,7 +2965,7 @@ const sendSafetyCheckMessageAsync = async (
           null,
           incFilesData
         );
-        if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count <= 50))) {
+        if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
           let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
           sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
         }
