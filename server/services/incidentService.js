@@ -28,7 +28,7 @@ const parseEventData = (
   myfiledata = []
 ) => {
   let parsedDataArr = [];
-  console.log("result >>", result);
+  //console.log("result >>", result);
   if (result != null && result.length > 0) {
     let resultObj = result[0];
     // TODO: need to improve this logic of parsing

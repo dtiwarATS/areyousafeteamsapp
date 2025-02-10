@@ -12,6 +12,7 @@ const {
 } = require("botframework-connector");
 const incidentService = require("../services/incidentService");
 const path = require("path");
+const FormData = require('form-data');
 const {
   getAllTeamMembers,
   sendDirectMessage,
@@ -2593,7 +2594,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
       }
     })
     .catch((error) => {
-      console.log("error at get access token in get users phone number");
+      console.log("error at get access token in get users phone number", error);
       // console.log(error);
       if (
         error.response.data.error == "invalid_grant" &&

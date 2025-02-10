@@ -373,7 +373,7 @@ const addTeamMember = async (
     } else {
       teamMembers.map((m) => {
         if (removeOldUsers) {
-          userList.push(m.objectId);
+          userList.push(m.aadObjectId);
         }
         sqlInserUsers += teamMemberInsertQuery(teamId, m);
       });
