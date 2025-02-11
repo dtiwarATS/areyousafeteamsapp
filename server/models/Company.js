@@ -21,6 +21,10 @@ class Company {
     SafetycheckForVisitorsQuestion1,
     SafetycheckForVisitorsQuestion2,
     SafetycheckForVisitorsQuestion3,
+    refresh_token,
+    send_sms,
+    sent_sms_count,
+    SubscriptionType
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -43,6 +47,10 @@ class Company {
     this.SafetycheckForVisitorsQuestion2 = SafetycheckForVisitorsQuestion2;
     this.SafetycheckForVisitorsQuestion3 = SafetycheckForVisitorsQuestion3;
     this.EnableSafetycheckForVisitors = EnableSafetycheckForVisitors;
+    this.refresh_token = refresh_token;
+    this.send_sms = send_sms;
+    this.sent_sms_count = sent_sms_count;
+    this.SubscriptionType = SubscriptionType;
   }
 }
 

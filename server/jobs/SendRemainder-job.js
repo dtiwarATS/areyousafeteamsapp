@@ -124,6 +124,10 @@ const { processSafetyBotError } = require("../models/processError");
                 log.addLog(
                   `Update oneTime reminder message count in DB  ${member.user_id} successfully`
                 );
+                if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
+                  let userAadObjIds = [member.user_aadobj_id];
+                  await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name);
+                }
               } else {
                 await incidentService.updateRecurrremaindercounter(
                   member.MemberResponsesRecurrId
@@ -155,7 +159,7 @@ const { processSafetyBotError } = require("../models/processError");
     }
   };
   //let querry = `select mstm.* ,mst.* from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 )`;
-  let querry = `select mstm.* ,mst.*
+  let querry = `select mstm.* ,mst.* , (select top 1 user_aadobject_id from MSTeamsTeamsUsers where user_id = mstm.user_id) 'user_aadobj_id'
   from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id 
   IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 ) and MST.inc_type='onetime'`;
 

@@ -28,7 +28,7 @@ const parseEventData = (
   myfiledata = []
 ) => {
   let parsedDataArr = [];
-  console.log("result >>", result);
+  //console.log("result >>", result);
   if (result != null && result.length > 0) {
     let resultObj = result[0];
     // TODO: need to improve this logic of parsing
@@ -115,7 +115,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
     let selectQuery = "";
     if (runAt != null) {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
-      inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+      inc.selected_members, inc.created_by, inc.CREATED_BY_NAME, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, mRecurr.is_message_delivered, 
       mRecurr.response, mRecurr.response_value, mRecurr.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
@@ -128,7 +128,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     } else {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
-      inc.selected_members, inc.created_by, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
+      inc.selected_members, inc.created_by, inc.CREATED_BY_NAME, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, m.is_message_delivered, 
       m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
@@ -181,7 +181,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, 
   inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
   inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime,
-  m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value,
+  m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, m.response_via,
   m.SafetyCheckVisitorsQuestion1Response,
   m.SafetyCheckVisitorsQuestion2Response,
   m.SafetyCheckVisitorsQuestion3Response ,
@@ -720,7 +720,7 @@ const updateIncResponseData = async (
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   } else {
-    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
   if (updateRespRecurrQuery != null) {
@@ -1440,7 +1440,43 @@ const getenablecheck = async (teamId) => {
   }
   return Promise.resolve(result);
 };
-
+const getSendSMS = async (teamId) => {
+  let result = null;
+  try {
+    const qry = `select refresh_token, send_sms from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    result = await db.getDataFromDB(qry);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in getSendSMS");
+  }
+  return Promise.resolve(result);
+};
+const setSendSMS = async (teamId, sendSMS) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set send_sms = ${sendSMS} where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in setSendSMS");
+  }
+  return Promise.resolve(result);
+};
+const saveRefreshToken = async (teamId, refresh_token) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set refresh_token = '${refresh_token}', send_sms = 1 where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in saveRefreshToken");
+  }
+  return Promise.resolve(result);
+};
 const getremaindercheck = async (inc_id) => {
   let result = null;
   try {
@@ -2036,7 +2072,8 @@ const getRequiredDataToSendMessage = async (
       resendSafetyCheck
     );
 
-    const sql = ` SELECT top 1 * FROM MSTeamsInstallationDetails where team_id = '${teamId}';
+    const sql = ` SELECT top 1  ind.*, sd.SubscriptionType FROM MSTeamsInstallationDetails ind
+left join MSTeamsSubscriptionDetails sd on sd.id = ind.SubscriptionDetailsId where team_id = '${teamId}';
     
     SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
     inc.selected_members, inc.created_by, inc.GUIDANCE, inc.inc_type_id, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
@@ -2316,6 +2353,72 @@ const updateSafetyCheckStatus = async (
   return false;
 };
 
+const updateSafetyCheckStatusViaSMSLink = async (
+  incId,
+  resp,
+  user_aadobject_id,
+  team_id
+) => {
+  try {
+    let sql = "";
+    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}', response_via = 'SMS'
+      where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
+      and team_id = '${team_id}')`;
+    const result = await db.updateDataIntoDB(sql, user_aadobject_id);
+    return result?.rowsAffected?.length > 0;
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in updateSafetyCheckStatus incId=" +
+      incId +
+      " response=" +
+      resp +
+      " respTimestamp=" +
+      new date().toString()
+    );
+  }
+  return false;
+};
+
+const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
+  try {
+    const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data) 
+          values('${userid}', '${status}', '${SMS_TEXT}', '${RAW_DATA}')`;
+    pool = await poolPromise;
+    //console.log("insert query => ", recurrRespQuery);
+    await pool.request().query(recurrRespQuery);
+  } catch (err) {
+    console.log();
+  }
+};
+
+const updateCommentViaSMSLink = async (userId, incId, comment) => {
+  try {
+    const recurrRespQuery = `update MSTeamsMemberResponses set comment = '${comment}' where inc_id = ${incId} and user_id = 
+  (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${userId}' 
+  and team_id = (select team_id from MSTeamsIncidents where id = ${incId}))`;
+    pool = await poolPromise;
+    //console.log("insert query => ", recurrRespQuery);
+    await pool.request().query(recurrRespQuery);
+  } catch (err) {
+    console.log();
+  }
+};
+
+const updateSentSMSCount = async (team_id, counter) => {
+  try {
+    const recurrRespQuery = `update MSTeamsInstallationDetails set sent_sms_count = ${counter}
+where team_id = '${team_id}'`;
+
+    //console.log("insert query => ", recurrRespQuery);
+    await pool.request().query(recurrRespQuery);
+  } catch (err) {
+    console.log();
+  }
+};
 module.exports = {
   saveInc,
   deleteInc,
@@ -2380,9 +2483,16 @@ module.exports = {
   updateSafetyCheckStatus,
   getTemplateList,
   getenablecheck,
+  getSendSMS,
+  setSendSMS,
+  saveRefreshToken,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
   updateremaindercounter,
   updateRecurrremaindercounter,
   getremaindercheck,
+  updateSafetyCheckStatusViaSMSLink,
+  saveSMSlogs,
+  updateSentSMSCount,
+  updateCommentViaSMSLink
 };

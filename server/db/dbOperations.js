@@ -255,7 +255,8 @@ const getCompaniesData = async (
 const getCompanyDataByTeamId = async (teamId, userAadObjId) => {
   let companyData = null;
   try {
-    const selectQuery = `SELECT * FROM MSTeamsInstallationDetails where team_id = '${teamId}'`;
+    const selectQuery = `SELECT top 1 ind.*, sd.SubscriptionType FROM MSTeamsInstallationDetails ind
+left join MSTeamsSubscriptionDetails sd on sd.id = ind.SubscriptionDetailsId where team_id = '${teamId}'`;
     let res = await db.getDataFromDB(selectQuery, userAadObjId);
     companyData = await parseCompanyData(res);
   } catch (err) {
@@ -321,23 +322,23 @@ const removeAllTeamMember = async (teamId) => {
 const teamMemberInsertQuery = (teamId, m) => {
   return `
     IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-    m.objectId
+    m.aadObjectId ?? m.objectId
   }')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[hasLicense])
-    VALUES('${teamId}', '${m.objectId}', '${m.id}', N'${m.name.replace(
+    VALUES('${teamId}', '${m.aadObjectId ?? m.objectId}', '${m.id}', N'${m.name.replace(
     /'/g,
     "''"
   )}', '${m.tenantId}', '${m.userRole}',0);
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-    m.objectId
+    m.aadObjectId ?? m.objectId
   }' AND userPrincipalName is null)
     BEGIN
       UPDATE MSTeamsTeamsUsers SET tenantid = '${m.tenantId}', userRole = '${
     m.userRole
   }'
-      WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.objectId}';
+      WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.aadObjectId ?? m.objectId}';
     END`;
 };
 
@@ -372,7 +373,7 @@ const addTeamMember = async (
     } else {
       teamMembers.map((m) => {
         if (removeOldUsers) {
-          userList.push(m.objectId);
+          userList.push(m.aadObjectId);
         }
         sqlInserUsers += teamMemberInsertQuery(teamId, m);
       });

@@ -197,9 +197,9 @@ class AreYouSafeTab {
         "",
         "",
         "error in sortMembers members=" +
-          JSON.stringify(members) +
-          " incTypeId=" +
-          incTypeId
+        JSON.stringify(members) +
+        " incTypeId=" +
+        incTypeId
       );
     }
     return memberObj;
@@ -290,7 +290,7 @@ class AreYouSafeTab {
                   responsePercentage =
                     Math.round(
                       ((needAssistanceCount + safeCount) * 100) /
-                        inc.members.length
+                      inc.members.length
                     ).toString() + "%";
                 }
               } else {
@@ -360,9 +360,9 @@ class AreYouSafeTab {
         "",
         userObjId,
         "error in getFormatedIncData incData=" +
-          JSON.stringify(incData) +
-          " teamInfo=" +
-          JSON.stringify(teamInfo)
+        JSON.stringify(incData) +
+        " teamInfo=" +
+        JSON.stringify(teamInfo)
       );
     }
     return incFormatedData;
@@ -623,8 +623,8 @@ class AreYouSafeTab {
                 (index == 0
                   ? ""
                   : index == adminsArr.length - 1
-                  ? " and "
-                  : ", ") + usrName;
+                    ? " and "
+                    : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -642,8 +642,8 @@ class AreYouSafeTab {
                     (currentTeamsAdminsStr === ""
                       ? ""
                       : index == adminsArr.length - 1
-                      ? " and "
-                      : ", ") + usrName;
+                        ? " and "
+                        : ", ") + usrName;
                 }
               });
 
@@ -915,9 +915,9 @@ class AreYouSafeTab {
         createdByUserInfo?.user_name,
         userAadObjId,
         "error in sendSafetyCheckMessage incId=" +
-          incId +
-          " resendSafetyCheck=" +
-          resendSafetyCheck
+        incId +
+        " resendSafetyCheck=" +
+        resendSafetyCheck
       );
       return true;
     } finally {
@@ -976,6 +976,37 @@ class AreYouSafeTab {
       processSafetyBotError(err, teamId, "", null, "error in getenablecheck");
     }
     return Promise.resolve(superUsers);
+  };
+
+  getSendSMS = async (teamId) => {
+    let superUsers = null;
+    try {
+      superUsers = await incidentService.getSendSMS(teamId);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in getSendSMS");
+    }
+    return Promise.resolve(superUsers);
+  };
+
+  setSendSMS = async (teamId, sendSMS) => {
+    let res = null;
+    try {
+      res = await incidentService.setSendSMS(teamId, sendSMS);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in setSendSMS");
+    }
+    return Promise.resolve(res);
+  };
+
+  saveRefreshToken = async (teamId, refresh_token) => {
+    let res = null;
+    try {
+      res = await incidentService.saveRefreshToken(teamId, refresh_token);
+      console.log({ res });
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in saveRefreshToken");
+    }
+    return Promise.resolve(res);
   };
 
   saveUserSetting = async ({

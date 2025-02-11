@@ -12,6 +12,7 @@ const {
 } = require("botframework-connector");
 const incidentService = require("../services/incidentService");
 const path = require("path");
+const FormData = require('form-data');
 const {
   getAllTeamMembers,
   sendDirectMessage,
@@ -35,6 +36,9 @@ const {
   getCompanyDataByTeamId,
 } = require("../db/dbOperations");
 
+const accountSid = process.env.TWILIO_ACCOUNT_ID;
+const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
+const tClient = require("twilio")(accountSid, authToken);
 const dashboard = require("../models/dashboard");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
@@ -72,6 +76,7 @@ const {
   getSafetyCheckTypeCard,
 } = require("../models/SafetyCheckCard");
 const { json } = require("body-parser");
+const { count } = require("console");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -2194,35 +2199,20 @@ const sendProactiveMessageAsync = async (
             setTimeout(() => {
               sendProactiveMessaageToUserAsync(
                 memberArr,
-
                 activity,
-
                 null,
-
                 serviceUrl,
-
                 userTenantId,
-
                 log,
-
                 userAadObjId,
-
                 conversationId,
-
                 connectorClient,
-
                 afterMessageSent,
-
                 i,
-
                 delay,
-
                 member,
-
                 msgNotSentArr,
-
                 sendErrorEmail,
-
                 retryCounter
               );
             }, 1000);
@@ -2265,6 +2255,385 @@ const sendProactiveMessageAsync = async (
   }
 };
 
+const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => {
+  let tenantId = companyData.userTenantId;
+  let refresh_token = companyData.refresh_token;
+  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  let counter = Number(companyData.sent_sms_count && companyData.sent_sms_count != "" ? companyData.sent_sms_count : "0");
+  for (let user of usrPhones) {
+    if (counter == 50 && companyData.SubscriptionType == 2)
+      break;
+    try {
+      if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
+        let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
+          user.businessPhones[0] : user.mobilePhone;
+        let safeUrl =
+          process.env.serviceUrl +
+          "/posresp?userId=" +
+          encodeURIComponent(user.id) +
+          "&eventId=" +
+          encodeURIComponent(incId);
+        let notSafeUrl =
+          process.env.serviceUrl +
+          "/negresp?userId=" +
+          encodeURIComponent(user.id) +
+          "&eventId=" +
+          encodeURIComponent(incId);
+
+        let body =
+          "Safety check from " +
+          companyData.teamName +
+          " - " +
+          incTitle +
+          " \nWe're checking to see if you are safe. \nClick " +
+          safeUrl +
+          " if you are safe, " +
+          "or " +
+          notSafeUrl +
+          " if you need help.";
+        await tClient.messages
+          .create({
+            body: body,
+            from: "+18023277232",
+            shortenUrls: true,
+            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+            to: phone,
+          });
+        counter++;
+        SaveSmsLog(users[0], "OUTGOING", body, JSON.stringify({ eventId: incId, userId: users[0] }));
+      }
+      if (companyData.SubscriptionType == 2) {
+        incidentService.updateSentSMSCount(companyData.teamId, counter);
+      }
+    } catch (err) {
+      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
+    }
+  }
+}
+
+
+const proccessSMSLinkClick = async (userId, eventId, text) => {
+  if (userId && eventId) {
+    const incData = await incidentService.getInc(eventId, null, userId);
+    const compData = await incidentService.getCompanyData(incData.teamId);
+    const users = await incidentService.getUserInfo(incData.teamId, userId);
+    let user = users[0];
+    let context = {
+      activity: {
+        serviceUrl: compData.serviceUrl,
+        conversation: {
+          tenantId: compData.userTenantId
+        }
+      }
+    }
+    incidentService.updateSafetyCheckStatusViaSMSLink(eventId, text == "YES" ? 1 : 0, userId, compData.teamId);
+    if (text != "YES") {
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `User <at>${user.user_name}</at> needs assistance for Incident: **${incData.incTitle}** `,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
+            {
+              type: "mention",
+              text: `<at>${user.user_name}</at>`,
+              mentioned: {
+                id: user.user_id,
+                name: user.user_name,
+              },
+            },
+          ],
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      //send new msg just to emulate msg is being updated
+      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      const serviceUrl = context?.activity?.serviceUrl;
+      await sendApprovalResponseToSelectedMembers(
+        eventId,
+        context,
+        approvalCardResponse
+      );
+      await sendApprovalResponseToSelectedTeams(
+        eventId,
+        serviceUrl,
+        approvalCardResponse,
+        userId
+      );
+    }
+    acknowledgeSMSReplyInTeams(text, compData, incData.incCreatedBy, incData.incCreatedByName, user);
+  }
+}
+
+const acknowledgeSMSReplyInTeams = async (msgText, companyData, incCreatedById, incCreatedByName, user) => {
+  try {
+    let responseText = "";
+    if (msgText === "YES") {
+      responseText = `Glad you're safe! Your safety status has been sent to <at>${incCreatedByName}</at>`;
+    } else {
+      responseText = `Sorry to hear that! We have informed <at>${incCreatedByName}</at> of your situation and someone will be reaching out to you as soon as possible.`;
+    }
+
+    const { serviceUrl, userTenantId } = companyData;
+    const incData = await incidentService.getInc(100662);
+
+    const approvalCard = {
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      appId: process.env.MicrosoftAppId,
+      body: [
+        {
+          type: "TextBlock",
+          text: responseText,
+          wrap: true,
+        },
+      ],
+      msteams: {
+        entities: [
+          {
+            type: "mention",
+            text: `<at>${incCreatedByName}</at>`,
+            mentioned: {
+              id: incCreatedById,
+              name: incCreatedByName,
+            },
+          },
+        ],
+      },
+      type: "AdaptiveCard",
+      version: "1.4",
+    };
+    let member = [
+      {
+        id: user.user_id,
+        name: user.user_name,
+      },
+    ];
+    const response = await sendProactiveMessaageToUser(
+      member,
+      approvalCard,
+      null,
+      serviceUrl,
+      userTenantId,
+      null,
+      user.user_aadobject_id
+    );
+    console.log(response);
+  } catch (err) {
+    console.log(err);
+  }
+}
+
+const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
+  let superUsers = null;
+  try {
+    superUsers = await incidentService.saveSMSlogs(userid, status, SMS_TEXT, RAW_DATA);
+  } catch (err) {
+    processSafetyBotError(err, "", "", null, "error in saveSMSLog");
+  }
+  return Promise.resolve(superUsers);
+}
+
+const processCommentViaLink = async (userId, incId, comment) => {
+  let superUsers = null;
+  try {
+    if (comment == "") {
+      return;
+    }
+    if (userId && incId) {
+      const incData = await incidentService.getInc(incId, null, userId);
+      const compData = await incidentService.getCompanyData(incData.teamId);
+      const users = await incidentService.getUserInfo(incData.teamId, userId);
+      let user = users[0];
+      let context = {
+        activity: {
+          serviceUrl: compData.serviceUrl,
+          conversation: {
+            tenantId: compData.userTenantId
+          }
+        }
+      }
+      await incidentService.updateCommentViaSMSLink(userId, incId, comment);
+
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `User <at>${user.user_name}</at> has commented for incident **${incData.incTitle}**: \n${comment} `,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
+            {
+              type: "mention",
+              text: `<at>${user.user_name}</at>`,
+              mentioned: {
+                id: user.user_id,
+                name: user.user_name,
+              },
+            },
+          ],
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      const serviceUrl = context?.activity?.serviceUrl;
+      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
+      await sendApprovalResponseToSelectedTeams(
+        incId,
+        serviceUrl,
+        approvalCardResponse,
+        user.aadObjectId
+      );
+    }
+  } catch (err) {
+    processSafetyBotError(err, "", "", null, "error in saveSMSLog");
+  }
+  return Promise.resolve(superUsers);
+}
+
+
+const getUserPhone = async (refreshToken, tenantId, arrIds) => {
+  try {
+    let data = new FormData();
+  data.append("grant_type", "refresh_token");
+  data.append("client_Id", process.env.MicrosoftAppId);
+  data.append("client_secret", process.env.MicrosoftAppPassword);
+  data.append("refresh_token", refreshToken);
+
+  let config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: `https://login.microsoftonline.com/${tenantId}/oauth2/token`,
+    data: data,
+    // timeout: 10000,
+  };       
+  var phone = [""];
+  phone.pop();
+    await axios
+    .request(config)
+    .then(async (response) => {
+      // console.log(response.data);
+      if (response.data.scope?.indexOf("User.Read.All") == -1) {
+        res.json({ NoPhonePermission: true });
+      } else {
+        let accessToken = response.data.access_token;
+        // console.log({ arrIds });
+        var startIndex = 0;
+        var endIndex = 14;
+        if (endIndex > arrIds.length) endIndex = arrIds.length; 
+        // console.log({ endIndex });
+        while (endIndex <= arrIds.length && startIndex != endIndex) {
+          var userIds = arrIds.slice(startIndex, endIndex).toString();
+          if (userIds.length) {
+            userIds = "'" + userIds.replaceAll(",", "','") + "'";
+            // console.log({ userIds });
+            startIndex = endIndex;
+            endIndex = startIndex + 14;
+            if (endIndex > arrIds.length) endIndex = arrIds.length;
+
+            let config = {
+              method: "get",
+              maxBodyLength: Infinity,
+              // timeout: 10000,
+              url:
+                "https://graph.microsoft.com/v1.0/users?$select=displayName,id,businessPhones,mobilePhone" +
+                "&$filter=id in (" +
+                userIds +
+                ")",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: "Bearer " + accessToken,
+              },
+              // data: data,
+            };
+            var requestDate = new Date();
+            var a = await axios
+              .request(config)
+              .then((response) => {
+                phone.push(...response.data.value);
+                // console.log({ phone });
+                // var data = {
+                //   status: status,
+                //   teamData: teamData,
+                // };
+              })
+              .catch((error) => {
+                console.log({
+                  "error in get users phone number requestDate": error,
+                });
+                processSafetyBotError(
+                  error,
+                  teamId,
+                  "",
+                  "",
+                  "error in get users phone number requestDateTime : " +
+                  requestDate +
+                  " ErrorDateTime: " +
+                  new Date(),
+                  TeamName,
+                  false,
+                  clientVersion
+                );
+                res.json({ error: error });
+              });
+          } else {
+            return;
+          }
+        }
+        // console.log({ finalphone: phone });
+      }
+    })
+    .catch((error) => {
+      console.log("error at get access token in get users phone number", error);
+      // console.log(error);
+      if (
+        error.response.data.error == "invalid_grant" &&
+        error.response.data.error_description &&
+        error.response.data.error_description
+          .toString()
+          .indexOf("The refresh token has expired due to inactivity.") >= 0 //&&
+        //  teamId == "19:3684c109f05f44efb4fb54a988d70286@thread.tacv2"
+      ) {
+        res.json({ authFailed: true });
+      } else if (
+        error.response.data.error == "invalid_grant" ||
+        error.response.data.error == "interaction_required" ||
+        error.response.data.error == "insufficient_claims"
+      ) {
+        res.json({ invalid_grant: true });
+      } else {
+        console.log({
+          "error in get access token from microsoft at get users phone number":
+            error,
+        });
+        processSafetyBotError(
+          error,
+          teamId,
+          "",
+          "",
+          "error in get access token from microsoft at get users phone number",
+          TeamName,
+          false,
+          clientVersion
+        );
+        res.json({ error: error });
+      }
+    });
+  return phone;
+  } catch (err) {
+    console.log(err);
+  }
+}
 // const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, companyData, serviceUrl, userAadObjId, userTenantId, log, resolveFn, rejectFn, runAt = null) => {
 //   try {
 //     const isRecurringInc = (runAt != null);
@@ -2597,7 +2966,10 @@ const sendSafetyCheckMessageAsync = async (
           null,
           incFilesData
         );
-
+        if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
+          let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
+          sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
+        }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
@@ -3123,6 +3495,7 @@ const sendApprovalResponse = async (user, context) => {
         approvalCardResponse,
         user.aadObjectId
       );
+      sendAcknowledmentinSMS(companyData, [user.aadObjectId], response === "i_am_safe" ? "I am safe" : "I need assistance");
     }
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
@@ -3140,6 +3513,38 @@ const sendApprovalResponse = async (user, context) => {
     );
   }
 };
+
+const sendAcknowledmentinSMS = async (companyData, users, text) => {
+  let tenantId = companyData.userTenantId;
+  let refresh_token = companyData.refresh_token;
+  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  let counter = 0;
+  for (let user of usrPhones) {
+    try {
+      if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
+        let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
+          user.businessPhones[0] : user.mobilePhone;
+
+        let body =
+          `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
+        await tClient.messages
+          .create({
+            body: body,
+            from: "+18023277232",
+            shortenUrls: true,
+            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+            to: phone,
+          });
+        counter++;
+      }
+      if (companyData.SubscriptionType == 2) {
+        incidentService.updateSentSMSCount(companyData.teamId, counter);
+      }
+    } catch (err) {
+      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending acknowledgement via SMS");
+    }
+  }
+}
 
 const submitComment = async (context, user, companyData) => {
   try {
@@ -3592,6 +3997,7 @@ const submitSettings = async (context, companyData) => {
     selected_superusers
   );
 };
+
 
 const sendProactiveMessaageToUserTest = async () => {
   try {
@@ -4650,4 +5056,10 @@ module.exports = {
   sendNSRespToTeamChannel,
   createTestIncident,
   onInvokeActivity,
+  sendSafetyCheckMsgViaSMS,
+  sendAcknowledmentinSMS,
+  proccessSMSLinkClick,
+  SaveSmsLog,
+  acknowledgeSMSReplyInTeams,
+  processCommentViaLink
 };

@@ -286,11 +286,20 @@ class BotActivityHandler extends TeamsActivityHandler {
           acvtivityData?.channelData?.eventType === "teamMemberAdded"
         ) {
           const { membersAdded } = acvtivityData;
-          const allMembersInfo = await TeamsInfo.getTeamMembers(
-            context,
-            teamId
-          );
+          // const allMembersInfo = await TeamsInfo.getTeamMembers(
+          //   context,
+          //   teamId
+          // );
+          let allMembersInfo = [];
+          let continuationToken;
 
+          do {
+            const pagedMembers = await TeamsInfo.getPagedTeamMembers(context, teamId, 500, continuationToken);
+            allMembersInfo = allMembersInfo.concat(pagedMembers.members);
+            continuationToken = pagedMembers.continuationToken;
+          } while (continuationToken);
+
+          //return allMembers;
           let teamMemberCount = 0;
           if (
             allMembersInfo != null &&
