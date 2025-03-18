@@ -1770,7 +1770,8 @@ const sendProactiveMessageAsync = async (
   resolveFn,
   rejectFn,
   runAt = null,
-  incFilesData = null
+  incFilesData = null,
+  responseOptionData
 ) => {
   try {
     if (log == null) {
@@ -1812,7 +1813,8 @@ const sendProactiveMessageAsync = async (
       additionalInfo,
       travelUpdate,
       contactInfo,
-      situation
+      situation,
+      responseOptionData
     );
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
@@ -2872,7 +2874,8 @@ const sendSafetyCheckMessageAsync = async (
   createdByUserInfo,
   log,
   userAadObjId,
-  resendSafetyCheck = false
+  resendSafetyCheck = false,
+  responseOptionData
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -2964,7 +2967,8 @@ const sendSafetyCheckMessageAsync = async (
           resolve,
           reject,
           null,
-          incFilesData
+          incFilesData,
+          responseOptionData
         );
         if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
           let userAadObjIds = allMembersArr.map(x => x.userAadObjId);

@@ -894,7 +894,8 @@ class AreYouSafeTab {
     teamId,
     createdByUserInfo,
     userAadObjId,
-    resendSafetyCheck
+    resendSafetyCheck,
+    responseOptionData
   ) => {
     const log = new AYSLog();
     try {
@@ -904,7 +905,8 @@ class AreYouSafeTab {
         createdByUserInfo,
         log,
         userAadObjId,
-        resendSafetyCheck
+        resendSafetyCheck,
+        responseOptionData
       );
       return Promise.resolve(safetyCheckSend);
     } catch (err) {

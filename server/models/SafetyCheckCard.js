@@ -49,7 +49,8 @@ const getSafetyCheckTypeCard = async (
   safetyCheckMessageText = null,
   incCreatedById = null,
   incCreatedByName = null,
-  isPreview = false
+  isPreview = false,
+  responseOptionData,
 ) => {
   const mentionUserEntities = [];
   if (!safetyCheckMessageText) {
@@ -92,29 +93,69 @@ const getSafetyCheckTypeCard = async (
       type: "Action.Execute",
       title: "I need assistance",
     };
+    let actions = [];
     if (!isPreview) {
-      btnSafe = {
-        ...btnSafe,
-        verb: "send_response",
-        data: {
-          info: "i_am_safe",
-          inc: incObj,
-          companyData: companyData,
-        },
-      };
-      btnAssistance = {
-        ...btnAssistance,
-        verb: "send_response",
-        data: {
-          info: "need_assistance",
-          inc: incObj,
-          companyData: companyData,
-        },
-      };
+      if (responseOptionData.responseType.toLowerCase() == "buttons") {
+        responseOptionData.responseOptions.map((option) => {
+          if (option.option != '') {
+            let btn = {
+              ...btnSafe,
+              title: option.option,
+              verb: "send_response",
+              data: {
+                info: option.option,
+                inc: incObj,
+                companyData: companyData,
+              },
+            };
+            actions.push(btn);
+          }
+        })
+      } else {
+        let dropdown = {
+          type: "Input.ChoiceSet",
+          id: "dropdownSelection",
+          style: "compact", // Use "expanded" for always visible options
+          value: responseOptionData.responseOptions[0].option,
+          choices: [],
+        };
+        responseOptionData.responseOptions.map((option) => {
+          if (option.option != '') {
+            dropdown.choices.push({ title: option.option, value: option.option });
+          }
+        });
+        cardBody.push(dropdown);
+        let btnSafe = {
+          type: "Action.Execute",
+          title: "Confirm",
+        };
+        actions.push(btnSafe);
+      }
+      // btnSafe = {
+      //   ...btnSafe,
+      //   verb: "send_response",
+      //   data: {
+      //     info: "i_am_safe",
+      //     inc: incObj,
+      //     companyData: companyData,
+      //   },
+      // };
+      // btnAssistance = {
+      //   ...btnAssistance,
+      //   verb: "send_response",
+      //   data: {
+      //     info: "need_assistance",
+      //     inc: incObj,
+      //     companyData: companyData,
+      //   },
+      // };
+    } else {
+      actions.push(btnSafe);
+      actions.push(btnAssistance);
     }
     cardBody.push({
       type: "ActionSet",
-      actions: [btnSafe, btnAssistance],
+      actions: actions,
     });
   } else {
     cardBody.push({
@@ -318,7 +359,8 @@ const SafetyCheckCard = async (
   additionalInfo,
   travelUpdate,
   contactInfo,
-  situation
+  situation,
+  responseOptionData
 ) => {
   let card = null;
   switch (incTypeId) {
@@ -329,7 +371,8 @@ const SafetyCheckCard = async (
         companyData,
         incGuidance,
         incResponseSelectedUsersList,
-        incTypeId
+        incTypeId, null, null, null, false,
+        responseOptionData
       );
       break;
     case 2: //Safety Alert
