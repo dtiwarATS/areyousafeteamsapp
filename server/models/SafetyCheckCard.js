@@ -103,7 +103,7 @@ const getSafetyCheckTypeCard = async (
               title: option.option,
               verb: "send_response",
               data: {
-                info: option.option,
+                info: "i_am_safe",
                 inc: incObj,
                 companyData: companyData,
               },
@@ -128,6 +128,12 @@ const getSafetyCheckTypeCard = async (
         let btnSafe = {
           type: "Action.Execute",
           title: "Confirm",
+          verb: "send_response",
+          data: {
+            info: "i_am_safe",
+            inc: incObj,
+            companyData: companyData,
+          },
         };
         actions.push(btnSafe);
       }
