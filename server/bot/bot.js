@@ -2269,8 +2269,8 @@ const sendAcknowledgeMsgToCreator = (connectorClient, incData, serviceUrl, conve
       baseUri: serviceUrl,
     });
   }
-  let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users./r/n
-Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features./r/n
+  let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
+Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
 For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Are You Safe?</b> tab`;
   let activity = MessageFactory.text(msgText);
   connectorClient.conversations
