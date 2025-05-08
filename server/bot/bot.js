@@ -1770,7 +1770,8 @@ const sendProactiveMessageAsync = async (
   resolveFn,
   rejectFn,
   runAt = null,
-  incFilesData = null
+  incFilesData = null,
+  incCreaterConversationId = ""
 ) => {
   try {
     if (log == null) {
@@ -2236,6 +2237,9 @@ const sendProactiveMessageAsync = async (
       fnRecursiveCall(0, endIndex);
     };
     sendProactiveMessage(allMembersArr);
+    if (incCreaterConversationId) {
+      sendAcknowledgeMsgToCreator(connectorClient, incData, serviceUrl, incCreaterConversationId, allMembersArr.length, companyData.teamName, companyData.channelName);
+    }
   } catch (err) {
     log.addLog(` An Error occured: ${JSON.stringify(err)}`);
     console.log(err);
@@ -2254,6 +2258,24 @@ const sendProactiveMessageAsync = async (
     log.addLog(` Send SafteyCheck card  end.`);
   }
 };
+
+const sendAcknowledgeMsgToCreator = (connectorClient, incData, serviceUrl, conversationId, numberOfUsers, teamName, channelName) => {
+  if (connectorClient == null) {
+    const appId = process.env.MicrosoftAppId;
+    const appPass = process.env.MicrosoftAppPassword;
+
+    var credentials = new MicrosoftAppCredentials(appId, appPass);
+    connectorClient = new ConnectorClient(credentials, {
+      baseUri: serviceUrl,
+    });
+  }
+  let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users./r/n
+Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features./r/n
+For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Are You Safe?</b> tab`;
+  let activity = MessageFactory.text(msgText);
+  connectorClient.conversations
+    .sendToConversation(conversationId, activity)
+}
 
 const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => {
   let tenantId = companyData.userTenantId;
@@ -2964,7 +2986,8 @@ const sendSafetyCheckMessageAsync = async (
           resolve,
           reject,
           null,
-          incFilesData
+          incFilesData,
+          createdByUserInfo.conversationId
         );
         if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
           let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
