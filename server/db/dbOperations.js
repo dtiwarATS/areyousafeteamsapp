@@ -329,7 +329,7 @@ const teamMemberInsertQuery = (teamId, m) => {
     VALUES('${teamId}', '${m.aadObjectId ?? m.objectId}', '${m.id}', N'${m.name.replace(
     /'/g,
     "''"
-  )}', '${m.tenantId}', '${m.userRole}',0);
+    )}', '${m.tenantId}', '${m.userRole}',1);
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
     m.aadObjectId ?? m.objectId
