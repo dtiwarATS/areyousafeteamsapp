@@ -30,7 +30,8 @@ class PersonalEmail {
           "<br /><br />" +
           "Feel free to reach out to us if you need any help or want to share feedback." +
           "<br />" +
-          "<a href='mailto:help@areyousafe.in'>Email</a> | <a href='https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com'>Chat</a> | <a href='https://calendly.com/nehapingale/short-call'>Schedule Call</a>" +
+          "<a href='mailto:help@areyousafe.in'>Email</a> | <a href='https://teams.microsoft.com/l/chat/0/0?users=areyousafe@ats360.com'>Chat</a> | <a href='https://calendly.com/nehapingale/short-call'>Schedule Call</a>" +
+          "<br>"+ "<a href='https://areyousafe.in/'>Website</a> | <a href='https://www.linkedin.com/company/employee-safety-check/'>LinkedIn</a>"+
           " <br /><br />" +
           "With Gratitude," +
           " <br />" +
