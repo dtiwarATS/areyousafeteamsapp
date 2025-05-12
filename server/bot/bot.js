@@ -2003,11 +2003,13 @@ const sendProactiveMessageAsync = async (
         if (
           error == null ||
           msgResp.errorCode == "ConversationBlockedByUser" ||
+          msgResp.errorCode == "BotDisabledByAdmin" || 
           error == "Invalid user identity in provided tenant" ||
           retryCounter == retryCountTill
         ) {
           if (
             msgResp.errorCode == "ConversationBlockedByUser" ||
+            msgResp.errorCode == "BotDisabledByAdmin" ||
             status == "User blocked the conversation with the bot."
           ) {
             let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${userAadObjId}'`;
