@@ -2008,9 +2008,9 @@ const sendProactiveMessageAsync = async (
           retryCounter == retryCountTill
         ) {
           if (
-            msgResp.errorCode == "ConversationBlockedByUser" ||
+            (msgResp.errorCode == "ConversationBlockedByUser" ||
             msgResp.errorCode == "BotDisabledByAdmin" ||
-            status == "User blocked the conversation with the bot."
+              status == "User blocked the conversation with the bot.") && userAadObjId
           ) {
             let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${userAadObjId}'`;
             db.getDataFromDB(sqlUpdateBlockedByUser, userAadObjId);
