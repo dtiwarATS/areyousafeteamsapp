@@ -14,6 +14,9 @@ const { getFilesByIncId } = require("../db/dbOperations");
   //console.log("recurr job : start");
   const log = new AYSLog();
   let currentDateTime = moment(new Date()).utc().format("YYYY-MM-DD HH:mm");
+  await bot.getUserPhone('1.AVMAMoQyuQH1Pkm39DEFUgoc1AGcc_FiLktAgNRy95WCug9TABNTAA.AgABAwEAAABVrSpeuWamRam2jAF1XRQEAwDs_wUA9P_CtLjQZG7vcjZ0Ax5i5YOCgCaoENWSGApJEZ3U_fc6zO8A6lTmnbdbW0dHjg1T3p2hE7b5mXLqT5dEHak2IAmLk6CsJO39BqZW_G9OUbYI8CAAbp7KzH-qmDveAMmK6GikERd2KHsDiJeSiF5Ku_MyFYMIYMb2I7GIF60Omwd6QB-E6JPLCKoDturNkpHLB0EZ6PCMB3PGQYeZXLp5Jg2KH4IMQ6Pg_i-IOqUhiHbHhmQofuIoMeKpjx0qyt3oQ9Ar4qdDbrV19WWKz3PuKb9N6DlLAhXvDH0Pu3NnLqxBF31puCtTqiReJ1W54J75e9rtR2b9MHjXWSzFCbkmcDIaf_63ZEwI604VJx2eFVpgxscHF-hbikWAs2Nl0BlcDWUQhBVdNZuollbLYr4bRkGCGgIzsmjLIorIxbGtfdJ_kGh4EJ8xI_rd6I5ltRxPOuxcCwMPTq4xjALZARs-Kjkc7Jp957mSjEqDSEGI11tEdOdF0LKjATllsGLOFjDosJhMi5F135zFZs2CRETpxgcLtfGVCnAoG3WGNVFcktugezPD5UCpckvjTLetFNMUhoofpBkSuNS3auCZH3CztZVlMxbDZ80orqqmAMRIh29Nh2s71ChqOWRO1MM4q9PnFWji12gv61vKsWqukZXRpOE47q_Otcgd3Ki50c3XxfAjpI77_fobdX_JeD6raFoyS6xuUlAwiK17LogA8faUslQyhJmbczbf6PRbq95yV9gLMb5WxMPu3w3qHxQM13sVsN7wkroc6aHQO8Zcce4V2SjQ8TTt3uAsKhYJW5GFRLjSLE710yxzNvkqEUckpnr_3DvGpsJa020VejG_7FeXVdxtXI2Da_Q1p2pDSvmlfZrkTUwqAbJm1mX2pZb-OeeLn73KMc7dYRRemgile2M9-WvPrfZFj555KvdQOK876IIa-fIVdOvQAmH6C2z-WgIA0F8dtQP5zpN4R9SoP5OUhcue',
+    'b9328432-f501-493e-b7f4-3105520a1cd4', ['c3f51391-a38f-4af8-a1e9-64b942283046']
+  );
   log.addLog(`recurr job : currentDateTime - ${currentDateTime}`);
   console.log("recurr job : currentDateTime - " + currentDateTime);
   let sqlJob = `SELECT A.ID AS INC_ID, B.ID AS SUB_EVENT_ID, B.CRON, B.TIMEZONE, A.INC_TYPE AS incType, A.INC_NAME, A.INC_NAME incTitle, A.CREATED_BY AS createdById, 

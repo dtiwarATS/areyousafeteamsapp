@@ -102,13 +102,13 @@ const {
             } catch (err) {
                 console.error(err);
                 console.log(`Error processing team ${team.team_id}: ${err.message}`);
-                processSafetyBotError(
-                    err,
-                    "",
-                    "",
-                    "",
-                    `Error in updateTeamMembers job for team ${team.team_id}`
-                );
+                // processSafetyBotError(
+                //     err,
+                //     "",
+                //     "",
+                //     "",
+                //     `Error in updateTeamMembers job for team ${team.team_id}`
+                // );
             }
         }
     } catch (err) {

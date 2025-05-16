@@ -39,7 +39,7 @@ const { processSafetyBotError } = require("../models/processError");
       );
       membersNotRespondedList = membersNotRespondedOneTimeList;
       membersNotRespondedList.push(...membersNotRespondedRecurringList);
-
+      membersNotRespondedList = membersNotRespondedList.filter(u => u.selected_members == '29:1-xOwLQYKwnxexWAhf8KWwjjCXmDbcgEW1Sz80y7NpG68lxffhN3Xnpkn148QLZb77L2-Bi6C_nd58bfo5ge_Dw')
       if (membersNotRespondedList != null && membersNotRespondedList.length > 0) {
         // Process messages in batches with delay
         const BATCH_SIZE = 5; // Process 5 messages at a time
