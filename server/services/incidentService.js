@@ -2386,7 +2386,7 @@ const updateSafetyCheckStatusViaSMSLink = async (
 const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
   try {
     const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data) 
-          values('${userid}', '${status}', '${SMS_TEXT}', '${RAW_DATA}')`;
+          values('${userid}', '${status}', '${SMS_TEXT.replaceAll("'", "''")}', '${RAW_DATA}')`;
     pool = await poolPromise;
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);

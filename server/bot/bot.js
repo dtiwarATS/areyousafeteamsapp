@@ -5086,5 +5086,6 @@ module.exports = {
   proccessSMSLinkClick,
   SaveSmsLog,
   acknowledgeSMSReplyInTeams,
-  processCommentViaLink
+  processCommentViaLink,
+  getUserPhone
 };
