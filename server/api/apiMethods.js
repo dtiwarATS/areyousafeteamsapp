@@ -375,12 +375,14 @@ const sendProactiveMessaageToUserAsync = async (
             resp.errorCode = err.code;
             if (
               err.code !== "ConversationBlockedByUser" &&
+              err.code !== "BotDisabledByTenant" &&
               err.message != "Invalid user identity in provided tenant"
             ) {
               msgNotSentArr.push(memberObj);
             }
             if (
               err.code == "ConversationBlockedByUser" ||
+              err.code == "BotDisabledByTenant" ||
               err.status == "User blocked the conversation with the bot."
             ) {
               let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_id='${members[0]?.id}'`;
