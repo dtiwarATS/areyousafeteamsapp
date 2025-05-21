@@ -19,40 +19,62 @@ class PersonalEmail {
   sendWelcomEmail = (toUserEmailId, userAadObjId) => {
     return new Promise((resolve, reject) => {
       try {
-        const subject =
-          "Welcome to AreYouSafe! We’re here to help you get started";
+    const requestOptions = {
+      method: "POST",
+      redirect: "follow",
+    };
 
-        const emailBody =
-          "<div style='font-family:Calibri;font-size:16px;'>Hello, <br /><br />" +
-          "Thank you for installing AreYouSafe bot. You can use it FREE for small teams with less than 10 users." +
-          "<br /><br />" +
-          "For larger teams, you can use it FREE for 45 days. For pricing after the 45-day trial check out our <a href='https://areyousafe.in/#pricing'>pricing page</a>." +
-          "<br /><br />" +
-          "Feel free to reach out to us if you need any help or want to share feedback." +
-          "<br />" +
-          "<a href='mailto:help@areyousafe.in'>Email</a> | <a href='https://teams.microsoft.com/l/chat/0/0?users=areyousafe@ats360.com'>Chat</a> | <a href='https://calendly.com/nehapingale/short-call'>Schedule Call</a>" +
-          "<br>"+ "<a href='https://areyousafe.in/'>Website</a> | <a href='https://www.linkedin.com/company/employee-safety-check/'>LinkedIn</a>"+
-          " <br /><br />" +
-          "With Gratitude," +
-          " <br />" +
-          "Vipassana Mahale </div>";
+    fetch(
+      "https://emailservices.azurewebsites.net/api/sendemail?projectName=TB&emailType=SubscriptionRequest&emailTo=" +
+        UserEmail +
+        "&userCount=" +
+        TeamCount +
+        "&authKey=A9fG4dX2pL7qW8mZ&Environment=" +
+        Environment,
+      requestOptions
+    )
+      .then((response) => {
+        console.log("I AM DONE");
+        response.text();
+      })
+      .then((result) => console.log(result))
+      .catch((error) => console.error(error));
+  }
+      // try {
+      //   const subject =
+      //     "Welcome to AreYouSafe! We’re here to help you get started";
 
-        const emailTransportParam = new email.EmailTransportParam(
-          this.host,
-          this.port,
-          this.secure,
-          this.user,
-          this.pass
-        );
-        const emailOption = new email.EmailOption(
-          this.email,
-          toUserEmailId,
-          subject,
-          emailBody
-        );
-        email.sendEmail(emailTransportParam, emailOption);
-        resolve(true);
-      } catch (err) {
+      //   const emailBody =
+      //     "<div style='font-family:Calibri;font-size:16px;'>Hello, <br /><br />" +
+      //     "Thank you for installing AreYouSafe bot. You can use it FREE for small teams with less than 10 users." +
+      //     "<br /><br />" +
+      //     "For larger teams, you can use it FREE for 45 days. For pricing after the 45-day trial check out our <a href='https://areyousafe.in/#pricing'>pricing page</a>." +
+      //     "<br /><br />" +
+      //     "Feel free to reach out to us if you need any help or want to share feedback." +
+      //     "<br />" +
+      //     "<a href='mailto:help@areyousafe.in'>Email</a> | <a href='https://teams.microsoft.com/l/chat/0/0?users=areyousafe@ats360.com'>Chat</a> | <a href='https://calendly.com/nehapingale/short-call'>Schedule Call</a>" +
+      //     "<br>"+ "<a href='https://areyousafe.in/'>Website</a> | <a href='https://www.linkedin.com/company/employee-safety-check/'>LinkedIn</a>"+
+      //     " <br /><br />" +
+      //     "With Gratitude," +
+      //     " <br />" +
+      //     "Vipassana Mahale </div>";
+
+      //   const emailTransportParam = new email.EmailTransportParam(
+      //     this.host,
+      //     this.port,
+      //     this.secure,
+      //     this.user,
+      //     this.pass
+      //   );
+      //   const emailOption = new email.EmailOption(
+      //     this.email,
+      //     toUserEmailId,
+      //     subject,
+      //     emailBody
+      //   );
+      //   email.sendEmail(emailTransportParam, emailOption);
+      //   resolve(true);
+       catch (err) {
         processSafetyBotError(
           err,
           "",
