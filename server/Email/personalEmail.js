@@ -25,8 +25,8 @@ class PersonalEmail {
     };
 
     fetch(
-      "https://emailservices.azurewebsites.net/api/sendemail?projectName=TB&emailType=SubscriptionRequest&emailTo=" +
-        UserEmail +
+      "https://emailservices.azurewebsites.net/api/sendemail?projectName=AYS&emailType=NewInstall&emailTo=" +
+        toUserEmailId +
         "&userCount=" +
         TeamCount +
         "&authKey=A9fG4dX2pL7qW8mZ&Environment=" +
