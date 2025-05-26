@@ -1962,6 +1962,9 @@ const sendProactiveMessageAsync = async (
           ? allMembersArr.length
           : 0;
         msgNotSentArr = [];
+        allMembersArr = Array.from(
+          new Map(allMembersArr.map(item => [item.id, item])).values()
+        );
         sendProactiveMessage(allMembersArr);
       } catch (err) {
         console.log(err);
@@ -2324,7 +2327,7 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
             to: phone,
           });
         counter++;
-        SaveSmsLog(users[0], "OUTGOING", body, JSON.stringify({ eventId: incId, userId: users[0] }));
+        SaveSmsLog(user.id, "OUTGOING", body, JSON.stringify({ eventId: incId, userId: user.id }));
       }
       if (companyData.SubscriptionType == 2) {
         incidentService.updateSentSMSCount(companyData.teamId, counter);
@@ -5086,5 +5089,6 @@ module.exports = {
   proccessSMSLinkClick,
   SaveSmsLog,
   acknowledgeSMSReplyInTeams,
-  processCommentViaLink
+  processCommentViaLink,
+  getUserPhone
 };

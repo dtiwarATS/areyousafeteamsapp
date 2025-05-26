@@ -39,109 +39,124 @@ const { processSafetyBotError } = require("../models/processError");
       );
       membersNotRespondedList = membersNotRespondedOneTimeList;
       membersNotRespondedList.push(...membersNotRespondedRecurringList);
-      if (
-        membersNotRespondedList != null &&
-        membersNotRespondedList.length > 0
-      ) {
-        await Promise.all(
-          membersNotRespondedList.map(async (memberObj) => {
-            let member = memberObj;
-            const {
-              inc_id,
-              inc_name,
-              inc_type_id,
-              created_by,
-              CREATED_BY_NAME,
-              GUIDANCE,
-              additionalInfo,
-              travelUpdate,
-              contactInfo,
-              situation,
-              user_id,
-              inc_type,
-              MemberResponsesRecurrId,
-            } = member;
 
-            let ctime = new Date();
-            let diff =
-              member.LastReminderSentAT == undefined
-                ? 0
-                : ctime - member.LastReminderSentAT;
-            var diffMins = Math.round(((diff % 86400000) % 3600000) / 60000);
+      if (membersNotRespondedList != null && membersNotRespondedList.length > 0) {
+        // Process messages in batches with delay
+        const BATCH_SIZE = 5; // Process 5 messages at a time
+        const DELAY_BETWEEN_BATCHES = 2000; // 2 seconds delay between batches
 
-            if (
-              member.is_message_delivered &&
-              member.SendRemindersCounter < member.SendRemindersCount &&
-              diffMins >= member.SendRemindersTime
-            ) {
-              log.addLog(
-                `send proactive reminder messaage to ${member.user_id} Start`
-              );
-              const companyData = await getCompanyDataByTeamId(member.team_id);
-              let incObj = {
-                incId: inc_id,
-                incTitle: inc_name,
-                inc_type_id,
-                runAt: null,
-                incCreatedBy: {
-                  id: created_by,
-                  name: CREATED_BY_NAME,
-                },
-              };
-              const approvalCard = await SafetyCheckCard(
-                inc_name,
-                incObj,
-                companyData,
-                GUIDANCE,
-                [],
-                inc_type_id,
-                additionalInfo,
-                travelUpdate,
-                contactInfo,
-                situation
-              );
-              const filesData = await getFilesByIncId(inc_id);
-              await sendProactiveMessaageToUser(
-                [{ id: member.user_id, name: member.user_name }],
-                approvalCard,
-                null,
-                companyData.serviceUrl,
-                companyData.userTenantId,
-                log,
-                "",
-                null,
-                null,
-                filesData
-              );
-              log.addLog(
-                `send proactive reminder messaage to ${member.user_id} successfully`
-              );
-              if (member.inc_type == "onetime") {
-                await incidentService.updateremaindercounter(
-                  member.inc_id,
-                  member.user_id
-                );
-                log.addLog(
-                  `Update oneTime reminder message count in DB  ${member.user_id} successfully`
-                );
-                if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
-                  let userAadObjIds = [member.user_aadobj_id];
-                  await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name);
+        for (let i = 0; i < membersNotRespondedList.length; i += BATCH_SIZE) {
+          const batch = membersNotRespondedList.slice(i, i + BATCH_SIZE);
+
+          // Process batch of messages
+          await Promise.all(
+            batch.map(async (memberObj) => {
+              try {
+                let member = memberObj;
+                const {
+                  inc_id,
+                  inc_name,
+                  inc_type_id,
+                  created_by,
+                  CREATED_BY_NAME,
+                  GUIDANCE,
+                  additionalInfo,
+                  travelUpdate,
+                  contactInfo,
+                  situation,
+                  user_id,
+                  inc_type,
+                  MemberResponsesRecurrId,
+                } = member;
+
+                let ctime = new Date();
+                let diff =
+                  member.LastReminderSentAT == undefined
+                    ? 0
+                    : ctime - member.LastReminderSentAT;
+                var diffMins = Math.round(((diff % 86400000) % 3600000) / 60000);
+
+                if (
+                  member.is_message_delivered &&
+                  member.SendRemindersCounter < member.SendRemindersCount &&
+                  diffMins >= member.SendRemindersTime
+                ) {
+                  log.addLog(
+                    `send proactive reminder message to ${member.user_id} Start`
+                  );
+                  const companyData = await getCompanyDataByTeamId(member.team_id);
+                  let incObj = {
+                    incId: inc_id,
+                    incTitle: inc_name,
+                    inc_type_id,
+                    runAt: null,
+                    incCreatedBy: {
+                      id: created_by,
+                      name: CREATED_BY_NAME,
+                    },
+                  };
+                  const approvalCard = await SafetyCheckCard(
+                    inc_name,
+                    incObj,
+                    companyData,
+                    GUIDANCE,
+                    [],
+                    inc_type_id,
+                    additionalInfo,
+                    travelUpdate,
+                    contactInfo,
+                    situation
+                  );
+                  const filesData = await getFilesByIncId(inc_id);
+                  await sendProactiveMessaageToUser(
+                    [{ id: member.user_id, name: member.user_name }],
+                    approvalCard,
+                    null,
+                    companyData.serviceUrl,
+                    companyData.userTenantId,
+                    log,
+                    "",
+                    null,
+                    null,
+                    filesData
+                  );
+
+                  // Update counters after successful message send
+                  if (member.inc_type == "onetime") {
+                    await incidentService.updateremaindercounter(
+                      member.inc_id,
+                      member.user_id
+                    );
+                    if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
+                      let userAadObjIds = [member.user_aadobj_id];
+                      await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name);
+                    }
+                  } else {
+                    await incidentService.updateRecurrremaindercounter(
+                      member.MemberResponsesRecurrId
+                    );
+                  }
                 }
-              } else {
-                await incidentService.updateRecurrremaindercounter(
-                  member.MemberResponsesRecurrId
-                );
-                log.addLog(
-                  `Update Reccuring reminder message count in DB  ${member.user_id} successfully`
+              } catch (err) {
+                processSafetyBotError(
+                  err,
+                  "",
+                  memberObj?.user_name,
+                  memberObj?.user_id,
+                  "error in SendRemainder job sendProactiveMessage"
                 );
               }
-            }
-          })
-        );
+            })
+          );
+
+          // Add delay between batches
+          if (i + BATCH_SIZE < membersNotRespondedList.length) {
+            await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_BATCHES));
+          }
+        }
       }
     } catch (err) {
-      log.addLog(`Error occured: ${err}`);
+      log.addLog(`Error occurred: ${err}`);
       processSafetyBotError(
         err,
         "",
