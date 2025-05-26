@@ -7,7 +7,7 @@ class PersonalEmail {
   user = process.env.PERSONAL_AUTH_USER;
   pass = process.env.PERSONAL_AUTH_PASS;
   email = process.env.PERSONAL_ADMIN_EMAIL;
-  build=process.env.build;
+  build = process.env.build;
   constructor() {
     // if (process.env.build == "Local") {
     //     this.host = process.env.LOCAL_HOST_NAME;
@@ -17,7 +17,7 @@ class PersonalEmail {
     //     this.pass = process.env.LOCAL_AUTH_PASS;
     // }
   }
-  sendWelcomEmail = (toUserEmailId, userAadObjId, build) => {
+  sendWelcomEmail = (toUserEmailId, userAadObjId) => {
     return new Promise((resolve, reject) => {
       try {
     const requestOptions = {
@@ -29,7 +29,7 @@ class PersonalEmail {
       "https://emailservices.azurewebsites.net/api/sendemail?projectName=AYS&emailType=NewInstall&emailTo=" +
         toUserEmailId +
         "&userCount=0&authKey=A9fG4dX2pL7qW8mZ&Environment=" +
-        build,
+        this.build,
       requestOptions
     )
       .then((response) => {
@@ -52,7 +52,7 @@ class PersonalEmail {
       }
     });
   };
-  sendUninstallationEmail = (toUserEmailId, userAadObjId,build) => {
+  sendUninstallationEmail = (toUserEmailId, userAadObjId) => {
         return new Promise((resolve, reject) => {
       try {
     const requestOptions = {

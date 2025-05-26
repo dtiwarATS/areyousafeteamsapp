@@ -381,34 +381,34 @@ class BotActivityHandler extends TeamsActivityHandler {
             acvtivityData?.channelData?.eventType === "teamDeleted") ||
           acvtivityData?.channelData?.eventType === "teamMemberRemoved"
         ) {
-          if (acvtivityData?.channelData?.eventType === "teamDeleted") {
-            const isDeleted = await deleteCompanyData(
-              teamId,
-              acvtivityData.from.aadObjectId
-            );
-            if (isDeleted) {
-              await this.sendUninstallationEmail(
-                acvtivityData.from.aadObjectId
-              );
-            }
-          } else {
-            const { membersRemoved } = acvtivityData;
-            if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
-              const isDeleted = await deleteCompanyData(
-                acvtivityData?.channelData?.team.id,
-                acvtivityData.from.aadObjectId
-              );
-              if (isDeleted) {
-                await this.sendUninstallationEmail(
-                  acvtivityData.from.aadObjectId
-                );
-              }
-            } else {
-              for (let i = 0; i < membersRemoved.length; i++) {
-                await removeTeamMember(teamId, membersRemoved[i].id);
-              }
-            }
-          }
+          // if (acvtivityData?.channelData?.eventType === "teamDeleted") {
+          //   const isDeleted = await deleteCompanyData(
+          //     teamId,
+          //     acvtivityData.from.aadObjectId
+          //   );
+          //   if (isDeleted) {
+          //     await this.sendUninstallationEmail(
+          //       acvtivityData.from.aadObjectId
+          //     );
+          //   }
+          // } else {
+          //   const { membersRemoved } = acvtivityData;
+          //   if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
+          //     const isDeleted = await deleteCompanyData(
+          //       acvtivityData?.channelData?.team.id,
+          //       acvtivityData.from.aadObjectId
+          //     );
+          //     if (isDeleted) {
+          //       await this.sendUninstallationEmail(
+          //         acvtivityData.from.aadObjectId
+          //       );
+          //     }
+          //   } else {
+          //     for (let i = 0; i < membersRemoved.length; i++) {
+          //       await removeTeamMember(teamId, membersRemoved[i].id);
+          //     }
+          //   }
+          // }
         } else if (teamId == null && acvtivityData) {
           const { membersAdded } = acvtivityData;
           if (membersAdded) {
@@ -1151,7 +1151,7 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
 
       new PersonalEmail.PersonalEmail()
-        .sendWelcomEmail(companyData.userEmail, userAadObjId,process?.env?.build)
+        .sendWelcomEmail(companyData.userEmail, userAadObjId)
         .then(() => {})
         .catch((err) => {
           console.log(err);
@@ -1190,25 +1190,25 @@ class BotActivityHandler extends TeamsActivityHandler {
   }
 
   async sendUninstallationEmail(userAadObjId) {
-    const userInfo = await incidentService.getUserInfoByUserAadObjId(
-      userAadObjId
-    );
-    let userEmailId = userInfo[0].email;
-    let user_name = userInfo[0].user_name;
-    if (!userEmailId) {
-      const companyData = await getCompaniesData(userAadObjId);
-      userEmailId = companyData?.userEmail;
-      user_name = companyData?.userName;
-    }
-    if (userInfo && userInfo.length > 0) {
-      new PersonalEmail.PersonalEmail()
-        .sendUninstallationEmail(userEmailId, userAadObjId,process.env.build)
-        .then(() => {})
-        .catch((err) => {
-          console.log(err);
-        });
-      await bot.sendUninstallationEmail(userEmailId, user_name);
-    }
+    // const userInfo = await incidentService.getUserInfoByUserAadObjId(
+    //   userAadObjId
+    // );
+    // let userEmailId = userInfo[0].email;
+    // let user_name = userInfo[0].user_name;
+    // if (!userEmailId) {
+    //   const companyData = await getCompaniesData(userAadObjId);
+    //   userEmailId = companyData?.userEmail;
+    //   user_name = companyData?.userName;
+    // }
+    // if (userInfo && userInfo.length > 0) {
+    //   new PersonalEmail.PersonalEmail()
+    //     .sendUninstallationEmail(userEmailId, userAadObjId,process.env.build)
+    //     .then(() => {})
+    //     .catch((err) => {
+    //       console.log(err);
+    //     });
+    //   await bot.sendUninstallationEmail(userEmailId, user_name);
+    // }
   }
 }
 
