@@ -988,6 +988,16 @@ class AreYouSafeTab {
     return Promise.resolve(superUsers);
   };
 
+  getEmergencyContacts = async (teamId) => {
+    let emergencyContacts = null;
+    try {
+      emergencyContacts = await incidentService.getEmergencyContacts(teamId);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in getEmergencyContacts");
+    }
+    return Promise.resolve(emergencyContacts);
+  };
+
   setSendSMS = async (teamId, sendSMS) => {
     let res = null;
     try {
@@ -1018,6 +1028,7 @@ class AreYouSafeTab {
     SafetycheckForVisitorsQuestion1,
     SafetycheckForVisitorsQuestion2,
     SafetycheckForVisitorsQuestion3,
+    emergencyContactsStr
   }) => {
     let result = null;
     try {
@@ -1029,7 +1040,8 @@ class AreYouSafeTab {
         EnableSafetycheckForVisitors,
         SafetycheckForVisitorsQuestion1,
         SafetycheckForVisitorsQuestion2,
-        SafetycheckForVisitorsQuestion3
+        SafetycheckForVisitorsQuestion3,
+        emergencyContactsStr
       );
     } catch (err) {
       processSafetyBotError(

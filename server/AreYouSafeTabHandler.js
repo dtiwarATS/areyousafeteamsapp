@@ -302,6 +302,29 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getEmergencyContacts", async (req, res) => {
+    const teamId = req.query.teamId;
+    const userAadObjId = req.query.userAadObjId;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const data = await tabObj.getEmergencyContacts(teamId);
+      if (data.length) {
+        const emergencyContacts = data[0];
+        res.send(emergencyContacts);
+      } else {
+        res.send(null);
+      }
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getEmergencyContacts"
+      );
+    }
+  });
+
   app.post("/areyousafetabhandler/setSendSMS", async (req, res) => {
     const teamId = req.query.teamId;
     const sendSMS = req.query.sendSMS;
