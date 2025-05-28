@@ -1451,16 +1451,93 @@ const getSendSMS = async (teamId) => {
   }
   return Promise.resolve(result);
 };
-const getEmergencyContacts = async (teamId) => {
-  let result = null;
+const getEmergencyContacts = async (aadObjuserId, TeamID) => {
+  console.log("Getting emergency contacts");
   try {
-    const qry = `select EMERGENCY_CONTACTS from MSTeamsInstallationDetails where team_id='${teamId}' `;
-    result = await db.getDataFromDB(qry);
+    const emergencyContactsData = [];
+
+    let userSql;
+    if (TeamID != "null") {
+      userSql = `select * from MSTeamsInstallationDetails where team_id='${TeamID}'`;
+    } else {
+      userSql = `select user_obj_id, EMERGENCY_CONTACTS, team_id, team_name from msteamsinstallationdetails where team_id in
+      (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name`;
+    }
+
+    const userResult = await db.getDataFromDB(userSql, aadObjuserId);
+    const teamsIds = [];
+    if (userResult != null && userResult.length > 0) {
+      userResult.map((usr) => {
+        const emergencyContactsArr = [];
+        const userTeamId = usr.team_id;
+        if (usr.user_obj_id != null) {
+          if (!emergencyContactsArr.includes(usr.user_obj_id)) {
+            emergencyContactsArr.push(usr.user_obj_id);
+          }
+
+          if (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "") {
+            let emergencyContacts = usr.EMERGENCY_CONTACTS.split(",");
+            if (emergencyContacts.length > 0) {
+              emergencyContacts.map((contact) => {
+                emergencyContactsArr.push(contact);
+              });
+            }
+          }
+
+          if (
+            (aadObjuserId !== usr.user_obj_id ||
+              (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "")) &&
+            !teamsIds.includes(userTeamId)
+          ) {
+            teamsIds.push({ userTeamId, emergencyContactsArr });
+          }
+        }
+      });
+    }
+
+    let allTeamsEmergencyContactsData = [];
+
+    if (teamsIds && teamsIds.length > 0) {
+      await Promise.all(
+        teamsIds.map(async (teamObj) => {
+          try {
+            const teamId = teamObj.userTeamId;
+            const emergencyContactsArr = teamObj.emergencyContactsArr;
+
+            let selectQuery = "";
+            if (emergencyContactsArr.length > 0) {
+              selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
+                            FROM MSTEAMSTEAMSUSERS A 
+                            LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
+                            WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${emergencyContactsArr.join(
+                "','"
+              )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+            } else {
+              selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
+              (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null;`;
+            }
+
+            const result = await db.getDataFromDB(selectQuery, aadObjuserId);
+            if (result && result.length > 0) {
+              allTeamsEmergencyContactsData = allTeamsEmergencyContactsData.concat(result);
+            }
+          } catch (err) {
+            console.log(err);
+          }
+        })
+      );
+      const usersQuery = ` select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'; `;
+      const userResult = await db.getDataFromDB(usersQuery, aadObjuserId);
+
+      emergencyContactsData.push(allTeamsEmergencyContactsData);
+      emergencyContactsData.push(userResult);
+    }
+
+    return Promise.resolve(emergencyContactsData);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, teamId, "", "", "error in getEmergencyContacts");
+    processSafetyBotError(err, TeamID, "", aadObjuserId, "error in getEmergencyContacts");
   }
-  return Promise.resolve(result);
 };
 const setSendSMS = async (teamId, sendSMS) => {
   let result = null;
@@ -2430,6 +2507,8 @@ where team_id = '${team_id}'`;
     console.log();
   }
 };
+
+
 module.exports = {
   saveInc,
   deleteInc,

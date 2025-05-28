@@ -397,7 +397,7 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  app.get("/areyousafetabhandler/requestAssistance", (req, res) => {
+  app.get("/areyousafetabhandler/requestAssistance", async (req, res) => {
     console.log("came in request");
     const userAadObjId = req.query.userId;
     var userlocation = "null";
@@ -410,53 +410,40 @@ const handlerForSafetyBotTab = (app) => {
       UserDataUpdateID = req.query.ID;
     }
     try {
-      incidentService
-        .getAdmins(userAadObjId, TeamId)
-        .then(async (incData) => {
-          if (
-            incData === null ||
-            (Array.isArray(incData) && incData.length === 0)
-          ) {
-            res.send("no safety officers");
-            return;
-          }
-          let admins = incData[0];
-          let user = incData[1][0];
-          let assistanceData = null;
-          const tabObj = new tab.AreYouSafeTab();
-          // const admins = await tabObj.requestAssistance(incData);
-          if (admins && admins.length > 0) {
-            let ts = req.query.ts;
-            if (ts != null) {
-              ts = ts.replace(/-/g, "/");
-            }
-            assistanceData = await tabObj.saveAssistance(
-              admins,
-              user,
-              ts,
-              userAadObjId,
-              userlocation,
-              UserDataUpdateID
-            );
-          }
-          console.log(assistanceData);
-          if (assistanceData != null && assistanceData.length > 0) {
-            assistanceData = assistanceData[0];
-          } else {
-            assistanceData = "no safety officers";
-          }
-          res.send(assistanceData);
-        })
-        .catch((err) => {
-          console.log(err);
-          processSafetyBotError(
-            err,
-            "",
-            "",
-            userAadObjId,
-            "error in /areyousafetabhandler/requestAssistance -> then "
-          );
-        });
+      let incData = await incidentService.getEmergencyContacts(userAadObjId, TeamId);
+      if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
+        incData = await incidentService.getAdmins(userAadObjId, TeamId);
+        if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
+          res.send("no safety officers");
+          return;
+        }
+      }
+      let admins = incData[0];
+      let user = incData[1][0];
+      let assistanceData = null;
+      const tabObj = new tab.AreYouSafeTab();
+      if (admins && admins.length > 0) {
+        let ts = req.query.ts;
+        if (ts != null) {
+          ts = ts.replace(/-/g, "/");
+        }
+        assistanceData = await tabO3bj.saveAssistance(
+          admins,
+          user,
+          ts,
+          userAadObjId,
+          userlocation,
+          UserDataUpdateID
+        );
+      }
+      console.log(assistanceData);
+      if (assistanceData != null && assistanceData.length > 0) {
+        assistanceData = assistanceData[0];
+      } else {
+        assistanceData = "no safety officers";
+      }
+      res.send(assistanceData);
+
     } catch (err) {
       processSafetyBotError(
         err,
@@ -472,7 +459,23 @@ const handlerForSafetyBotTab = (app) => {
     "/areyousafetabhandler/sendNeedAssistanceProactiveMessage",
     async (req, res) => {
       const userAadObjId = req.query.userId;
-      const incData = JSON.parse(req.query.adminlist);
+      const teamId = req.query.teamId;
+      let incData = null;
+      try {
+        incData = await incidentService.getEmergencyContacts(userAadObjId, teamId);
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          userAadObjId,
+          "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> getEmergencyContacts"
+        );
+      }
+      if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
+        incData = JSON.parse(req.query.adminlist);
+      }
       var userlocation = null;
       if (req.query.Location != undefined) {
         userlocation = JSON.parse(req.query.Location);
