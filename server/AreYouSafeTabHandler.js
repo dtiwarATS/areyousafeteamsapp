@@ -307,7 +307,7 @@ const handlerForSafetyBotTab = (app) => {
     const userAadObjId = req.query.userAadObjId;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      const data = await tabObj.getEmergencyContacts(teamId);
+      const data = await tabObj.getEmergencyContactsList(teamId);
       if (data.length) {
         const emergencyContacts = data[0];
         res.send(emergencyContacts);

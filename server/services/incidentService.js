@@ -1451,6 +1451,17 @@ const getSendSMS = async (teamId) => {
   }
   return Promise.resolve(result);
 };
+const getEmergencyContactsList = async (teamId) => {
+  let result = null;
+  try {
+    const qry = `select EMERGENCY_CONTACTS from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    result = await db.getDataFromDB(qry);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in getEmergencyContacts");
+  }
+  return Promise.resolve(result);
+};
 const getEmergencyContacts = async (aadObjuserId, TeamID) => {
   console.log("Getting emergency contacts");
   try {
@@ -2585,5 +2596,6 @@ module.exports = {
   saveSMSlogs,
   updateSentSMSCount,
   updateCommentViaSMSLink,
-  getEmergencyContacts
+  getEmergencyContacts,
+  getEmergencyContactsList
 };
