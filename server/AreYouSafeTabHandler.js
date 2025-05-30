@@ -427,7 +427,7 @@ const handlerForSafetyBotTab = (app) => {
         if (ts != null) {
           ts = ts.replace(/-/g, "/");
         }
-        assistanceData = await tabO3bj.saveAssistance(
+        assistanceData = await tabObj.saveAssistance(
           admins,
           user,
           ts,

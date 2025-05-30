@@ -1519,16 +1519,14 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${emergencyContactsArr.join(
                 "','"
-              )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
-            } else {
-              selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
-              (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null;`;
-            }
+                )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
 
-            const result = await db.getDataFromDB(selectQuery, aadObjuserId);
-            if (result && result.length > 0) {
-              allTeamsEmergencyContactsData = allTeamsEmergencyContactsData.concat(result);
-            }
+              const result = await db.getDataFromDB(selectQuery, aadObjuserId);
+              if (result && result.length > 0) {
+                allTeamsEmergencyContactsData = allTeamsEmergencyContactsData.concat(result);
+              }
+            } 
+
           } catch (err) {
             console.log(err);
           }
