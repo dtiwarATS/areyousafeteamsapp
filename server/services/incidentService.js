@@ -1482,9 +1482,6 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
         const emergencyContactsArr = [];
         const userTeamId = usr.team_id;
         if (usr.user_obj_id != null) {
-          if (!emergencyContactsArr.includes(usr.user_obj_id)) {
-            emergencyContactsArr.push(usr.user_obj_id);
-          }
 
           if (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "") {
             let emergencyContacts = usr.EMERGENCY_CONTACTS.split(",");

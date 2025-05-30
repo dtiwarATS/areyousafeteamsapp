@@ -991,7 +991,7 @@ class AreYouSafeTab {
   getEmergencyContacts = async (teamId) => {
     let emergencyContacts = null;
     try {
-      emergencyContacts = await incidentService.getEmergencyContacts(teamId);
+      emergencyContacts = await incidentService.getEmergencyContactsList(teamId);
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in getEmergencyContacts");
     }

@@ -2921,7 +2921,7 @@ const sendSafetyCheckMessageAsync = async (
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
         incData;
       const { serviceUrl, userTenantId, userId } = companyData;
-      if (resendSafetyCheck || resendSafetyCheck === "true") {
+      if (resendSafetyCheck === "true") {
         createdByUserInfo.user_id = userId;
       }
       let selectedMembersArr = [];

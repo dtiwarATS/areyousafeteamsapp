@@ -307,7 +307,7 @@ const handlerForSafetyBotTab = (app) => {
     const userAadObjId = req.query.userAadObjId;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      const data = await tabObj.getEmergencyContactsList(teamId);
+      const data = await tabObj.getEmergencyContacts(teamId);
       if (data.length) {
         const emergencyContacts = data[0];
         res.send(emergencyContacts);
@@ -943,6 +943,50 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getEmergencyContactUsers", (req, res) => {
+    console.log("came in request");
+
+    const userAadObjId = req.query.userId;
+    const TeamId = req.query.teamid;
+
+    try {
+      incidentService
+        .getEmergencyContacts(userAadObjId, TeamId)
+        .then(async (adminData) => {
+          if (
+            adminData === null ||
+            (Array.isArray(adminData) && adminData.length === 0)
+          ) {
+            res.send(null);
+
+            return;
+          }
+
+          res.send(adminData);
+        })
+
+        .catch((err) => {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            TeamId,
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/getEmergencyContactUsers"
+          );
+
+          res.send(null);
+        });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getEmergencyContactUsers"
+      );
+    }
+  });
   app.get("/areyousafetabhandler/getAdminList", (req, res) => {
     console.log("came in request");
 
