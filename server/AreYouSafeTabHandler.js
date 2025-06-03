@@ -411,7 +411,7 @@ const handlerForSafetyBotTab = (app) => {
     }
     try {
       let incData = await incidentService.getEmergencyContacts(userAadObjId, TeamId);
-      if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
+      if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {
         incData = await incidentService.getAdmins(userAadObjId, TeamId);
         if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
           res.send("no safety officers");
@@ -473,7 +473,7 @@ const handlerForSafetyBotTab = (app) => {
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> getEmergencyContacts"
         );
       }
-      if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
+      if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {
         incData = JSON.parse(req.query.adminlist);
       }
       var userlocation = null;

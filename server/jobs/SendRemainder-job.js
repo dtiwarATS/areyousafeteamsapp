@@ -38,7 +38,9 @@ const { processSafetyBotError } = require("../models/processError");
         sqlQueryquerryReccuring
       );
       membersNotRespondedList = membersNotRespondedOneTimeList;
-      membersNotRespondedList.push(...membersNotRespondedRecurringList);
+      if (membersNotRespondedRecurringList && membersNotRespondedRecurringList.length > 0) {
+        membersNotRespondedList.push(...membersNotRespondedRecurringList);
+      }
 
       if (membersNotRespondedList != null && membersNotRespondedList.length > 0) {
         // Process messages in batches with delay
