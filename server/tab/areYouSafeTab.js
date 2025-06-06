@@ -998,10 +998,10 @@ class AreYouSafeTab {
     return Promise.resolve(emergencyContacts);
   };
 
-  setSendSMS = async (teamId, sendSMS) => {
+  setSendSMS = async (teamId, sendSMS, phoneField) => {
     let res = null;
     try {
-      res = await incidentService.setSendSMS(teamId, sendSMS);
+      res = await incidentService.setSendSMS(teamId, sendSMS, phoneField);
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in setSendSMS");
     }

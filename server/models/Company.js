@@ -24,7 +24,8 @@ class Company {
     refresh_token,
     send_sms,
     sent_sms_count,
-    SubscriptionType
+    SubscriptionType,
+    PHONE_FIELD
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -51,6 +52,7 @@ class Company {
     this.send_sms = send_sms;
     this.sent_sms_count = sent_sms_count;
     this.SubscriptionType = SubscriptionType;
+    this.PHONE_FIELD = PHONE_FIELD;
   }
 }
 

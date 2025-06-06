@@ -2291,7 +2291,7 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
     if (counter == 50 && companyData.SubscriptionType == 2)
       break;
     try {
-      if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
+      if ((companyData.PHONE_FIELD == "businessPhones" && user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
         let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
           user.businessPhones[0] : user.mobilePhone;
         let safeUrl =

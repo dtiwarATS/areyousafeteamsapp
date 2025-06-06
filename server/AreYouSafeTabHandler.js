@@ -328,9 +328,10 @@ const handlerForSafetyBotTab = (app) => {
   app.post("/areyousafetabhandler/setSendSMS", async (req, res) => {
     const teamId = req.query.teamId;
     const sendSMS = req.query.sendSMS;
+    const phoneField = req.query.phoneField;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      await tabObj.setSendSMS(teamId, sendSMS);
+      await tabObj.setSendSMS(teamId, sendSMS, phoneField);
       res.send('success');
     } catch (err) {
       processSafetyBotError(

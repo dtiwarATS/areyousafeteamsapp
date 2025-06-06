@@ -1443,7 +1443,7 @@ const getenablecheck = async (teamId) => {
 const getSendSMS = async (teamId) => {
   let result = null;
   try {
-    const qry = `select refresh_token, send_sms from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    const qry = `select refresh_token, send_sms, PHONE_FIELD from MSTeamsInstallationDetails where team_id='${teamId}' `;
     result = await db.getDataFromDB(qry);
   } catch (err) {
     console.log(err);
@@ -1545,10 +1545,10 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
     processSafetyBotError(err, TeamID, "", aadObjuserId, "error in getEmergencyContacts");
   }
 };
-const setSendSMS = async (teamId, sendSMS) => {
+const setSendSMS = async (teamId, sendSMS, phoneField) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set send_sms = ${sendSMS} where team_id='${teamId}' `;
+    const qry = `update MSTeamsInstallationDetails set send_sms = ${sendSMS}, PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = 'success';
