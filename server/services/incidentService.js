@@ -1548,7 +1548,7 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
 const setSendSMS = async (teamId, sendSMS, phoneField) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set send_sms = ${sendSMS}, PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
+    const qry = `update MSTeamsInstallationDetails set send_sms = '${sendSMS}', PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = 'success';
