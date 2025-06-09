@@ -2292,8 +2292,13 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
       break;
     try {
       if ((companyData.PHONE_FIELD == "businessPhones" && user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
-        let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
-          user.businessPhones[0] : user.mobilePhone;
+        let phone = user.mobilePhone;
+        if (companyData.PHONE_FIELD == "businessPhones" && user.businessPhones.length > 0 && user.businessPhones[0] != "") {
+          phone = user.businessPhones[0];
+        }
+        if (phone == null || phone == "" || phone == "null") {
+          continue;
+        }
         let safeUrl =
           process.env.serviceUrl +
           "/posresp?userId=" +
