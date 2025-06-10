@@ -17,18 +17,18 @@ const getSafetyCheckMessageText = async (
       incRespSelectedUsers =
         await incidentService.getIncResponseSelectedUsersList(incId);
     }
-    if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
-      for (let i = 0; i < incRespSelectedUsers.length; i++) {
-        const { user_id: userId, user_name: userName } =
-          incRespSelectedUsers[i];
-        responseUsers +=
-          (responseUsers != "" ? ", " : "") + `<at>${userName}</at>`;
-        dashboard.mentionUser(mentionUserEntities, userId, userName);
-      }
-    }
-    if (responseUsers != "") {
-      onBehalfOf = ` on behalf of ${responseUsers}`;
-    }
+    // if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
+    //   for (let i = 0; i < incRespSelectedUsers.length; i++) {
+    //     const { user_id: userId, user_name: userName } =
+    //       incRespSelectedUsers[i];
+    //     responseUsers +=
+    //       (responseUsers != "" ? ", " : "") + `<at>${userName}</at>`;
+    //     dashboard.mentionUser(mentionUserEntities, userId, userName);
+    //   }
+    // }
+    // if (responseUsers != "") {
+    //   onBehalfOf = ` on behalf of ${responseUsers}`;
+    // }
   }
   let msg = "";
   if (incTypeId == 1) {
@@ -74,7 +74,10 @@ const getSafetyCheckTypeCard = async (
   if (!incCreatedByName) {
     incCreatedByName = incObj.incCreatedBy.name;
   }
-  dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
+  if (!(incTypeId == 1 && safetyCheckMessageText.indexOf(incObj.incCreatedBy.name) == -1)) {
+    dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
+  }
+
   const cardBody = [
     {
       type: "TextBlock",
