@@ -7,7 +7,8 @@ const getSafetyCheckMessageText = async (
   incTitle,
   mentionUserEntities,
   incRespSelectedUsers = null,
-  incTypeId = 1
+  incTypeId = 1,
+  incGuidance
 ) => {
   let onBehalfOf = "",
     responseUsers = "";
@@ -31,8 +32,12 @@ const getSafetyCheckMessageText = async (
   }
   let msg = "";
   if (incTypeId == 1) {
-    //Safety Check
-    msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
+    if (incGuidance) {
+      msg = incGuidance.replace(createdByName, `<at>${createdByName}</at>`).replace(incTitle, `**${incTitle}**`);
+    } else {
+      //Safety Check
+      msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
+    }
   } else if (incTypeId == 2) {
     msg = `This is a safety alert from <at>${createdByName}</at>. We think you may be affected by **${incTitle}**.`;
   }
@@ -59,7 +64,8 @@ const getSafetyCheckTypeCard = async (
       incTitle,
       mentionUserEntities,
       incResponseSelectedUsersList,
-      incTypeId
+      incTypeId,
+      incGuidance
     );
   }
   if (!incCreatedById) {
