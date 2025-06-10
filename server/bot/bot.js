@@ -2291,10 +2291,10 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
     if (counter == 50 && companyData.SubscriptionType == 2)
       break;
     try {
-      if ((companyData.PHONE_FIELD == "businessPhones" && user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
-        let phone = user.mobilePhone;
-        if (companyData.PHONE_FIELD == "businessPhones" && user.businessPhones.length > 0 && user.businessPhones[0] != "") {
-          phone = user.businessPhones[0];
+      if ((companyData.PHONE_FIELD == "mobilePhone" && user.mobilePhone != "") || (user.businessPhones.length > 0 && user.businessPhones[0] != "")) {
+        let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ? user.businessPhones[0] : "";
+        if (companyData.PHONE_FIELD == "mobilePhone") {
+          phone = user.mobilePhone;
         }
         if (phone == null || phone == "" || phone == "null") {
           continue;
