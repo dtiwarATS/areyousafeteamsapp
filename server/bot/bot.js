@@ -2333,9 +2333,9 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
           });
         counter++;
         SaveSmsLog(user.id, "OUTGOING", body, JSON.stringify({ eventId: incId, userId: user.id }));
-      }
-      if (companyData.SubscriptionType == 2) {
-        incidentService.updateSentSMSCount(companyData.teamId, counter);
+        if (companyData.SubscriptionType == 2) {
+          incidentService.updateSentSMSCount(companyData.teamId, counter);
+        }
       }
     } catch (err) {
       processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
