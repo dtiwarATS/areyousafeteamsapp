@@ -33,7 +33,14 @@ const getSafetyCheckMessageText = async (
   let msg = "";
   if (incTypeId == 1) {
     if (incGuidance) {
-      msg = incGuidance.replace('<IncidentCreator>', `<at>${createdByName}</at>`).replace('<IncidentTitle>', `**${incTitle}**`);
+      let escaped = escapeRegex('<IncidentCreator>');
+      let regex = new RegExp(escaped, 'g');
+
+      msg = incGuidance.replace(regex, `<at>${createdByName}</at>`);
+
+      escaped = escapeRegex('<IncidentTitle>');
+      regex = new RegExp(escaped, 'g');
+      msg = msg.replace(regex, `**${incTitle}**`);
     } else {
       //Safety Check
       msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
@@ -43,7 +50,9 @@ const getSafetyCheckMessageText = async (
   }
   return msg;
 };
-
+const escapeRegex = (text) => {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 const getSafetyCheckTypeCard = async (
   incTitle,
   incObj,
