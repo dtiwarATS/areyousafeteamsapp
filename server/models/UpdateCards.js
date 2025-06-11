@@ -240,13 +240,13 @@ const updateSafeMessage = (
           },
         ],
       },
-      {
-        type: "TextBlock",
-        separator: true,
-        wrap: true,
-        isVisible: isVisi,
-        text: "**Guidance:**\n\n" + incGuidance,
-      },
+      // {
+      //   type: "TextBlock",
+      //   separator: true,
+      //   wrap: true,
+      //   isVisible: isVisi,
+      //   text: "**Guidance:**\n\n" + incGuidance,
+      // },
     ],
     // msteams: {
     //   entities: [
