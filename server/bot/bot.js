@@ -2310,7 +2310,7 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle, inc
         data = incData.situation;
         break;
     }
-    body = `${incTypeName} from ${companyData.teamName} - ${incTitle} \n${incData.incGuidance}`;
+    body = `${incTypeName} from ${companyData.teamName} - ${incTitle} \n${data}`;
     body = body.substring(0, 142);
   }
 
