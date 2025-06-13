@@ -2282,11 +2282,37 @@ For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> cha
     .sendToConversation(conversationId, activity)
 }
 
-const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => {
+const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle, incData) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
   let usrPhones = await getUserPhone(refresh_token, tenantId, users);
   let counter = Number(companyData.sent_sms_count && companyData.sent_sms_count != "" ? companyData.sent_sms_count : "0");
+  let body = "";
+  let incTypeId = 1;
+  if (incData && Number(incData.incTypeId) != 1) {
+    incTypeId = Number(incData.incTypeId);
+    let incTypeName = "";
+    switch (incTypeId) {
+      case 1:
+        incTypeName = "Safety check";
+        break;
+      case 2:
+        incTypeName = "Safety alert";
+        break;
+      case 3:
+        incTypeName = "Important bulletin";
+        break;
+      case 4:
+        incTypeName = "Travel advisory";
+        break;
+      case 5:
+        incTypeName = "Stakeholder notice";
+        break;
+    }
+    body = `${incTypeName} from ${companyData.teamName} - ${incTitle} \n${incData.incGuidance}`;
+    body = body.substring(0, 142);
+  }
+
   for (let user of usrPhones) {
     if (counter == 50 && companyData.SubscriptionType == 2)
       break;
@@ -2299,30 +2325,32 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
         if (phone == null || phone == "" || phone == "null") {
           continue;
         }
-        let safeUrl =
-          process.env.serviceUrl +
-          "/posresp?userId=" +
-          encodeURIComponent(user.id) +
-          "&eventId=" +
-          encodeURIComponent(incId);
-        let notSafeUrl =
-          process.env.serviceUrl +
-          "/negresp?userId=" +
-          encodeURIComponent(user.id) +
-          "&eventId=" +
-          encodeURIComponent(incId);
+        if (incTypeId == 1) {
+          let safeUrl =
+            process.env.serviceUrl +
+            "/posresp?userId=" +
+            encodeURIComponent(user.id) +
+            "&eventId=" +
+            encodeURIComponent(incId);
+          let notSafeUrl =
+            process.env.serviceUrl +
+            "/negresp?userId=" +
+            encodeURIComponent(user.id) +
+            "&eventId=" +
+            encodeURIComponent(incId);
 
-        let body =
-          "Safety check from " +
-          companyData.teamName +
-          " - " +
-          incTitle +
-          " \nWe're checking to see if you are safe. \nClick " +
-          safeUrl +
-          " if you are safe, " +
-          "or " +
-          notSafeUrl +
-          " if you need help.";
+          body =
+            "Safety check from " +
+            companyData.teamName +
+            " - " +
+            incTitle +
+            " \nWe're checking to see if you are safe. \nClick " +
+            safeUrl +
+            " if you are safe, " +
+            "or " +
+            notSafeUrl +
+            " if you need help.";
+        }
         await tClient.messages
           .create({
             body: body,
@@ -2999,9 +3027,9 @@ const sendSafetyCheckMessageAsync = async (
           incFilesData,
           createdByUserInfo.conversationId
         );
-        if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
+        if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
           let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
-          sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
+          sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle, incData);
         }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {

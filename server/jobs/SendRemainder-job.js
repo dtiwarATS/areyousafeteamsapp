@@ -128,7 +128,7 @@ const { processSafetyBotError } = require("../models/processError");
                 );
                 if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
                   let userAadObjIds = [member.user_aadobj_id];
-                  await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name);
+                  await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name, null);
                 }
               } else {
                 await incidentService.updateRecurrremaindercounter(
