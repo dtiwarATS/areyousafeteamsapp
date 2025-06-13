@@ -2343,7 +2343,70 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle) => 
   }
 }
 
+const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle) => {
+  let tenantId = companyData.userTenantId;
+  let refresh_token = companyData.refresh_token;
+  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  for (let user of usrPhones) {
+    try {
+      phone = user.mobilePhone;
+      if (phone != null && phone != "" && phone != "null") {
+        let safeUrl =
+          process.env.serviceUrl +
+          "/posresp?userId=" +
+          encodeURIComponent(user.id) +
+          "&eventId=" +
+          encodeURIComponent(incId);
+        let notSafeUrl =
+          process.env.serviceUrl +
+          "/negresp?userId=" +
+          encodeURIComponent(user.id) +
+          "&eventId=" +
+          encodeURIComponent(incId);
 
+        let body =
+          "Safety check from " +
+          companyData.teamName +
+          " - " +
+          incTitle +
+          " \nWe're checking to see if you are safe. \nClick " +
+          safeUrl +
+          " if you are safe, " +
+          "or " +
+          notSafeUrl +
+          " if you need help.";
+
+        const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
+        const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
+        const to = phone; // e.g. +919999999999
+
+        const message = {
+          messaging_product: 'whatsapp',
+          to,
+          type: 'text',
+          text: { body: body }
+        };
+
+        axios.post(
+          `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+          message,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        ).then(response => {
+          console.log('Message sent:', response.data);
+        }).catch(error => {
+          console.error('Error sending message:', error.response?.data || error.message);
+        });
+      }
+    } catch (err) {
+      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
+    }
+  }
+}
 const proccessSMSLinkClick = async (userId, eventId, text) => {
   if (userId && eventId) {
     const incData = await incidentService.getInc(eventId, null, userId);
@@ -2999,10 +3062,11 @@ const sendSafetyCheckMessageAsync = async (
           incFilesData,
           createdByUserInfo.conversationId
         );
+        let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
         if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
-          let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
           sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
         }
+        sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle);
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
@@ -5095,5 +5159,6 @@ module.exports = {
   SaveSmsLog,
   acknowledgeSMSReplyInTeams,
   processCommentViaLink,
-  getUserPhone
+  getUserPhone,
+  sendSafetyCheckMsgViaWhatsapp
 };
