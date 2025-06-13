@@ -2291,22 +2291,23 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle, inc
   let incTypeId = 1;
   if (incData && Number(incData.incTypeId) != 1) {
     incTypeId = Number(incData.incTypeId);
-    let incTypeName = "";
+    let incTypeName = "", data = "";
     switch (incTypeId) {
-      case 1:
-        incTypeName = "Safety check";
-        break;
       case 2:
         incTypeName = "Safety alert";
+        data = incData.incGuidance;
         break;
       case 3:
         incTypeName = "Important bulletin";
+        data = incData.incGuidance;
         break;
       case 4:
         incTypeName = "Travel advisory";
+        data = incData.travelUpdate;
         break;
       case 5:
         incTypeName = "Stakeholder notice";
+        data = incData.situation;
         break;
     }
     body = `${incTypeName} from ${companyData.teamName} - ${incTitle} \n${incData.incGuidance}`;
