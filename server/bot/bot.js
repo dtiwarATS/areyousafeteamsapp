@@ -1916,8 +1916,8 @@ const sendProactiveMessageAsync = async (
       rps = 1;
 
     const conversationReferences = allMembersArr.map((member) => ({
-      user: { id: member.id },
-      id: member.conversationId,
+      user: { id: member.id, name: member.name },
+      id: member.conversationId || null,
       userName: member.name,
     }));
     const AdaptiveCardForEventCreator = sendAcknowledgeMsgToCreator(
@@ -1930,6 +1930,8 @@ const sendProactiveMessageAsync = async (
       adaptiveCard: activity,
       AdaptiveCardForEventCreator: AdaptiveCardForEventCreator,
       incId: incObj.incId,
+      tenantId: userTenantId,
+      botName: process.env.BotName,
       triggeredByConversationId: incCreaterConversationId,
       teamName: companyData?.teamName || "",
       channelName: companyData?.channelName || "",
