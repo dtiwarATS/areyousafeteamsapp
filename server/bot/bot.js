@@ -2219,8 +2219,8 @@ const sendProactiveMessageAsync = async (
               const conversationId = member.conversationId;
               sendProactiveMessaageToUserAsync(
                 memberArr,
+                activity,
                 null,
-                titalmessage,
                 serviceUrl,
                 userTenantId,
                 log,
@@ -2235,27 +2235,6 @@ const sendProactiveMessageAsync = async (
                 sendErrorEmail,
                 retryCounter
               );
-              setTimeout(() => {
-                sendProactiveMessaageToUserAsync(
-                  memberArr,
-                  activity,
-                  null,
-                  serviceUrl,
-                  userTenantId,
-                  log,
-                  userAadObjId,
-                  conversationId,
-                  connectorClient,
-                  afterMessageSent,
-                  i,
-                  delay,
-                  member,
-                  msgNotSentArr,
-                  sendErrorEmail,
-                  retryCounter
-                );
-              }, 1000);
-              console.log({ i });
             }
           } catch (err) {
             console.log(err);
