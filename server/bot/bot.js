@@ -1940,7 +1940,9 @@ const sendProactiveMessageAsync = async (
       },
     };
 
-    const serviceBusSuccess = await sendMessageToServiceBus(messagePayload);
+    const serviceBusSuccess = !isRecurringInc
+      ? await sendMessageToServiceBus(messagePayload)
+      : false;
     if (!serviceBusSuccess) {
       console.warn("Fallback: Sending directly as Service Bus failed.");
       const respTimeInterval = setInterval(() => {
