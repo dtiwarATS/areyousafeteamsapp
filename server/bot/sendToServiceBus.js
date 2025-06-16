@@ -5,7 +5,7 @@ require("dotenv").config();
 const connectionString = process.env.SERVICE_BUS_CONNECTION_STRING;
 const queueName = process.env.SERVICE_BUS_QUEUE_NAME;
 
-const sendMessageToServiceBus = async (messagePayload, maxRetries = 5) => {
+const sendMessageToServiceBus = async (messagePayload, maxRetries = 3) => {
   let attempt = 0;
   let delay = 1000;
   while (attempt < maxRetries) {
