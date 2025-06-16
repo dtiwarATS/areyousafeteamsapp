@@ -59,7 +59,7 @@ function initJob() {
   bree.start();
 }
 if (process.env.isLocal == "false") {
-  initJob();
+  //initJob();
 }
 
 //======================= BREE JS END ========================
