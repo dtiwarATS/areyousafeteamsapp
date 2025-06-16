@@ -1154,6 +1154,44 @@ const handlerForSafetyBotTab = (app) => {
     await bot.processCommentViaLink(userId, eventId, comments);
     res.status(200);
   });
+  app.post("/whatsapp", async (req, res) => {
+    const body = req.body;
+
+    console.log('Incoming Webhook:', JSON.stringify(body, null, 2));
+    if (body.object) {
+      if (
+        body.entry &&
+        body.entry[0].changes &&
+        body.entry[0].changes[0].value.messages
+      ) {
+        const phone_number_id = body.entry[0].changes[0].value.metadata.phone_number_id;
+        const from = body.entry[0].changes[0].value.messages[0].from; // customer's WhatsApp number
+        const msg_body = body.entry[0].changes[0].value.messages[0].text.body;
+
+        console.log(`Message from ${from}: ${msg_body}`);
+
+        // You can now reply back using the Cloud API if needed
+      }
+
+      res.sendStatus(200);
+    } else {
+      res.sendStatus(404);
+    }
+  });
+  app.get("/whatsapp", async (req, res) => {
+    const verifyToken = 'areyousafewhatsapptoken'; // same as set in Meta Dashboard
+
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === verifyToken) {
+      console.log('WEBHOOK_VERIFIED');
+      res.status(200).send(challenge);
+    } else {
+      res.sendStatus(403);
+    }
+  });
 };
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;

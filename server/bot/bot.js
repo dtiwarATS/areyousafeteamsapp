@@ -2406,9 +2406,14 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
 
         const message = {
           messaging_product: 'whatsapp',
-          to,
-          type: 'text',
-          text: { body: body }
+          to: to, // E.164 format, e.g., '919812345678'
+          type: 'template',
+          template: {
+            name: 'hello_world', // Replace with your approved template name
+            language: {
+              code: 'en_US' // Match the template's language code
+            }
+          }
         };
 
         axios.post(
@@ -2421,9 +2426,9 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
             }
           }
         ).then(response => {
-          console.log('Message sent:', response.data);
+          console.log('Template message sent:', response.data);
         }).catch(error => {
-          console.error('Error sending message:', error.response?.data || error.message);
+          console.error('Error sending template message:', error.response?.data || error.message);
         });
       }
     } catch (err) {
@@ -3087,7 +3092,7 @@ const sendSafetyCheckMessageAsync = async (
           createdByUserInfo.conversationId
         );
         let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
-        if (Number(incTypeId) == 1 && companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
+        if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
           sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
         }
         sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle);
@@ -3616,7 +3621,9 @@ const sendApprovalResponse = async (user, context) => {
         approvalCardResponse,
         user.aadObjectId
       );
-      sendAcknowledmentinSMS(companyData, [user.aadObjectId], response === "i_am_safe" ? "I am safe" : "I need assistance");
+      if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
+        sendAcknowledmentinSMS(companyData, [user.aadObjectId], response === "i_am_safe" ? "I am safe" : "I need assistance");
+      }
     }
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
