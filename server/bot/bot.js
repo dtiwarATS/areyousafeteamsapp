@@ -3400,11 +3400,18 @@ const sendApprovalResponse = async (user, context) => {
         approvalCardResponse,
         user.aadObjectId
       );
-      sendAcknowledmentinSMS(
-        companyData,
-        [user.aadObjectId],
-        response === "i_am_safe" ? "I am safe" : "I need assistance"
-      );
+      if (
+        companyData.send_sms &&
+        (companyData.SubscriptionType == 3 ||
+          (companyData.SubscriptionType == 2 &&
+            companyData.sent_sms_count < 50))
+      ) {
+        sendAcknowledmentinSMS(
+          companyData,
+          [user.aadObjectId],
+          response === "i_am_safe" ? "I am safe" : "I need assistance"
+        );
+      }
     }
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
