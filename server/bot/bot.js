@@ -2921,13 +2921,13 @@ const sendSafetyCheckMessageAsync = async (
           incFilesData,
           createdByUserInfo.conversationId
         );
+        let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
           companyData.send_sms &&
           (companyData.SubscriptionType == 3 ||
             (companyData.SubscriptionType == 2 &&
               companyData.sent_sms_count < 50))
         ) {
-          let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
           sendSafetyCheckMsgViaSMS(
             companyData,
             userAadObjIds,
