@@ -12,7 +12,7 @@ const {
 } = require("botframework-connector");
 const incidentService = require("../services/incidentService");
 const path = require("path");
-const FormData = require('form-data');
+const FormData = require("form-data");
 const {
   getAllTeamMembers,
   sendDirectMessage,
@@ -35,7 +35,7 @@ const {
   addTeamMember,
   getCompanyDataByTeamId,
 } = require("../db/dbOperations");
-
+const { sendMessageToServiceBus } = require("./sendToServiceBus");
 const accountSid = process.env.TWILIO_ACCOUNT_ID;
 const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
 const tClient = require("twilio")(accountSid, authToken);
@@ -1865,6 +1865,9 @@ const sendProactiveMessageAsync = async (
       activity.attachments.push(CardFactory.adaptiveCard(card));
     }
 
+    // 👇 This sets the preview text in Teams
+    activity.summary = titalmessage;
+
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
 
@@ -1912,292 +1915,307 @@ const sendProactiveMessageAsync = async (
       recurTimerDelay = 1000,
       rps = 1;
 
-    const respTimeInterval = setInterval(() => {
-      try {
-        const currentTime = new Date().getTime();
-        if ((currentTime - respTime) / 1000 >= 300) {
-          clearInterval(respTimeInterval);
-          resolveFn(true);
-          return;
-        }
-        if ((currentTime - respTime) / 1000 >= 150) {
-          if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
-            reSendMessage();
-          } else if (messageCount == allMembersArr.length) {
+    const conversationReferences = allMembersArr.map((member) => ({
+      user: { id: member.id, name: member.name },
+      id: member.conversationId || null,
+      userName: member.name,
+    }));
+    const AdaptiveCardForEventCreator = sendAcknowledgeMsgToCreator(
+      allMembersArr.length,
+      companyData.teamName,
+      companyData.channelName
+    );
+    const messagePayload = {
+      envType: "test",
+      adaptiveCard: activity,
+      AdaptiveCardForEventCreator: AdaptiveCardForEventCreator,
+      incId: incObj.incId,
+      tenantId: userTenantId,
+      botName: process.env.BotName,
+      triggeredByConversationId: incCreaterConversationId,
+      teamName: companyData?.teamName || "",
+      channelName: companyData?.channelName || "",
+      conversationReference: {
+        serviceUrl: serviceUrl,
+        bot: { id: appId },
+        conversations: conversationReferences,
+      },
+    };
+
+    const serviceBusSuccess = !isRecurringInc
+      ? await sendMessageToServiceBus(messagePayload)
+      : false;
+    if (!serviceBusSuccess) {
+      console.warn("Fallback: Sending directly as Service Bus failed.");
+      const respTimeInterval = setInterval(() => {
+        try {
+          const currentTime = new Date().getTime();
+          if ((currentTime - respTime) / 1000 >= 300) {
             clearInterval(respTimeInterval);
             resolveFn(true);
+            return;
           }
-        }
-      } catch (err) {
-        console.log(err);
-        processSafetyBotError(
-          err,
-          "",
-          "",
-          userAadObjId,
-          "error in respTimeInterval"
-        );
-      }
-    }, 50000);
-
-    const reSendMessage = () => {
-      try {
-        retryCounter++;
-        if (sqlUpdateMsgDeliveryStatus != "") {
-          updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-        }
-        messageCount = 0;
-
-        if (allMembersArr && Array.isArray(allMembersArr)) {
-          const arrRespNotReceived = allMembersArr.filter((item) => {
-            return !item.isResponseReceived;
-          });
-          if (arrRespNotReceived && arrRespNotReceived.length > 0) {
-            msgNotSentArr = [...msgNotSentArr, ...arrRespNotReceived];
-          }
-        }
-
-        allMembersArr = msgNotSentArr;
-        allMembersArrCount = Array.isArray(allMembersArr)
-          ? allMembersArr.length
-          : 0;
-        msgNotSentArr = [];
-        allMembersArr = Array.from(
-          new Map(allMembersArr.map(item => [item.id, item])).values()
-        );
-        sendProactiveMessage(allMembersArr);
-      } catch (err) {
-        console.log(err);
-        processSafetyBotError(
-          err,
-          "",
-          "",
-          userAadObjId,
-          "error in reSendMessage"
-        );
-      }
-    };
-
-    const callbackFn = (msgResp, index) => {
-      try {
-        if (msgResp?.retryCounter && msgResp.retryCounter != retryCounter) {
-          return;
-        }
-
-        respTime = new Date().getTime();
-        messageCount += 1;
-        //console.log({ "end i ": index, messageCount });
-
-        let isMessageDelivered = 0;
-        if (
-          msgResp?.conversationId != null &&
-          msgResp?.conversationId != "null" &&
-          (msgResp?.activityId != null ||
-            msgResp?.memberObj?.isResponseReceived)
-        ) {
-          isMessageDelivered = 1;
-        }
-        const status = msgResp?.status == null ? null : Number(msgResp?.status);
-        const error = msgResp?.error == null ? null : msgResp?.error;
-        const respMemberObj = msgResp.memberObj;
-
-        respMemberObj.isResponseReceived = true;
-
-        if (
-          error == null ||
-          msgResp.errorCode == "ConversationBlockedByUser" ||
-          msgResp.errorCode == "BotDisabledByAdmin" ||
-          error == "Invalid user identity in provided tenant" ||
-          retryCounter == retryCountTill
-        ) {
-          if (
-            (msgResp.errorCode == "ConversationBlockedByUser" ||
-              msgResp.errorCode == "BotDisabledByAdmin" ||
-              status == "User blocked the conversation with the bot.") && userAadObjId
-          ) {
-            let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${userAadObjId}'`;
-            db.getDataFromDB(sqlUpdateBlockedByUser, userAadObjId);
-            isMessageDelivered = 0;
-          }
-          if (isRecurringInc) {
-            if (
-              msgResp.isSafetyCheckTitleResponse === undefined ||
-              !msgResp.isSafetyCheckTitleResponse
-            ) {
-              log.addLog(`For isRecurringInc Incident`);
-              sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT) 
-              values(${respMemberObj.memberResponsesId
-                }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId
-                }', '${msgResp?.activityId}', ${status}, '${error}', ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
-                }); `;
+          if ((currentTime - respTime) / 1000 >= 150) {
+            if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
+              reSendMessage();
+            } else if (messageCount == allMembersArr.length) {
+              clearInterval(respTimeInterval);
+              resolveFn(true);
             }
-          } else {
-            log.addLog(`For OneTime Incident`);
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
-              } where inc_id = ${incObj.incId} and user_id = '${msgResp.userId
-              }'; `;
           }
+        } catch (err) {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in respTimeInterval"
+          );
         }
+      }, 50000);
 
-        if (
-          respMemberObj.conversationId == null &&
-          msgResp.newConversationId != null &&
-          msgResp.newConversationId != "null"
-        ) {
-          respMemberObj.conversationId = msgResp.newConversationId;
+      const reSendMessage = () => {
+        try {
+          retryCounter++;
+          if (sqlUpdateMsgDeliveryStatus != "") {
+            updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+          }
+          messageCount = 0;
 
-          sqlUpdateMsgDeliveryStatus += ` update msteamsteamsusers set conversationId = '${msgResp.newConversationId}' where user_id = '${msgResp.userId}' ;`;
-        }
-
-        if (!error) {
-          console.log({
-            usrId: msgResp.userId,
-            name: respMemberObj.name,
-            index,
-            messageCount,
-            retryCounter,
-            allMembersArrCount,
-          });
-        } else {
-          console.log({
-            error: `status ${status}`,
-            usrId: msgResp.userId,
-            name: respMemberObj.name,
-            index,
-            messageCount,
-            retryCounter,
-            allMembersArrCount,
-          });
-        }
-
-        if (updateStartTime == null) {
-          updateStartTime = new Date().getTime();
-        }
-        let updateEndTime = new Date().getTime();
-        updateEndTime = (updateEndTime - updateStartTime) / 2000;
-
-        if (
-          sqlUpdateMsgDeliveryStatus != "" &&
-          updateEndTime != null &&
-          Number(updateEndTime) >= 2
-        ) {
-          updateStartTime = null;
-          console.log("inside first ", { msgResp });
-          updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-        }
-        const totalMessageCountAfterTitleNotification =
-          allMembersArr.length * 2;
-        console.log({
-          messageCount,
-          totalMessageCountAfterTitleNotification,
-          sqlUpdateMsgDeliveryStatus,
-        });
-        if (messageCount == totalMessageCountAfterTitleNotification) {
-          if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
-            reSendMessage();
-          } else {
-            if (respTimeInterval != null) {
-              try {
-                clearInterval(respTimeInterval);
-              } catch (err) {
-                console.log(err);
-                processSafetyBotError(
-                  err,
-                  "",
-                  "",
-                  userAadObjId,
-                  "error in clear respTimeInterval"
-                );
-              }
+          if (allMembersArr && Array.isArray(allMembersArr)) {
+            const arrRespNotReceived = allMembersArr.filter((item) => {
+              return !item.isResponseReceived;
+            });
+            if (arrRespNotReceived && arrRespNotReceived.length > 0) {
+              msgNotSentArr = [...msgNotSentArr, ...arrRespNotReceived];
             }
-            if (sqlUpdateMsgDeliveryStatus != "") {
-              console.log("inside second ", { msgResp });
-              updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-            }
-            console.log({ retryLog });
-            //processSafetyBotError("Retry Log", "", "", userAadObjId, retryLog);
-            resolveFn(true);
           }
-        }
-      } catch (err) {
-        processSafetyBotError(
-          err,
-          "",
-          "",
-          userAadObjId,
-          "error in callbackFn msgResp=" + msgResp + " index=" + index
-        );
-      }
-    };
 
-    const sendProactiveMessage = (membersToSendMessageArray) => {
-      retryLog.push({
-        "memberCount:": membersToSendMessageArray?.length,
-        retryCounter,
-      });
-      console.log({
-        "memberCount:": membersToSendMessageArray?.length,
-        retryCounter,
-      });
-      let delay = 0;
-      const sendErrorEmail = retryCounter == retryCountTill;
-      let endIndex =
-        membersToSendMessageArray.length > rps
-          ? rps
-          : membersToSendMessageArray.length;
-
-      const afterMessageSent = (msgResp, index) => {
-        console.log({ msgResp });
-        callbackFn(msgResp, index);
-
-        //callbackFn(msgResp, index);
-        if (endIndex < membersToSendMessageArray.length) {
-          let startIndex = endIndex;
-          endIndex = endIndex + 1;
-
-          if (startIndex % 45 == 0) {
-            console.log({ startIndex, endIndex });
-            setTimeout(() => {
-              fnRecursiveCall(startIndex, endIndex);
-            }, recurTimerDelay);
-          } else {
-            fnRecursiveCall(startIndex, endIndex);
-          }
-          console.log("fnRecursiveCall End");
+          allMembersArr = msgNotSentArr;
+          allMembersArrCount = Array.isArray(allMembersArr)
+            ? allMembersArr.length
+            : 0;
+          msgNotSentArr = [];
+          allMembersArr = Array.from(
+            new Map(allMembersArr.map((item) => [item.id, item])).values()
+          );
+          sendProactiveMessage(allMembersArr);
+        } catch (err) {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in reSendMessage"
+          );
         }
       };
 
-      const fnRecursiveCall = (startIndex, endIndex) => {
+      const callbackFn = (msgResp, index) => {
         try {
-          const i = startIndex;
-          const member = membersToSendMessageArray[i];
-          if (member) {
-            let memberArr = [
-              {
-                id: member.id,
-                name: member.name,
-              },
-            ];
-            const conversationId = member.conversationId;
-            sendProactiveMessaageToUserAsync(
-              memberArr,
-              null,
-              titalmessage,
-              serviceUrl,
-              userTenantId,
-              log,
-              userAadObjId,
-              conversationId,
-              connectorClient,
-              afterMessageSent,
-              i,
-              delay,
-              member,
-              msgNotSentArr,
-              sendErrorEmail,
-              retryCounter
-            );
-            setTimeout(() => {
+          if (msgResp?.retryCounter && msgResp.retryCounter != retryCounter) {
+            return;
+          }
+
+          respTime = new Date().getTime();
+          messageCount += 1;
+          //console.log({ "end i ": index, messageCount });
+
+          let isMessageDelivered = 0;
+          if (
+            msgResp?.conversationId != null &&
+            msgResp?.conversationId != "null" &&
+            (msgResp?.activityId != null ||
+              msgResp?.memberObj?.isResponseReceived)
+          ) {
+            isMessageDelivered = 1;
+          }
+          const status =
+            msgResp?.status == null ? null : Number(msgResp?.status);
+          const error = msgResp?.error == null ? null : msgResp?.error;
+          const respMemberObj = msgResp.memberObj;
+
+          respMemberObj.isResponseReceived = true;
+
+          if (
+            error == null ||
+            msgResp.errorCode == "ConversationBlockedByUser" ||
+            msgResp.errorCode == "BotDisabledByAdmin" ||
+            error == "Invalid user identity in provided tenant" ||
+            retryCounter == retryCountTill
+          ) {
+            if (
+              (msgResp.errorCode == "ConversationBlockedByUser" ||
+                msgResp.errorCode == "BotDisabledByAdmin" ||
+                status == "User blocked the conversation with the bot.") &&
+              userAadObjId
+            ) {
+              let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${userAadObjId}'`;
+              db.getDataFromDB(sqlUpdateBlockedByUser, userAadObjId);
+              isMessageDelivered = 0;
+            }
+            if (isRecurringInc) {
+              if (
+                msgResp.isSafetyCheckTitleResponse === undefined ||
+                !msgResp.isSafetyCheckTitleResponse
+              ) {
+                log.addLog(`For isRecurringInc Incident`);
+                sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT) 
+              values(${respMemberObj.memberResponsesId
+                  }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId
+                  }', '${msgResp?.activityId}', ${status}, '${error}', ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+                  }); `;
+              }
+            } else {
+              log.addLog(`For OneTime Incident`);
+              sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+                } where inc_id = ${incObj.incId} and user_id = '${msgResp.userId
+                }'; `;
+            }
+          }
+
+          if (
+            respMemberObj.conversationId == null &&
+            msgResp.newConversationId != null &&
+            msgResp.newConversationId != "null"
+          ) {
+            respMemberObj.conversationId = msgResp.newConversationId;
+
+            sqlUpdateMsgDeliveryStatus += ` update msteamsteamsusers set conversationId = '${msgResp.newConversationId}' where user_id = '${msgResp.userId}' ;`;
+          }
+
+          if (!error) {
+            console.log({
+              usrId: msgResp.userId,
+              name: respMemberObj.name,
+              index,
+              messageCount,
+              retryCounter,
+              allMembersArrCount,
+            });
+          } else {
+            console.log({
+              error: `status ${status}`,
+              usrId: msgResp.userId,
+              name: respMemberObj.name,
+              index,
+              messageCount,
+              retryCounter,
+              allMembersArrCount,
+            });
+          }
+
+          if (updateStartTime == null) {
+            updateStartTime = new Date().getTime();
+          }
+          let updateEndTime = new Date().getTime();
+          updateEndTime = (updateEndTime - updateStartTime) / 2000;
+
+          if (
+            sqlUpdateMsgDeliveryStatus != "" &&
+            updateEndTime != null &&
+            Number(updateEndTime) >= 2
+          ) {
+            updateStartTime = null;
+            console.log("inside first ", { msgResp });
+            updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+          }
+          const totalMessageCountAfterTitleNotification =
+            allMembersArr.length * 2;
+          console.log({
+            messageCount,
+            totalMessageCountAfterTitleNotification,
+            sqlUpdateMsgDeliveryStatus,
+          });
+          if (messageCount == totalMessageCountAfterTitleNotification) {
+            if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
+              reSendMessage();
+            } else {
+              if (respTimeInterval != null) {
+                try {
+                  clearInterval(respTimeInterval);
+                } catch (err) {
+                  console.log(err);
+                  processSafetyBotError(
+                    err,
+                    "",
+                    "",
+                    userAadObjId,
+                    "error in clear respTimeInterval"
+                  );
+                }
+              }
+              if (sqlUpdateMsgDeliveryStatus != "") {
+                console.log("inside second ", { msgResp });
+                updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
+              }
+              console.log({ retryLog });
+              //processSafetyBotError("Retry Log", "", "", userAadObjId, retryLog);
+              resolveFn(true);
+            }
+          }
+        } catch (err) {
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in callbackFn msgResp=" + msgResp + " index=" + index
+          );
+        }
+      };
+
+      const sendProactiveMessage = (membersToSendMessageArray) => {
+        retryLog.push({
+          "memberCount:": membersToSendMessageArray?.length,
+          retryCounter,
+        });
+        console.log({
+          "memberCount:": membersToSendMessageArray?.length,
+          retryCounter,
+        });
+        let delay = 0;
+        const sendErrorEmail = retryCounter == retryCountTill;
+        let endIndex =
+          membersToSendMessageArray.length > rps
+            ? rps
+            : membersToSendMessageArray.length;
+
+        const afterMessageSent = (msgResp, index) => {
+          console.log({ msgResp });
+          callbackFn(msgResp, index);
+
+          //callbackFn(msgResp, index);
+          if (endIndex < membersToSendMessageArray.length) {
+            let startIndex = endIndex;
+            endIndex = endIndex + 1;
+
+            if (startIndex % 45 == 0) {
+              console.log({ startIndex, endIndex });
+              setTimeout(() => {
+                fnRecursiveCall(startIndex, endIndex);
+              }, recurTimerDelay);
+            } else {
+              fnRecursiveCall(startIndex, endIndex);
+            }
+            console.log("fnRecursiveCall End");
+          }
+        };
+
+        const fnRecursiveCall = (startIndex, endIndex) => {
+          try {
+            const i = startIndex;
+            const member = membersToSendMessageArray[i];
+            if (member) {
+              let memberArr = [
+                {
+                  id: member.id,
+                  name: member.name,
+                },
+              ];
+              const conversationId = member.conversationId;
               sendProactiveMessaageToUserAsync(
                 memberArr,
                 activity,
@@ -2216,29 +2234,36 @@ const sendProactiveMessageAsync = async (
                 sendErrorEmail,
                 retryCounter
               );
-            }, 1000);
-            console.log({ i });
+            }
+          } catch (err) {
+            console.log(err);
+            processSafetyBotError(
+              err,
+              "",
+              "",
+              userAadObjId,
+              " error in fnRecursiveCall startIndex=" +
+              startIndex +
+              " endIndex=" +
+              endIndex
+            );
           }
-        } catch (err) {
-          console.log(err);
-          processSafetyBotError(
-            err,
-            "",
-            "",
-            userAadObjId,
-            " error in fnRecursiveCall startIndex=" +
-            startIndex +
-            " endIndex=" +
-            endIndex
-          );
-        }
+        };
+        console.log("fnRecursiveCall start");
+        fnRecursiveCall(0, endIndex);
       };
-      console.log("fnRecursiveCall start");
-      fnRecursiveCall(0, endIndex);
-    };
-    sendProactiveMessage(allMembersArr);
-    if (incCreaterConversationId) {
-      sendAcknowledgeMsgToCreator(connectorClient, incData, serviceUrl, incCreaterConversationId, allMembersArr.length, companyData.teamName, companyData.channelName);
+      sendProactiveMessage(allMembersArr);
+      if (incCreaterConversationId) {
+        sendAcknowledgeMsgToCreator(
+          connectorClient,
+          incData,
+          serviceUrl,
+          incCreaterConversationId,
+          allMembersArr.length,
+          companyData.teamName,
+          companyData.channelName
+        );
+      }
     }
   } catch (err) {
     log.addLog(` An Error occured: ${JSON.stringify(err)}`);
@@ -2259,34 +2284,34 @@ const sendProactiveMessageAsync = async (
   }
 };
 
-const sendAcknowledgeMsgToCreator = (connectorClient, incData, serviceUrl, conversationId, numberOfUsers, teamName, channelName) => {
-  if (connectorClient == null) {
-    const appId = process.env.MicrosoftAppId;
-    const appPass = process.env.MicrosoftAppPassword;
-
-    var credentials = new MicrosoftAppCredentials(appId, appPass);
-    connectorClient = new ConnectorClient(credentials, {
-      baseUri: serviceUrl,
-    });
-  }
+const sendAcknowledgeMsgToCreator = (numberOfUsers, teamName, channelName) => {
   let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
 Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
 For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Are You Safe?</b> tab`;
-  let activity = MessageFactory.text(msgText);
-  connectorClient.conversations
-    .sendToConversation(conversationId, activity)
-}
+  return MessageFactory.text(msgText);
+};
 
-const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle, incData) => {
+const sendSafetyCheckMsgViaSMS = async (
+  companyData,
+  users,
+  incId,
+  incTitle,
+  incData
+) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
   let usrPhones = await getUserPhone(refresh_token, tenantId, users);
-  let counter = Number(companyData.sent_sms_count && companyData.sent_sms_count != "" ? companyData.sent_sms_count : "0");
+  let counter = Number(
+    companyData.sent_sms_count && companyData.sent_sms_count != ""
+      ? companyData.sent_sms_count
+      : "0"
+  );
   let body = "";
   let incTypeId = 1;
   if (incData && Number(incData.incTypeId) != 1) {
     incTypeId = Number(incData.incTypeId);
-    let incTypeName = "", data = "";
+    let incTypeName = "",
+      data = "";
     switch (incTypeId) {
       case 2:
         incTypeName = "Safety alert";
@@ -2310,11 +2335,16 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle, inc
   }
 
   for (let user of usrPhones) {
-    if (counter == 50 && companyData.SubscriptionType == 2)
-      break;
+    if (counter == 50 && companyData.SubscriptionType == 2) break;
     try {
-      if ((companyData.PHONE_FIELD == "mobilePhone" && user.mobilePhone != "") || (user.businessPhones.length > 0 && user.businessPhones[0] != "")) {
-        let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ? user.businessPhones[0] : "";
+      if (
+        (companyData.PHONE_FIELD == "mobilePhone" && user.mobilePhone != "") ||
+        (user.businessPhones.length > 0 && user.businessPhones[0] != "")
+      ) {
+        let phone =
+          user.businessPhones.length > 0 && user.businessPhones[0] != ""
+            ? user.businessPhones[0]
+            : "";
         if (companyData.PHONE_FIELD == "mobilePhone") {
           phone = user.mobilePhone;
         }
@@ -2347,22 +2377,32 @@ const sendSafetyCheckMsgViaSMS = async (companyData, users, incId, incTitle, inc
             notSafeUrl +
             " if you need help.";
         }
-        await tClient.messages
-          .create({
-            body: body,
-            from: "+18023277232",
-            shortenUrls: true,
-            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-            to: phone,
-          });
+        await tClient.messages.create({
+          body: body,
+          from: "+18023277232",
+          shortenUrls: true,
+          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+          to: phone,
+        });
         counter++;
-        SaveSmsLog(user.id, "OUTGOING", body, JSON.stringify({ eventId: incId, userId: user.id }));
+        SaveSmsLog(
+          user.id,
+          "OUTGOING",
+          body,
+          JSON.stringify({ eventId: incId, userId: user.id })
+        );
         if (companyData.SubscriptionType == 2) {
           incidentService.updateSentSMSCount(companyData.teamId, counter);
         }
       }
     } catch (err) {
-      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
+      processSafetyBotError(
+        err,
+        companyData.teamId,
+        user.id,
+        null,
+        "error in sending safety check via SMS"
+      );
     }
   }
 }
@@ -2446,11 +2486,16 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
       activity: {
         serviceUrl: compData.serviceUrl,
         conversation: {
-          tenantId: compData.userTenantId
-        }
-      }
-    }
-    incidentService.updateSafetyCheckStatusViaSMSLink(eventId, text == "YES" ? 1 : 0, userId, compData.teamId);
+          tenantId: compData.userTenantId,
+        },
+      },
+    };
+    incidentService.updateSafetyCheckStatusViaSMSLink(
+      eventId,
+      text == "YES" ? 1 : 0,
+      userId,
+      compData.teamId
+    );
     if (text != "YES") {
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -2492,11 +2537,23 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
         userId
       );
     }
-    acknowledgeSMSReplyInTeams(text, compData, incData.incCreatedBy, incData.incCreatedByName, user);
+    acknowledgeSMSReplyInTeams(
+      text,
+      compData,
+      incData.incCreatedBy,
+      incData.incCreatedByName,
+      user
+    );
   }
-}
+};
 
-const acknowledgeSMSReplyInTeams = async (msgText, companyData, incCreatedById, incCreatedByName, user) => {
+const acknowledgeSMSReplyInTeams = async (
+  msgText,
+  companyData,
+  incCreatedById,
+  incCreatedByName,
+  user
+) => {
   try {
     let responseText = "";
     if (msgText === "YES") {
@@ -2552,17 +2609,22 @@ const acknowledgeSMSReplyInTeams = async (msgText, companyData, incCreatedById, 
   } catch (err) {
     console.log(err);
   }
-}
+};
 
 const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
   let superUsers = null;
   try {
-    superUsers = await incidentService.saveSMSlogs(userid, status, SMS_TEXT, RAW_DATA);
+    superUsers = await incidentService.saveSMSlogs(
+      userid,
+      status,
+      SMS_TEXT,
+      RAW_DATA
+    );
   } catch (err) {
     processSafetyBotError(err, "", "", null, "error in saveSMSLog");
   }
   return Promise.resolve(superUsers);
-}
+};
 
 const processCommentViaLink = async (userId, incId, comment) => {
   let superUsers = null;
@@ -2579,10 +2641,10 @@ const processCommentViaLink = async (userId, incId, comment) => {
         activity: {
           serviceUrl: compData.serviceUrl,
           conversation: {
-            tenantId: compData.userTenantId
-          }
-        }
-      }
+            tenantId: compData.userTenantId,
+          },
+        },
+      };
       await incidentService.updateCommentViaSMSLink(userId, incId, comment);
 
       const approvalCardResponse = {
@@ -2623,8 +2685,7 @@ const processCommentViaLink = async (userId, incId, comment) => {
     processSafetyBotError(err, "", "", null, "error in saveSMSLog");
   }
   return Promise.resolve(superUsers);
-}
-
+};
 
 const getUserPhone = async (refreshToken, tenantId, arrIds) => {
   try {
@@ -2757,238 +2818,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
   } catch (err) {
     console.log(err);
   }
-}
-// const sendProactiveMessageAsync = async (allMembersArr, incData, incObj, companyData, serviceUrl, userAadObjId, userTenantId, log, resolveFn, rejectFn, runAt = null) => {
-//   try {
-//     const isRecurringInc = (runAt != null);
-//     const { incTitle, incTypeId, additionalInfo, travelUpdate, contactInfo, situation } = incData;
-//     const approvalCard = await SafetyCheckCard(incTitle, incObj, companyData, incObj.incGuidance, incObj.incResponseSelectedUsersList, incTypeId, additionalInfo, travelUpdate, contactInfo, situation);
-//     const activity = MessageFactory.attachment(CardFactory.adaptiveCard(approvalCard));
-//     const appId = process.env.MicrosoftAppId;
-//     const appPass = process.env.MicrosoftAppPassword;
-
-//     var credentials = new MicrosoftAppCredentials(appId, appPass);
-//     var connectorClient = new ConnectorClient(credentials, { baseUri: serviceUrl });
-
-//     let messageCount = 0;
-
-//     const dbPool = await db.getPoolPromise(userAadObjId);
-//     let sqlUpdateMsgDeliveryStatus = "";
-//     let updateStartTime = null;
-//     let allMembersArrCount = (Array.isArray(allMembersArr)) ? allMembersArr.length : 0;
-//     let retryLog = [];
-//     const updateMsgDeliveryStatus = (sql) => {
-//       if (sql != "") {
-//         sqlUpdateMsgDeliveryStatus = "";
-//         const promise = db.updateDataIntoDBAsync(sql, dbPool, userAadObjId)
-//           .then((resp) => {
-
-//           })
-//           .catch((err) => {
-//             sqlUpdateMsgDeliveryStatus += sql;
-//             processSafetyBotError(err, "", "", userAadObjId, sql);
-//           });
-
-//         if (!promise) {
-//           sqlUpdateMsgDeliveryStatus += sql;
-//         }
-//       }
-//     }
-
-//     let msgNotSentArr = [], retryCounter = 0, retryCountTill = 10, respTime = (new Date()).getTime(), recurTimerDelay = 1000, rps = 4;
-
-//     const respTimeInterval = setInterval(() => {
-//       try {
-//         const currentTime = (new Date()).getTime();
-//         if ((currentTime - respTime) / 1000 >= 300) {
-//           clearInterval(respTimeInterval);
-//           resolveFn(true);
-//           return;
-//         }
-//         if ((currentTime - respTime) / 1000 >= 150) {
-//           if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
-//             reSendMessage();
-//           } else if (messageCount == allMembersArr.length) {
-//             clearInterval(respTimeInterval);
-//             resolveFn(true);
-//           }
-//         }
-//       } catch (err) {
-//         console.log(err);
-//         processSafetyBotError(err, "", "", userAadObjId);
-//       }
-//     }, 50000);
-
-//     const reSendMessage = () => {
-//       try {
-//         retryCounter++;
-//         if (sqlUpdateMsgDeliveryStatus != "") {
-//           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-//         }
-//         messageCount = 0;
-
-//         if (allMembersArr && Array.isArray(allMembersArr)) {
-//           const arrRespNotReceived = allMembersArr.filter((item) => {
-//             return !item.isResponseReceived;
-//           });
-//           if (arrRespNotReceived && arrRespNotReceived.length > 0) {
-//             msgNotSentArr = [...msgNotSentArr, ...arrRespNotReceived];
-//           }
-//         }
-
-//         allMembersArr = msgNotSentArr;
-//         allMembersArrCount = (Array.isArray(allMembersArr)) ? allMembersArr.length : 0;
-//         msgNotSentArr = [];
-//         sendProactiveMessage(allMembersArr);
-//       } catch (err) {
-//         console.log(err);
-//         processSafetyBotError(err, "", "", userAadObjId);
-//       }
-//     }
-
-//     const callbackFn = (msgResp, index) => {
-//       try {
-//         if (msgResp?.retryCounter && msgResp.retryCounter != retryCounter) {
-//           return;
-//         }
-
-//         respTime = (new Date()).getTime();
-//         messageCount += 1;
-//         //console.log({ "end i ": index, messageCount });
-
-//         let isMessageDelivered = 0;
-//         if (msgResp?.conversationId != null && msgResp?.activityId != null) {
-//           isMessageDelivered = 1;
-//         }
-//         const status = (msgResp?.status == null) ? null : Number(msgResp?.status);
-//         const error = (msgResp?.error == null) ? null : msgResp?.error;
-//         const respMemberObj = msgResp.memberObj;
-
-//         respMemberObj.isResponseReceived = true;
-
-//         if (error == null || msgResp.errorCode == "ConversationBlockedByUser" || error == "Invalid user identity in provided tenant" || retryCounter == retryCountTill) {
-//           if (isRecurringInc) {
-//             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error)
-//               values(${respMemberObj.memberResponsesId}, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId}', '${msgResp?.activityId}', ${status}, '${error}'); `;
-//           } else {
-//             sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}' where inc_id = ${incObj.incId} and user_id = '${msgResp.userId}'; `;
-//           }
-//         }
-
-//         if (respMemberObj.conversationId == null && msgResp.newConversationId != null) {
-//           respMemberObj.conversationId = msgResp.newConversationId;
-
-//           sqlUpdateMsgDeliveryStatus += ` update msteamsteamsusers set conversationId = '${msgResp.newConversationId}' where user_id = '${msgResp.userId}' ;`;
-//         }
-
-//         if (!error) {
-//           console.log({ "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter, allMembersArrCount });
-//         } else {
-//           console.log({ "error": `status ${status}`, "usrId": msgResp.userId, "name": respMemberObj.name, index, messageCount, retryCounter, allMembersArrCount });
-//         }
-
-//         if (updateStartTime == null) {
-//           updateStartTime = (new Date()).getTime();
-//         }
-//         let updateEndTime = (new Date()).getTime();
-//         updateEndTime = (updateEndTime - updateStartTime) / 2000;
-
-//         if (sqlUpdateMsgDeliveryStatus != "" && updateEndTime != null && Number(updateEndTime) >= 2) {
-//           updateStartTime = null;
-//           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-//         }
-
-//         if (messageCount == allMembersArr.length) {
-//           if (msgNotSentArr.length > 0 && retryCounter < retryCountTill) {
-//             reSendMessage();
-//           } else {
-//             if (respTimeInterval != null) {
-//               try {
-//                 clearInterval(respTimeInterval);
-//               } catch (err) {
-//                 console.log(err);
-//                 processSafetyBotError(err, "", "", userAadObjId);
-//               }
-//             }
-//             if (sqlUpdateMsgDeliveryStatus != "") {
-//               updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
-//             }
-//             console.log({ retryLog });
-//             //processSafetyBotError("Retry Log", "", "", userAadObjId, retryLog);
-//             resolveFn(true);
-//           }
-//         }
-//       } catch (err) {
-//         processSafetyBotError(err, "", "", userAadObjId);
-//       }
-//     }
-
-//     const sendProactiveMessage = (membersToSendMessageArray) => {
-//       retryLog.push({ "memberCount:": membersToSendMessageArray?.length, retryCounter });
-//       console.log({ "memberCount:": membersToSendMessageArray?.length, retryCounter });
-//       let delay = 0;
-//       const sendErrorEmail = (retryCounter == retryCountTill);
-
-//       const fnRecursiveCall = (startIndex, endIndex) => {
-//         for (let i = startIndex; i < endIndex; i++) {
-//           try {
-//             const member = membersToSendMessageArray[i];
-//             if (member) {
-//               let memberArr = [{
-//                 id: member.id,
-//                 name: member.name
-//               }];
-//               const conversationId = member.conversationId;
-//               sendProactiveMessaageToUserAsync(memberArr, activity, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, i, delay, member, msgNotSentArr, sendErrorEmail, retryCounter);
-//               console.log({ i });
-//             }
-//           } catch (err) {
-//             console.log(err);
-//             processSafetyBotError(err, "", "", userAadObjId);
-//           }
-//         }
-//         if (endIndex < membersToSendMessageArray.length) {
-//           startIndex = endIndex;
-//           endIndex = endIndex + rps;
-//           if (endIndex > membersToSendMessageArray.length) {
-//             endIndex = membersToSendMessageArray.length;
-//           }
-//           recurTimerDelay = 1000;
-//           if (startIndex % 60 == 0) {
-//             console.log({ startIndex, endIndex });
-//             recurTimerDelay = 30000;
-//           }
-//           setTimeout(() => {
-//             fnRecursiveCall(startIndex, endIndex);
-//             console.log("fnRecursiveCall End");
-//           }, recurTimerDelay);
-//         }
-//       }
-//       let endIndex = (membersToSendMessageArray.length > rps) ? rps : membersToSendMessageArray.length;
-//       console.log("fnRecursiveCall start");
-//       fnRecursiveCall(0, endIndex);
-
-//       // membersToSendMessageArray.map((member, index) => {
-//       //   try {
-//       //     let memberArr = [{
-//       //       id: member.id,
-//       //       name: member.name
-//       //     }];
-//       //     const conversationId = member.conversationId;
-//       //     sendProactiveMessaageToUserAsync(memberArr, activity, null, serviceUrl, userTenantId, log, userAadObjId, conversationId, connectorClient, callbackFn, index, delay, member, msgNotSentArr, sendErrorEmail);
-//       //   } catch (err) {
-//       //     processSafetyBotError(err, "", "", userAadObjId);
-//       //   }
-//       //   delay += 500;
-//       // });
-//     }
-//     sendProactiveMessage(allMembersArr);
-//   } catch (err) {
-//     console.log(err);
-//     processSafetyBotError(err, "", "", userAadObjId);
-//     rejectFn(err);
-//   }
-// }
+};
 
 const sendSafetyCheckMessageAsync = async (
   incId,
@@ -3091,9 +2921,20 @@ const sendSafetyCheckMessageAsync = async (
           incFilesData,
           createdByUserInfo.conversationId
         );
-        let userAadObjIds = allMembersArr.map(x => x.userAadObjId);
-        if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
-          sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, incId, incTitle);
+        if (
+          companyData.send_sms &&
+          (companyData.SubscriptionType == 3 ||
+            (companyData.SubscriptionType == 2 &&
+              companyData.sent_sms_count < 50))
+        ) {
+          let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
+          sendSafetyCheckMsgViaSMS(
+            companyData,
+            userAadObjIds,
+            incId,
+            incTitle,
+            incData
+          );
         }
         sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle);
         /*const incCreatedByUserArr = [];
@@ -3621,8 +3462,17 @@ const sendApprovalResponse = async (user, context) => {
         approvalCardResponse,
         user.aadObjectId
       );
-      if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
-        sendAcknowledmentinSMS(companyData, [user.aadObjectId], response === "i_am_safe" ? "I am safe" : "I need assistance");
+      if (
+        companyData.send_sms &&
+        (companyData.SubscriptionType == 3 ||
+          (companyData.SubscriptionType == 2 &&
+            companyData.sent_sms_count < 50))
+      ) {
+        sendAcknowledmentinSMS(
+          companyData,
+          [user.aadObjectId],
+          response === "i_am_safe" ? "I am safe" : "I need assistance"
+        );
       }
     }
 
@@ -3649,30 +3499,39 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
   let counter = 0;
   for (let user of usrPhones) {
     try {
-      if ((user.businessPhones.length > 0 && user.businessPhones[0] != "") || user.mobilePhone != "") {
-        let phone = user.businessPhones.length > 0 && user.businessPhones[0] != "" ?
-          user.businessPhones[0] : user.mobilePhone;
+      if (
+        (user.businessPhones.length > 0 && user.businessPhones[0] != "") ||
+        user.mobilePhone != ""
+      ) {
+        let phone =
+          user.businessPhones.length > 0 && user.businessPhones[0] != ""
+            ? user.businessPhones[0]
+            : user.mobilePhone;
 
-        let body =
-          `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
-        await tClient.messages
-          .create({
-            body: body,
-            from: "+18023277232",
-            shortenUrls: true,
-            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-            to: phone,
-          });
+        let body = `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
+        await tClient.messages.create({
+          body: body,
+          from: "+18023277232",
+          shortenUrls: true,
+          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+          to: phone,
+        });
         counter++;
       }
       if (companyData.SubscriptionType == 2) {
         incidentService.updateSentSMSCount(companyData.teamId, counter);
       }
     } catch (err) {
-      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending acknowledgement via SMS");
+      processSafetyBotError(
+        err,
+        companyData.teamId,
+        user.id,
+        null,
+        "error in sending acknowledgement via SMS"
+      );
     }
   }
-}
+};
 
 const submitComment = async (context, user, companyData) => {
   try {
@@ -4124,7 +3983,6 @@ const submitSettings = async (context, companyData) => {
     selected_superusers
   );
 };
-
 
 const sendProactiveMessaageToUserTest = async () => {
   try {

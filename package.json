@@ -15,6 +15,7 @@
   "author": "Devesh tiwari",
   "license": "MIT",
   "dependencies": {
+    "@azure/service-bus": "^7.9.5",
     "@ladjs/graceful": "^1.1.5",
     "adaptivecards-templating": "^2.2.0",
     "axios": "^1.7.9",
