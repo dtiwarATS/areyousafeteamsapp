@@ -19,7 +19,7 @@ const sendMessageToServiceBus = async (messagePayload, maxRetries = 3) => {
         label: "BotMessage",
       };
 
-      console.log(`Sending message (attempt ${attempt + 1}):`, message.body);
+      console.log(`Sending message (attempt ${attempt + 1}):`);
       await sender.sendMessages(message);
 
       console.log("Message sent successfully.");
