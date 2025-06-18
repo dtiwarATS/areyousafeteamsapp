@@ -2451,11 +2451,12 @@ const updateSafetyCheckStatusViaSMSLink = async (
   incId,
   resp,
   user_aadobject_id,
-  team_id
+  team_id,
+  viaSMS = true
 ) => {
   try {
     let sql = "";
-    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}', response_via = 'SMS'
+    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}', response_via = ${viaSMS ? 'SMS' : 'whatsapp'}
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
     const result = await db.updateDataIntoDB(sql, user_aadobject_id);

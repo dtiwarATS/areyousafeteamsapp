@@ -1164,13 +1164,24 @@ const handlerForSafetyBotTab = (app) => {
         body.entry[0].changes &&
         body.entry[0].changes[0].value.messages
       ) {
-        const phone_number_id = body.entry[0].changes[0].value.metadata.phone_number_id;
-        const from = body.entry[0].changes[0].value.messages[0].from; // customer's WhatsApp number
-        const msg_body = body.entry[0].changes[0].value.messages[0].text.body;
+        const message = body.entry[0].changes[0].value.messages[0];
+        const from = message.from; // user's WhatsApp number
+        const type = message.type;
 
-        console.log(`Message from ${from}: ${msg_body}`);
-
-        // You can now reply back using the Cloud API if needed
+        // Handle button replies
+        if (type === 'button') {
+          const buttonPayload = message.button.payload;
+          console.log(`User ${from} clicked: ${buttonPayload}`);
+          let resonse = buttonPayload.split('_');
+          if (response.length > 2) {
+            let incId = resonse[1];
+            let userId = resonse[2];
+            let resp = response[0];
+            await bot.proccessSMSLinkClick(userId, eventId, resp.toUpperCase());
+          }
+        } else if (type === 'text') {
+          console.log(`User ${from} sent message: ${message.text.body}`);
+        }
       }
 
       res.sendStatus(200);

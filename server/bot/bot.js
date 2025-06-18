@@ -1942,10 +1942,11 @@ const sendProactiveMessageAsync = async (
       },
     };
 
-    const serviceBusSuccess = !isRecurringInc
-      ? await sendMessageToServiceBus(messagePayload)
-      : false;
-    if (!serviceBusSuccess) {
+    // const serviceBusSuccess = !isRecurringInc
+    //   ? await sendMessageToServiceBus(messagePayload)
+    //   : false;
+    // if (!serviceBusSuccess)
+    {
       console.warn("Fallback: Sending directly as Service Bus failed.");
       const respTimeInterval = setInterval(() => {
         try {
@@ -2415,50 +2416,82 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
     try {
       phone = user.mobilePhone;
       if (phone != null && phone != "" && phone != "null") {
-        let safeUrl =
-          process.env.serviceUrl +
-          "/posresp?userId=" +
-          encodeURIComponent(user.id) +
-          "&eventId=" +
-          encodeURIComponent(incId);
-        let notSafeUrl =
-          process.env.serviceUrl +
-          "/negresp?userId=" +
-          encodeURIComponent(user.id) +
-          "&eventId=" +
-          encodeURIComponent(incId);
-
-        let body =
-          "Safety check from " +
-          companyData.teamName +
-          " - " +
-          incTitle +
-          " \nWe're checking to see if you are safe. \nClick " +
-          safeUrl +
-          " if you are safe, " +
-          "or " +
-          notSafeUrl +
-          " if you need help.";
-
         const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
         const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
         const to = phone; // e.g. +919999999999
 
-        const message = {
-          messaging_product: 'whatsapp',
-          to: to, // E.164 format, e.g., '919812345678'
-          type: 'template',
-          template: {
-            name: 'hello_world', // Replace with your approved template name
-            language: {
-              code: 'en_US' // Match the template's language code
+        // const payload = {
+        //   messaging_product: 'whatsapp',
+        //   recipient_type: "individual",
+        //   to: to,
+        //   type: 'template',
+        //   template: {
+        //     name: 'safety_check',
+        //     language: {
+        //       code: 'en'
+        //     },
+        //     components: [
+        //       {
+        //         type: 'body',
+        //         parameters: [
+        //           {
+        //             type: 'text',
+        //             parameter_name: 'company',
+        //             text: companyData.teamName
+        //           },
+        //           {
+        //             type: 'text',
+        //             parameter_name: 'inctitle',
+        //             text: 'Fire in Building 3'
+        //           },
+        //           {
+        //             type: 'text',
+        //             parameter_name: 'safeurl',
+        //             text: `https://stagingareyousafeteam.azurewebsites.net/posResp?userId=${user.id}`
+        //           },
+        //           {
+        //             type: 'text',
+        //             parameter_name: 'notsafeurl',
+        //             text: `https://stagingareyousafeteam.azurewebsites.net/negResp?userId=${user.id}`
+        //           }
+        //         ]
+        //       }
+        //     ]
+        //   }
+        // };
+        const payload = {
+          "messaging_product": "whatsapp",
+          "recipient_type": "individual",
+          "to": to,
+          "type": "interactive",
+          "interactive": {
+            "type": "button",
+            "body": {
+              "text": "Did you make this purchase for ₹2,500 at Amazon?"
+            },
+            "action": {
+              "buttons": [
+                {
+                  "type": "reply",
+                  "reply": {
+                    "id": "yes_click",
+                    "title": "Yes"
+                  }
+                },
+                {
+                  "type": "reply",
+                  "reply": {
+                    "id": "no_click",
+                    "title": "No"
+                  }
+                }
+              ]
             }
           }
-        };
-
+        }
         axios.post(
           `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-          message,
+          payload,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -2544,6 +2577,78 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
       incData.incCreatedByName,
       user
     );
+  }
+};
+
+const proccessWhatsappClick = async (userId, eventId, text) => {
+  if (userId && eventId) {
+    const incData = await incidentService.getInc(eventId, null, userId);
+    const compData = await incidentService.getCompanyData(incData.teamId);
+    const users = await incidentService.getUserInfo(incData.teamId, userId);
+    let user = users[0];
+    let context = {
+      activity: {
+        serviceUrl: compData.serviceUrl,
+        conversation: {
+          tenantId: compData.userTenantId,
+        },
+      },
+    };
+    incidentService.updateSafetyCheckStatusViaSMSLink(
+      eventId,
+      text == "YES" ? 1 : 0,
+      userId,
+      compData.teamId,
+      false
+    );
+    if (text != "YES") {
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `User <at>${user.user_name}</at> needs assistance for Incident: **${incData.incTitle}** `,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
+            {
+              type: "mention",
+              text: `<at>${user.user_name}</at>`,
+              mentioned: {
+                id: user.user_id,
+                name: user.user_name,
+              },
+            },
+          ],
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      //send new msg just to emulate msg is being updated
+      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      const serviceUrl = context?.activity?.serviceUrl;
+      await sendApprovalResponseToSelectedMembers(
+        eventId,
+        context,
+        approvalCardResponse
+      );
+      await sendApprovalResponseToSelectedTeams(
+        eventId,
+        serviceUrl,
+        approvalCardResponse,
+        userId
+      );
+    }
+    // acknowledgeSMSReplyInTeams(
+    //   text,
+    //   compData,
+    //   incData.incCreatedBy,
+    //   incData.incCreatedByName,
+    //   user
+    // );
   }
 };
 
