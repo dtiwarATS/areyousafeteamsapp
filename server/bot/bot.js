@@ -1920,7 +1920,7 @@ const sendProactiveMessageAsync = async (
       id: member.conversationId || null,
       userName: member.name,
     }));
-    const AdaptiveCardForEventCreator = sendAcknowledgeMsgToCreator(
+    const AdaptiveCardForEventCreator = getAcknowledgeMsgToCreatorAdaptiveCard(
       allMembersArr.length,
       companyData.teamName,
       companyData.channelName
@@ -2285,11 +2285,40 @@ const sendProactiveMessageAsync = async (
   }
 };
 
-const sendAcknowledgeMsgToCreator = (numberOfUsers, teamName, channelName) => {
+const getAcknowledgeMsgToCreatorAdaptiveCard = (
+  numberOfUsers,
+  teamName,
+  channelName
+) => {
   let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
 Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
 For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Are You Safe?</b> tab`;
   return MessageFactory.text(msgText);
+};
+
+const sendAcknowledgeMsgToCreator = (
+  connectorClient,
+  incData,
+  serviceUrl,
+  conversationId,
+  numberOfUsers,
+  teamName,
+  channelName
+) => {
+  if (connectorClient == null) {
+    const appId = process.env.MicrosoftAppId;
+    const appPass = process.env.MicrosoftAppPassword;
+
+    var credentials = new MicrosoftAppCredentials(appId, appPass);
+    connectorClient = new ConnectorClient(credentials, {
+      baseUri: serviceUrl,
+    });
+  }
+  let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
+Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
+For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Are You Safe?</b> tab`;
+  let activity = MessageFactory.text(msgText);
+  connectorClient.conversations.sendToConversation(conversationId, activity);
 };
 
 const sendSafetyCheckMsgViaSMS = async (
