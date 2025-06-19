@@ -1942,10 +1942,10 @@ const sendProactiveMessageAsync = async (
       },
     };
 
-    const serviceBusSuccess = !isRecurringInc
-      ? await sendMessageToServiceBus(messagePayload)
-      : false;
-    if (!serviceBusSuccess)
+    // const serviceBusSuccess = !isRecurringInc
+    //   ? await sendMessageToServiceBus(messagePayload)
+    //   : false;
+    // if (!serviceBusSuccess)
     {
       console.warn("Fallback: Sending directly as Service Bus failed.");
       const respTimeInterval = setInterval(() => {
@@ -2683,13 +2683,13 @@ const proccessWhatsappClick = async (userId, eventId, text) => {
         userId
       );
     }
-    // acknowledgeSMSReplyInTeams(
-    //   text,
-    //   compData,
-    //   incData.incCreatedBy,
-    //   incData.incCreatedByName,
-    //   user
-    // );
+    acknowledgeSMSReplyInTeams(
+      text,
+      compData,
+      incData.incCreatedBy,
+      incData.incCreatedByName,
+      user
+    );
   }
 };
 
@@ -5196,6 +5196,7 @@ module.exports = {
   SaveSmsLog,
   acknowledgeSMSReplyInTeams,
   processCommentViaLink,
+  proccessWhatsappClick,
   getUserPhone,
   sendSafetyCheckMsgViaWhatsapp
 };
