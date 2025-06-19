@@ -343,14 +343,33 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post("/areyousafetabhandler/setSendWhatsapp", async (req, res) => {
+    const teamId = req.query.teamId;
+    const sendWhatsapp = req.query.sendWhatsapp;
+    const phoneField = req.query.phoneField;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setSendWhatsapp(teamId, sendWhatsapp, phoneField);
+      res.send('success');
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setSendWhatsapp"
+      );
+    }
+  });
 
   app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
     const teamId = req.query.teamId;
     const refresh_token = req.query.refresh_token;
+    const field = req.query.field;
     console.log({ teamId, refresh_token });
     try {
       const tabObj = new tab.AreYouSafeTab();
-      const data = await tabObj.saveRefreshToken(teamId, refresh_token);
+      const data = await tabObj.saveRefreshToken(teamId, refresh_token, field);
       console.log(data);
       if (data.length) {
         res.send('success');
@@ -1041,6 +1060,7 @@ const handlerForSafetyBotTab = (app) => {
     const SSOCode = req.query.code || "";
     var details = req.query.state?.toString();
     const Tdata = details?.split("$$$");
+    const field = Tdata?.[1];
     const teamId = Tdata?.[0];
     console.log({ AdminconsentinfoteamId: teamId });
     var Tscope = "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
@@ -1084,7 +1104,7 @@ const handlerForSafetyBotTab = (app) => {
           let config = {
             method: "post",
             maxBodyLength: Infinity,
-            url: `${process.env.serviceUrl}/areyousafetabhandler/setRefreshToken?teamId=${teamId}&refresh_token=${refreshToken}`,
+            url: `${process.env.serviceUrl}/areyousafetabhandler/setRefreshToken?teamId=${teamId}&refresh_token=${refreshToken}&field=${field}`,
             // timeout: 10000,
           };
           axios

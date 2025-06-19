@@ -1008,10 +1008,20 @@ class AreYouSafeTab {
     return Promise.resolve(res);
   };
 
-  saveRefreshToken = async (teamId, refresh_token) => {
+  setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     let res = null;
     try {
-      res = await incidentService.saveRefreshToken(teamId, refresh_token);
+      res = await incidentService.setSendWhatsapp(teamId, sendWhatsapp, phoneField);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in setsendWhatsapp");
+    }
+    return Promise.resolve(res);
+  };
+
+  saveRefreshToken = async (teamId, refresh_token, field) => {
+    let res = null;
+    try {
+      res = await incidentService.saveRefreshToken(teamId, refresh_token, field);
       console.log({ res });
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in saveRefreshToken");

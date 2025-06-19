@@ -23,6 +23,7 @@ class Company {
     SafetycheckForVisitorsQuestion3,
     refresh_token,
     send_sms,
+    send_whatsapp,
     sent_sms_count,
     SubscriptionType,
     PHONE_FIELD
@@ -50,6 +51,7 @@ class Company {
     this.EnableSafetycheckForVisitors = EnableSafetycheckForVisitors;
     this.refresh_token = refresh_token;
     this.send_sms = send_sms;
+    this.send_whatsapp = send_whatsapp;
     this.sent_sms_count = sent_sms_count;
     this.SubscriptionType = SubscriptionType;
     this.PHONE_FIELD = PHONE_FIELD;

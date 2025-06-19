@@ -1443,7 +1443,7 @@ const getenablecheck = async (teamId) => {
 const getSendSMS = async (teamId) => {
   let result = null;
   try {
-    const qry = `select refresh_token, send_sms, PHONE_FIELD from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    const qry = `select refresh_token, send_sms, send_whatsapp, PHONE_FIELD from MSTeamsInstallationDetails where team_id='${teamId}' `;
     result = await db.getDataFromDB(qry);
   } catch (err) {
     console.log(err);
@@ -1558,10 +1558,24 @@ const setSendSMS = async (teamId, sendSMS, phoneField) => {
   }
   return Promise.resolve(result);
 };
-const saveRefreshToken = async (teamId, refresh_token) => {
+
+const setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set refresh_token = '${refresh_token}', send_sms = 1 where team_id='${teamId}' `;
+    const qry = `update MSTeamsInstallationDetails set send_whatsapp = '${sendWhatsapp}', PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in setSendWhatsapp");
+  }
+  return Promise.resolve(result);
+};
+const saveRefreshToken = async (teamId, refresh_token, field = 'send_sms') => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set refresh_token = '${refresh_token}', ${field} = 1 where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = 'success';
@@ -2582,6 +2596,7 @@ module.exports = {
   getenablecheck,
   getSendSMS,
   setSendSMS,
+  setSendWhatsapp,
   saveRefreshToken,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,

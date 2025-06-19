@@ -1942,10 +1942,10 @@ const sendProactiveMessageAsync = async (
       },
     };
 
-    // const serviceBusSuccess = !isRecurringInc
-    //   ? await sendMessageToServiceBus(messagePayload)
-    //   : false;
-    // if (!serviceBusSuccess)
+    const serviceBusSuccess = !isRecurringInc
+      ? await sendMessageToServiceBus(messagePayload)
+      : false;
+    if (!serviceBusSuccess)
     {
       console.warn("Fallback: Sending directly as Service Bus failed.");
       const respTimeInterval = setInterval(() => {
@@ -2449,75 +2449,87 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
         const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
         const to = phone; // e.g. +919999999999
 
-        // const payload = {
-        //   messaging_product: 'whatsapp',
-        //   recipient_type: "individual",
-        //   to: to,
-        //   type: 'template',
-        //   template: {
-        //     name: 'safety_check',
-        //     language: {
-        //       code: 'en'
-        //     },
-        //     components: [
-        //       {
-        //         type: 'body',
-        //         parameters: [
-        //           {
-        //             type: 'text',
-        //             parameter_name: 'company',
-        //             text: companyData.teamName
-        //           },
-        //           {
-        //             type: 'text',
-        //             parameter_name: 'inctitle',
-        //             text: 'Fire in Building 3'
-        //           },
-        //           {
-        //             type: 'text',
-        //             parameter_name: 'safeurl',
-        //             text: `https://stagingareyousafeteam.azurewebsites.net/posResp?userId=${user.id}`
-        //           },
-        //           {
-        //             type: 'text',
-        //             parameter_name: 'notsafeurl',
-        //             text: `https://stagingareyousafeteam.azurewebsites.net/negResp?userId=${user.id}`
-        //           }
-        //         ]
-        //       }
-        //     ]
-        //   }
-        // };
         const payload = {
-          "messaging_product": "whatsapp",
-          "recipient_type": "individual",
-          "to": to,
-          "type": "interactive",
-          "interactive": {
-            "type": "button",
-            "body": {
-              "text": "Did you make this purchase for ₹2,500 at Amazon?"
+          messaging_product: 'whatsapp',
+          recipient_type: "individual",
+          to: to,
+          type: 'template',
+          template: {
+            name: 'safety_check',
+            language: {
+              code: 'en'
             },
-            "action": {
-              "buttons": [
-                {
-                  "type": "reply",
-                  "reply": {
-                    "id": "yes_click",
-                    "title": "Yes"
+            components: [
+              {
+                type: "body",
+                parameters: [
+                  {
+                    parameter_name: 'company',
+                    type: "text",
+                    text: companyData.teamName         // {{1}} - Company Name
+                  },
+                  {
+                    parameter_name: 'inctitle',
+                    type: "text",
+                    text: incTitle   // {{2}} - Incident Title
                   }
-                },
-                {
-                  "type": "reply",
-                  "reply": {
-                    "id": "no_click",
-                    "title": "No"
+                ]
+              },
+              {
+                type: "button",
+                sub_type: "quick_reply",
+                index: "0",
+                parameters: [
+                  {
+                    type: "payload",
+                    payload: `YES_${user.id}_${incId}`
                   }
-                }
-              ]
-            }
+                ]
+              },
+              {
+                type: "button",
+                sub_type: "quick_reply",
+                index: "1",
+                parameters: [
+                  {
+                    type: "payload",
+                    payload: `NO_${user.id}_${incId}`
+                  }
+                ]
+              }
+            ]
           }
-        }
+        };
+        // const payload = {
+        //   "messaging_product": "whatsapp",
+        //   "recipient_type": "individual",
+        //   "to": to,
+        //   "type": "interactive",
+        //   "interactive": {
+        //     "type": "button",
+        //     "body": {
+        //       "text": "Did you make this purchase for ₹2,500 at Amazon?"
+        //     },
+        //     "action": {
+        //       "buttons": [
+        //         {
+        //           "type": "reply",
+        //           "reply": {
+        //             "id": "yes_click",
+        //             "title": "Yes"
+        //           }
+        //         },
+        //         {
+        //           "type": "reply",
+        //           "reply": {
+        //             "id": "no_click",
+        //             "title": "No"
+        //           }
+        //         }
+        //       ]
+        //     }
+        //   }
+        // }
         axios.post(
           `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
           payload,
@@ -3070,7 +3082,10 @@ const sendSafetyCheckMessageAsync = async (
             incData
           );
         }
-        sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle);
+        if (companyData.send_whatsapp
+        ) {
+          sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle);
+        }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
