@@ -2843,6 +2843,8 @@ const processCommentViaLink = async (userId, incId, comment) => {
 };
 
 const getUserPhone = async (refreshToken, tenantId, arrIds) => {
+  var phone = [""];
+  phone.pop();
   try {
     let data = new FormData();
     data.append("grant_type", "refresh_token");
@@ -2857,8 +2859,6 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
       data: data,
       // timeout: 10000,
     };
-    var phone = [""];
-    phone.pop();
     await axios
       .request(config)
       .then(async (response) => {
@@ -2973,6 +2973,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
   } catch (err) {
     console.log(err);
   }
+  return phone;
 };
 
 const sendSafetyCheckMessageAsync = async (
