@@ -2525,6 +2525,35 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
     }
   }
 }
+
+const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName) => {
+  try {
+    let payload = {
+      "messaging_product": "whatsapp",
+      "to": to,
+      "type": "text",
+      "text": {
+        "body": `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`,
+      }
+    };
+    axios.post(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    ).then(response => {
+      console.log('Template message sent:', response.data);
+    }).catch(error => {
+      console.error('Error sending template message:', error.response?.data || error.message);
+    });
+  } catch (err) {
+  }
+}
+
 const proccessSMSLinkClick = async (userId, eventId, text) => {
   if (userId && eventId) {
     const incData = await incidentService.getInc(eventId, null, userId);
@@ -2596,7 +2625,7 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
   }
 };
 
-const proccessWhatsappClick = async (userId, eventId, text) => {
+const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
   if (userId && eventId) {
     const incData = await incidentService.getInc(eventId, null, userId);
     const compData = await incidentService.getCompanyData(incData.teamId);
@@ -2664,6 +2693,11 @@ const proccessWhatsappClick = async (userId, eventId, text) => {
       incData.incCreatedBy,
       incData.incCreatedByName,
       user
+    );
+    sendAcknowledgeViaWhatsapp(
+      fromPhnNumber,
+      text,
+      compData.teamName
     );
   }
 };
@@ -3057,7 +3091,7 @@ const sendSafetyCheckMessageAsync = async (
             incData
           );
         }
-        if (companyData.send_whatsapp
+        if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
         ) {
           sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle);
         }

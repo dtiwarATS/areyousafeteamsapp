@@ -1060,7 +1060,7 @@ const handlerForSafetyBotTab = (app) => {
     const SSOCode = req.query.code || "";
     var details = req.query.state?.toString();
     const Tdata = details?.split("$$$");
-    const field = Tdata?.[1];
+    let field = Tdata?.[1];
     const teamId = Tdata?.[0];
     console.log({ AdminconsentinfoteamId: teamId });
     var Tscope = "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
@@ -1101,6 +1101,7 @@ const handlerForSafetyBotTab = (app) => {
             : "";
           // log({ refreshToken });
           // log(teamId);
+          field = field.toLowerCase() == "whatsapp" ? "send_whatsapp" : "send_sms";
           let config = {
             method: "post",
             maxBodyLength: Infinity,
@@ -1197,7 +1198,7 @@ const handlerForSafetyBotTab = (app) => {
             let userId = response[1];
             let incId = response[2];
             let resp = response[0];
-            bot.proccessWhatsappClick(userId, incId, resp.toUpperCase());
+            bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
           }
         } else if (type === 'text') {
           console.log(`User ${from} sent message: ${message.text.body}`);
