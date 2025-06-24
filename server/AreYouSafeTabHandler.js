@@ -388,7 +388,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       const data = await tabObj.saveRefreshToken(teamId, refresh_token, field);
-      tabObj.fetchDataAndUpdateDB(teamId, refresh_token);
+      tabObj.fetchDataAndUpdateDB(teamId);
       console.log(data);
       if (data.length) {
         res.send('success');
