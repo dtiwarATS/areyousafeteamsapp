@@ -77,6 +77,7 @@ const {
 } = require("../models/SafetyCheckCard");
 const { json } = require("body-parser");
 const { count } = require("console");
+const { Leave } = require("twilio/lib/twiml/VoiceResponse");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -2475,36 +2476,6 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
             ]
           }
         };
-        // const payload = {
-        //   "messaging_product": "whatsapp",
-        //   "recipient_type": "individual",
-        //   "to": to,
-        //   "type": "interactive",
-        //   "interactive": {
-        //     "type": "button",
-        //     "body": {
-        //       "text": "Did you make this purchase for ₹2,500 at Amazon?"
-        //     },
-        //     "action": {
-        //       "buttons": [
-        //         {
-        //           "type": "reply",
-        //           "reply": {
-        //             "id": "yes_click",
-        //             "title": "Yes"
-        //           }
-        //         },
-        //         {
-        //           "type": "reply",
-        //           "reply": {
-        //             "id": "no_click",
-        //             "title": "No"
-        //           }
-        //         }
-        //       ]
-        //     }
-        //   }
-        // }
         axios.post(
           `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
           payload,
@@ -2975,6 +2946,149 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
   }
   return phone;
 };
+
+const getUserDetails = async (tenantId, refreshToken, arrIds) => {
+  var phone = [""];
+  phone.pop();
+  try {
+    let data = new FormData();
+    data.append("grant_type", "refresh_token");
+    data.append("client_Id", process.env.MicrosoftAppId);
+    data.append("client_secret", process.env.MicrosoftAppPassword);
+    data.append("refresh_token", refreshToken);
+
+    let config = {
+      method: "post",
+      maxBodyLength: Infinity,
+      url: `https://login.microsoftonline.com/${tenantId}/oauth2/token`,
+      data: data,
+      // timeout: 10000,
+    };
+    await axios
+      .request(config)
+      .then(async (response) => {
+        // console.log(response.data);
+        if (response.data.scope?.indexOf("User.Read.All") == -1) {
+          res.json({ NoPhonePermission: true });
+        } else {
+          let accessToken = response.data.access_token;
+          // console.log({ arrIds });
+          var startIndex = 0;
+          var endIndex = 14;
+          if (endIndex > arrIds.length) endIndex = arrIds.length;
+          // console.log({ endIndex });
+          while (endIndex <= arrIds.length && startIndex != endIndex) {
+            var userIds = arrIds.slice(startIndex, endIndex).toString();
+            if (userIds.length) {
+              userIds = "'" + userIds.replaceAll(",", "','") + "'";
+              // console.log({ userIds });
+              startIndex = endIndex;
+              endIndex = startIndex + 14;
+              if (endIndex > arrIds.length) endIndex = arrIds.length;
+
+              let config = {
+                method: "get",
+                maxBodyLength: Infinity,
+                // timeout: 10000,
+                url:
+                  "https://graph.microsoft.com/v1.0/users?$select=displayName,id,department,country,city,state" +
+                  "&$filter=id in (" +
+                  userIds +
+                  ")",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: "Bearer " + accessToken,
+                },
+                // data: data,
+              };
+              var requestDate = new Date();
+              var a = await axios
+                .request(config)
+                .then((response) => {
+                  let data = response.data.value;
+                  if (data && data.length > 0) {
+                    let qry = "";
+                    data.forEach(user => {
+                      let city = user.city ? user.city : "";
+                      let country = user.country ? user.country : "";
+                      let state = user.state ? user.state : "";
+                      let department = user.department ? user.department : "";
+                      qry += `update MSTeamsTeamsUsers set city = '${city}', country = '${country}', state = '${state}', department = '${department}' where user_aadobject_id = '${user.id}'; `;
+                    });
+                    if (qry != "") {
+                      incidentService.updateDataIntoDB(qry);
+                    }
+                  }
+                })
+                .catch((error) => {
+                  console.log({
+                    "error in get users phone number requestDate": error,
+                  });
+                  processSafetyBotError(
+                    error,
+                    tenantId,
+                    "",
+                    "",
+                    "error in get users phone number requestDateTime : " +
+                    requestDate +
+                    " ErrorDateTime: " +
+                    new Date(),
+                    TeamName,
+                    false,
+                    clientVersion
+                  );
+                  res.json({ error: error });
+                });
+            } else {
+              return;
+            }
+          }
+          // console.log({ finalphone: phone });
+        }
+      })
+      .catch((error) => {
+        console.log("error at get access token in get users phone number", error);
+        // console.log(error);
+        if (
+          error.response.data.error == "invalid_grant" &&
+          error.response.data.error_description &&
+          error.response.data.error_description
+            .toString()
+            .indexOf("The refresh token has expired due to inactivity.") >= 0 //&&
+          //  teamId == "19:3684c109f05f44efb4fb54a988d70286@thread.tacv2"
+        ) {
+          res.json({ authFailed: true });
+        } else if (
+          error.response.data.error == "invalid_grant" ||
+          error.response.data.error == "interaction_required" ||
+          error.response.data.error == "insufficient_claims"
+        ) {
+          res.json({ invalid_grant: true });
+        } else {
+          console.log({
+            "error in get access token from microsoft at get users phone number":
+              error,
+          });
+          processSafetyBotError(
+            error,
+            teamId,
+            "",
+            "",
+            "error in get access token from microsoft at get users phone number",
+            TeamName,
+            false,
+            clientVersion
+          );
+          res.json({ error: error });
+        }
+      });
+    return phone;
+  } catch (err) {
+    console.log(err);
+  }
+  return phone;
+};
+
 
 const sendSafetyCheckMessageAsync = async (
   incId,
@@ -5208,5 +5322,6 @@ module.exports = {
   processCommentViaLink,
   proccessWhatsappClick,
   getUserPhone,
-  sendSafetyCheckMsgViaWhatsapp
+  sendSafetyCheckMsgViaWhatsapp,
+  getUserDetails
 };

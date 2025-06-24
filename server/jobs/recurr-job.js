@@ -8,10 +8,14 @@ const moment = require("moment-timezone");
 const { AYSLog } = require("../utils/log");
 const { processSafetyBotError } = require("../models/processError");
 const { getFilesByIncId } = require("../db/dbOperations");
+const tab = require("../tab/AreYouSafeTab");
 
 (async () => {
   //get filter job from database
   //console.log("recurr job : start");
+  const tabObj = new tab.AreYouSafeTab();
+  await tabObj.fetchDataAndUpdateDB('19:_0bBsp6zsraWb8oInI1UfADb1ODpYAoShjFp6yWt-TM1@thread.tacv2');
+  return;
   const log = new AYSLog();
   let currentDateTime = moment(new Date()).utc().format("YYYY-MM-DD HH:mm");
   log.addLog(`recurr job : currentDateTime - ${currentDateTime}`);

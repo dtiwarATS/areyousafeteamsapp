@@ -25,31 +25,31 @@ function initJob() {
         path: path.join(__dirname, "jobs", "recurr-job.js"),
         cron: "*/1 * * * *",
       },
-      {
-        name: "newSubcriptionAdded-job",
-        path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
-        cron: "*/1 * * * *",
-      },
-      {
-        name: "subscription-job",
-        path: path.join(__dirname, "jobs", "subscription-job.js"),
-        cron: "0 0 * * *",
-      },
-      {
-        name: "postInstallation-job",
-        path: path.join(__dirname, "jobs", "postInstallation-job.js"),
-        cron: "* 1 * * *",
-      },
-      {
-        name: "SendRemainder-job",
-        path: path.join(__dirname, "jobs", "SendRemainder-job.js"),
-        cron: "*/1 * * * *",
-      },
-      {
-        name: "updateTeamMembers-job",
-        path: path.join(__dirname, "jobs", "updateTeamMembers-job.js"),
-        cron: "0 */12 * * *",
-      },
+      // {
+      //   name: "newSubcriptionAdded-job",
+      //   path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
+      //   cron: "*/1 * * * *",
+      // },
+      // {
+      //   name: "subscription-job",
+      //   path: path.join(__dirname, "jobs", "subscription-job.js"),
+      //   cron: "0 0 * * *",
+      // },
+      // {
+      //   name: "postInstallation-job",
+      //   path: path.join(__dirname, "jobs", "postInstallation-job.js"),
+      //   cron: "* 1 * * *",
+      // },
+      // {
+      //   name: "SendRemainder-job",
+      //   path: path.join(__dirname, "jobs", "SendRemainder-job.js"),
+      //   cron: "*/1 * * * *",
+      // },
+      // {
+      //   name: "updateTeamMembers-job",
+      //   path: path.join(__dirname, "jobs", "updateTeamMembers-job.js"),
+      //   cron: "0 */12 * * *",
+      // },
     ],
   });
   //cron1: "*/1 * * * *"

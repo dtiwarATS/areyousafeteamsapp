@@ -1382,6 +1382,24 @@ const getUserInfo = async (teamId, useraadObjId) => {
   return Promise.resolve(result);
 };
 
+const getUserInfoByTeamId = async (teamId) => {
+  let result = null;
+  try {
+    const sqlUserInfo = `select * from MSTeamsTeamsUsers tu where tu.team_id = '${teamId}'`;
+    result = await db.getDataFromDB(sqlUserInfo);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      useraadObjId,
+      "error in getUserInfo"
+    );
+  }
+  return Promise.resolve(result);
+};
+
 const getUserInfoByUserAadObjId = async (useraadObjId) => {
   let result = null;
   try {
@@ -1443,7 +1461,7 @@ const getenablecheck = async (teamId) => {
 const getSendSMS = async (teamId) => {
   let result = null;
   try {
-    const qry = `select refresh_token, send_sms, send_whatsapp, PHONE_FIELD from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    const qry = `select refresh_token, send_sms, send_whatsapp, PHONE_FIELD, FILTER_ENABLED as filterEnabled from MSTeamsInstallationDetails where team_id='${teamId}' `;
     result = await db.getDataFromDB(qry);
   } catch (err) {
     console.log(err);
@@ -1558,7 +1576,19 @@ const setSendSMS = async (teamId, sendSMS, phoneField) => {
   }
   return Promise.resolve(result);
 };
-
+const saveFilterChecked = async (teamId, filterEnabled) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set FILTER_ENABLED = '${filterEnabled}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in saveFilterChecked");
+  }
+  return Promise.resolve(result);
+};
 const setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
   let result = null;
   try {
@@ -2596,6 +2626,7 @@ module.exports = {
   getenablecheck,
   getSendSMS,
   setSendSMS,
+  saveFilterChecked,
   setSendWhatsapp,
   saveRefreshToken,
   safteyvisiterresponseupdate,
@@ -2608,5 +2639,6 @@ module.exports = {
   updateSentSMSCount,
   updateCommentViaSMSLink,
   getEmergencyContacts,
-  getEmergencyContactsList
+  getEmergencyContactsList,
+  getUserInfoByTeamId
 };

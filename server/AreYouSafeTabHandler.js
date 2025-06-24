@@ -343,6 +343,24 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+
+  app.post("/areyousafetabhandler/saveFilterChecked", async (req, res) => {
+    const teamId = req.query.teamId;
+    const filterEnabled = req.query.filterEnabled;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.saveFilterChecked(teamId, filterEnabled);
+      res.send('success');
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/saveFilterChecked"
+      );
+    }
+  });
   app.post("/areyousafetabhandler/setSendWhatsapp", async (req, res) => {
     const teamId = req.query.teamId;
     const sendWhatsapp = req.query.sendWhatsapp;
@@ -370,6 +388,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       const data = await tabObj.saveRefreshToken(teamId, refresh_token, field);
+      tabObj.fetchDataAndUpdateDB(teamId, refresh_token);
       console.log(data);
       if (data.length) {
         res.send('success');

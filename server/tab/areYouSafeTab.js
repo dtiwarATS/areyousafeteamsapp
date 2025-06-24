@@ -17,6 +17,7 @@ const {
   getCompaniesData,
   updateSuperUserDataByUserAadObjId,
   saveNARespSelectedTeams,
+  getCompanyDataByTeamId
 } = require("../db/dbOperations");
 
 require("dotenv").config({ path: ENV_FILE });
@@ -1007,7 +1008,15 @@ class AreYouSafeTab {
     }
     return Promise.resolve(res);
   };
-
+  saveFilterChecked = async (teamId, filterEnabled) => {
+    let res = null;
+    try {
+      res = await incidentService.saveFilterChecked(teamId, filterEnabled);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in saveFilterChecked");
+    }
+    return Promise.resolve(res);
+  };
   setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     let res = null;
     try {
@@ -1105,6 +1114,27 @@ class AreYouSafeTab {
       };
     } catch (err) {
       processSafetyBotError(err, "", "", "", "error in getIncDataToCopyInc");
+    }
+  };
+
+  fetchDataAndUpdateDB = async (teamId) => {
+    try {
+      const companyData = await getCompanyDataByTeamId(teamId);
+      incidentService.getUserInfoByTeamId(teamId)
+      .then(async (userInfo) => {
+        if (userInfo && userInfo.length > 0) { 
+          let userIds = userInfo.map((user) => user.user_aadobject_id);
+          await bot.getUserDetails(companyData.userTenantId, companyData.refresh_token, userIds);
+        }
+      });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in fetchDataAndUpdateDB data=" + JSON.stringify(data)
+      );
     }
   };
 
