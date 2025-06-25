@@ -728,6 +728,13 @@ const handlerForSafetyBotTab = (app) => {
     const userTeamInfo = await tabObj.getUserTeamInfo(userAadObjId);
     res.send(userTeamInfo);
   });
+  app.get("/areyousafetabhandler/getFilterData", async (req, res) => {
+    const teamId = req.query.teamId;
+    const tabObj = new tab.AreYouSafeTab();
+    const filterData = await tabObj.getFilterData(teamId);
+    res.send(filterData);
+  });
+
 
   app.put("/areyousafetabhandler/contactus", async (req, res) => {
     const email = req.query.email;
@@ -1120,7 +1127,7 @@ const handlerForSafetyBotTab = (app) => {
             : "";
           // log({ refreshToken });
           // log(teamId);
-          field = field.toLowerCase() == "whatsapp" ? "send_whatsapp" : "send_sms";
+          field = field.toLowerCase() == "whatsapp" ? "send_whatsapp" : (field.toLowerCase() == "filter" ? "FILTER_ENABLED" : "send_sms");
           let config = {
             method: "post",
             maxBodyLength: Infinity,

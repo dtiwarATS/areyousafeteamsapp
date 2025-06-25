@@ -18,7 +18,7 @@ const tab = require("../tab/AreYouSafeTab");
         for (const team of teams) {
             try {
                 console.log(`Updating users details of team: ${team.team_id}`);
-                await tabObj.fetchDataAndUpdateDB(teamId);
+                await tabObj.fetchDataAndUpdateDB(team.team_id);
             } catch (err) {
                 console.error(err);
                 console.log(

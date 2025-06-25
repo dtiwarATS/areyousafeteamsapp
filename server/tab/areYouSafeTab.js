@@ -936,6 +936,16 @@ class AreYouSafeTab {
     return Promise.resolve(userTeamInfo);
   };
 
+  getFilterData = async (teamId) => {
+    let filterData = null;
+    try {
+      filterData = await incidentService.getFilterData(teamId);
+    } catch (err) {
+      processSafetyBotError(err, "", "", "", "error in getFilterData");
+    }
+    return Promise.resolve(filterData);
+  };
+
   submitContactUs = async (email, msg, userId, userName) => {
     try {
       const companyData = await getCompaniesData(userId);
