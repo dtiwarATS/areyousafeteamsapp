@@ -2419,7 +2419,16 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
   let usrPhones = await getUserPhone(refresh_token, tenantId, users);
   for (let user of usrPhones) {
     try {
-      phone = user.mobilePhone;
+      let phone =
+        user.businessPhones.length > 0 && user.businessPhones[0] != ""
+          ? user.businessPhones[0]
+          : "";
+      if (companyData.PHONE_FIELD == "mobilePhone") {
+          phone = user.mobilePhone;
+      }
+      if (phone == null || phone == "" || phone == "null") {
+        continue;
+      }
       if (phone != null && phone != "" && phone != "null") {
         const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
         const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
