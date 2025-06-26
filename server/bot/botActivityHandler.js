@@ -1202,7 +1202,7 @@ class BotActivityHandler extends TeamsActivityHandler {
     // }
     // if (userInfo && userInfo.length > 0) {
     //   new PersonalEmail.PersonalEmail()
-    //     .sendUninstallationEmail(userEmailId, userAadObjId)
+    //     .sendUninstallationEmail(userEmailId, userAadObjId,process.env.build)
     //     .then(() => {})
     //     .catch((err) => {
     //       console.log(err);

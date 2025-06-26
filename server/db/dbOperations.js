@@ -329,7 +329,7 @@ const teamMemberInsertQuery = (teamId, m) => {
     VALUES('${teamId}', '${m.aadObjectId ?? m.objectId}', '${m.id}', N'${m.name.replace(
     /'/g,
     "''"
-  )}', '${m.tenantId}', '${m.userRole}',0);
+    )}', '${m.tenantId}', '${m.userRole}',1);
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
     m.aadObjectId ?? m.objectId
@@ -721,14 +721,17 @@ const updateSuperUserDataByUserAadObjId = async (
   EnableSafetycheckForVisitors,
   SafetycheckForVisitorsQuestion1,
   SafetycheckForVisitorsQuestion2,
-  SafetycheckForVisitorsQuestion3
+  SafetycheckForVisitorsQuestion3,
+  emergencyContactsStr
 ) => {
   let isUpdated = false;
   try {
     pool = await poolPromise;
     const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',EnableSafetycheckForVisitors=${
       EnableSafetycheckForVisitors ? 1 : 0
-    } ,SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' WHERE(user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
+      } ,SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' 
+,EMERGENCY_CONTACTS='${emergencyContactsStr}'
+    WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
 
     const result = await pool.request().query(updateQuery);
     isUpdated = true;

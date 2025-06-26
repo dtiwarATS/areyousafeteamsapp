@@ -240,13 +240,13 @@ const updateSafeMessage = (
           },
         ],
       },
-      {
-        type: "TextBlock",
-        separator: true,
-        wrap: true,
-        isVisible: isVisi,
-        text: "**Guidance:**\n\n" + incGuidance,
-      },
+      // {
+      //   type: "TextBlock",
+      //   separator: true,
+      //   wrap: true,
+      //   isVisible: isVisi,
+      //   text: "**Guidance:**\n\n" + incGuidance,
+      // },
     ],
     // msteams: {
     //   entities: [
@@ -477,12 +477,12 @@ const updateSubmitCommentCard = (responseText, incCreatedBy, incGuidance) => {
         text: responseText,
         wrap: true,
       },
-      {
-        type: "TextBlock",
-        wrap: true,
-        isVisible: isVisi,
-        text: "**Guidance:**\n\n" + incGuidance,
-      },
+      // {
+      //   type: "TextBlock",
+      //   wrap: true,
+      //   isVisible: isVisi,
+      //   text: "**Guidance:**\n\n" + incGuidance,
+      // },
     ],
     msteams: {
       entities: [

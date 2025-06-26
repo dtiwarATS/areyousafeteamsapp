@@ -7,6 +7,7 @@ class PersonalEmail {
   user = process.env.PERSONAL_AUTH_USER;
   pass = process.env.PERSONAL_AUTH_PASS;
   email = process.env.PERSONAL_ADMIN_EMAIL;
+  build = process.env.build;
   constructor() {
     // if (process.env.build == "Local") {
     //     this.host = process.env.LOCAL_HOST_NAME;
@@ -19,39 +20,26 @@ class PersonalEmail {
   sendWelcomEmail = (toUserEmailId, userAadObjId) => {
     return new Promise((resolve, reject) => {
       try {
-        const subject =
-          "Welcome to AreYouSafe! We’re here to help you get started";
+    const requestOptions = {
+      method: "POST",
+      redirect: "follow",
+    };
 
-        const emailBody =
-          "<div style='font-family:Calibri;font-size:16px;'>Hello, <br /><br />" +
-          "Thank you for installing AreYouSafe bot. You can use it FREE for small teams with less than 10 users." +
-          "<br /><br />" +
-          "For larger teams, you can use it FREE for 45 days. For pricing after the 45-day trial check out our <a href='https://areyousafe.in/#pricing'>pricing page</a>." +
-          "<br /><br />" +
-          "Feel free to reach out to us if you need any help or want to share feedback." +
-          "<br />" +
-          "<a href='mailto:help@areyousafe.in'>Email</a> | <a href='https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com'>Chat</a> | <a href='https://calendly.com/nehapingale/short-call'>Schedule Call</a>" +
-          " <br /><br />" +
-          "With Gratitude," +
-          " <br />" +
-          "Vipassana Mahale </div>";
-
-        const emailTransportParam = new email.EmailTransportParam(
-          this.host,
-          this.port,
-          this.secure,
-          this.user,
-          this.pass
-        );
-        const emailOption = new email.EmailOption(
-          this.email,
-          toUserEmailId,
-          subject,
-          emailBody
-        );
-        email.sendEmail(emailTransportParam, emailOption);
-        resolve(true);
-      } catch (err) {
+    fetch(
+      "https://emailservices.azurewebsites.net/api/sendemail?projectName=AYS&emailType=NewInstall&emailTo=" +
+        toUserEmailId +
+        "&userCount=0&authKey=A9fG4dX2pL7qW8mZ&Environment=" +
+        this.build,
+      requestOptions
+    )
+      .then((response) => {
+        console.log("I AM DONE");
+        response.text();
+      })
+      .then((result) => console.log(result))
+      .catch((error) => console.error(error));
+  }
+       catch (err) {
         processSafetyBotError(
           err,
           "",
@@ -65,43 +53,28 @@ class PersonalEmail {
     });
   };
   sendUninstallationEmail = (toUserEmailId, userAadObjId) => {
-    return new Promise((resolve, reject) => {
+        return new Promise((resolve, reject) => {
       try {
-        const subject = "AreYouSafe | I am sorry to see you go";
+    const requestOptions = {
+      method: "POST",
+      redirect: "follow",
+    };
 
-        const emailBody =
-          "<div style='font-family:Calibri;font-size:16px;'>Hi, <br />" +
-          "I am sorry to see you go. I want to learn more about how using the AreYouSafe bot went for you and what made you say goodbye." +
-          "<br /> <br />" +
-          "We are doing our best to make the AreYouSafe bot an effective safety check tool for crisis management, and your feedback" +
-          " is vital to us – this will help us focus on the most important bits of the product and improve. We are going to use your" +
-          " input to make the AreYouSafe bot better!" +
-          "<br /> <br />" +
-          "Just hit reply to this email and let me know why you uninstalled the AreYouSafe bot." +
-          "<br /> <br />" +
-          "I am looking forward to your feedback." +
-          "<br /> <br />" +
-          "Vipassana Mahale <br />" +
-          "<a href='mailto:vipassana.mahale@areyousafe.in'>vipassana.mahale@areyousafe.in</a><br />" +
-          "<a href='https://areyousafe.in/'>https://areyousafe.in/</a></div>";
-
-        const emailTransportParam = new email.EmailTransportParam(
-          this.host,
-          this.port,
-          this.secure,
-          this.user,
-          this.pass,
-          this.from
-        );
-        const emailOption = new email.EmailOption(
-          this.email,
-          toUserEmailId,
-          subject,
-          emailBody
-        );
-        email.sendEmail(emailTransportParam, emailOption);
-        resolve(true);
-      } catch (err) {
+    fetch(
+      "https://emailservices.azurewebsites.net/api/sendemail?projectName=AYS&emailType=UnInstall&emailTo=" +
+        toUserEmailId +
+        "&userCount=0&authKey=A9fG4dX2pL7qW8mZ&Environment=" +
+        build,
+      requestOptions
+    )
+      .then((response) => {
+        console.log("I AM DONE");
+        response.text();
+      })
+      .then((result) => console.log(result))
+      .catch((error) => console.error(error));
+  }
+      catch (err) {
         processSafetyBotError(
           err,
           "",

@@ -7,7 +7,8 @@ const getSafetyCheckMessageText = async (
   incTitle,
   mentionUserEntities,
   incRespSelectedUsers = null,
-  incTypeId = 1
+  incTypeId = 1,
+  incGuidance
 ) => {
   let onBehalfOf = "",
     responseUsers = "";
@@ -16,29 +17,42 @@ const getSafetyCheckMessageText = async (
       incRespSelectedUsers =
         await incidentService.getIncResponseSelectedUsersList(incId);
     }
-    if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
-      for (let i = 0; i < incRespSelectedUsers.length; i++) {
-        const { user_id: userId, user_name: userName } =
-          incRespSelectedUsers[i];
-        responseUsers +=
-          (responseUsers != "" ? ", " : "") + `<at>${userName}</at>`;
-        dashboard.mentionUser(mentionUserEntities, userId, userName);
-      }
-    }
-    if (responseUsers != "") {
-      onBehalfOf = ` on behalf of ${responseUsers}`;
-    }
+    // if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
+    //   for (let i = 0; i < incRespSelectedUsers.length; i++) {
+    //     const { user_id: userId, user_name: userName } =
+    //       incRespSelectedUsers[i];
+    //     responseUsers +=
+    //       (responseUsers != "" ? ", " : "") + `<at>${userName}</at>`;
+    //     dashboard.mentionUser(mentionUserEntities, userId, userName);
+    //   }
+    // }
+    // if (responseUsers != "") {
+    //   onBehalfOf = ` on behalf of ${responseUsers}`;
+    // }
   }
   let msg = "";
   if (incTypeId == 1) {
-    //Safety Check
-    msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
+    if (incGuidance) {
+      let escaped = escapeRegex('<IncidentCreator>');
+      let regex = new RegExp(escaped, 'g');
+
+      msg = incGuidance.replace(regex, `<at>${createdByName}</at>`);
+
+      escaped = escapeRegex('<IncidentTitle>');
+      regex = new RegExp(escaped, 'g');
+      msg = msg.replace(regex, `**${incTitle}**`);
+    } else {
+      //Safety Check
+      msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
+    }
   } else if (incTypeId == 2) {
     msg = `This is a safety alert from <at>${createdByName}</at>. We think you may be affected by **${incTitle}**.`;
   }
   return msg;
 };
-
+const escapeRegex = (text) => {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 const getSafetyCheckTypeCard = async (
   incTitle,
   incObj,
@@ -60,7 +74,8 @@ const getSafetyCheckTypeCard = async (
       incTitle,
       mentionUserEntities,
       incResponseSelectedUsersList,
-      incTypeId
+      incTypeId,
+      incGuidance
     );
   }
   if (!incCreatedById) {
@@ -69,7 +84,10 @@ const getSafetyCheckTypeCard = async (
   if (!incCreatedByName) {
     incCreatedByName = incObj.incCreatedBy.name;
   }
-  dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
+  if (!(incTypeId == 1 && safetyCheckMessageText.indexOf(incObj.incCreatedBy.name) == -1)) {
+    dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
+  }
+
   const cardBody = [
     {
       type: "TextBlock",

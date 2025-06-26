@@ -17,6 +17,7 @@ const {
   getCompaniesData,
   updateSuperUserDataByUserAadObjId,
   saveNARespSelectedTeams,
+  getCompanyDataByTeamId
 } = require("../db/dbOperations");
 
 require("dotenv").config({ path: ENV_FILE });
@@ -937,6 +938,16 @@ class AreYouSafeTab {
     return Promise.resolve(userTeamInfo);
   };
 
+  getFilterData = async (teamId) => {
+    let filterData = null;
+    try {
+      filterData = await incidentService.getFilterData(teamId);
+    } catch (err) {
+      processSafetyBotError(err, "", "", "", "error in getFilterData");
+    }
+    return Promise.resolve(filterData);
+  };
+
   submitContactUs = async (email, msg, userId, userName) => {
     try {
       const companyData = await getCompaniesData(userId);
@@ -990,20 +1001,48 @@ class AreYouSafeTab {
     return Promise.resolve(superUsers);
   };
 
-  setSendSMS = async (teamId, sendSMS) => {
+  getEmergencyContacts = async (teamId) => {
+    let emergencyContacts = null;
+    try {
+      emergencyContacts = await incidentService.getEmergencyContactsList(teamId);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in getEmergencyContacts");
+    }
+    return Promise.resolve(emergencyContacts);
+  };
+
+  setSendSMS = async (teamId, sendSMS, phoneField) => {
     let res = null;
     try {
-      res = await incidentService.setSendSMS(teamId, sendSMS);
+      res = await incidentService.setSendSMS(teamId, sendSMS, phoneField);
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in setSendSMS");
     }
     return Promise.resolve(res);
   };
-
-  saveRefreshToken = async (teamId, refresh_token) => {
+  saveFilterChecked = async (teamId, filterEnabled) => {
     let res = null;
     try {
-      res = await incidentService.saveRefreshToken(teamId, refresh_token);
+      res = await incidentService.saveFilterChecked(teamId, filterEnabled);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in saveFilterChecked");
+    }
+    return Promise.resolve(res);
+  };
+  setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
+    let res = null;
+    try {
+      res = await incidentService.setSendWhatsapp(teamId, sendWhatsapp, phoneField);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in setsendWhatsapp");
+    }
+    return Promise.resolve(res);
+  };
+
+  saveRefreshToken = async (teamId, refresh_token, field) => {
+    let res = null;
+    try {
+      res = await incidentService.saveRefreshToken(teamId, refresh_token, field);
       console.log({ res });
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in saveRefreshToken");
@@ -1020,6 +1059,7 @@ class AreYouSafeTab {
     SafetycheckForVisitorsQuestion1,
     SafetycheckForVisitorsQuestion2,
     SafetycheckForVisitorsQuestion3,
+    emergencyContactsStr
   }) => {
     let result = null;
     try {
@@ -1031,7 +1071,8 @@ class AreYouSafeTab {
         EnableSafetycheckForVisitors,
         SafetycheckForVisitorsQuestion1,
         SafetycheckForVisitorsQuestion2,
-        SafetycheckForVisitorsQuestion3
+        SafetycheckForVisitorsQuestion3,
+        emergencyContactsStr
       );
     } catch (err) {
       processSafetyBotError(
@@ -1085,6 +1126,27 @@ class AreYouSafeTab {
       };
     } catch (err) {
       processSafetyBotError(err, "", "", "", "error in getIncDataToCopyInc");
+    }
+  };
+
+  fetchDataAndUpdateDB = async (teamId) => {
+    try {
+      const companyData = await getCompanyDataByTeamId(teamId);
+      incidentService.getUserInfoByTeamId(teamId)
+      .then(async (userInfo) => {
+        if (userInfo && userInfo.length > 0) { 
+          let userIds = userInfo.map((user) => user.user_aadobject_id);
+          await bot.getUserDetails(companyData.userTenantId, companyData.refresh_token, userIds);
+        }
+      });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in fetchDataAndUpdateDB data=" + JSON.stringify(data)
+      );
     }
   };
 

@@ -1212,7 +1212,7 @@ const getTeamMemeberSqlQuery = (
       ? " CASE when tblAadObjId.useAadObjId is not null then 1 else 0 end isSuperUser "
       : " 0 isSuperUser ") +
     ` , u.conversationId,
-  case when inst.user_id is null then 0 else 1 end isAdmin 
+  case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
@@ -1382,6 +1382,24 @@ const getUserInfo = async (teamId, useraadObjId) => {
   return Promise.resolve(result);
 };
 
+const getUserInfoByTeamId = async (teamId) => {
+  let result = null;
+  try {
+    const sqlUserInfo = `select * from MSTeamsTeamsUsers tu where tu.team_id = '${teamId}'`;
+    result = await db.getDataFromDB(sqlUserInfo);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      useraadObjId,
+      "error in getUserInfo"
+    );
+  }
+  return Promise.resolve(result);
+};
+
 const getUserInfoByUserAadObjId = async (useraadObjId) => {
   let result = null;
   try {
@@ -1396,7 +1414,7 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select  user_id userid,team_id teamId, team_name teamName, channelId, isnull(team_name, '') + ' - ' + isnull(channelName, '') channelName, user_tenant_id tenant_id from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
+    const sqlTeamInfo = `select  user_id userid,team_id teamId, team_name teamName, channelId, isnull(team_name, '') + ' - ' + isnull(channelName, '') channelName, user_tenant_id tenant_id, FILTER_ENABLED from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
     result = await db.getDataFromDB(sqlTeamInfo, userAadObjId);
   } catch (err) {
     console.log(err);
@@ -1406,6 +1424,25 @@ const getUserTeamInfo = async (userAadObjId) => {
       "",
       userAadObjId,
       "error in getUserTeamInfo"
+    );
+  }
+  return Promise.resolve(result);
+};
+
+const getFilterData = async (teamId) => {
+  let result = null;
+  try {
+    const sqlTeamInfo = `select distinct city, country from MSTeamsTeamsUsers where team_id = '${teamId}' and ((country is not null and country != '') or (city is not null and city != '')) order by country, city;
+          select distinct department, city, country from MSTeamsTeamsUsers where team_id = '${teamId}' and department is not null and department != '' order by department`;
+    result = await db.getDataFromDB(sqlTeamInfo, "", false);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in getFilterData"
     );
   }
   return Promise.resolve(result);
@@ -1443,7 +1480,7 @@ const getenablecheck = async (teamId) => {
 const getSendSMS = async (teamId) => {
   let result = null;
   try {
-    const qry = `select refresh_token, send_sms from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    const qry = `select refresh_token, send_sms, send_whatsapp, PHONE_FIELD, FILTER_ENABLED as filterEnabled from MSTeamsInstallationDetails where team_id='${teamId}' `;
     result = await db.getDataFromDB(qry);
   } catch (err) {
     console.log(err);
@@ -1451,10 +1488,104 @@ const getSendSMS = async (teamId) => {
   }
   return Promise.resolve(result);
 };
-const setSendSMS = async (teamId, sendSMS) => {
+const getEmergencyContactsList = async (teamId) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set send_sms = ${sendSMS} where team_id='${teamId}' `;
+    const qry = `select EMERGENCY_CONTACTS from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    result = await db.getDataFromDB(qry);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in getEmergencyContacts");
+  }
+  return Promise.resolve(result);
+};
+const getEmergencyContacts = async (aadObjuserId, TeamID) => {
+  console.log("Getting emergency contacts");
+  try {
+    const emergencyContactsData = [];
+
+    let userSql;
+    if (TeamID != "null") {
+      userSql = `select * from MSTeamsInstallationDetails where team_id='${TeamID}'`;
+    } else {
+      userSql = `select user_obj_id, EMERGENCY_CONTACTS, team_id, team_name from msteamsinstallationdetails where team_id in
+      (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name`;
+    }
+
+    const userResult = await db.getDataFromDB(userSql, aadObjuserId);
+    const teamsIds = [];
+    if (userResult != null && userResult.length > 0) {
+      userResult.map((usr) => {
+        const emergencyContactsArr = [];
+        const userTeamId = usr.team_id;
+        if (usr.user_obj_id != null) {
+
+          if (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "") {
+            let emergencyContacts = usr.EMERGENCY_CONTACTS.split(",");
+            if (emergencyContacts.length > 0) {
+              emergencyContacts.map((contact) => {
+                emergencyContactsArr.push(contact);
+              });
+            }
+          }
+
+          if (
+            (aadObjuserId !== usr.user_obj_id ||
+              (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "")) &&
+            !teamsIds.includes(userTeamId)
+          ) {
+            teamsIds.push({ userTeamId, emergencyContactsArr });
+          }
+        }
+      });
+    }
+
+    let allTeamsEmergencyContactsData = [];
+
+    if (teamsIds && teamsIds.length > 0) {
+      await Promise.all(
+        teamsIds.map(async (teamObj) => {
+          try {
+            const teamId = teamObj.userTeamId;
+            const emergencyContactsArr = teamObj.emergencyContactsArr;
+
+            let selectQuery = "";
+            if (emergencyContactsArr.length > 0) {
+              selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
+                            FROM MSTEAMSTEAMSUSERS A 
+                            LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
+                            WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${emergencyContactsArr.join(
+                "','"
+                )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+
+              const result = await db.getDataFromDB(selectQuery, aadObjuserId);
+              if (result && result.length > 0) {
+                allTeamsEmergencyContactsData = allTeamsEmergencyContactsData.concat(result);
+              }
+            } 
+
+          } catch (err) {
+            console.log(err);
+          }
+        })
+      );
+      const usersQuery = ` select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'; `;
+      const userResult = await db.getDataFromDB(usersQuery, aadObjuserId);
+
+      emergencyContactsData.push(allTeamsEmergencyContactsData);
+      emergencyContactsData.push(userResult);
+    }
+
+    return Promise.resolve(emergencyContactsData);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, TeamID, "", aadObjuserId, "error in getEmergencyContacts");
+  }
+};
+const setSendSMS = async (teamId, sendSMS, phoneField) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set send_sms = '${sendSMS}', PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = 'success';
@@ -1464,10 +1595,36 @@ const setSendSMS = async (teamId, sendSMS) => {
   }
   return Promise.resolve(result);
 };
-const saveRefreshToken = async (teamId, refresh_token) => {
+const saveFilterChecked = async (teamId, filterEnabled) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set refresh_token = '${refresh_token}', send_sms = 1 where team_id='${teamId}' `;
+    const qry = `update MSTeamsInstallationDetails set FILTER_ENABLED = '${filterEnabled}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in saveFilterChecked");
+  }
+  return Promise.resolve(result);
+};
+const setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set send_whatsapp = '${sendWhatsapp}', PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in setSendWhatsapp");
+  }
+  return Promise.resolve(result);
+};
+const saveRefreshToken = async (teamId, refresh_token, field = 'send_sms') => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set refresh_token = '${refresh_token}', ${field} = 1 where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = 'success';
@@ -2357,11 +2514,12 @@ const updateSafetyCheckStatusViaSMSLink = async (
   incId,
   resp,
   user_aadobject_id,
-  team_id
+  team_id,
+  viaSMS = true
 ) => {
   try {
     let sql = "";
-    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}', response_via = 'SMS'
+    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}', response_via = '${viaSMS ? 'SMS' : 'whatsapp'}'
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
     const result = await db.updateDataIntoDB(sql, user_aadobject_id);
@@ -2386,7 +2544,7 @@ const updateSafetyCheckStatusViaSMSLink = async (
 const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
   try {
     const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data) 
-          values('${userid}', '${status}', '${SMS_TEXT}', '${RAW_DATA}')`;
+          values('${userid}', '${status}', '${SMS_TEXT.replaceAll("'", "''")}', '${RAW_DATA}')`;
     pool = await poolPromise;
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
@@ -2419,6 +2577,8 @@ where team_id = '${team_id}'`;
     console.log();
   }
 };
+
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -2456,6 +2616,7 @@ module.exports = {
   getUserInfo,
   createNewInc,
   getUserTeamInfo,
+  getFilterData,
   getSuperUsersByTeamId,
   isWelcomeMessageSend,
   getUserInfoByUserAadObjId,
@@ -2485,6 +2646,8 @@ module.exports = {
   getenablecheck,
   getSendSMS,
   setSendSMS,
+  saveFilterChecked,
+  setSendWhatsapp,
   saveRefreshToken,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
@@ -2494,5 +2657,8 @@ module.exports = {
   updateSafetyCheckStatusViaSMSLink,
   saveSMSlogs,
   updateSentSMSCount,
-  updateCommentViaSMSLink
+  updateCommentViaSMSLink,
+  getEmergencyContacts,
+  getEmergencyContactsList,
+  getUserInfoByTeamId
 };

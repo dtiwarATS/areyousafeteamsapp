@@ -23,8 +23,11 @@ class Company {
     SafetycheckForVisitorsQuestion3,
     refresh_token,
     send_sms,
+    SEND_WHATSAPP,
     sent_sms_count,
-    SubscriptionType
+    SubscriptionType,
+    PHONE_FIELD,
+    FILTER_ENABLED
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -49,8 +52,11 @@ class Company {
     this.EnableSafetycheckForVisitors = EnableSafetycheckForVisitors;
     this.refresh_token = refresh_token;
     this.send_sms = send_sms;
+    this.send_whatsapp = SEND_WHATSAPP;
     this.sent_sms_count = sent_sms_count;
     this.SubscriptionType = SubscriptionType;
+    this.PHONE_FIELD = PHONE_FIELD;
+    this.filterEnabled = FILTER_ENABLED;
   }
 }
 

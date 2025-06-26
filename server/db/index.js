@@ -130,13 +130,13 @@ const getDataFromDB = async (
     return isSingleQuery ? data.recordset : data.recordsets;
   } catch (err) {
     console.log(err);
-    processSafetyBotError(
-      err,
-      "",
-      "",
-      userObjId,
-      "error in getDataFromDB sqlQuery=" + sqlQuery
-    );
+    // processSafetyBotError(
+    //   err,
+    //   "",
+    //   "",
+    //   userObjId,
+    //   "error in getDataFromDB sqlQuery=" + sqlQuery
+    // );
   }
 };
 

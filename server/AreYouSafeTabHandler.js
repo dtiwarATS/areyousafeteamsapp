@@ -302,12 +302,36 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getEmergencyContacts", async (req, res) => {
+    const teamId = req.query.teamId;
+    const userAadObjId = req.query.userAadObjId;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const data = await tabObj.getEmergencyContacts(teamId);
+      if (data.length) {
+        const emergencyContacts = data[0];
+        res.send(emergencyContacts);
+      } else {
+        res.send(null);
+      }
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getEmergencyContacts"
+      );
+    }
+  });
+
   app.post("/areyousafetabhandler/setSendSMS", async (req, res) => {
     const teamId = req.query.teamId;
     const sendSMS = req.query.sendSMS;
+    const phoneField = req.query.phoneField;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      await tabObj.setSendSMS(teamId, sendSMS);
+      await tabObj.setSendSMS(teamId, sendSMS, phoneField);
       res.send('success');
     } catch (err) {
       processSafetyBotError(
@@ -320,13 +344,51 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.post("/areyousafetabhandler/saveFilterChecked", async (req, res) => {
+    const teamId = req.query.teamId;
+    const filterEnabled = req.query.filterEnabled;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.saveFilterChecked(teamId, filterEnabled);
+      res.send('success');
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/saveFilterChecked"
+      );
+    }
+  });
+  app.post("/areyousafetabhandler/setSendWhatsapp", async (req, res) => {
+    const teamId = req.query.teamId;
+    const sendWhatsapp = req.query.sendWhatsapp;
+    const phoneField = req.query.phoneField;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setSendWhatsapp(teamId, sendWhatsapp, phoneField);
+      res.send('success');
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setSendWhatsapp"
+      );
+    }
+  });
+
   app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
     const teamId = req.query.teamId;
     const refresh_token = req.query.refresh_token;
+    const field = req.query.field;
     console.log({ teamId, refresh_token });
     try {
       const tabObj = new tab.AreYouSafeTab();
-      const data = await tabObj.saveRefreshToken(teamId, refresh_token);
+      const data = await tabObj.saveRefreshToken(teamId, refresh_token, field);
+      tabObj.fetchDataAndUpdateDB(teamId);
       console.log(data);
       if (data.length) {
         res.send('success');
@@ -374,7 +436,7 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  app.get("/areyousafetabhandler/requestAssistance", (req, res) => {
+  app.get("/areyousafetabhandler/requestAssistance", async (req, res) => {
     console.log("came in request");
     const userAadObjId = req.query.userId;
     var userlocation = "null";
@@ -387,53 +449,40 @@ const handlerForSafetyBotTab = (app) => {
       UserDataUpdateID = req.query.ID;
     }
     try {
-      incidentService
-        .getAdmins(userAadObjId, TeamId)
-        .then(async (incData) => {
-          if (
-            incData === null ||
-            (Array.isArray(incData) && incData.length === 0)
-          ) {
-            res.send("no safety officers");
-            return;
-          }
-          let admins = incData[0];
-          let user = incData[1][0];
-          let assistanceData = null;
-          const tabObj = new tab.AreYouSafeTab();
-          // const admins = await tabObj.requestAssistance(incData);
-          if (admins && admins.length > 0) {
-            let ts = req.query.ts;
-            if (ts != null) {
-              ts = ts.replace(/-/g, "/");
-            }
-            assistanceData = await tabObj.saveAssistance(
-              admins,
-              user,
-              ts,
-              userAadObjId,
-              userlocation,
-              UserDataUpdateID
-            );
-          }
-          console.log(assistanceData);
-          if (assistanceData != null && assistanceData.length > 0) {
-            assistanceData = assistanceData[0];
-          } else {
-            assistanceData = "no safety officers";
-          }
-          res.send(assistanceData);
-        })
-        .catch((err) => {
-          console.log(err);
-          processSafetyBotError(
-            err,
-            "",
-            "",
-            userAadObjId,
-            "error in /areyousafetabhandler/requestAssistance -> then "
-          );
-        });
+      let incData = await incidentService.getEmergencyContacts(userAadObjId, TeamId);
+      if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {
+        incData = await incidentService.getAdmins(userAadObjId, TeamId);
+        if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
+          res.send("no safety officers");
+          return;
+        }
+      }
+      let admins = incData[0];
+      let user = incData[1][0];
+      let assistanceData = null;
+      const tabObj = new tab.AreYouSafeTab();
+      if (admins && admins.length > 0) {
+        let ts = req.query.ts;
+        if (ts != null) {
+          ts = ts.replace(/-/g, "/");
+        }
+        assistanceData = await tabObj.saveAssistance(
+          admins,
+          user,
+          ts,
+          userAadObjId,
+          userlocation,
+          UserDataUpdateID
+        );
+      }
+      console.log(assistanceData);
+      if (assistanceData != null && assistanceData.length > 0) {
+        assistanceData = assistanceData[0];
+      } else {
+        assistanceData = "no safety officers";
+      }
+      res.send(assistanceData);
+
     } catch (err) {
       processSafetyBotError(
         err,
@@ -449,7 +498,23 @@ const handlerForSafetyBotTab = (app) => {
     "/areyousafetabhandler/sendNeedAssistanceProactiveMessage",
     async (req, res) => {
       const userAadObjId = req.query.userId;
-      const incData = JSON.parse(req.query.adminlist);
+      const teamId = req.query.teamId;
+      let incData = null;
+      try {
+        incData = await incidentService.getEmergencyContacts(userAadObjId, teamId);
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          userAadObjId,
+          "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> getEmergencyContacts"
+        );
+      }
+      if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {
+        incData = JSON.parse(req.query.adminlist);
+      }
       var userlocation = null;
       if (req.query.Location != undefined) {
         userlocation = JSON.parse(req.query.Location);
@@ -665,6 +730,13 @@ const handlerForSafetyBotTab = (app) => {
     const userTeamInfo = await tabObj.getUserTeamInfo(userAadObjId);
     res.send(userTeamInfo);
   });
+  app.get("/areyousafetabhandler/getFilterData", async (req, res) => {
+    const teamId = req.query.teamId;
+    const tabObj = new tab.AreYouSafeTab();
+    const filterData = await tabObj.getFilterData(teamId);
+    res.send(filterData);
+  });
+
 
   app.put("/areyousafetabhandler/contactus", async (req, res) => {
     const email = req.query.email;
@@ -919,6 +991,50 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getEmergencyContactUsers", (req, res) => {
+    console.log("came in request");
+
+    const userAadObjId = req.query.userId;
+    const TeamId = req.query.teamid;
+
+    try {
+      incidentService
+        .getEmergencyContacts(userAadObjId, TeamId)
+        .then(async (adminData) => {
+          if (
+            adminData === null ||
+            (Array.isArray(adminData) && adminData.length === 0)
+          ) {
+            res.send(null);
+
+            return;
+          }
+
+          res.send(adminData);
+        })
+
+        .catch((err) => {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            TeamId,
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/getEmergencyContactUsers"
+          );
+
+          res.send(null);
+        });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getEmergencyContactUsers"
+      );
+    }
+  });
   app.get("/areyousafetabhandler/getAdminList", (req, res) => {
     console.log("came in request");
 
@@ -972,6 +1088,7 @@ const handlerForSafetyBotTab = (app) => {
     const SSOCode = req.query.code || "";
     var details = req.query.state?.toString();
     const Tdata = details?.split("$$$");
+    let field = Tdata?.[1];
     const teamId = Tdata?.[0];
     console.log({ AdminconsentinfoteamId: teamId });
     var Tscope = "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
@@ -1012,17 +1129,18 @@ const handlerForSafetyBotTab = (app) => {
             : "";
           // log({ refreshToken });
           // log(teamId);
+          field = field.toLowerCase() == "whatsapp" ? "send_whatsapp" : (field.toLowerCase() == "filter" ? "FILTER_ENABLED" : "send_sms");
           let config = {
             method: "post",
             maxBodyLength: Infinity,
-            url: `${process.env.serviceUrl}/areyousafetabhandler/setRefreshToken?teamId=${teamId}&refresh_token=${refreshToken}`,
+            url: `${process.env.serviceUrl}/areyousafetabhandler/setRefreshToken?teamId=${teamId}&refresh_token=${refreshToken}&field=${field}`,
             // timeout: 10000,
           };
           axios
             .request(config)
 
             .then((response) => {
-              const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;font-family: &quot;Montserrat&quot;, sans-serif;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Are You Safe?</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://areyousafe.in/img/SafetyBot%20Icon.png" style=" width: 150px;"></div>Go back to Teams and reload the Areyousafe tab</div>`;
+              const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;font-family: &quot;Montserrat&quot;, sans-serif;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Are You Safe?</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://areyousafe.in/img/SafetyBot%20Icon.png" style=" width: 150px;"></div><h3 style="margin-bottom: 5px;font-size: 31px;">Thank you for granting permission(s)</h3> <label style="font-family: &quot;Montserrat&quot;, sans-serif;font-weight: 700;display: inline-block;padding: 10px 20px;border-radius: 4px;color: #fff;color: #5783db;text-decoration: none;font-size: 21px;">Go back to Teams and reload the Are You Safe tab</label></div>`;
               res.status(200).send(msg);
             })
             .catch((error) => {
@@ -1084,6 +1202,55 @@ const handlerForSafetyBotTab = (app) => {
     console.log({ userId, eventId, comments });
     await bot.processCommentViaLink(userId, eventId, comments);
     res.status(200);
+  });
+  app.post("/whatsapp", async (req, res) => {
+    const body = req.body;
+
+    console.log('Incoming Webhook:', JSON.stringify(body, null, 2));
+    if (body.object) {
+      if (
+        body.entry &&
+        body.entry[0].changes &&
+        body.entry[0].changes[0].value.messages
+      ) {
+        const message = body.entry[0].changes[0].value.messages[0];
+        const from = message.from; // user's WhatsApp number
+        const type = message.type;
+
+        // Handle button replies
+        if (type === 'button') {
+          const buttonPayload = message.button.payload;
+          console.log(`User ${from} clicked: ${buttonPayload}`);
+          let response = buttonPayload.split('_');
+          if (response.length > 2) {
+            let userId = response[1];
+            let incId = response[2];
+            let resp = response[0];
+            bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
+          }
+        } else if (type === 'text') {
+          console.log(`User ${from} sent message: ${message.text.body}`);
+        }
+      }
+
+      res.sendStatus(200);
+    } else {
+      res.sendStatus(404);
+    }
+  });
+  app.get("/whatsapp", async (req, res) => {
+    const verifyToken = 'areyousafewhatsapptoken'; // same as set in Meta Dashboard
+
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    if (mode === 'subscribe' && token === verifyToken) {
+      console.log('WEBHOOK_VERIFIED');
+      res.status(200).send(challenge);
+    } else {
+      res.sendStatus(403);
+    }
   });
 };
 

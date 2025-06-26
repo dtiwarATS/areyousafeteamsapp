@@ -38,7 +38,9 @@ const { processSafetyBotError } = require("../models/processError");
         sqlQueryquerryReccuring
       );
       membersNotRespondedList = membersNotRespondedOneTimeList;
-      membersNotRespondedList.push(...membersNotRespondedRecurringList);
+      if (membersNotRespondedRecurringList && membersNotRespondedRecurringList.length > 0) {
+        membersNotRespondedList.push(...membersNotRespondedRecurringList);
+      }
       if (
         membersNotRespondedList != null &&
         membersNotRespondedList.length > 0
@@ -124,9 +126,12 @@ const { processSafetyBotError } = require("../models/processError");
                 log.addLog(
                   `Update oneTime reminder message count in DB  ${member.user_id} successfully`
                 );
+                let userAadObjIds = [member.user_aadobj_id];
                 if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
-                  let userAadObjIds = [member.user_aadobj_id];
-                  await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name);
+                  await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name, null);
+                }
+                if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4") {
+                  await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name);
                 }
               } else {
                 await incidentService.updateRecurrremaindercounter(
