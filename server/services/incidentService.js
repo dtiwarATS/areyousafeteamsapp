@@ -1433,7 +1433,7 @@ const getFilterData = async (teamId) => {
   let result = null;
   try {
     const sqlTeamInfo = `select distinct city, country from MSTeamsTeamsUsers where team_id = '${teamId}' and ((country is not null and country != '') or (city is not null and city != '')) order by country, city;
-          select distinct department from MSTeamsTeamsUsers where team_id = '${teamId}' and department is not null and department != '' order by department`;
+          select distinct department, city, country from MSTeamsTeamsUsers where team_id = '${teamId}' and department is not null and department != '' order by department`;
     result = await db.getDataFromDB(sqlTeamInfo, "", false);
   } catch (err) {
     console.log(err);
