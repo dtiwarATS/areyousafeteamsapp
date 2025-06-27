@@ -3200,8 +3200,8 @@ const sendSafetyCheckMessageAsync = async (
           reject,
           null,
           incFilesData,
-          responseOptionData,
-          createdByUserInfo.conversationId
+          createdByUserInfo.conversationId,
+          responseOptionData
         );
         let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
@@ -3679,7 +3679,7 @@ const sendIncStatusValidation = async (context, incStatusId) => {
 const sendApprovalResponse = async (user, context) => {
   try {
     const action = context.activity.value.action;
-    const { info: response, inc, companyData } = action.data;
+    const { info: response, inc, companyData, dropdownSelection } = action.data;
     const { incId, incTitle, incCreatedBy } = inc;
     let respDate = new Date();
     if (
@@ -3692,75 +3692,88 @@ const sendApprovalResponse = async (user, context) => {
     }
     const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", respDate);
     const runAt = inc.runAt != null ? inc.runAt : null;
-    if (response === "i_am_safe") {
-      incidentService.updateIncResponseData(
+    let respToBeUpdated = 0;
+    if (response == "dropdown_selection") {
+      respToBeUpdated = dropdownSelection;
+    } else {
+      respToBeUpdated = response;
+    }
+    incidentService.updateIncResponseData(
         incId,
         user.id,
-        1,
+      Number(respToBeUpdated) ?? 0,
         inc,
         respTimestamp
       );
-    } else if (response === "need_assistance") {
-      incidentService.updateIncResponseData(
-        incId,
-        user.id,
-        0,
-        inc,
-        respTimestamp
-      );
-      if (response == "need_assistance" || response == "i_am_safe") {
-        const approvalCardResponse = {
-          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-          appId: process.env.MicrosoftAppId,
-          body: [
+    // if (response === "i_am_safe") {
+    //   incidentService.updateIncResponseData(
+    //     incId,
+    //     user.id,
+    //     1,
+    //     inc,
+    //     respTimestamp
+    //   );
+    // } else if (response === "need_assistance") {
+    //   incidentService.updateIncResponseData(
+    //     incId,
+    //     user.id,
+    //     0,
+    //     inc,
+    //     respTimestamp
+    //   );
+    // }
+    if (response == "need_assistance" || response == "i_am_safe") {
+      const approvalCardResponse = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text: `User <at>${user.name}</at> response for Incident: **${incTitle}** is`,
+            wrap: true,
+          },
+        ],
+        msteams: {
+          entities: [
             {
-              type: "TextBlock",
-              text: `User <at>${user.name}</at> needs assistance for Incident: **${incTitle}** `,
-              wrap: true,
+              type: "mention",
+              text: `<at>${user.name}</at>`,
+              mentioned: {
+                id: user.id,
+                name: user.name,
+              },
             },
           ],
-          msteams: {
-            entities: [
-              {
-                type: "mention",
-                text: `<at>${user.name}</at>`,
-                mentioned: {
-                  id: user.id,
-                  name: user.name,
-                },
-              },
-            ],
-          },
-          type: "AdaptiveCard",
-          version: "1.4",
-        };
-        //send new msg just to emulate msg is being updated
-        //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-        const serviceUrl = context?.activity?.serviceUrl;
-        await sendApprovalResponseToSelectedMembers(
-          incId,
-          context,
-          approvalCardResponse
-        );
-        await sendApprovalResponseToSelectedTeams(
-          incId,
-          serviceUrl,
-          approvalCardResponse,
-          user.aadObjectId
-        );
-        if (
-          companyData.send_sms &&
-          (companyData.SubscriptionType == 3 ||
-            (companyData.SubscriptionType == 2 &&
-              companyData.sent_sms_count < 50))
-        ) {
-        }
-        //sendAcknowledmentinSMS(
-        // companyData,
-        //   [user.aadObjectId],
-        //   response === "i_am_safe" ? "I am safe" : "I need assistance"
-        // );
+        },
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      //send new msg just to emulate msg is being updated
+      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      const serviceUrl = context?.activity?.serviceUrl;
+      await sendApprovalResponseToSelectedMembers(
+        incId,
+        context,
+        approvalCardResponse
+      );
+      await sendApprovalResponseToSelectedTeams(
+        incId,
+        serviceUrl,
+        approvalCardResponse,
+        user.aadObjectId
+      );
+      if (
+        companyData.send_sms &&
+        (companyData.SubscriptionType == 3 ||
+          (companyData.SubscriptionType == 2 &&
+            companyData.sent_sms_count < 50))
+      ) {
       }
+      //sendAcknowledmentinSMS(
+      // companyData,
+      //   [user.aadObjectId],
+      //   response === "i_am_safe" ? "I am safe" : "I need assistance"
+      // );
     }
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);

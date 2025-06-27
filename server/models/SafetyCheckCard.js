@@ -114,14 +114,14 @@ const getSafetyCheckTypeCard = async (
     let actions = [];
     if (!isPreview) {
       if (responseOptionData.responseType.toLowerCase() == "buttons") {
-        responseOptionData.responseOptions.map((option) => {
+        responseOptionData.responseOptions.map((option, index) => {
           if (option.option != '') {
             let btn = {
               ...btnSafe,
               title: option.option,
               verb: "send_response",
               data: {
-                info: "i_am_safe",
+                info: index,
                 inc: incObj,
                 companyData: companyData,
               },
@@ -134,12 +134,12 @@ const getSafetyCheckTypeCard = async (
           type: "Input.ChoiceSet",
           id: "dropdownSelection",
           style: "compact", // Use "expanded" for always visible options
-          value: responseOptionData.responseOptions[0].option,
+          value: "0",
           choices: [],
         };
-        responseOptionData.responseOptions.map((option) => {
+        responseOptionData.responseOptions.map((option, index) => {
           if (option.option != '') {
-            dropdown.choices.push({ title: option.option, value: option.option });
+            dropdown.choices.push({ title: option.option, value: index.toString() });
           }
         });
         cardBody.push(dropdown);
@@ -147,8 +147,9 @@ const getSafetyCheckTypeCard = async (
           type: "Action.Execute",
           title: "Confirm",
           verb: "send_response",
+          associatedInputs: "auto",
           data: {
-            info: "i_am_safe",
+            info: "dropdown_selection",
             inc: incObj,
             companyData: companyData,
           },
