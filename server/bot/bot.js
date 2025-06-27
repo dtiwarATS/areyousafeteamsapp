@@ -3756,10 +3756,10 @@ const sendApprovalResponse = async (user, context) => {
         ) {
         }
         //sendAcknowledmentinSMS(
-        companyData,
-          [user.aadObjectId],
-          response === "i_am_safe" ? "I am safe" : "I need assistance"
-        );
+        // companyData,
+        //   [user.aadObjectId],
+        //   response === "i_am_safe" ? "I am safe" : "I need assistance"
+        // );
       }
     }
 
