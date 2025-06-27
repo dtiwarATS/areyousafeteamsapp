@@ -48,7 +48,7 @@ const updateMainCard = (companyData) => {
     {
       type: "Action.OpenUrl",
       title: "Contact us",
-      url: "mailto:help@areyousafe.in",
+      url: "mailto:help@safetycheck.in",
     },
   ];
   const card = {

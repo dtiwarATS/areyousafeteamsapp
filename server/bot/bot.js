@@ -363,7 +363,7 @@ const sendMsg = async (context) => {
       },
       {
         type: "TextBlock",
-        text: "Have questions? [Email](mailto:help@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) | [Schedule call](https://calendly.com/nehapingale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        text: "Have questions? [Email](mailto:help@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) | [Schedule call](https://calendly.com/nehapingale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
         wrap: true,
       },
     ],
@@ -2027,8 +2027,7 @@ const sendProactiveMessageAsync = async (
             ) {
               log.addLog(`For isRecurringInc Incident`);
               sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT)
-              values(${
-                respMemberObj.memberResponsesId
+              values(${respMemberObj.memberResponsesId
                 }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId
                 }', '${msgResp?.activityId}', ${status}, '${error}', ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
                 }); `;
@@ -2229,9 +2228,9 @@ const sendProactiveMessageAsync = async (
             "",
             userAadObjId,
             " error in fnRecursiveCall startIndex=" +
-              startIndex +
-              " endIndex=" +
-              endIndex
+            startIndex +
+            " endIndex=" +
+            endIndex
           );
         }
       };
@@ -2424,7 +2423,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
           ? user.businessPhones[0]
           : "";
       if (companyData.PHONE_FIELD == "mobilePhone") {
-          phone = user.mobilePhone;
+        phone = user.mobilePhone;
       }
       if (phone == null || phone == "" || phone == "null") {
         continue;
@@ -4614,7 +4613,7 @@ const sendIntroductionMessage = async (context, from) => {
       },
       {
         type: "TextBlock",
-        text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@areyousafe.in](mailto:help@areyousafe.in)",
+        text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetycheck.in](mailto:help@safetycheck.in)",
         wrap: true,
       },
       {
