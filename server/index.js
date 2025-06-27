@@ -53,7 +53,7 @@ function initJob() {
       {
         name: "updateUserDetails-job",
         path: path.join(__dirname, "jobs", "updateUserDetails-job.js"),
-        cron: "*/10 * * * *",
+        cron: "0 */1 * * *",
       },
     ],
   });
