@@ -83,7 +83,7 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
     const emailBody =
       "Hi,<br/> <br />" +
-      "Below user has successfully installed AreYouSafe app in Microsoft Teams: <br />" +
+      "Below user has successfully installed Safety Check app in Microsoft Teams: <br />" +
       "<b>User Name: </b>" +
       userName +
       "<br />" +
@@ -92,9 +92,9 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
       "<br />" +
       "<br /><br />" +
       "Thank you, <br />" +
-      "AreYouSafe Support";
+      "Safety Check Support";
 
-    const subject = "AreYouSafe? Teams Bot | New Installation Details";
+    const subject = "Safety Check Teams Bot | New Installation Details";
     if (process.env.IS_EMAIL_SEND == "true") {
       await sendEmail(userEmailId, subject, emailBody);
     }
@@ -107,7 +107,7 @@ const sendUninstallationEmail = async (userEmailId, userName) => {
   try {
     const emailBody =
       "Hi,<br/> <br />" +
-      "Below user has uninstalled AreYouSafe app in Microsoft Teams: <br />" +
+      "Below user has uninstalled Safety Check app in Microsoft Teams: <br />" +
       "<b>User Name: </b>" +
       userName +
       "<br />" +
@@ -116,9 +116,9 @@ const sendUninstallationEmail = async (userEmailId, userName) => {
       "<br />" +
       "<br /><br />" +
       "Thank you, <br />" +
-      "AreYouSafe Support";
+      "Safety Check Support";
 
-    const subject = "AreYouSafe? Teams Bot | New Uninstallation Details";
+    const subject = "Safety Check Teams Bot | New Uninstallation Details";
     if (process.env.IS_EMAIL_SEND == "true") {
       await sendEmail(userEmailId, subject, emailBody);
     }
@@ -353,12 +353,12 @@ const sendMsg = async (context) => {
       },
       {
         type: "TextBlock",
-        text: "**Chat:** Go to the Chat section -> AreYouSafe? Bot -> Click the **Create Incident** button",
+        text: "**Chat:** Go to the Chat section -> Safety Check Bot -> Click the **Create Incident** button",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "**Team:** Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? tab -> Click the **Create Incident** button",
+        text: "**Team:** Go to the Teams section -> Go to the General channel under the team for which Safety Check Bot is installed -> Safety Check tab -> Click the **Create Incident** button",
         wrap: true,
       },
       {
@@ -4129,7 +4129,7 @@ const sendNewContactEmail = async (
 
     const emailBody =
       "Hi,<br/> <br />" +
-      "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
+      "Below user has provided feedback for Safety Check app installed in Microsoft Teams : " +
       "<br />" +
       `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
       } ` +
@@ -4141,9 +4141,9 @@ const sendNewContactEmail = async (
       "<br />" +
       "<br /><br />" +
       "Thank you, <br />" +
-      "AreYouSafe Support";
+      "Safety Check Support";
 
-    const subject = "AreYouSafe Teams Bot | Feedback";
+    const subject = "Safety Check Teams Bot | Feedback";
 
     await sendEmail(emailVal, subject, emailBody);
   } catch (err) {
@@ -4608,7 +4608,7 @@ const sendIntroductionMessage = async (context, from) => {
       },
       {
         type: "TextBlock",
-        text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
+        text: "1. Navigate to MS Teams App store\r2. Search Safety Check and click on the Safety Check bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
         wrap: true,
       },
       {

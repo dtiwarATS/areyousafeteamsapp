@@ -34,7 +34,7 @@ const subscriptionLink =
 
 const subcriptionLinkJSON = {
   type: "TextBlock",
-  text: `If you wish to subscribe to **AreYouSafe? bot** premium, please [Click Here](${subscriptionLink}).`,
+  text: `If you wish to subscribe to **Safety Check bot** premium, please [Click Here](${subscriptionLink}).`,
   wrap: true,
 };
 
@@ -54,7 +54,7 @@ const getContactUsBtnJSON = () => {
 const faqActionObj = {
   type: "Action.OpenUrl",
   title: "Frequently Asked Questions",
-  url: "https://areyousafe.in/frequently_asked_questions.html",
+  url: "https://safetycheck.in/#faq",
   iconUrl:
     "data:image/png;base64,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",
   id: "faqAction",
@@ -138,7 +138,7 @@ const getWelcomeMessageCard = (teamMemberCount, teamName) => {
     body: [
       {
         type: "TextBlock",
-        text: `Welcome to the AreYouSafe bot! I will help you communicate with your team during a crisis.`,
+        text: `Welcome to the Safety Check bot! I will help you communicate with your team during a crisis.`,
         wrap: true,
       },
     ],
@@ -459,7 +459,7 @@ const getWelcomeMessageCardOld = (
   const body = [
     {
       type: "TextBlock",
-      text: `Welcome to the AreYouSafe bot! I will help you communicate with your team during a crisis.`,
+      text: `Welcome to the Safety Check bot! I will help you communicate with your team during a crisis.`,
       wrap: true,
     },
     // {
@@ -639,7 +639,7 @@ const getSubcriptionSelectionCard = (
     body: [
       {
         type: "TextBlock",
-        text: `I can see that you have ${teamMemberCount} users in your team. AreYouSafe? bot FREE version will work for up to 10 users. Alternatively, you can start your 45-day free trial of the premium version and get AreYouSafe? bot access for unlimited users.`,
+        text: `I can see that you have ${teamMemberCount} users in your team. Safety Check bot FREE version will work for up to 10 users. Alternatively, you can start your 45-day free trial of the premium version and get Safety Check bot access for unlimited users.`,
         wrap: true,
       },
       {
@@ -729,7 +729,7 @@ const getAfterUsrSubscribedTypeTwoCard = (userName, companyData) => {
     body: [
       {
         type: "TextBlock",
-        text: `**Hello ${userName}, your AreYouSafe? bot Premium 45-day free trial is activated and expires on ${currentDate.toLocaleDateString()}!**`,
+        text: `**Hello ${userName}, your Safety Check bot Premium 45-day free trial is activated and expires on ${currentDate.toLocaleDateString()}!**`,
         wrap: true,
       },
       {
@@ -739,7 +739,7 @@ const getAfterUsrSubscribedTypeTwoCard = (userName, companyData) => {
       },
       {
         type: "TextBlock",
-        text: `For mobile, navigate to the  **${teamName}** team -> **${channelName}** channel -> **AreYouSafe?** tab`,
+        text: `For mobile, navigate to the  **${teamName}** team -> **${channelName}** channel -> **Safety Check** tab`,
         wrap: true,
       },
       {
@@ -762,7 +762,7 @@ const getTypeTwoFiveDayBeforeCard = (expiryDate) => {
     body: [
       {
         type: "TextBlock",
-        text: `**Hello, Your 45-day free trial of the AreYouSafe? bot premium version is about to expire on ${expiryDate}**. After the trial has ended, you will be on the free version. AreYouSafe? bot will work for 10 users.`,
+        text: `**Hello, Your 45-day free trial of the Safety Check bot premium version is about to expire on ${expiryDate}**. After the trial has ended, you will be on the free version. Safety Check bot will work for 10 users.`,
         wrap: true,
       },
       subcriptionLinkJSON,
@@ -813,7 +813,7 @@ const getTypeThreeSubscriptionStartedCard = (
       },
       {
         type: "TextBlock",
-        text: `Your AreYouSafe? bot **premium subscription is activated on ${startDate} for ${userCount} users** and expires on ${endDate}! `,
+        text: `Your Safety Check bot **premium subscription is activated on ${startDate} for ${userCount} users** and expires on ${endDate}! `,
         wrap: true,
       },
       {
@@ -836,7 +836,7 @@ const getTypeThreeFiveDayBeforeOneTimePaymentCard = (userCount, expiryDate) => {
     body: [
       {
         type: "TextBlock",
-        text: `**Your AreYouSafe? bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!**`,
+        text: `**Your Safety Check bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!**`,
         wrap: true,
       },
       subcriptionLinkJSON,
@@ -855,7 +855,7 @@ const getTypeThreeFiveDayBeforeRecurringPaymentCard = (
     body: [
       {
         type: "TextBlock",
-        text: `**Your AreYouSafe? bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!** After that, your credit card will be charged $0.5 per user/month to continue the AreYouSafe? bot premium version.                `,
+        text: `**Your Safety Check bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!** After that, your credit card will be charged $0.5 per user/month to continue the Safety Check bot premium version.                `,
         wrap: true,
       },
       subcriptionLinkJSON,
@@ -902,7 +902,7 @@ const getTypeThreeSubscriptionEndCard = (expiryDate, userEmailId) => {
     body: [
       {
         type: "TextBlock",
-        text: `**Your AreYouSafe? bot premium subscription has ended on ${expiryDate}.** You are now on the free version. AreYouSafe? bot will work for 10 users.`,
+        text: `**Your Safety Check bot premium subscription has ended on ${expiryDate}.** You are now on the free version. Safety Check bot will work for 10 users.`,
         wrap: true,
       },
       subcriptionLinkJSON,
@@ -924,17 +924,17 @@ const getTypeTwoSevenDayBeforeCard = (userId, userName) => {
       },
       {
         type: "TextBlock",
-        text: "Your AreYouSafe free trial ends in 7-days. When your trial expires, we will switch you to the Free version that works for a team of up to 10 users.",
+        text: "Your Safety Check free trial ends in 7-days. When your trial expires, we will switch you to the Free version that works for a team of up to 10 users.",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "Please **Buy a subscription** to continue reaching out to all your employees during emergencies with the AreYouSafe bot.",
+        text: "Please **Buy a subscription** to continue reaching out to all your employees during emergencies with the Safety Check bot.",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "Have questions about pricing? Access our ↗ [FAQ page](https://areyousafe.in/frequently_asked_questions.html)",
+        text: "Have questions about pricing? Access our ↗ [FAQ page](https://safetycheck.in/#faq)",
         wrap: true,
       },
       {
@@ -944,12 +944,12 @@ const getTypeTwoSevenDayBeforeCard = (userId, userName) => {
       },
       {
         type: "TextBlock",
-        text: "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+        text: "1. Go to Apps -> Search safety check -> Click Safety Check search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "Best,\n\nTeam AreYouSafe",
+        text: "Best,\n\nTeam Safety Check",
         wrap: true,
       },
     ],
@@ -986,7 +986,7 @@ const getTypeTwoThreeDayBeforeCard = (userId, userName) => {
       },
       {
         type: "TextBlock",
-        text: "Without an **upgrade to premium**, you won't be able to reach all employees during emergencies using the AreYouSafe bot. Our plan starts at $0.50 user/month.",
+        text: "Without an **upgrade to premium**, you won't be able to reach all employees during emergencies using the Safety Check bot. Our plan starts at $0.50 user/month.",
         wrap: true,
       },
       {
@@ -1001,12 +1001,12 @@ const getTypeTwoThreeDayBeforeCard = (userId, userName) => {
       },
       {
         type: "TextBlock",
-        text: "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+        text: "1. Go to Apps -> Search safety check -> Click Safety Check search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "Best,\n\nTeam AreYouSafe",
+        text: "Best,\n\nTeam Safety Check",
         wrap: true,
       },
     ],
@@ -1038,7 +1038,7 @@ const getTypeTwoSubscriptionEndCard = (userId, userName, teamName) => {
       },
       {
         type: "TextBlock",
-        text: `Your free trial has ended. You are now on the free version. AreYouSafe bot will work for up to 10 users (in alphabetical order by the first name) of your team ${teamName}.`,
+        text: `Your free trial has ended. You are now on the free version. Safety Check bot will work for up to 10 users (in alphabetical order by the first name) of your team ${teamName}.`,
         wrap: true,
       },
       {
@@ -1053,12 +1053,12 @@ const getTypeTwoSubscriptionEndCard = (userId, userName, teamName) => {
       },
       {
         type: "TextBlock",
-        text: "1. Go to Apps -> Search are you safe -> Click Are You Safe? search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
+        text: "1. Go to Apps -> Search safety check -> Click Safety Check search result and click the **Buy a subscription** button.\r\r2. On the Choose a plan page, select the monthly plan -> Click the **Checkout** button -> Update the quantity equal to your team size -> Enter a payment method -> Click the **Place Order** button\r",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "Best,\n\nTeam AreYouSafe",
+        text: "Best,\n\nTeam Safety Check",
         wrap: true,
       },
     ],
@@ -1085,7 +1085,7 @@ const getWelcomeMessageCardForChannel = (userName, userId) => {
     body: [
       {
         type: "TextBlock",
-        text: "👋 Hi, I'm the AreYouSafe bot!",
+        text: "👋 Hi, I'm the Safety Check bot!",
         wrap: true,
         horizontalAlignment: "center",
         size: "large",
@@ -1108,7 +1108,7 @@ const getWelcomeMessageCardForChannel = (userName, userId) => {
       },
       {
         type: "TextBlock",
-        text: "You can also request assistance during emergencies by going to the **AreYouSafe?** tab added at the top of this channel -> Click the SOS - **I Need Assistance** button.",
+        text: "You can also request assistance during emergencies by going to the **Safety Check** tab added at the top of this channel -> Click the SOS - **I Need Assistance** button.",
         wrap: true,
         spacing: "Medium",
       },
