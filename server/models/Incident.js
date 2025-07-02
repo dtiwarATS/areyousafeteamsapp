@@ -39,6 +39,8 @@ class Incident {
     SafetyCheckVisitorsQuestion2Response,
     SafetyCheckVisitorsQuestion3Response,
     incidentMediafiles,
+    RESPONSE_TYPE,
+    RESPONSE_OPTIONS,
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -82,6 +84,8 @@ class Incident {
     this.SendRemindersCount = SendRemindersCount;
     this.SendRemindersTime = SendRemindersTime;
     this.incidentMediafiles = incidentMediafiles;
+    this.responseType = RESPONSE_TYPE; // Initialize with null or default value
+    this.responseOptions = RESPONSE_OPTIONS; // Initialize with null or default value
   }
 }
 

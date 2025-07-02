@@ -2235,7 +2235,8 @@ left join MSTeamsSubscriptionDetails sd on sd.id = ind.SubscriptionDetailsId whe
     SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id,
     inc.selected_members, inc.created_by, inc.GUIDANCE, inc.inc_type_id, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
     m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, m.comment, m.timestamp, inc.OCCURS_EVERY, inc.EVENT_START_DATE, inc.EVENT_START_TIME,
-    inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime, GLI.[STATUS]
+    inc.EVENT_END_DATE, inc.EVENT_END_TIME, inc.INC_STATUS_ID,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime, GLI.[STATUS],
+    inc.RESPONSE_TYPE, inc.RESPONSE_OPTIONS
     FROM MSTeamsIncidents inc
     LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id 
     LEFT JOIN (SELECT ID, LIST_ITEM [STATUS] FROM GEN_LIST_ITEM) GLI ON GLI.ID = INC.INC_STATUS_ID

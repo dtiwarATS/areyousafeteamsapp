@@ -78,6 +78,7 @@ const {
 const { json } = require("body-parser");
 const { count } = require("console");
 const { Leave } = require("twilio/lib/twiml/VoiceResponse");
+const { response } = require("express");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -1453,6 +1454,7 @@ const getSaftyCheckCard = async (
       // }
     ],
     msteams: {
+      width: "Full",
       entities: mentionUserEntities,
     },
     type: "AdaptiveCard",
@@ -3107,7 +3109,7 @@ const sendSafetyCheckMessageAsync = async (
   log,
   userAadObjId,
   resendSafetyCheck = false,
-  responseOptionData
+  respOptionData
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -3128,6 +3130,10 @@ const sendSafetyCheckMessageAsync = async (
       );
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
         incData;
+      const responseOptionData = {
+        responseOptions: JSON.parse(incData.responseOptions),
+        responseType: incData.responseType
+      };
       const { serviceUrl, userTenantId, userId } = companyData;
       if (resendSafetyCheck === "true") {
         createdByUserInfo.user_id = userId;
@@ -5167,6 +5173,7 @@ const onInvokeActivity = async (context) => {
       } else {
         responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
       }
+      responseText = `Your response has been sent to <at>${incCreatedBy.name}</at>`;
 
       const entities = {
         type: "mention",
