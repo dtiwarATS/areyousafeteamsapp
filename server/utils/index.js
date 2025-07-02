@@ -96,11 +96,40 @@ const convertToAMPM = (time) => {
 
   return (hour % 12) + ":" + minutes + " " + suffix;
 }
+const sendCustomEmail = (EmailFrom, EmailTo, EmailBody, EmailSubject) => {
+  try {
+    const requestOptions = {
+      method: "POST",
+      redirect: "follow",
+    };
+
+    fetch(
+      `https://emailservices.azurewebsites.net/api/sendCustomEmail?EmailSubject=${EmailSubject}&EmailBody=${EmailBody}&ProjectName=AYS&EmailTo=${EmailTo}&EmailFrom=${EmailFrom}&authKey=A9fG4dX2pL7qW8mZ&Environment=" +
+        this.build`,
+      requestOptions
+    )
+      .then((response) => {
+        console.log("I AM DONE");
+        response.text();
+      })
+      .then((result) => console.log(result))
+      .catch((error) => console.error(error));
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "Error in personalemail > sendWelcomEmail toUserEmailId=" + toUserEmailId
+    );
+    reject(false);
+  }
+};
 
 module.exports = {
   sendEmail,
   toTitleCase,
   formatedDate,
   getCron,
-  convertToAMPM
+  convertToAMPM,sendCustomEmail
 };

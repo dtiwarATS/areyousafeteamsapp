@@ -25,7 +25,7 @@ const {
   sentActivityToTeamChannel,
   sendProactiveMessaageToSelectedChannel,
 } = require("../api/apiMethods");
-const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
+const { sendEmail, formatedDate, convertToAMPM,sendCustomEmail } = require("../utils");
 const {
   addFeedbackData,
   updateSuperUserData,
@@ -78,6 +78,7 @@ const {
 const { json } = require("body-parser");
 const { count } = require("console");
 const { Leave } = require("twilio/lib/twiml/VoiceResponse");
+const { env } = require("process");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
@@ -4146,7 +4147,7 @@ const sendNewContactEmail = async (
     const subject = "Safety Check Teams Bot | Feedback";
 
     // await sendEmail(emailVal, subject, emailBody);
-    await sendCustomEmail("help@safetycheck.in", emailVal, emailBody, subject);
+    await sendCustomEmail("help@safetycheck.in", process.env.ADMIN_EMAIL, emailBody, subject);
   } catch (err) {
     console.log(err);
     processSafetyBotError(
