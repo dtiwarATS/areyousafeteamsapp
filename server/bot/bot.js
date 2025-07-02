@@ -25,7 +25,7 @@ const {
   sentActivityToTeamChannel,
   sendProactiveMessaageToSelectedChannel,
 } = require("../api/apiMethods");
-const { sendEmail, formatedDate, convertToAMPM } = require("../utils");
+const { sendEmail, formatedDate, convertToAMPM, sendCustomEmail } = require("../utils");
 const {
   addFeedbackData,
   updateSuperUserData,
@@ -78,13 +78,12 @@ const {
 const { json } = require("body-parser");
 const { count } = require("console");
 const { Leave } = require("twilio/lib/twiml/VoiceResponse");
-const { response } = require("express");
 
 const sendInstallationEmail = async (userEmailId, userName, teamName) => {
   try {
     const emailBody =
       "Hi,<br/> <br />" +
-      "Below user has successfully installed AreYouSafe app in Microsoft Teams: <br />" +
+      "Below user has successfully installed Safety Check app in Microsoft Teams: <br />" +
       "<b>User Name: </b>" +
       userName +
       "<br />" +
@@ -93,9 +92,9 @@ const sendInstallationEmail = async (userEmailId, userName, teamName) => {
       "<br />" +
       "<br /><br />" +
       "Thank you, <br />" +
-      "AreYouSafe Support";
+      "Safety Check Support";
 
-    const subject = "AreYouSafe? Teams Bot | New Installation Details";
+    const subject = "Safety Check Teams Bot | New Installation Details";
     if (process.env.IS_EMAIL_SEND == "true") {
       await sendEmail(userEmailId, subject, emailBody);
     }
@@ -108,7 +107,7 @@ const sendUninstallationEmail = async (userEmailId, userName) => {
   try {
     const emailBody =
       "Hi,<br/> <br />" +
-      "Below user has uninstalled AreYouSafe app in Microsoft Teams: <br />" +
+      "Below user has uninstalled Safety Check app in Microsoft Teams: <br />" +
       "<b>User Name: </b>" +
       userName +
       "<br />" +
@@ -117,9 +116,9 @@ const sendUninstallationEmail = async (userEmailId, userName) => {
       "<br />" +
       "<br /><br />" +
       "Thank you, <br />" +
-      "AreYouSafe Support";
+      "Safety Check Support";
 
-    const subject = "AreYouSafe? Teams Bot | New Uninstallation Details";
+    const subject = "Safety Check Teams Bot | New Uninstallation Details";
     if (process.env.IS_EMAIL_SEND == "true") {
       await sendEmail(userEmailId, subject, emailBody);
     }
@@ -354,17 +353,17 @@ const sendMsg = async (context) => {
       },
       {
         type: "TextBlock",
-        text: "**Chat:** Go to the Chat section -> AreYouSafe? Bot -> Click the **Create Incident** button",
+        text: "**Chat:** Go to the Chat section -> Safety Check Bot -> Click the **Create Incident** button",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "**Team:** Go to the Teams section -> Go to the General channel under the team for which AreYouSafe? Bot is installed -> AreYouSafe? tab -> Click the **Create Incident** button",
+        text: "**Team:** Go to the Teams section -> Go to the General channel under the team for which Safety Check Bot is installed -> Safety Check tab -> Click the **Create Incident** button",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "Have questions? [Email](mailto:help@areyousafe.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=npingale@ats360.com) | [Schedule call](https://calendly.com/nehapingale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        text: "Have questions? [Email](mailto:help@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=areyousafe@ats360.com) | [Schedule call](https://calendly.com/nehapingale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
         wrap: true,
       },
     ],
@@ -2271,7 +2270,7 @@ const getAcknowledgeMsgToCreatorAdaptiveCard = (
 ) => {
   let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
 Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
-For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Are You Safe?</b> tab`;
+For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Safety Check</b> tab`;
   return MessageFactory.text(msgText);
 };
 
@@ -2295,7 +2294,7 @@ const sendAcknowledgeMsgToCreator = (
   }
   let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
 Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
-For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Are You Safe?</b> tab`;
+For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Safety Check</b> tab`;
   let activity = MessageFactory.text(msgText);
   connectorClient.conversations.sendToConversation(conversationId, activity);
 };
@@ -3705,12 +3704,12 @@ const sendApprovalResponse = async (user, context) => {
       respToBeUpdated = response;
     }
     incidentService.updateIncResponseData(
-        incId,
-        user.id,
+      incId,
+      user.id,
       Number(respToBeUpdated) ?? 0,
-        inc,
-        respTimestamp
-      );
+      inc,
+      respTimestamp
+    );
     // if (response === "i_am_safe") {
     //   incidentService.updateIncResponseData(
     //     incId,
@@ -3787,15 +3786,15 @@ const sendApprovalResponse = async (user, context) => {
     //const activityId = await viewIncResult(incId, context, companyData, inc, runAt, dashboardCard, serviceUrl);
     //await updateIncResponseOfSelectedMembers(incId, runAt, dashboardCard, serviceUrl);
   } catch (error) {
-  console.log(error);
-  processSafetyBotError(
-    error,
-    "",
-    "",
-    user.aadObjectId,
-    "sendApprovalResponse"
-  );
-}
+    console.log(error);
+    processSafetyBotError(
+      error,
+      "",
+      "",
+      user.aadObjectId,
+      "sendApprovalResponse"
+    );
+  }
 };
 
 const sendAcknowledmentinSMS = async (companyData, users, text) => {
@@ -4154,7 +4153,7 @@ const sendNewContactEmail = async (
 
     const emailBody =
       "Hi,<br/> <br />" +
-      "Below user has provided feedback for AreYouSafe app installed in Microsoft Teams : " +
+      "Below user has provided feedback for Safety Check app installed in Microsoft Teams : " +
       "<br />" +
       `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
       } ` +
@@ -4166,11 +4165,12 @@ const sendNewContactEmail = async (
       "<br />" +
       "<br /><br />" +
       "Thank you, <br />" +
-      "AreYouSafe Support";
+      "Safety Check Support";
 
-    const subject = "AreYouSafe Teams Bot | Feedback";
+    const subject = "Safety Check Teams Bot | Feedback";
 
-    await sendEmail(emailVal, subject, emailBody);
+    // await sendEmail(emailVal, subject, emailBody);
+    await sendCustomEmail("help@safetycheck.in", process.env.ADMIN_EMAIL, emailBody, subject);
   } catch (err) {
     console.log(err);
     processSafetyBotError(
@@ -4633,12 +4633,12 @@ const sendIntroductionMessage = async (context, from) => {
       },
       {
         type: "TextBlock",
-        text: "1. Navigate to MS Teams App store\r2. Search AreYouSafe? and click on the AreYouSafe? bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
+        text: "1. Navigate to MS Teams App store\r2. Search Safety Check and click on the Safety Check bot card\r3. Click on the top arrow button and select the **“Add to a team“** option",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@areyousafe.in](mailto:help@areyousafe.in)",
+        text: "If you need any help or want to share feedback, feel free to reach out to my makers at [help@safetycheck.in](mailto:help@safetycheck.in)",
         wrap: true,
       },
       {

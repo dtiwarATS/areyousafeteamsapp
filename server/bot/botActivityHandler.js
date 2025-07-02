@@ -486,13 +486,13 @@ class BotActivityHandler extends TeamsActivityHandler {
       const { userName, userId, adminUsrId, adminUsrName, teamName } =
         userLicenseDetails;
       //const { teamName, userId: adminUserId, userName: adminUserName } = companyData;
-      let blockMessage = `You do not have the **AreYouSafe** bot license assigned for your **${teamName}** team. Please contact your admin <at>${adminUsrName}</at> to assign you the license.`;
+      let blockMessage = `You do not have the **Safety Check** bot license assigned for your **${teamName}** team. Please contact your admin <at>${adminUsrName}</at> to assign you the license.`;
       if (
         userLicenseDetails &&
         userLicenseDetails.isTrialExpired == true &&
         userLicenseDetails.previousSubscriptionType == "2"
       ) {
-        blockMessage = `Your license has been deactivated since the **AreYouSafe** bot free trial period for your **${teamName}** team has ended. Please contact your admin <at>${adminUsrName}</at> to upgrade to a premium subscription plan.`;
+        blockMessage = `Your license has been deactivated since the **Safety Check** bot free trial period for your **${teamName}** team has ended. Please contact your admin <at>${adminUsrName}</at> to upgrade to a premium subscription plan.`;
       }
 
       const cardJSON = {
@@ -512,7 +512,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           },
           {
             type: "TextBlock",
-            text: "With Gratitude,\n\nTeam AreYouSafe",
+            text: "With Gratitude,\n\nTeam Safety Check",
             wrap: true,
           },
         ],
