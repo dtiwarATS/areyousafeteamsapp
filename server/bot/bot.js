@@ -4145,7 +4145,8 @@ const sendNewContactEmail = async (
 
     const subject = "Safety Check Teams Bot | Feedback";
 
-    await sendEmail(emailVal, subject, emailBody);
+    // await sendEmail(emailVal, subject, emailBody);
+    await sendCustomEmail("help@safetycheck.in", emailVal, emailBody, subject);
   } catch (err) {
     console.log(err);
     processSafetyBotError(
