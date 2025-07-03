@@ -64,7 +64,6 @@ const getSafetyCheckTypeCard = async (
   incCreatedById = null,
   incCreatedByName = null,
   isPreview = false,
-  responseOptionData,
 ) => {
   const mentionUserEntities = [];
   if (!safetyCheckMessageText) {
@@ -113,6 +112,7 @@ const getSafetyCheckTypeCard = async (
     };
     let actions = [];
     if (!isPreview) {
+      const responseOptionData = incObj.responseOptionData;
       if (responseOptionData.responseType.toLowerCase() == "buttons") {
         responseOptionData.responseOptions.map((option, index) => {
           if (option.option != '') {
@@ -121,7 +121,7 @@ const getSafetyCheckTypeCard = async (
               title: option.option,
               verb: "send_response",
               data: {
-                info: index,
+                info: option.id,
                 inc: incObj,
                 companyData: companyData,
               },
@@ -384,8 +384,7 @@ const SafetyCheckCard = async (
   additionalInfo,
   travelUpdate,
   contactInfo,
-  situation,
-  responseOptionData
+  situation
 ) => {
   let card = null;
   switch (incTypeId) {
@@ -396,8 +395,7 @@ const SafetyCheckCard = async (
         companyData,
         incGuidance,
         incResponseSelectedUsersList,
-        incTypeId, null, null, null, false,
-        responseOptionData
+        incTypeId, null, null, null, false
       );
       break;
     case 2: //Safety Alert

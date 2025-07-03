@@ -1773,8 +1773,7 @@ const sendProactiveMessageAsync = async (
   rejectFn,
   runAt = null,
   incFilesData = null,
-  incCreaterConversationId = "",
-  responseOptionData
+  incCreaterConversationId = ""
 ) => {
   try {
     if (log == null) {
@@ -1816,8 +1815,7 @@ const sendProactiveMessageAsync = async (
       additionalInfo,
       travelUpdate,
       contactInfo,
-      situation,
-      responseOptionData
+      situation
     );
     const activity = MessageFactory.attachment(
       CardFactory.adaptiveCard(approvalCard)
@@ -3107,8 +3105,7 @@ const sendSafetyCheckMessageAsync = async (
   createdByUserInfo,
   log,
   userAadObjId,
-  resendSafetyCheck = false,
-  respOptionData
+  resendSafetyCheck = false
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -3191,6 +3188,7 @@ const sendSafetyCheckMessageAsync = async (
           incCreatedBy: incCreatedByUserObj,
           incGuidance,
           incResponseSelectedUsersList,
+          responseOptionData
         };
         sendProactiveMessageAsync(
           allMembersArr,
@@ -3205,8 +3203,7 @@ const sendSafetyCheckMessageAsync = async (
           reject,
           null,
           incFilesData,
-          createdByUserInfo.conversationId,
-          responseOptionData
+          createdByUserInfo.conversationId
         );
         let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
@@ -3685,7 +3682,7 @@ const sendApprovalResponse = async (user, context) => {
   try {
     const action = context.activity.value.action;
     const { info: response, inc, companyData, dropdownSelection } = action.data;
-    const { incId, incTitle, incCreatedBy } = inc;
+    const { incId, incTitle, incCreatedBy, responseOptionData } = inc;
     let respDate = new Date();
     if (
       context?.activity?.rawLocalTimestamp != null &&
@@ -3727,14 +3724,16 @@ const sendApprovalResponse = async (user, context) => {
     //     respTimestamp
     //   );
     // }
-    if (response == "need_assistance" || response == "i_am_safe") {
+    let responseText = responseOptionData.responseOptions.filter(
+      (option) => option.id == respToBeUpdated)[0].option;
+    //if (response == "need_assistance" || response == "i_am_safe") {
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
         body: [
           {
             type: "TextBlock",
-            text: `User <at>${user.name}</at> response for Incident: **${incTitle}** is`,
+            text: `User <at>${user.name}</at> responded **${responseText.trim()}** for Incident: **${incTitle}** `,
             wrap: true,
           },
         ],
@@ -3779,7 +3778,7 @@ const sendApprovalResponse = async (user, context) => {
       //   [user.aadObjectId],
       //   response === "i_am_safe" ? "I am safe" : "I need assistance"
       // );
-    }
+    //}
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
     //const serviceUrl = context.activity.serviceUrl;

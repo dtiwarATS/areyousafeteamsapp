@@ -706,8 +706,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         createdByUserInfo,
         userAadObjId,
-        resendSafetyCheck,
-        responseOptionData
+        resendSafetyCheck
       );
       res.send(safetyCheckSend);
     } catch (err) {

@@ -769,6 +769,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         } else {
           responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
         }
+        responseText = `Thanks for your response! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
         const entities = {
           type: "mention",
           text: `<at>${incCreatedBy.name}</at>`,
