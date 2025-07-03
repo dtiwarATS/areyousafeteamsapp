@@ -699,7 +699,7 @@ const handlerForSafetyBotTab = (app) => {
       const createdByUserInfo = req.body;
       const userAadObjId = qs.userAadObjId;
       const resendSafetyCheck = qs.resendSafetyCheck;
-      const responseOptionData = JSON.parse(qs.responseOptionData);
+      //const responseOptionData = JSON.parse(qs.responseOptionData);
       const tabObj = new tab.AreYouSafeTab();
       const safetyCheckSend = await tabObj.sendSafetyCheckMessage(
         incId,
