@@ -152,7 +152,7 @@ class AreYouSafeTab {
           ) {
             memberObj.membersNotResponded.push(m);
           } else if (response === true) {
-            if (responseValue === true) {
+            if (responseValue === 1) {
               memberObj.membersSafe.push({
                 ...m,
                 SafetyCheckVisitorsQuestion3Response: null,
@@ -245,6 +245,7 @@ class AreYouSafeTab {
             SendRemindersCount,
             SendRemindersTime,
             incidentMediafiles,
+            responseOptions
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -271,6 +272,8 @@ class AreYouSafeTab {
           let deliveryInProgressCount = 0;
           let deliveredCount = 0;
 
+          let responses = [];
+          let respOptions = JSON.parse(responseOptions);
           if (
             inc.members != null &&
             inc.members.length > 0 &&
@@ -279,7 +282,7 @@ class AreYouSafeTab {
           ) {
             const memberObj = this.sortMembers(inc.members, inc.incTypeId);
             if (memberObj != null) {
-              if (!incTypeId || incTypeId == 1) {
+              if (!incTypeId || incTypeId == 1) {                
                 safe = memberObj.membersSafe;
                 needAssistance = memberObj.membersUnsafe;
                 notResponded = memberObj.membersNotResponded;
@@ -303,7 +306,21 @@ class AreYouSafeTab {
                 deliveredCount = memberObj.delivered.length;
               }
             }
+            if(incTypeId && incTypeId == 1 && respOptions && respOptions.length > 0){
+              respOptions.forEach((resp) => {
+                const dashResp = {};
+                let usersWithResponse = inc.members.filter((m) => {m.responseValue == resp.id});
+                dashResp.response = resp.id;
+                dashResp.responseText = resp.option;
+                dashResp.responseCount = usersWithResponse.length;
+                responses.push(dashResp);
+              });
+              console.log({responses});
+            }
+
           }
+
+          
 
           const teamName = teamObj && teamObj[teamId] ? teamObj[teamId] : "";
           const userid = teamObj && teamObj["userid"] ? teamObj["userid"] : "";

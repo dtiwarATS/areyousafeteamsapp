@@ -190,8 +190,8 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
-  mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID
-  
+  mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID,
+  inc.RESPONSE_TYPE, inc.RESPONSE_OPTIONS
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
   
