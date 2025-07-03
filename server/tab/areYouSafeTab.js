@@ -309,13 +309,14 @@ class AreYouSafeTab {
             if(incTypeId && incTypeId == 1 && respOptions && respOptions.length > 0){
               respOptions.forEach((resp) => {
                 const dashResp = {};
-                let usersWithResponse = inc.members.filter((m) => {m.responseValue == resp.id});
+                let usersWithResponse = inc.members.filter((m) => {return m.responseValue == resp.id});
                 dashResp.response = resp.id;
                 dashResp.responseText = resp.option;
                 dashResp.responseCount = usersWithResponse.length;
+                dashResp.users = usersWithResponse;
                 responses.push(dashResp);
               });
-              console.log({responses});
+              //console.log({responses});
             }
 
           }
@@ -366,6 +367,7 @@ class AreYouSafeTab {
             SendRemindersTime,
             incidentMediafiles,
             userid,
+            responses
           };
           incFormatedData.push(incObj);
         });
