@@ -272,7 +272,7 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
     },
     {
       type: "TextBlock",
-      text: "[Email](mailto:Neha.pingale@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=areyousafe@ats360.com) | [Schedule Call](https://calendly.com/nehapingale/short-call)",
+      text: "[Email](mailto:Neha.pingale@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=safetycheck@ats360.com) | [Schedule Call](https://calendly.com/nehapingale/short-call)",
     },
   ];
 
@@ -412,7 +412,7 @@ const getTestIncPreviewCard1 = (teamMemberCount, companyData) => {
     },
     {
       type: "TextBlock",
-      text: "[Email](mailto:Neha.pingale@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=areyousafe@ats360.com) | [Schedule Call](https://calendly.com/nehapingale/short-call)",
+      text: "[Email](mailto:Neha.pingale@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=safetycheck@ats360.com) | [Schedule Call](https://calendly.com/nehapingale/short-call)",
     },
   ];
 
