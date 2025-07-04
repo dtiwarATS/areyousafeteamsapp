@@ -4271,7 +4271,7 @@ const sendProactiveMessaageToUserTest = async () => {
   try {
     const appId = "f1739c01-2e62-404b-80d4-72f79582ba0f";
     const appPass = "ZrR7Q~hC7ng9ex3u7cuuFMMaBxxVjtaYJfi3h";
-    const botName = "Are You Safe?";
+    const botName = "Safety Check";
 
     let serviceUrl = "https://smba.trafficmanager.net/amer/";
     let tenantId = "66d2bcc3-ec97-41a8-b764-803d784b248f";
@@ -4355,7 +4355,7 @@ const sendProactiveMessaageToChannel = async () => {
   try {
     const appId = "b7710cbf-d5f0-4046-a207-7375df3de460";
     const appPass = "KKb7Q~yDbZnyXuu.R3oCs3xwQcZE0Pb~-NgnW";
-    const botName = "Are You Safe?";
+    const botName = "Safety Check";
 
     let serviceUrl = "https://smba.trafficmanager.net/amer/";
 

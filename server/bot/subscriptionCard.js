@@ -8,7 +8,7 @@ const getOldWelcomeMessageCard = () => {
   //   body: [
   //     {
   //       type: "TextBlock",
-  //       text: `👋 Hello! Are you safe? allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
+  //       text: `👋 Hello! Safety Check allows you to trigger a safety check during a crisis. All users will get a direct message asking them to mark themselves safe.
   //       \r\nIdeal for Safety admins and HR personnel to setup and use during emergency situations.`,
   //       wrap: true
   //     },
