@@ -139,7 +139,7 @@ const getSafetyCheckTypeCard = async (
         };
         responseOptionData.responseOptions.map((option, index) => {
           if (option.option != '') {
-            dropdown.choices.push({ title: option.option, value: index.toString() });
+            dropdown.choices.push({ title: option.option, value: option.id.toString() });
           }
         });
         cardBody.push(dropdown);
