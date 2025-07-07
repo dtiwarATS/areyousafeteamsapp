@@ -1180,6 +1180,17 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   app.get("/posresp", async (req, res) => {
+    const userAgent = req.headers['user-agent'];
+    console.log('useragent', userAgent);
+    const botAgents = [
+      'Google-PageRenderer',
+      'Google (+https://developers.google.com/+/web/snippet/)',
+      // Add more if you find other auto-clickers
+    ];
+    if (botAgents.some(agent => userAgent.includes(agent))) {
+      console.log('Ignored auto-click from bot/crawler:', userAgent);
+      return res.status(204).end(); // No Content
+    }
     console.log("got reply for sms", req.query);
     let { userId, eventId } = req.query;
     console.log({ userId, eventId });
@@ -1188,6 +1199,17 @@ const handlerForSafetyBotTab = (app) => {
     res.redirect(process.env.SMS_CONFIRMATION_URL + "?userId=" + userId + "&eventId=" + eventId);
   });
   app.get("/negresp", async (req, res) => {
+    const userAgent = req.headers['user-agent'];
+    console.log('useragent', userAgent);
+    const botAgents = [
+      'Google-PageRenderer',
+      'Google (+https://developers.google.com/+/web/snippet/)',
+      // Add more if you find other auto-clickers
+    ];
+    if (botAgents.some(agent => userAgent.includes(agent))) {
+      console.log('Ignored auto-click from bot/crawler:', userAgent);
+      return res.status(204).end(); // No Content
+    }
     console.log("got reply for sms", req.query);
     let { userId, eventId } = req.query;
     console.log({ userId, eventId });
