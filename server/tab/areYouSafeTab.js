@@ -312,6 +312,7 @@ class AreYouSafeTab {
                 let usersWithResponse = inc.members.filter((m) => {return m.responseValue == resp.id});
                 dashResp.response = resp.id;
                 dashResp.responseText = resp.option;
+                dashResp.color = resp.color;
                 dashResp.responseCount = usersWithResponse.length;
                 dashResp.users = usersWithResponse;
                 responses.push(dashResp);
