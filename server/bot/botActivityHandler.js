@@ -765,11 +765,11 @@ class BotActivityHandler extends TeamsActivityHandler {
         }
         let responseText = "";
         if (response === "i_am_safe") {
-          responseText = `Thanks for your response! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
+          responseText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
         } else {
           responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
         }
-        responseText = `Thanks for your response! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
+        responseText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
         const entities = {
           type: "mention",
           text: `<at>${incCreatedBy.name}</at>`,
