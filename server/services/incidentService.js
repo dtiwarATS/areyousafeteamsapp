@@ -1416,7 +1416,9 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select  user_id userid,team_id teamId, team_name teamName, channelId, isnull(team_name, '') + ' - ' + isnull(channelName, '') channelName, user_tenant_id tenant_id, FILTER_ENABLED from MSTeamsInstallationDetails where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
+    const sqlTeamInfo = `select  user_id userid,team_id teamId, team_name teamName, channelId, isnull(team_name, '') + ' - ' + isnull(channelName, '') channelName, user_tenant_id tenant_id, FILTER_ENABLED, s.UserLimit, s.SubscriptionType
+          from MSTeamsInstallationDetails t
+          left join MSTeamsSubscriptionDetails s on t.SubscriptionDetailsId = s.ID where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
     result = await db.getDataFromDB(sqlTeamInfo, userAadObjId);
   } catch (err) {
     console.log(err);
