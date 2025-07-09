@@ -3127,8 +3127,8 @@ const sendSafetyCheckMessageAsync = async (
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
         incData;
       const responseOptionData = {
-        responseOptions: JSON.parse(incData.RESPONSE_OPTIONS),
-        responseType: incData.RESPONSE_TYPE
+        responseOptions: JSON.parse(incData.responseOptions),
+        responseType: incData.responseType
       };
       const { serviceUrl, userTenantId, userId } = companyData;
       if (resendSafetyCheck === "true") {
@@ -4450,8 +4450,8 @@ const sendRecurrEventMsgAsync = async (
   incGuidance = incGuidance ? incGuidance : "";
 
   const responseOptionData = {
-    responseOptions: JSON.parse(subEventObj.responseOptions),
-    responseType: subEventObj.responseType
+    responseOptions: JSON.parse(subEventObj.RESPONSE_OPTIONS),
+    responseType: subEventObj.RESPONSE_TYPE
   };
   let incObj = {
     incId,
