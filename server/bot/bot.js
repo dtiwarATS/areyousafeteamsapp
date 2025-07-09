@@ -3127,8 +3127,8 @@ const sendSafetyCheckMessageAsync = async (
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
         incData;
       const responseOptionData = {
-        responseOptions: JSON.parse(incData.responseOptions),
-        responseType: incData.responseType
+        responseOptions: JSON.parse(incData.RESPONSE_OPTIONS),
+        responseType: incData.RESPONSE_TYPE
       };
       const { serviceUrl, userTenantId, userId } = companyData;
       if (resendSafetyCheck === "true") {
@@ -4448,6 +4448,11 @@ const sendRecurrEventMsgAsync = async (
 ) => {
   let incGuidance = await incidentService.getIncGuidance(incId);
   incGuidance = incGuidance ? incGuidance : "";
+
+  const responseOptionData = {
+    responseOptions: JSON.parse(subEventObj.responseOptions),
+    responseType: subEventObj.responseType
+  };
   let incObj = {
     incId,
     incTitle,
@@ -4456,6 +4461,7 @@ const sendRecurrEventMsgAsync = async (
     incCreatedBy: incCreatedByUserObj,
     incGuidance,
     incResponseSelectedUsersList: null,
+    responseOptionData
   };
   return new Promise((resolve, reject) => {
     sendProactiveMessageAsync(
@@ -4488,6 +4494,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
         id: subEventObj.createdById,
         name: subEventObj.createdByName,
       };
+
       const incCreatedByUserArr = [incCreatedByUserObj];
       await sendRecurrEventMsgAsync(
         incCreatedByUserObj,

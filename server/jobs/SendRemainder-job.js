@@ -80,6 +80,11 @@ const { processSafetyBotError } = require("../models/processError");
                 `send proactive reminder messaage to ${member.user_id} Start`
               );
               const companyData = await getCompanyDataByTeamId(member.team_id);
+
+              const responseOptionData = {
+                responseOptions: JSON.parse(member.RESPONSE_OPTIONS),
+                responseType: member.RESPONSE_TYPE
+              };
               let incObj = {
                 incId: inc_id,
                 incTitle: inc_name,
@@ -89,6 +94,7 @@ const { processSafetyBotError } = require("../models/processError");
                   id: created_by,
                   name: CREATED_BY_NAME,
                 },
+                responseOptionData
               };
               const approvalCard = await SafetyCheckCard(
                 inc_name,

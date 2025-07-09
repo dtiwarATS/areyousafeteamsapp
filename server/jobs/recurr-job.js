@@ -18,7 +18,7 @@ const { getFilesByIncId } = require("../db/dbOperations");
   console.log("recurr job : currentDateTime - " + currentDateTime);
   let sqlJob = `SELECT A.ID AS INC_ID, B.ID AS SUB_EVENT_ID, B.CRON, B.TIMEZONE, A.INC_TYPE AS incType, A.INC_NAME, A.INC_NAME incTitle, A.CREATED_BY AS createdById, 
     A.CREATED_BY_NAME AS createdByName, A.TEAM_ID, A.CHANNEL_ID, A.EVENT_END_DATE eventEndDate, A.EVENT_END_TIME eventEndTime, B.RUN_AT runAt 
-    ,A.inc_type_id incTypeId, A.additionalInfo, A.travelUpdate, A.contactInfo, A.situation
+    ,A.inc_type_id incTypeId, A.additionalInfo, A.travelUpdate, A.contactInfo, A.situation,A.RESPONSE_TYPE, A.RESPONSE_OPTIONS
     FROM MSTEAMSINCIDENTS A 
     LEFT JOIN MSTEAMS_SUB_EVENT B ON A.ID = B.INC_ID 
     WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT) AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, A.EVENT_START_DATE)
