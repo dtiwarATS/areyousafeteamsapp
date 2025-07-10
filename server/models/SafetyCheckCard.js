@@ -135,7 +135,8 @@ const getSafetyCheckTypeCard = async (
           id: "dropdownSelection",
           style: "compact", // Use "expanded" for always visible options
           isRequired: true,
-          errorMessage: "Please select the response.",
+          placeholder: "Select response",
+          errorMessage: "Please select a response.",
           choices: [],
         };
         responseOptionData.responseOptions.map((option, index) => {

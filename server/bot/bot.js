@@ -1457,7 +1457,7 @@ const getSaftyCheckCard = async (
       entities: mentionUserEntities,
     },
     type: "AdaptiveCard",
-    version: "1.4",
+    version: "1.5",
   };
 };
 
