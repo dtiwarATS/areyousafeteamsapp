@@ -2413,7 +2413,7 @@ const sendSafetyCheckMsgViaSMS = async (
   }
 }
 
-const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle) => {
+const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle, incCreatorName) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
   let usrPhones = await getUserPhone(refresh_token, tenantId, users);
@@ -2449,12 +2449,12 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
                 type: "body",
                 parameters: [
                   {
-                    parameter_name: 'company',
+                    parameter_name: 'incidentcreator',
                     type: "text",
-                    text: companyData.teamName         // {{1}} - Company Name
+                    text: incCreatorName         // {{1}} - Company Name
                   },
                   {
-                    parameter_name: 'inctitle',
+                    parameter_name: 'incidenttitle',
                     type: "text",
                     text: incTitle   // {{2}} - Incident Title
                   }
@@ -2485,7 +2485,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
             ]
           }
         };
-        axios.post(
+        let response = await axios.post(
           `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
           payload,
           {
@@ -2494,11 +2494,13 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
               'Content-Type': 'application/json'
             }
           }
-        ).then(response => {
-          console.log('Template message sent:', response.data);
-        }).catch(error => {
-          console.error('Error sending template message:', error.response?.data || error.message);
-        });
+        );
+        // .then(response => {
+        //   console.log('Template message sent:', response.data);
+        // }).catch(error => {
+        //   console.error('Error sending template message:', error.response?.data || error.message);
+        // });
+        console.log('whatsapp msg request sent', response.data || response.message || response);
       }
     } catch (err) {
       processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
@@ -3222,7 +3224,7 @@ const sendSafetyCheckMessageAsync = async (
         }
         if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
         ) {
-          sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle);
+          sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, createdByUserInfo.user_name);
         }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
