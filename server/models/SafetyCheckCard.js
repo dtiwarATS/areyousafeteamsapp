@@ -134,7 +134,8 @@ const getSafetyCheckTypeCard = async (
           type: "Input.ChoiceSet",
           id: "dropdownSelection",
           style: "compact", // Use "expanded" for always visible options
-          value: "0",
+          isRequired: true,
+          errorMessage: "Please select the response.",
           choices: [],
         };
         responseOptionData.responseOptions.map((option, index) => {
@@ -199,7 +200,7 @@ const getSafetyCheckTypeCard = async (
       entities: mentionUserEntities,
     },
     type: "AdaptiveCard",
-    version: "1.4",
+    version: "1.5",
   };
 };
 
