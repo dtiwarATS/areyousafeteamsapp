@@ -1247,7 +1247,7 @@ const handlerForSafetyBotTab = (app) => {
             let userId = response[1];
             let incId = response[2];
             let resp = response[0];
-            bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
+            await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
           }
         } else if (type === 'text') {
           console.log(`User ${from} sent message: ${message.text.body}`);

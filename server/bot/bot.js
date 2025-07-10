@@ -2513,15 +2513,18 @@ const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body) => {
     if (body == null || body == '') {
       `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`
     }
+    const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
     let payload = {
-      "messaging_product": "whatsapp",
-      "to": to,
-      "type": "text",
-      "text": {
-        "body": body,
+      messaging_product: 'whatsapp',
+      recipient_type: "individual",
+      to: to,
+      type: 'text',
+      text: {
+        body: body,
       }
     };
-    axios.post(
+    let response = await axios.post(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
       payload,
       {
@@ -2530,12 +2533,15 @@ const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body) => {
           'Content-Type': 'application/json'
         }
       }
-    ).then(response => {
-      console.log('Template message sent:', response.data);
-    }).catch(error => {
-      console.error('Error sending template message:', error.response?.data || error.message);
-    });
+    );
+    // .then(response => {
+    //   console.log('Template message sent:', response.data);
+    // }).catch(error => {
+    //   console.error('Error sending template message:', error.response?.data || error.message);
+    // });
+    console.log('whatsapp msg request sent', response.data || response.message || response);
   } catch (err) {
+    console.log('error', err);
   }
 }
 
@@ -2545,21 +2551,20 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
     const incData = await incidentService.getInc(eventId, null, userId);
     if (incStatusId == -1 || incStatusId == 2) {
       try {
-        await sendIncStatusValidation(context, incStatusId);
-        await tClient.messages.create({
-          body: `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`,
-          from: "+18023277232",
-          shortenUrls: true,
-          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-          to: phone,
-        });
-        counter++;
-        SaveSmsLog(
-          user.id,
-          "OUTGOING",
-          body,
-          JSON.stringify({ eventId: incId, userId: user.id })
-        );
+        // await tClient.messages.create({
+        //   body:  `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`,
+        //   from: "+18023277232",
+        //   shortenUrls: true,
+        //   messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+        //   to: phone,
+        // });
+        // counter++;
+        // SaveSmsLog(
+        //   user.id,
+        //   "OUTGOING",
+        //   body,
+        //   JSON.stringify({ eventId: incId, userId: user.id })
+        // );
       } catch (err) {
         console.log('Error while sending acknowledgement in SMS for closed or deleted incident');
       }
@@ -2644,11 +2649,13 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
     const incStatusId = await incidentService.getIncStatus(eventId);
     if (incStatusId == -1 || incStatusId == 2) {
       try {
-        sendAcknowledgeViaWhatsapp(
+        await sendAcknowledgeViaWhatsapp(
           fromPhnNumber,
           text,
           compData.teamName,
-          `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`
+          (incStatusId == 2 ?
+            `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}` :
+            `This incident is no longer available.`)
         );
       } catch (err) {
         console.log('Error while sending acknowledgement in whatsapp for closed or deleted incident');
@@ -2720,7 +2727,7 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
       incData.incCreatedByName,
       user
     );
-    sendAcknowledgeViaWhatsapp(
+    await sendAcknowledgeViaWhatsapp(
       fromPhnNumber,
       text,
       compData.teamName
