@@ -134,7 +134,9 @@ const getSafetyCheckTypeCard = async (
           type: "Input.ChoiceSet",
           id: "dropdownSelection",
           style: "compact", // Use "expanded" for always visible options
-          value: "0",
+          isRequired: true,
+          placeholder: "Select response",
+          errorMessage: "Please select a response.",
           choices: [],
         };
         responseOptionData.responseOptions.map((option, index) => {
@@ -196,10 +198,11 @@ const getSafetyCheckTypeCard = async (
     appId: process.env.MicrosoftAppId,
     body: cardBody,
     msteams: {
+      width: 'full',
       entities: mentionUserEntities,
     },
     type: "AdaptiveCard",
-    version: "1.4",
+    version: "1.5",
   };
 };
 

@@ -1453,11 +1453,11 @@ const getSaftyCheckCard = async (
       // }
     ],
     msteams: {
-      width: "Full",
+      width: "full",
       entities: mentionUserEntities,
     },
     type: "AdaptiveCard",
-    version: "1.4",
+    version: "1.5",
   };
 };
 
