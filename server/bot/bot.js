@@ -2508,14 +2508,17 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
   }
 }
 
-const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName) => {
+const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body) => {
   try {
+    if (body == null || body == '') {
+      `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`
+    }
     let payload = {
       "messaging_product": "whatsapp",
       "to": to,
       "type": "text",
       "text": {
-        "body": `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`,
+        "body": body,
       }
     };
     axios.post(
@@ -2538,7 +2541,32 @@ const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName) => {
 
 const proccessSMSLinkClick = async (userId, eventId, text) => {
   if (userId && eventId) {
+    const incStatusId = await incidentService.getIncStatus(eventId);
     const incData = await incidentService.getInc(eventId, null, userId);
+    if (incStatusId == -1 || incStatusId == 2) {
+      try {
+        await sendIncStatusValidation(context, incStatusId);
+        await tClient.messages.create({
+          body: `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`,
+          from: "+18023277232",
+          shortenUrls: true,
+          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+          to: phone,
+        });
+        counter++;
+        SaveSmsLog(
+          user.id,
+          "OUTGOING",
+          body,
+          JSON.stringify({ eventId: incId, userId: user.id })
+        );
+      } catch (err) {
+        console.log('Error while sending acknowledgement in SMS for closed or deleted incident');
+      }
+      return {
+        status: StatusCodes.OK,
+      };
+    }
     const compData = await incidentService.getCompanyData(incData.teamId);
     const users = await incidentService.getUserInfo(incData.teamId, userId);
     let user = users[0];
@@ -2613,6 +2641,22 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
     const compData = await incidentService.getCompanyData(incData.teamId);
     const users = await incidentService.getUserInfo(incData.teamId, userId);
     let user = users[0];
+    const incStatusId = await incidentService.getIncStatus(eventId);
+    if (incStatusId == -1 || incStatusId == 2) {
+      try {
+        sendAcknowledgeViaWhatsapp(
+          fromPhnNumber,
+          text,
+          compData.teamName,
+          `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`
+        );
+      } catch (err) {
+        console.log('Error while sending acknowledgement in whatsapp for closed or deleted incident');
+      }
+      return {
+        status: StatusCodes.OK,
+      };
+    }
     let context = {
       activity: {
         serviceUrl: compData.serviceUrl,
@@ -3774,12 +3818,12 @@ const sendApprovalResponse = async (user, context) => {
           (companyData.SubscriptionType == 2 &&
             companyData.sent_sms_count < 50))
       ) {
+        sendAcknowledmentinSMS(
+          companyData,
+          [user.aadObjectId],
+          response === "i_am_safe" ? "I am safe" : "I need assistance"
+        );
       }
-      //sendAcknowledmentinSMS(
-      // companyData,
-      //   [user.aadObjectId],
-      //   response === "i_am_safe" ? "I am safe" : "I need assistance"
-      // );
     //}
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
@@ -4465,12 +4509,13 @@ const sendRecurrEventMsgAsync = async (
     incResponseSelectedUsersList: null,
     responseOptionData
   };
-  return new Promise((resolve, reject) => {
+  let companyData = subEventObj.companyData;
+  return new Promise(async (resolve, reject) => {
     sendProactiveMessageAsync(
       subEventObj.eventMembers,
       subEventObj,
       incObj,
-      subEventObj.companyData,
+      companyData,
       serviceUrl,
       "",
       userTenantId,
@@ -4480,6 +4525,25 @@ const sendRecurrEventMsgAsync = async (
       subEventObj.runAt,
       subEventObj.filesData
     );
+    let userAadObjIds = subEventObj.eventMembers.map((x) => x.userAadObjId);
+    if (
+      companyData.send_sms &&
+      (companyData.SubscriptionType == 3 ||
+        (companyData.SubscriptionType == 2 &&
+          companyData.sent_sms_count < 50))
+    ) {
+      sendSafetyCheckMsgViaSMS(
+        companyData,
+        userAadObjIds,
+        incId,
+        incTitle,
+        subEventObj
+      );
+    }
+    if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
+    ) {
+      await sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, incCreatedByUserObj.name);
+    }
   });
 };
 
