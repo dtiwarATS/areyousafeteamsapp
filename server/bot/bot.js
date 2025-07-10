@@ -1453,7 +1453,7 @@ const getSaftyCheckCard = async (
       // }
     ],
     msteams: {
-      width: "Full",
+      width: "full",
       entities: mentionUserEntities,
     },
     type: "AdaptiveCard",

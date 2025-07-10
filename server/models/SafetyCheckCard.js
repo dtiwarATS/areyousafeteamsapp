@@ -198,6 +198,7 @@ const getSafetyCheckTypeCard = async (
     appId: process.env.MicrosoftAppId,
     body: cardBody,
     msteams: {
+      width: 'full',
       entities: mentionUserEntities,
     },
     type: "AdaptiveCard",
