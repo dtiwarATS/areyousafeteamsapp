@@ -3045,7 +3045,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
               userIds = "'" + userIds.replaceAll(",", "','") + "'";
               // console.log({ userIds });
               startIndex = endIndex;
-              endIndex = startIndex + 14;
+              endIndex = startIndex + 100;
               if (endIndex > arrIds.length) endIndex = arrIds.length;
 
               let config = {
