@@ -2416,94 +2416,96 @@ const sendSafetyCheckMsgViaSMS = async (
 const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle, incCreatorName) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
-  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
-  for (let user of usrPhones) {
-    try {
-      let phone =
-        user.businessPhones.length > 0 && user.businessPhones[0] != ""
-          ? user.businessPhones[0]
-          : "";
-      if (companyData.PHONE_FIELD == "mobilePhone") {
-        phone = user.mobilePhone;
-      }
-      if (phone == null || phone == "" || phone == "null") {
-        continue;
-      }
-      if (phone != null && phone != "" && phone != "null") {
-        const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
-        const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
-        const to = phone; // e.g. +919999999999
+  if (refresh_token) {
+    let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+    for (let user of usrPhones) {
+      try {
+        let phone =
+          user.businessPhones.length > 0 && user.businessPhones[0] != ""
+            ? user.businessPhones[0]
+            : "";
+        if (companyData.PHONE_FIELD == "mobilePhone") {
+          phone = user.mobilePhone;
+        }
+        if (phone == null || phone == "" || phone == "null") {
+          continue;
+        }
+        if (phone != null && phone != "" && phone != "null") {
+          const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
+          const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
+          const to = phone; // e.g. +919999999999
 
-        const payload = {
-          messaging_product: 'whatsapp',
-          recipient_type: "individual",
-          to: to,
-          type: 'template',
-          template: {
-            name: 'safety_check',
-            language: {
-              code: 'en'
-            },
-            components: [
-              {
-                type: "body",
-                parameters: [
-                  {
-                    parameter_name: 'incidentcreator',
-                    type: "text",
-                    text: incCreatorName         // {{1}} - Company Name
-                  },
-                  {
-                    parameter_name: 'incidenttitle',
-                    type: "text",
-                    text: incTitle   // {{2}} - Incident Title
-                  }
-                ]
+          const payload = {
+            messaging_product: 'whatsapp',
+            recipient_type: "individual",
+            to: to,
+            type: 'template',
+            template: {
+              name: 'safety_check',
+              language: {
+                code: 'en'
               },
-              {
-                type: "button",
-                sub_type: "quick_reply",
-                index: "0",
-                parameters: [
-                  {
-                    type: "payload",
-                    payload: `YES_${user.id}_${incId}`
-                  }
-                ]
-              },
-              {
-                type: "button",
-                sub_type: "quick_reply",
-                index: "1",
-                parameters: [
-                  {
-                    type: "payload",
-                    payload: `NO_${user.id}_${incId}`
-                  }
-                ]
-              }
-            ]
-          }
-        };
-        let response = await axios.post(
-          `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-          payload,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              components: [
+                {
+                  type: "body",
+                  parameters: [
+                    {
+                      parameter_name: 'incidentcreator',
+                      type: "text",
+                      text: incCreatorName         // {{1}} - Company Name
+                    },
+                    {
+                      parameter_name: 'incidenttitle',
+                      type: "text",
+                      text: incTitle   // {{2}} - Incident Title
+                    }
+                  ]
+                },
+                {
+                  type: "button",
+                  sub_type: "quick_reply",
+                  index: "0",
+                  parameters: [
+                    {
+                      type: "payload",
+                      payload: `YES_${user.id}_${incId}`
+                    }
+                  ]
+                },
+                {
+                  type: "button",
+                  sub_type: "quick_reply",
+                  index: "1",
+                  parameters: [
+                    {
+                      type: "payload",
+                      payload: `NO_${user.id}_${incId}`
+                    }
+                  ]
+                }
+              ]
             }
-          }
-        );
-        // .then(response => {
-        //   console.log('Template message sent:', response.data);
-        // }).catch(error => {
-        //   console.error('Error sending template message:', error.response?.data || error.message);
-        // });
-        console.log('whatsapp msg request sent', response.data || response.message || response);
+          };
+          let response = await axios.post(
+            `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          // .then(response => {
+          //   console.log('Template message sent:', response.data);
+          // }).catch(error => {
+          //   console.error('Error sending template message:', error.response?.data || error.message);
+          // });
+          console.log('whatsapp msg request sent', response.data || response.message || response);
+        }
+      } catch (err) {
+        processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
       }
-    } catch (err) {
-      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
     }
   }
 }
@@ -3852,40 +3854,42 @@ const sendApprovalResponse = async (user, context) => {
 const sendAcknowledmentinSMS = async (companyData, users, text) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
-  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
-  let counter = 0;
-  for (let user of usrPhones) {
-    try {
-      if (
-        (user.businessPhones.length > 0 && user.businessPhones[0] != "") ||
-        user.mobilePhone != ""
-      ) {
-        let phone =
-          user.businessPhones.length > 0 && user.businessPhones[0] != ""
-            ? user.businessPhones[0]
-            : user.mobilePhone;
+  if (refresh_token) {
+    let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+    let counter = 0;
+    for (let user of usrPhones) {
+      try {
+        if (
+          (user.businessPhones.length > 0 && user.businessPhones[0] != "") ||
+          user.mobilePhone != ""
+        ) {
+          let phone =
+            user.businessPhones.length > 0 && user.businessPhones[0] != ""
+              ? user.businessPhones[0]
+              : user.mobilePhone;
 
-        let body = `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
-        await tClient.messages.create({
-          body: body,
-          from: "+18023277232",
-          shortenUrls: true,
-          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-          to: phone,
-        });
-        counter++;
+          let body = `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
+          await tClient.messages.create({
+            body: body,
+            from: "+18023277232",
+            shortenUrls: true,
+            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+            to: phone,
+          });
+          counter++;
+        }
+        if (companyData.SubscriptionType == 2) {
+          incidentService.updateSentSMSCount(companyData.teamId, counter);
+        }
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          companyData.teamId,
+          user.id,
+          null,
+          "error in sending acknowledgement via SMS"
+        );
       }
-      if (companyData.SubscriptionType == 2) {
-        incidentService.updateSentSMSCount(companyData.teamId, counter);
-      }
-    } catch (err) {
-      processSafetyBotError(
-        err,
-        companyData.teamId,
-        user.id,
-        null,
-        "error in sending acknowledgement via SMS"
-      );
     }
   }
 };
