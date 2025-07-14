@@ -3036,7 +3036,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
           let accessToken = response.data.access_token;
           // console.log({ arrIds });
           var startIndex = 0;
-          var endIndex = 14;
+          var endIndex = 100;
           if (endIndex > arrIds.length) endIndex = arrIds.length;
           // console.log({ endIndex });
           while (endIndex <= arrIds.length && startIndex != endIndex) {
