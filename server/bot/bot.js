@@ -3181,10 +3181,19 @@ const sendSafetyCheckMessageAsync = async (
       );
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
         incData;
-      const responseOptionData = {
-        responseOptions: JSON.parse(incData.responseOptions),
-        responseType: incData.responseType
-      };
+      let responseOptionData = {
+        responseOptions: [
+          { id: 1, option: "I am safe", color: "#4CAF50" },
+          { id: 2, option: "I need assistance", color: "#F44336" },
+        ],
+        responseType: "buttons"
+      }
+      if (incData.responseOptions && incData.responseType) {
+        responseOptionData = {
+          responseOptions: JSON.parse(incData.responseOptions),
+          responseType: incData.responseType
+        };
+      }
       const { serviceUrl, userTenantId, userId } = companyData;
       if (resendSafetyCheck === "true") {
         createdByUserInfo.user_id = userId;
@@ -4506,10 +4515,19 @@ const sendRecurrEventMsgAsync = async (
   let incGuidance = await incidentService.getIncGuidance(incId);
   incGuidance = incGuidance ? incGuidance : "";
 
-  const responseOptionData = {
-    responseOptions: JSON.parse(subEventObj.RESPONSE_OPTIONS),
+  let responseOptionData = {
+    responseOptions: [
+      { id: 1, option: "I am safe", color: "#4CAF50" },
+      { id: 2, option: "I need assistance", color: "#F44336" },
+    ],
+    responseType: "buttons"
+  }
+  if (subEventObj.RESPONSE_OPTIONS && subEventObj.RESPONSE_TYPE) {
+    responseOptionData = {
+      responseOptions: JSON.parse(subEventObj.RESPONSE_OPTIONS),
     responseType: subEventObj.RESPONSE_TYPE
-  };
+    };
+  }
   let incObj = {
     incId,
     incTitle,
