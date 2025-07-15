@@ -827,7 +827,8 @@ const getCompanyData = async (teamId) => {
       createdDate: result[0].created_date,
       welcomeMessageSent: result[0].welcomeMessageSent,
       serviceUrl: result[0].serviceUrl,
-      refresh_token: result[0].refresh_token
+      refresh_token: result[0].refresh_token,
+      PHONE_FIELD: result[0].PHONE_FIELD,
     };
   }
   return companyDataObj;

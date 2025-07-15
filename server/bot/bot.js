@@ -2468,7 +2468,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
                   parameters: [
                     {
                       type: "payload",
-                      payload: `YES_${user.id}_${incId}`
+                      payload: `YES_${user.id}_${incId}_${process.env.build}_teams`
                     }
                   ]
                 },
@@ -2479,7 +2479,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
                   parameters: [
                     {
                       type: "payload",
-                      payload: `NO_${user.id}_${incId}`
+                      payload: `NO_${user.id}_${incId}_${process.env.build}_teams`
                     }
                   ]
                 }
