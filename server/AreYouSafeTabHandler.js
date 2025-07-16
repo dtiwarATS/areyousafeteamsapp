@@ -1273,6 +1273,19 @@ const handlerForSafetyBotTab = (app) => {
             let resp = response[0];
             await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
           }
+        } else if (type == 'interactive') {
+          const interactiveType = message.interactive.type;
+          if (interactiveType === 'list_reply') {
+            const buttonPayload = message.interactive.list_reply.id;
+            console.log(`User ${from} clicked: ${buttonPayload}`);
+            let response = buttonPayload.split('_');
+            if (response.length > 2) {
+              let userId = response[1];
+              let incId = response[2];
+              let resp = response[0];
+              await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
+            }
+          }
         } else if (type === 'text') {
           console.log(`User ${from} sent message: ${message.text.body}`);
         }

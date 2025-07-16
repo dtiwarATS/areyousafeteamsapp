@@ -2412,8 +2412,27 @@ const sendSafetyCheckMsgViaSMS = async (
     }
   }
 }
+const sendWhatsappMessage = async (payload) => {
+  try {
+    const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
 
-const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle, incCreatorName) => {
+    let response = await axios.post(
+      `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    console.log('whatsapp msg request sent', response.data || response.message || response);
+  } catch (err) {
+    processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending message via Whatsapp");
+  }
+}
+const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle, incCreatorName, responseOptions) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
   if (refresh_token) {
@@ -2431,89 +2450,154 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
           continue;
         }
         if (phone != null && phone != "" && phone != "null") {
-          const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
-          const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
-          const to = phone; // e.g. +919999999999
-
-          const payload = {
-            messaging_product: 'whatsapp',
-            recipient_type: "individual",
-            to: to,
-            type: 'template',
-            template: {
-              name: 'safety_check',
-              language: {
-                code: 'en'
-              },
-              components: [
-                {
-                  type: "body",
-                  parameters: [
-                    {
-                      parameter_name: 'incidentcreator',
-                      type: "text",
-                      text: incCreatorName         // {{1}} - Company Name
-                    },
-                    {
-                      parameter_name: 'incidenttitle',
-                      type: "text",
-                      text: incTitle   // {{2}} - Incident Title
-                    }
-                  ]
-                },
-                {
-                  type: "button",
-                  sub_type: "quick_reply",
-                  index: "0",
-                  parameters: [
-                    {
-                      type: "payload",
-                      payload: `YES_${user.id}_${incId}_${process.env.build}_teams`
-                    }
-                  ]
-                },
-                {
-                  type: "button",
-                  sub_type: "quick_reply",
-                  index: "1",
-                  parameters: [
-                    {
-                      type: "payload",
-                      payload: `NO_${user.id}_${incId}_${process.env.build}_teams`
-                    }
-                  ]
-                }
-              ]
-            }
-          };
-          let response = await axios.post(
-            `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-            payload,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-          // .then(response => {
-          //   console.log('Template message sent:', response.data);
-          // }).catch(error => {
-          //   console.error('Error sending template message:', error.response?.data || error.message);
-          // });
-          console.log('whatsapp msg request sent', response.data || response.message || response);
+          const payload = getTemplateBasedPayload(user, phone, incId, incTitle, companyData.teamName, responseOptions.length == 2 ? 1 : 2);
+          await sendWhatsappMessage(payload);
         }
       } catch (err) {
-        processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
+        processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via Whatsapp");
       }
     }
   }
 }
 
+const getTemplateBasedPayload = (user, to, incId, incTitle, incCreatorName, template = 1) => {
+  let payload = {
+    messaging_product: 'whatsapp',
+    recipient_type: "individual",
+    to: to,
+    type: 'template',
+    template: {
+      name: 'safety_check',
+      language: {
+        code: 'en'
+      },
+      components: [
+        {
+          type: "body",
+          parameters: [
+            {
+              parameter_name: 'incidentcreator',
+              type: "text",
+              text: incCreatorName         // {{1}} - Company Name
+            },
+            {
+              parameter_name: 'incidenttitle',
+              type: "text",
+              text: incTitle   // {{2}} - Incident Title
+            }
+          ]
+        },
+        {
+          type: "button",
+          sub_type: "quick_reply",
+          index: "0",
+          parameters: [
+            {
+              type: "payload",
+              payload: `1_${user.id}_${incId}_${process.env.build}_teams`
+            }
+          ]
+        },
+        {
+          type: "button",
+          sub_type: "quick_reply",
+          index: "1",
+          parameters: [
+            {
+              type: "payload",
+              payload: `2_${user.id}_${incId}_${process.env.build}_teams`
+            }
+          ]
+        }
+      ]
+    }
+  };
+  if (template === 2) {
+    payload = {
+      messaging_product: 'whatsapp',
+      recipient_type: "individual",
+      to: to,
+      type: 'template',
+      template: {
+        name: 'safety_check_2',
+        language: {
+          code: 'en'
+        },
+        components: [
+          {
+            type: "body",
+            parameters: [
+              {
+                parameter_name: 'company',
+                type: "text",
+                text: incCreatorName         // {{1}} - Company Name
+              },
+              {
+                parameter_name: 'inctitle',
+                type: "text",
+                text: incTitle   // {{2}} - Incident Title
+              }
+            ]
+          },
+          {
+            type: "button",
+            sub_type: "quick_reply",
+            index: "0",
+            parameters: [
+              {
+                type: "payload",
+                payload: `RESPONSE_${user.id}_${incId}_${process.env.build}_teams`
+              }
+            ]
+          }
+        ]
+      }
+    };
+  }
+  return payload;
+}
+const getMultipleResponsePayload = (userId, to, incData) => {
+  let respOptions = JSON.parse(incData.responseOptions);
+  let buttons = respOptions.map((option, index) => {
+    return {
+      id: `${option.id}_${userId}_${incData.incId}_${process.env.build}_teams`,
+      title: option.option
+    };
+  });
+  let payload = {
+    messaging_product: "whatsapp",
+    to: to,
+    type: "interactive",
+    interactive: {
+      type: "list",
+      header: {
+        type: "text",
+        text: "Choose an Option"
+      },
+      body: {
+        text: "Please select one of the options below:"
+      },
+      footer: {
+        text: "You can only choose one."
+      },
+      action: {
+        button: "Select",
+        sections: [
+          {
+            title: "Available Actions",
+            rows: buttons
+          }
+        ]
+      }
+    }
+  }
+  return payload;
+}
+
 const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body = '') => {
   try {
     if (body == null || body == '') {
-      body = `Your safety status has been recorded as ${replyText.toLowerCase() == 'no' ? 'I need assistance' : 'I am safe'}, and the ${companyName} team has been notified.`
+      body = `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`
     }
     const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -2666,6 +2750,11 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
         status: StatusCodes.OK,
       };
     }
+    if (text == "RESPONSE") {
+      let payload = getMultipleResponsePayload(user.user_aadobject_id, fromPhnNumber, incData);
+      await sendWhatsappMessage(payload);
+      return;
+    }
     let context = {
       activity: {
         serviceUrl: compData.serviceUrl,
@@ -2676,12 +2765,12 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
     };
     incidentService.updateSafetyCheckStatusViaSMSLink(
       eventId,
-      text == "YES" ? 1 : 2,
+      text,
       userId,
       compData.teamId,
       false
     );
-    if (text != "YES") {
+    if (text == "2") {
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,
@@ -2729,9 +2818,11 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
       incData.incCreatedByName,
       user
     );
+    let respOptions = JSON.parse(incData.responseOptions);
+    let response = respOptions.find(resp => resp.id == text);
     await sendAcknowledgeViaWhatsapp(
       fromPhnNumber,
-      text,
+      response.option,
       compData.teamName
     );
   }
@@ -2746,15 +2837,8 @@ const acknowledgeSMSReplyInTeams = async (
 ) => {
   try {
     let responseText = "";
-    if (msgText === "YES") {
-      responseText = `Glad you're safe! Your safety status has been sent to <at>${incCreatedByName}</at>`;
-    } else {
-      responseText = `Sorry to hear that! We have informed <at>${incCreatedByName}</at> of your situation and someone will be reaching out to you as soon as possible.`;
-    }
-
+    responseText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedByName}</at>`;
     const { serviceUrl, userTenantId } = companyData;
-    const incData = await incidentService.getInc(100662);
-
     const approvalCard = {
       $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
       appId: process.env.MicrosoftAppId,
@@ -3286,7 +3370,7 @@ const sendSafetyCheckMessageAsync = async (
         }
         if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
         ) {
-          sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, createdByUserInfo.user_name);
+          sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, createdByUserInfo.user_name, responseOptionData.responseOptions);
         }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
@@ -4571,7 +4655,7 @@ const sendRecurrEventMsgAsync = async (
     }
     if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
     ) {
-      await sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, incCreatedByUserObj.name);
+      await sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, incCreatedByUserObj.name, responseOptionData.responseOptions);
     }
   });
 };
@@ -5274,7 +5358,7 @@ const onInvokeActivity = async (context) => {
       } else {
         responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
       }
-      responseText = `Your response has been sent to <at>${incCreatedBy.name}</at>`;
+      responseText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
 
       const entities = {
         type: "mention",

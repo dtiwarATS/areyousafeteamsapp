@@ -145,7 +145,7 @@ const { processSafetyBotError } = require("../models/processError");
                   await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name, null);
                 }
                 if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4") {
-                  await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME);
+                  await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME, responseOptionData.responseOptions);
                 }
               } else {
                 await incidentService.updateRecurrremaindercounter(
