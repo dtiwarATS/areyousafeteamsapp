@@ -2413,110 +2413,120 @@ const sendSafetyCheckMsgViaSMS = async (
   }
 }
 
-const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle) => {
+const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle, incCreatorName) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
-  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
-  for (let user of usrPhones) {
-    try {
-      let phone =
-        user.businessPhones.length > 0 && user.businessPhones[0] != ""
-          ? user.businessPhones[0]
-          : "";
-      if (companyData.PHONE_FIELD == "mobilePhone") {
-        phone = user.mobilePhone;
-      }
-      if (phone == null || phone == "" || phone == "null") {
-        continue;
-      }
-      if (phone != null && phone != "" && phone != "null") {
-        const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
-        const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
-        const to = phone; // e.g. +919999999999
+  if (refresh_token) {
+    let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+    for (let user of usrPhones) {
+      try {
+        let phone =
+          user.businessPhones.length > 0 && user.businessPhones[0] != ""
+            ? user.businessPhones[0]
+            : "";
+        if (companyData.PHONE_FIELD == "mobilePhone") {
+          phone = user.mobilePhone;
+        }
+        if (phone == null || phone == "" || phone == "null") {
+          continue;
+        }
+        if (phone != null && phone != "" && phone != "null") {
+          const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
+          const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
+          const to = phone; // e.g. +919999999999
 
-        const payload = {
-          messaging_product: 'whatsapp',
-          recipient_type: "individual",
-          to: to,
-          type: 'template',
-          template: {
-            name: 'safety_check',
-            language: {
-              code: 'en'
-            },
-            components: [
-              {
-                type: "body",
-                parameters: [
-                  {
-                    parameter_name: 'company',
-                    type: "text",
-                    text: companyData.teamName         // {{1}} - Company Name
-                  },
-                  {
-                    parameter_name: 'inctitle',
-                    type: "text",
-                    text: incTitle   // {{2}} - Incident Title
-                  }
-                ]
+          const payload = {
+            messaging_product: 'whatsapp',
+            recipient_type: "individual",
+            to: to,
+            type: 'template',
+            template: {
+              name: 'safety_check',
+              language: {
+                code: 'en'
               },
-              {
-                type: "button",
-                sub_type: "quick_reply",
-                index: "0",
-                parameters: [
-                  {
-                    type: "payload",
-                    payload: `YES_${user.id}_${incId}`
-                  }
-                ]
-              },
-              {
-                type: "button",
-                sub_type: "quick_reply",
-                index: "1",
-                parameters: [
-                  {
-                    type: "payload",
-                    payload: `NO_${user.id}_${incId}`
-                  }
-                ]
-              }
-            ]
-          }
-        };
-        axios.post(
-          `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-          payload,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': 'application/json'
+              components: [
+                {
+                  type: "body",
+                  parameters: [
+                    {
+                      parameter_name: 'incidentcreator',
+                      type: "text",
+                      text: incCreatorName         // {{1}} - Company Name
+                    },
+                    {
+                      parameter_name: 'incidenttitle',
+                      type: "text",
+                      text: incTitle   // {{2}} - Incident Title
+                    }
+                  ]
+                },
+                {
+                  type: "button",
+                  sub_type: "quick_reply",
+                  index: "0",
+                  parameters: [
+                    {
+                      type: "payload",
+                      payload: `YES_${user.id}_${incId}_${process.env.build}_teams`
+                    }
+                  ]
+                },
+                {
+                  type: "button",
+                  sub_type: "quick_reply",
+                  index: "1",
+                  parameters: [
+                    {
+                      type: "payload",
+                      payload: `NO_${user.id}_${incId}_${process.env.build}_teams`
+                    }
+                  ]
+                }
+              ]
             }
-          }
-        ).then(response => {
-          console.log('Template message sent:', response.data);
-        }).catch(error => {
-          console.error('Error sending template message:', error.response?.data || error.message);
-        });
+          };
+          let response = await axios.post(
+            `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+            payload,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            }
+          );
+          // .then(response => {
+          //   console.log('Template message sent:', response.data);
+          // }).catch(error => {
+          //   console.error('Error sending template message:', error.response?.data || error.message);
+          // });
+          console.log('whatsapp msg request sent', response.data || response.message || response);
+        }
+      } catch (err) {
+        processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
       }
-    } catch (err) {
-      processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via SMS");
     }
   }
 }
 
-const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName) => {
+const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body = '') => {
   try {
+    if (body == null || body == '') {
+      body = `Your safety status has been recorded as ${replyText.toLowerCase() == 'no' ? 'I need assistance' : 'I am safe'}, and the ${companyName} team has been notified.`
+    }
+    const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
     let payload = {
-      "messaging_product": "whatsapp",
-      "to": to,
-      "type": "text",
-      "text": {
-        "body": `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`,
+      messaging_product: 'whatsapp',
+      recipient_type: "individual",
+      to: to,
+      type: 'text',
+      text: {
+        body: body,
       }
     };
-    axios.post(
+    let response = await axios.post(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
       payload,
       {
@@ -2525,18 +2535,45 @@ const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName) => {
           'Content-Type': 'application/json'
         }
       }
-    ).then(response => {
-      console.log('Template message sent:', response.data);
-    }).catch(error => {
-      console.error('Error sending template message:', error.response?.data || error.message);
-    });
+    );
+    // .then(response => {
+    //   console.log('Template message sent:', response.data);
+    // }).catch(error => {
+    //   console.error('Error sending template message:', error.response?.data || error.message);
+    // });
+    console.log('whatsapp msg request sent', response.data || response.message || response);
   } catch (err) {
+    console.log('error', err);
   }
 }
 
 const proccessSMSLinkClick = async (userId, eventId, text) => {
   if (userId && eventId) {
+    const incStatusId = await incidentService.getIncStatus(eventId);
     const incData = await incidentService.getInc(eventId, null, userId);
+    if (incStatusId == -1 || incStatusId == 2) {
+      try {
+        // await tClient.messages.create({
+        //   body:  `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`,
+        //   from: "+18023277232",
+        //   shortenUrls: true,
+        //   messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+        //   to: phone,
+        // });
+        // counter++;
+        // SaveSmsLog(
+        //   user.id,
+        //   "OUTGOING",
+        //   body,
+        //   JSON.stringify({ eventId: incId, userId: user.id })
+        // );
+      } catch (err) {
+        console.log('Error while sending acknowledgement in SMS for closed or deleted incident');
+      }
+      return {
+        status: StatusCodes.OK,
+      };
+    }
     const compData = await incidentService.getCompanyData(incData.teamId);
     const users = await incidentService.getUserInfo(incData.teamId, userId);
     let user = users[0];
@@ -2611,6 +2648,24 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
     const compData = await incidentService.getCompanyData(incData.teamId);
     const users = await incidentService.getUserInfo(incData.teamId, userId);
     let user = users[0];
+    const incStatusId = await incidentService.getIncStatus(eventId);
+    if (incStatusId == -1 || incStatusId == 2) {
+      try {
+        await sendAcknowledgeViaWhatsapp(
+          fromPhnNumber,
+          text,
+          compData.teamName,
+          (incStatusId == 2 ?
+            `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}` :
+            `This incident is no longer available.`)
+        );
+      } catch (err) {
+        console.log('Error while sending acknowledgement in whatsapp for closed or deleted incident');
+      }
+      return {
+        status: StatusCodes.OK,
+      };
+    }
     let context = {
       activity: {
         serviceUrl: compData.serviceUrl,
@@ -2621,7 +2676,7 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
     };
     incidentService.updateSafetyCheckStatusViaSMSLink(
       eventId,
-      text == "YES" ? 1 : 0,
+      text == "YES" ? 1 : 2,
       userId,
       compData.teamId,
       false
@@ -2674,7 +2729,7 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
       incData.incCreatedByName,
       user
     );
-    sendAcknowledgeViaWhatsapp(
+    await sendAcknowledgeViaWhatsapp(
       fromPhnNumber,
       text,
       compData.teamName
@@ -2983,7 +3038,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
           let accessToken = response.data.access_token;
           // console.log({ arrIds });
           var startIndex = 0;
-          var endIndex = 14;
+          var endIndex = 100;
           if (endIndex > arrIds.length) endIndex = arrIds.length;
           // console.log({ endIndex });
           while (endIndex <= arrIds.length && startIndex != endIndex) {
@@ -2992,7 +3047,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
               userIds = "'" + userIds.replaceAll(",", "','") + "'";
               // console.log({ userIds });
               startIndex = endIndex;
-              endIndex = startIndex + 14;
+              endIndex = startIndex + 100;
               if (endIndex > arrIds.length) endIndex = arrIds.length;
 
               let config = {
@@ -3126,10 +3181,19 @@ const sendSafetyCheckMessageAsync = async (
       );
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
         incData;
-      const responseOptionData = {
-        responseOptions: JSON.parse(incData.responseOptions),
-        responseType: incData.responseType
-      };
+      let responseOptionData = {
+        responseOptions: [
+          { id: 1, option: "I am safe", color: "#4CAF50" },
+          { id: 2, option: "I need assistance", color: "#F44336" },
+        ],
+        responseType: "buttons"
+      }
+      if (incData.responseOptions && incData.responseType) {
+        responseOptionData = {
+          responseOptions: JSON.parse(incData.responseOptions),
+          responseType: incData.responseType
+        };
+      }
       const { serviceUrl, userTenantId, userId } = companyData;
       if (resendSafetyCheck === "true") {
         createdByUserInfo.user_id = userId;
@@ -3222,7 +3286,7 @@ const sendSafetyCheckMessageAsync = async (
         }
         if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
         ) {
-          sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle);
+          sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, createdByUserInfo.user_name);
         }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
@@ -3772,12 +3836,12 @@ const sendApprovalResponse = async (user, context) => {
           (companyData.SubscriptionType == 2 &&
             companyData.sent_sms_count < 50))
       ) {
+        sendAcknowledmentinSMS(
+          companyData,
+          [user.aadObjectId],
+          response === "i_am_safe" ? "I am safe" : "I need assistance"
+        );
       }
-      //sendAcknowledmentinSMS(
-      // companyData,
-      //   [user.aadObjectId],
-      //   response === "i_am_safe" ? "I am safe" : "I need assistance"
-      // );
     //}
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
@@ -3799,40 +3863,42 @@ const sendApprovalResponse = async (user, context) => {
 const sendAcknowledmentinSMS = async (companyData, users, text) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
-  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
-  let counter = 0;
-  for (let user of usrPhones) {
-    try {
-      if (
-        (user.businessPhones.length > 0 && user.businessPhones[0] != "") ||
-        user.mobilePhone != ""
-      ) {
-        let phone =
-          user.businessPhones.length > 0 && user.businessPhones[0] != ""
-            ? user.businessPhones[0]
-            : user.mobilePhone;
+  if (refresh_token) {
+    let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+    let counter = 0;
+    for (let user of usrPhones) {
+      try {
+        if (
+          (user.businessPhones.length > 0 && user.businessPhones[0] != "") ||
+          user.mobilePhone != ""
+        ) {
+          let phone =
+            user.businessPhones.length > 0 && user.businessPhones[0] != ""
+              ? user.businessPhones[0]
+              : user.mobilePhone;
 
-        let body = `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
-        await tClient.messages.create({
-          body: body,
-          from: "+18023277232",
-          shortenUrls: true,
-          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-          to: phone,
-        });
-        counter++;
+          let body = `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
+          await tClient.messages.create({
+            body: body,
+            from: "+18023277232",
+            shortenUrls: true,
+            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+            to: phone,
+          });
+          counter++;
+        }
+        if (companyData.SubscriptionType == 2) {
+          incidentService.updateSentSMSCount(companyData.teamId, counter);
+        }
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          companyData.teamId,
+          user.id,
+          null,
+          "error in sending acknowledgement via SMS"
+        );
       }
-      if (companyData.SubscriptionType == 2) {
-        incidentService.updateSentSMSCount(companyData.teamId, counter);
-      }
-    } catch (err) {
-      processSafetyBotError(
-        err,
-        companyData.teamId,
-        user.id,
-        null,
-        "error in sending acknowledgement via SMS"
-      );
     }
   }
 };
@@ -4449,10 +4515,19 @@ const sendRecurrEventMsgAsync = async (
   let incGuidance = await incidentService.getIncGuidance(incId);
   incGuidance = incGuidance ? incGuidance : "";
 
-  const responseOptionData = {
-    responseOptions: JSON.parse(subEventObj.RESPONSE_OPTIONS),
+  let responseOptionData = {
+    responseOptions: [
+      { id: 1, option: "I am safe", color: "#4CAF50" },
+      { id: 2, option: "I need assistance", color: "#F44336" },
+    ],
+    responseType: "buttons"
+  }
+  if (subEventObj.RESPONSE_OPTIONS && subEventObj.RESPONSE_TYPE) {
+    responseOptionData = {
+      responseOptions: JSON.parse(subEventObj.RESPONSE_OPTIONS),
     responseType: subEventObj.RESPONSE_TYPE
-  };
+    };
+  }
   let incObj = {
     incId,
     incTitle,
@@ -4463,12 +4538,13 @@ const sendRecurrEventMsgAsync = async (
     incResponseSelectedUsersList: null,
     responseOptionData
   };
-  return new Promise((resolve, reject) => {
+  let companyData = subEventObj.companyData;
+  return new Promise(async (resolve, reject) => {
     sendProactiveMessageAsync(
       subEventObj.eventMembers,
       subEventObj,
       incObj,
-      subEventObj.companyData,
+      companyData,
       serviceUrl,
       "",
       userTenantId,
@@ -4478,6 +4554,25 @@ const sendRecurrEventMsgAsync = async (
       subEventObj.runAt,
       subEventObj.filesData
     );
+    let userAadObjIds = subEventObj.eventMembers.map((x) => x.userAadObjId);
+    if (
+      companyData.send_sms &&
+      (companyData.SubscriptionType == 3 ||
+        (companyData.SubscriptionType == 2 &&
+          companyData.sent_sms_count < 50))
+    ) {
+      sendSafetyCheckMsgViaSMS(
+        companyData,
+        userAadObjIds,
+        incId,
+        incTitle,
+        subEventObj
+      );
+    }
+    if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
+    ) {
+      await sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, incCreatedByUserObj.name);
+    }
   });
 };
 

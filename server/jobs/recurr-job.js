@@ -59,7 +59,7 @@ const { getFilesByIncId } = require("../db/dbOperations");
             return true;
           }
           log.addLog(`usrTZCurrentTime: ${usrTZCurrentTime}`);
-          let eventMembersSql = `select distinct A.[id] memberResponsesId, A.[user_id] id, A.[user_name] name, U.conversationId 
+          let eventMembersSql = `select distinct A.[id] memberResponsesId, A.[user_id] id, A.[user_name] name, U.conversationId, U.user_aadobject_id as userAadObjId
           from MSTeamsMemberResponses A
           LEFT JOIN MSTeamsTeamsUsers U on a.user_id = u.user_id 
           where inc_id = ${incId} and U.team_id='${teamId}'`;
@@ -107,9 +107,9 @@ const { getFilesByIncId } = require("../db/dbOperations");
             "",
             job.createdById,
             "error in recurr-job job.id=" +
-              job.ID +
-              " jobsToBeExecutedArr=" +
-              JSON.stringify(jobsToBeExecutedArr)
+            job.ID +
+            " jobsToBeExecutedArr=" +
+            JSON.stringify(jobsToBeExecutedArr)
           );
         }
       })

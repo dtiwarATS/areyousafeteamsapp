@@ -1224,6 +1224,30 @@ const handlerForSafetyBotTab = (app) => {
     await bot.processCommentViaLink(userId, eventId, comments);
     res.status(200);
   });
+  app.post("/handleWhatsappResponse", async (req, res) => {
+    if (
+      req.body &&
+      req.body.message
+    ) {
+      const from = message.from; // user's WhatsApp number
+      const type = message.type;
+
+      // Handle button replies
+      if (type === 'button') {
+        const buttonPayload = message.button.payload;
+        console.log(`User ${from} clicked: ${buttonPayload}`);
+        let response = buttonPayload.split('_');
+        if (response.length > 2) {
+          let userId = response[1];
+          let incId = response[2];
+          let resp = response[0];
+          await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
+        }
+      } else if (type === 'text') {
+        console.log(`User ${from} sent message: ${message.text.body}`);
+      }
+    }
+  });
   app.post("/whatsapp", async (req, res) => {
     const body = req.body;
 
@@ -1247,7 +1271,7 @@ const handlerForSafetyBotTab = (app) => {
             let userId = response[1];
             let incId = response[2];
             let resp = response[0];
-            bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
+            await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
           }
         } else if (type === 'text') {
           console.log(`User ${from} sent message: ${message.text.body}`);

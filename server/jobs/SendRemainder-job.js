@@ -80,11 +80,19 @@ const { processSafetyBotError } = require("../models/processError");
                 `send proactive reminder messaage to ${member.user_id} Start`
               );
               const companyData = await getCompanyDataByTeamId(member.team_id);
-
-              const responseOptionData = {
-                responseOptions: JSON.parse(member.RESPONSE_OPTIONS),
+              let responseOptionData = {
+                responseOptions: [
+                  { id: 1, option: "I am safe", color: "#4CAF50" },
+                  { id: 2, option: "I need assistance", color: "#F44336" },
+                ],
+                responseType: "buttons"
+              }
+              if (member.RESPONSE_TYPE && member.RESPONSE_OPTIONS) {
+                responseOptionData = {
+                  responseOptions: JSON.parse(member.RESPONSE_OPTIONS),
                 responseType: member.RESPONSE_TYPE
-              };
+        };
+      }
               let incObj = {
                 incId: inc_id,
                 incTitle: inc_name,
@@ -137,7 +145,7 @@ const { processSafetyBotError } = require("../models/processError");
                   await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name, null);
                 }
                 if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4") {
-                  await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name);
+                  await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME);
                 }
               } else {
                 await incidentService.updateRecurrremaindercounter(
