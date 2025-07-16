@@ -2510,10 +2510,10 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
   }
 }
 
-const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body) => {
+const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body = '') => {
   try {
     if (body == null || body == '') {
-      `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`
+      body = `Your safety status has been recorded as ${replyText.toLowerCase() == 'no' ? 'I need assistance' : 'I am safe'}, and the ${companyName} team has been notified.`
     }
     const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
@@ -2676,7 +2676,7 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
     };
     incidentService.updateSafetyCheckStatusViaSMSLink(
       eventId,
-      text == "YES" ? 1 : 0,
+      text == "YES" ? 1 : 2,
       userId,
       compData.teamId,
       false
