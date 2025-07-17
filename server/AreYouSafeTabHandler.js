@@ -569,16 +569,16 @@ const handlerForSafetyBotTab = (app) => {
           .addComment(data.assistId, reqBody.comment, ts, userAadObjId)
           .then(async (respData) => {
             let admins = await incidentService.getEmergencyContacts(userAadObjId, TeamId);
-            if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {
-              admins = await incidentService.getAdmins(userAadObjId, TeamId);
-              if (admins != null || (Array.isArray(admins) && admins.length > 0)) {
+            if (admins === null || (Array.isArray(admins) && admins.length === 0) || admins[0].length === 0) {
+              admins = await incidentService.getAdmins(userAadObjId, TeamId);              
+            }
+            if (admins != null || (Array.isArray(admins) && admins.length > 0) || admins[0].length > 0) {
                 const tabObj = new tab.AreYouSafeTab();
                 tabObj.sendUserCommentToAdmin(
                   admins,
                   reqBody.comment,
                   userAadObjId
                 );
-              }
             }
             res.send(true);
           })
