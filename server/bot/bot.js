@@ -2429,7 +2429,7 @@ const sendWhatsappMessage = async (payload) => {
     );
     console.log('whatsapp msg request sent', response.data || response.message || response);
   } catch (err) {
-    processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending message via Whatsapp");
+    processSafetyBotError(err, "", user.id, null, "error in sending message via Whatsapp");
   }
 }
 const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle, incCreatorName, responseOptions) => {
@@ -3122,7 +3122,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
           let accessToken = response.data.access_token;
           // console.log({ arrIds });
           var startIndex = 0;
-          var endIndex = 100;
+          var endIndex = 14;
           if (endIndex > arrIds.length) endIndex = arrIds.length;
           // console.log({ endIndex });
           while (endIndex <= arrIds.length && startIndex != endIndex) {
@@ -3131,7 +3131,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
               userIds = "'" + userIds.replaceAll(",", "','") + "'";
               // console.log({ userIds });
               startIndex = endIndex;
-              endIndex = startIndex + 100;
+              endIndex = startIndex + 14;
               if (endIndex > arrIds.length) endIndex = arrIds.length;
 
               let config = {
@@ -3953,13 +3953,19 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
     for (let user of usrPhones) {
       try {
         if (
-          (user.businessPhones.length > 0 && user.businessPhones[0] != "") ||
-          user.mobilePhone != ""
+          (companyData.PHONE_FIELD == "mobilePhone" && user.mobilePhone != "") ||
+          (user.businessPhones.length > 0 && user.businessPhones[0] != "")
         ) {
           let phone =
             user.businessPhones.length > 0 && user.businessPhones[0] != ""
               ? user.businessPhones[0]
-              : user.mobilePhone;
+              : "";
+          if (companyData.PHONE_FIELD == "mobilePhone") {
+            phone = user.mobilePhone;
+          }
+          if (phone == null || phone == "" || phone == "null") {
+            continue;
+          }
 
           let body = `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
           await tClient.messages.create({
