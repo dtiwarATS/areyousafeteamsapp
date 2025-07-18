@@ -2412,7 +2412,7 @@ const sendSafetyCheckMsgViaSMS = async (
     }
   }
 }
-const sendWhatsappMessage = async (payload) => {
+const sendWhatsappMessage = async (payload, user, teamId) => {
   try {
     const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
@@ -2429,7 +2429,7 @@ const sendWhatsappMessage = async (payload) => {
     );
     console.log('whatsapp msg request sent', response.data || response.message || response);
   } catch (err) {
-    processSafetyBotError(err, "", user.id, null, "error in sending message via Whatsapp");
+    processSafetyBotError(err, teamId || "", user.id || user.user_aadobject_id || "", null, "error in sending message via Whatsapp");
   }
 }
 const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle, incCreatorName, responseOptions) => {
@@ -2451,7 +2451,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
         }
         if (phone != null && phone != "" && phone != "null") {
           const payload = getTemplateBasedPayload(user, phone, incId, incTitle, companyData.teamName, responseOptions.length == 2 ? 1 : 2);
-          await sendWhatsappMessage(payload);
+          await sendWhatsappMessage(payload, user, companyData.teamId);
         }
       } catch (err) {
         processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via Whatsapp");
@@ -2752,7 +2752,7 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
     }
     if (text == "RESPONSE") {
       let payload = getMultipleResponsePayload(user.user_aadobject_id, fromPhnNumber, incData);
-      await sendWhatsappMessage(payload);
+      await sendWhatsappMessage(payload, user, compData.teamId);
       return;
     }
     let context = {
