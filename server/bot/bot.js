@@ -3122,16 +3122,17 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
           let accessToken = response.data.access_token;
           // console.log({ arrIds });
           var startIndex = 0;
-          var endIndex = 100;
+          var endIndex = 14;
           if (endIndex > arrIds.length) endIndex = arrIds.length;
           // console.log({ endIndex });
+          let userData = [];
           while (endIndex <= arrIds.length && startIndex != endIndex) {
             var userIds = arrIds.slice(startIndex, endIndex).toString();
             if (userIds.length) {
               userIds = "'" + userIds.replaceAll(",", "','") + "'";
               // console.log({ userIds });
               startIndex = endIndex;
-              endIndex = startIndex + 100;
+              endIndex = startIndex + 14;
               if (endIndex > arrIds.length) endIndex = arrIds.length;
 
               let config = {
@@ -3139,7 +3140,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
                 maxBodyLength: Infinity,
                 // timeout: 10000,
                 url:
-                  "https://graph.microsoft.com/v1.0/users?$select=displayName,id,department,country,city,state" +
+                  "https://graph.microsoft.com/v1.0/users?$select=displayName,id,department,country,city,state,businessPhones,mobilePhone" +
                   "&$filter=id in (" +
                   userIds +
                   ")",
@@ -3156,16 +3157,17 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
                   let data = response.data.value;
                   if (data && data.length > 0) {
                     let qry = "";
-                    data.forEach(user => {
-                      let city = user.city ? user.city : "";
-                      let country = user.country ? user.country : "";
-                      let state = user.state ? user.state : "";
-                      let department = user.department ? user.department : "";
-                      qry += `update MSTeamsTeamsUsers set city = '${city}', country = '${country}', state = '${state}', department = '${department}' where user_aadobject_id = '${user.id}'; `;
-                    });
-                    if (qry != "") {
-                      incidentService.updateDataIntoDB(qry);
-                    }
+                    userData.push(...data);
+                    // data.forEach(user => {
+                    //   let city = user.city ? user.city : "";
+                    //   let country = user.country ? user.country : "";
+                    //   let state = user.state ? user.state : "";
+                    //   let department = user.department ? user.department : "";
+                    //   qry += `update MSTeamsTeamsUsers set city = '${city}', country = '${country}', state = '${state}', department = '${department}' where user_aadobject_id = '${user.id}'; `;
+                    // });
+                    // if (qry != "") {
+                    //   incidentService.updateDataIntoDB(qry);
+                    // }
                   }
                 })
                 .catch((error) => {
@@ -3191,6 +3193,17 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
               return;
             }
           }
+          console.log({ finalphone: userData });
+          let mobile = userData.filter((user) => {
+            return user.mobilePhone != "" && user.mobilePhone != null;
+          });
+          let fildata = userData.filter((user) => {
+            return user.mobilePhone == "" || user.mobilePhone == null;
+          });
+          let bdata = userData.filter((user) => {
+            return user.businessPhones == "" || user.businessPhones == null || user.businessPhones.length == 0;
+          });
+          console.log({ fildata });
           // console.log({ finalphone: phone });
         }
       })
