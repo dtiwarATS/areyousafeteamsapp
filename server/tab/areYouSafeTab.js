@@ -1028,6 +1028,24 @@ class AreYouSafeTab {
     }
     return Promise.resolve(emergencyContacts);
   };
+  deleteSOSResponder = async (teamId, city, country, department) => {
+    let res = null;
+    try {
+      res = await incidentService.deleteSOSResponder(teamId, city, country, department);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in deleteSOSResponder");
+    }
+    return Promise.resolve(res);
+  };
+  saveSOSResponder = async (teamId, rowsToSave) => {
+    let res = null;
+    try {
+      res = await incidentService.saveSOSResponder(teamId, rowsToSave);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in saveSOSResponder");
+    }
+    return Promise.resolve(res);
+  };
 
   setSendSMS = async (teamId, sendSMS, phoneField) => {
     let res = null;
@@ -1038,6 +1056,7 @@ class AreYouSafeTab {
     }
     return Promise.resolve(res);
   };
+
   saveFilterChecked = async (teamId, filterEnabled) => {
     let res = null;
     try {

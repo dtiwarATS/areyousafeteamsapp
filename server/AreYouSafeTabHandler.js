@@ -120,7 +120,7 @@ const handlerForSafetyBotTab = (app) => {
           const sendRespData = (incData) => {
             const formatedIncData = tabObj.getFormatedIncData(
               incData,
-              teamInfo,
+              teamInfo[0],
               userObjId
             );
             responseObj.respData = formatedIncData;
@@ -324,6 +324,42 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post("/areyousafetabhandler/deleteSOSResponder", async (req, res) => {
+    const teamId = req.query.teamId;
+    const city = req.query.city;
+    const country = req.query.country;
+    const department = req.query.department;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.deleteSOSResponder(teamId, city, country, department);
+      res.send('success');
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/deleteSOSResponder"
+      );
+    }
+  });
+  app.post("/areyousafetabhandler/saveSOSResponder", async (req, res) => {
+    const teamId = req.query.teamId;
+    const rowsToSave = req.query.rowsToSave;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.saveSOSResponder(teamId, rowsToSave);
+      res.send('success');
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/saveSOSResponder"
+      );
+    }
+  });
 
   app.post("/areyousafetabhandler/setSendSMS", async (req, res) => {
     const teamId = req.query.teamId;
@@ -449,13 +485,10 @@ const handlerForSafetyBotTab = (app) => {
       UserDataUpdateID = req.query.ID;
     }
     try {
-      let incData = await incidentService.getEmergencyContacts(userAadObjId, TeamId);
-      if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {
-        incData = await incidentService.getAdmins(userAadObjId, TeamId);
-        if (incData === null || (Array.isArray(incData) && incData.length === 0)) {
-          res.send("no safety officers");
-          return;
-        }
+      let incData = await incidentService.getAdminsOrEmergencyContacts(userAadObjId, TeamId);
+      if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {        
+        res.send("no safety officers");
+        return;
       }
       let admins = incData[0];
       let user = incData[1][0];
@@ -501,7 +534,7 @@ const handlerForSafetyBotTab = (app) => {
       const teamId = req.query.teamId;
       let incData = null;
       try {
-        incData = await incidentService.getEmergencyContacts(userAadObjId, teamId);
+        incData = await incidentService.getAdminsOrEmergencyContacts(userAadObjId, teamId);
       } catch (err) {
         console.log(err);
         processSafetyBotError(
@@ -568,10 +601,7 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
           .addComment(data.assistId, reqBody.comment, ts, userAadObjId)
           .then(async (respData) => {
-            let admins = await incidentService.getEmergencyContacts(userAadObjId, TeamId);
-            if (admins === null || (Array.isArray(admins) && admins.length === 0) || admins[0].length === 0) {
-              admins = await incidentService.getAdmins(userAadObjId, TeamId);              
-            }
+            let admins = await incidentService.getAdminsOrEmergencyContacts(userAadObjId, TeamId);            
             if (admins != null || (Array.isArray(admins) && admins.length > 0) || admins[0].length > 0) {
                 const tabObj = new tab.AreYouSafeTab();
                 tabObj.sendUserCommentToAdmin(
@@ -1001,7 +1031,7 @@ const handlerForSafetyBotTab = (app) => {
 
     try {
       incidentService
-        .getEmergencyContacts(userAadObjId, TeamId)
+        .getAdminsOrEmergencyContacts(userAadObjId, TeamId)
         .then(async (adminData) => {
           if (
             adminData === null ||
