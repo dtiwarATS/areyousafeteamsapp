@@ -294,7 +294,12 @@ class BotActivityHandler extends TeamsActivityHandler {
           let continuationToken;
 
           do {
-            const pagedMembers = await TeamsInfo.getPagedTeamMembers(context, teamId, 500, continuationToken);
+            const pagedMembers = await TeamsInfo.getPagedTeamMembers(
+              context,
+              teamId,
+              500,
+              continuationToken
+            );
             allMembersInfo = allMembersInfo.concat(pagedMembers.members);
             continuationToken = pagedMembers.continuationToken;
           } while (continuationToken);
@@ -381,34 +386,34 @@ class BotActivityHandler extends TeamsActivityHandler {
             acvtivityData?.channelData?.eventType === "teamDeleted") ||
           acvtivityData?.channelData?.eventType === "teamMemberRemoved"
         ) {
-          // if (acvtivityData?.channelData?.eventType === "teamDeleted") {
-          //   const isDeleted = await deleteCompanyData(
-          //     teamId,
-          //     acvtivityData.from.aadObjectId
-          //   );
-          //   if (isDeleted) {
-          //     await this.sendUninstallationEmail(
-          //       acvtivityData.from.aadObjectId
-          //     );
-          //   }
-          // } else {
-          //   const { membersRemoved } = acvtivityData;
-          //   if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
-          //     const isDeleted = await deleteCompanyData(
-          //       acvtivityData?.channelData?.team.id,
-          //       acvtivityData.from.aadObjectId
-          //     );
-          //     if (isDeleted) {
-          //       await this.sendUninstallationEmail(
-          //         acvtivityData.from.aadObjectId
-          //       );
-          //     }
-          //   } else {
-          //     for (let i = 0; i < membersRemoved.length; i++) {
-          //       await removeTeamMember(teamId, membersRemoved[i].id);
-          //     }
-          //   }
-          // }
+          if (acvtivityData?.channelData?.eventType === "teamDeleted") {
+            const isDeleted = await deleteCompanyData(
+              teamId,
+              acvtivityData.from.aadObjectId
+            );
+            if (isDeleted) {
+              await this.sendUninstallationEmail(
+                acvtivityData.from.aadObjectId
+              );
+            }
+          } else {
+            const { membersRemoved } = acvtivityData;
+            if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
+              const isDeleted = await deleteCompanyData(
+                acvtivityData?.channelData?.team.id,
+                acvtivityData.from.aadObjectId
+              );
+              if (isDeleted) {
+                await this.sendUninstallationEmail(
+                  acvtivityData.from.aadObjectId
+                );
+              }
+            } else {
+              for (let i = 0; i < membersRemoved.length; i++) {
+                await removeTeamMember(teamId, membersRemoved[i].id);
+              }
+            }
+          }
         } else if (teamId == null && acvtivityData) {
           const { membersAdded } = acvtivityData;
           if (membersAdded) {
