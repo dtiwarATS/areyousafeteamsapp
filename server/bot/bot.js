@@ -25,7 +25,12 @@ const {
   sentActivityToTeamChannel,
   sendProactiveMessaageToSelectedChannel,
 } = require("../api/apiMethods");
-const { sendEmail, formatedDate, convertToAMPM, sendCustomEmail } = require("../utils");
+const {
+  sendEmail,
+  formatedDate,
+  convertToAMPM,
+  sendCustomEmail,
+} = require("../utils");
 const {
   addFeedbackData,
   updateSuperUserData,
@@ -239,9 +244,9 @@ const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
       "",
       "",
       "error in processnewUsrSubscriptionType1 companyData=" +
-      JSON.stringify(companyData) +
-      " userEmail=" +
-      action?.data?.userEmail
+        JSON.stringify(companyData) +
+        " userEmail=" +
+        action?.data?.userEmail
     );
   }
 };
@@ -268,7 +273,7 @@ const processnewUsrSubscriptionType2 = async (context, action) => {
       "",
       "",
       "error in processnewUsrSubscriptionType2 companyData=" +
-      JSON.stringify(action?.data?.companyData)
+        JSON.stringify(action?.data?.companyData)
     );
   }
 };
@@ -1889,7 +1894,7 @@ const sendProactiveMessageAsync = async (
         sqlUpdateMsgDeliveryStatus = "";
         const promise = db
           .updateDataIntoDBAsync(sql, dbPool, userAadObjId)
-          .then((resp) => { })
+          .then((resp) => {})
           .catch((err) => {
             sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(
@@ -1965,7 +1970,7 @@ const sendProactiveMessageAsync = async (
           : 0;
         msgNotSentArr = [];
         allMembersArr = Array.from(
-          new Map(allMembersArr.map(item => [item.id, item])).values()
+          new Map(allMembersArr.map((item) => [item.id, item])).values()
         );
         sendProactiveMessage(allMembersArr);
       } catch (err) {
@@ -2015,7 +2020,8 @@ const sendProactiveMessageAsync = async (
           if (
             (msgResp.errorCode == "ConversationBlockedByUser" ||
               msgResp.errorCode == "BotDisabledByAdmin" ||
-              status == "User blocked the conversation with the bot.") && userAadObjId
+              status == "User blocked the conversation with the bot.") &&
+            userAadObjId
           ) {
             let sqlUpdateBlockedByUser = `UPDATE MSTeamsTeamsUsers set BotBlockedByUser=1 where user_aadobject_id='${userAadObjId}'`;
             db.getDataFromDB(sqlUpdateBlockedByUser, userAadObjId);
@@ -2028,16 +2034,21 @@ const sendProactiveMessageAsync = async (
             ) {
               log.addLog(`For isRecurringInc Incident`);
               sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT)
-              values(${respMemberObj.memberResponsesId
-                }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId
-                }', '${msgResp?.activityId}', ${status}, '${error}', ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
-                }); `;
+              values(${
+                respMemberObj.memberResponsesId
+              }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${
+                msgResp?.conversationId
+              }', '${msgResp?.activityId}', ${status}, '${error}', ${
+                isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+              }); `;
             }
           } else {
             log.addLog(`For OneTime Incident`);
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
-              } where inc_id = ${incObj.incId} and user_id = '${msgResp.userId
-              }'; `;
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${
+              isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+            } where inc_id = ${incObj.incId} and user_id = '${
+              msgResp.userId
+            }'; `;
           }
         }
 
@@ -2229,9 +2240,9 @@ const sendProactiveMessageAsync = async (
             "",
             userAadObjId,
             " error in fnRecursiveCall startIndex=" +
-            startIndex +
-            " endIndex=" +
-            endIndex
+              startIndex +
+              " endIndex=" +
+              endIndex
           );
         }
       };
@@ -2240,7 +2251,15 @@ const sendProactiveMessageAsync = async (
     };
     sendProactiveMessage(allMembersArr);
     if (incCreaterConversationId) {
-      sendAcknowledgeMsgToCreator(connectorClient, incData, serviceUrl, incCreaterConversationId, allMembersArr.length, companyData.teamName, companyData.channelName);
+      sendAcknowledgeMsgToCreator(
+        connectorClient,
+        incData,
+        serviceUrl,
+        incCreaterConversationId,
+        allMembersArr.length,
+        companyData.teamName,
+        companyData.channelName
+      );
     }
   } catch (err) {
     log.addLog(` An Error occured: ${JSON.stringify(err)}`);
@@ -2251,9 +2270,9 @@ const sendProactiveMessageAsync = async (
       "",
       userAadObjId,
       "error in sendProactiveMessageAsync incData=" +
-      JSON.stringify(incData) +
-      " companyData=" +
-      JSON.stringify(companyData)
+        JSON.stringify(incData) +
+        " companyData=" +
+        JSON.stringify(companyData)
     );
     rejectFn(err);
   } finally {
@@ -2411,7 +2430,7 @@ const sendSafetyCheckMsgViaSMS = async (
       );
     }
   }
-}
+};
 const sendWhatsappMessage = async (payload, user, teamId) => {
   try {
     const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
@@ -2423,16 +2442,32 @@ const sendWhatsappMessage = async (payload, user, teamId) => {
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          "Content-Type": "application/json",
+        },
       }
     );
-    console.log('whatsapp msg request sent', response.data || response.message || response);
+    console.log(
+      "whatsapp msg request sent",
+      response.data || response.message || response
+    );
   } catch (err) {
-    processSafetyBotError(err, teamId || "", user.id || user.user_aadobject_id || "", null, "error in sending message via Whatsapp");
+    processSafetyBotError(
+      err,
+      teamId || "",
+      user.id || user.user_aadobject_id || "",
+      null,
+      "error in sending message via Whatsapp"
+    );
   }
-}
-const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle, incCreatorName, responseOptions) => {
+};
+const sendSafetyCheckMsgViaWhatsapp = async (
+  companyData,
+  users,
+  incId,
+  incTitle,
+  incCreatorName,
+  responseOptions
+) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
   if (refresh_token) {
@@ -2450,42 +2485,62 @@ const sendSafetyCheckMsgViaWhatsapp = async (companyData, users, incId, incTitle
           continue;
         }
         if (phone != null && phone != "" && phone != "null") {
-          const payload = getTemplateBasedPayload(user, phone, incId, incTitle, companyData.teamName, responseOptions.length == 2 ? 1 : 2);
+          const payload = getTemplateBasedPayload(
+            user,
+            phone,
+            incId,
+            incTitle,
+            companyData.teamName,
+            responseOptions.length == 2 ? 1 : 2
+          );
           await sendWhatsappMessage(payload, user, companyData.teamId);
         }
       } catch (err) {
-        processSafetyBotError(err, companyData.teamId, user.id, null, "error in sending safety check via Whatsapp");
+        processSafetyBotError(
+          err,
+          companyData.teamId,
+          user.id,
+          null,
+          "error in sending safety check via Whatsapp"
+        );
       }
     }
   }
-}
+};
 
-const getTemplateBasedPayload = (user, to, incId, incTitle, incCreatorName, template = 1) => {
+const getTemplateBasedPayload = (
+  user,
+  to,
+  incId,
+  incTitle,
+  incCreatorName,
+  template = 1
+) => {
   let payload = {
-    messaging_product: 'whatsapp',
+    messaging_product: "whatsapp",
     recipient_type: "individual",
     to: to,
-    type: 'template',
+    type: "template",
     template: {
-      name: 'safety_check',
+      name: "safety_check",
       language: {
-        code: 'en'
+        code: "en",
       },
       components: [
         {
           type: "body",
           parameters: [
             {
-              parameter_name: 'incidentcreator',
+              parameter_name: "incidentcreator",
               type: "text",
-              text: incCreatorName         // {{1}} - Company Name
+              text: incCreatorName, // {{1}} - Company Name
             },
             {
-              parameter_name: 'incidenttitle',
+              parameter_name: "incidenttitle",
               type: "text",
-              text: incTitle   // {{2}} - Incident Title
-            }
-          ]
+              text: incTitle, // {{2}} - Incident Title
+            },
+          ],
         },
         {
           type: "button",
@@ -2494,9 +2549,9 @@ const getTemplateBasedPayload = (user, to, incId, incTitle, incCreatorName, temp
           parameters: [
             {
               type: "payload",
-              payload: `1_${user.id}_${incId}_${process.env.build}_teams`
-            }
-          ]
+              payload: `1_${user.id}_${incId}_${process.env.build}_teams`,
+            },
+          ],
         },
         {
           type: "button",
@@ -2505,39 +2560,39 @@ const getTemplateBasedPayload = (user, to, incId, incTitle, incCreatorName, temp
           parameters: [
             {
               type: "payload",
-              payload: `2_${user.id}_${incId}_${process.env.build}_teams`
-            }
-          ]
-        }
-      ]
-    }
+              payload: `2_${user.id}_${incId}_${process.env.build}_teams`,
+            },
+          ],
+        },
+      ],
+    },
   };
   if (template === 2) {
     payload = {
-      messaging_product: 'whatsapp',
+      messaging_product: "whatsapp",
       recipient_type: "individual",
       to: to,
-      type: 'template',
+      type: "template",
       template: {
-        name: 'safety_check_2',
+        name: "safety_check_2",
         language: {
-          code: 'en'
+          code: "en",
         },
         components: [
           {
             type: "body",
             parameters: [
               {
-                parameter_name: 'company',
+                parameter_name: "company",
                 type: "text",
-                text: incCreatorName         // {{1}} - Company Name
+                text: incCreatorName, // {{1}} - Company Name
               },
               {
-                parameter_name: 'inctitle',
+                parameter_name: "inctitle",
                 type: "text",
-                text: incTitle   // {{2}} - Incident Title
-              }
-            ]
+                text: incTitle, // {{2}} - Incident Title
+              },
+            ],
           },
           {
             type: "button",
@@ -2546,22 +2601,22 @@ const getTemplateBasedPayload = (user, to, incId, incTitle, incCreatorName, temp
             parameters: [
               {
                 type: "payload",
-                payload: `RESPONSE_${user.id}_${incId}_${process.env.build}_teams`
-              }
-            ]
-          }
-        ]
-      }
+                payload: `RESPONSE_${user.id}_${incId}_${process.env.build}_teams`,
+              },
+            ],
+          },
+        ],
+      },
     };
   }
   return payload;
-}
+};
 const getMultipleResponsePayload = (userId, to, incData) => {
   let respOptions = JSON.parse(incData.responseOptions);
   let buttons = respOptions.map((option, index) => {
     return {
       id: `${option.id}_${userId}_${incData.incId}_${process.env.build}_teams`,
-      title: option.option
+      title: option.option,
     };
   });
   let payload = {
@@ -2572,43 +2627,48 @@ const getMultipleResponsePayload = (userId, to, incData) => {
       type: "list",
       header: {
         type: "text",
-        text: "Choose an Option"
+        text: "Choose an Option",
       },
       body: {
-        text: "Please select one of the options below:"
+        text: "Please select one of the options below:",
       },
       footer: {
-        text: "You can only choose one."
+        text: "You can only choose one.",
       },
       action: {
         button: "Select",
         sections: [
           {
             title: "Available Actions",
-            rows: buttons
-          }
-        ]
-      }
-    }
-  }
+            rows: buttons,
+          },
+        ],
+      },
+    },
+  };
   return payload;
-}
+};
 
-const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body = '') => {
+const sendAcknowledgeViaWhatsapp = async (
+  to,
+  replyText,
+  companyName,
+  body = ""
+) => {
   try {
-    if (body == null || body == '') {
-      body = `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`
+    if (body == null || body == "") {
+      body = `Your safety status has been recorded as ${replyText}, and the ${companyName} team has been notified.`;
     }
     const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
     let payload = {
-      messaging_product: 'whatsapp',
+      messaging_product: "whatsapp",
       recipient_type: "individual",
       to: to,
-      type: 'text',
+      type: "text",
       text: {
         body: body,
-      }
+      },
     };
     let response = await axios.post(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
@@ -2616,8 +2676,8 @@ const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body = '')
       {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          "Content-Type": "application/json",
+        },
       }
     );
     // .then(response => {
@@ -2625,11 +2685,14 @@ const sendAcknowledgeViaWhatsapp = async (to, replyText, companyName, body = '')
     // }).catch(error => {
     //   console.error('Error sending template message:', error.response?.data || error.message);
     // });
-    console.log('whatsapp msg request sent', response.data || response.message || response);
+    console.log(
+      "whatsapp msg request sent",
+      response.data || response.message || response
+    );
   } catch (err) {
-    console.log('error', err);
+    console.log("error", err);
   }
-}
+};
 
 const proccessSMSLinkClick = async (userId, eventId, text) => {
   if (userId && eventId) {
@@ -2652,7 +2715,9 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
         //   JSON.stringify({ eventId: incId, userId: user.id })
         // );
       } catch (err) {
-        console.log('Error while sending acknowledgement in SMS for closed or deleted incident');
+        console.log(
+          "Error while sending acknowledgement in SMS for closed or deleted incident"
+        );
       }
       return {
         status: StatusCodes.OK,
@@ -2671,7 +2736,7 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
     };
     incidentService.updateSafetyCheckStatusViaSMSLink(
       eventId,
-      text == "YES" ? 1 : 0,
+      text == "YES" ? 1 : 2,
       userId,
       compData.teamId
     );
@@ -2739,19 +2804,25 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
           fromPhnNumber,
           text,
           compData.teamName,
-          (incStatusId == 2 ?
-            `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}` :
-            `This incident is no longer available.`)
+          incStatusId == 2
+            ? `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`
+            : `This incident is no longer available.`
         );
       } catch (err) {
-        console.log('Error while sending acknowledgement in whatsapp for closed or deleted incident');
+        console.log(
+          "Error while sending acknowledgement in whatsapp for closed or deleted incident"
+        );
       }
       return {
         status: StatusCodes.OK,
       };
     }
     if (text == "RESPONSE") {
-      let payload = getMultipleResponsePayload(user.user_aadobject_id, fromPhnNumber, incData);
+      let payload = getMultipleResponsePayload(
+        user.user_aadobject_id,
+        fromPhnNumber,
+        incData
+      );
       await sendWhatsappMessage(payload, user, compData.teamId);
       return;
     }
@@ -2819,7 +2890,7 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
       user
     );
     let respOptions = JSON.parse(incData.responseOptions);
-    let response = respOptions.find(resp => resp.id == text);
+    let response = respOptions.find((resp) => resp.id == text);
     await sendAcknowledgeViaWhatsapp(
       fromPhnNumber,
       response.option,
@@ -3036,9 +3107,9 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
                     "",
                     "",
                     "error in get users phone number requestDateTime : " +
-                    requestDate +
-                    " ErrorDateTime: " +
-                    new Date(),
+                      requestDate +
+                      " ErrorDateTime: " +
+                      new Date(),
                     TeamName,
                     false,
                     clientVersion
@@ -3053,7 +3124,10 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
         }
       })
       .catch((error) => {
-        console.log("error at get access token in get users phone number", error);
+        console.log(
+          "error at get access token in get users phone number",
+          error
+        );
         // console.log(error);
         if (
           error.response.data.error == "invalid_grant" &&
@@ -3156,7 +3230,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
                   let data = response.data.value;
                   if (data && data.length > 0) {
                     let qry = "";
-                    data.forEach(user => {
+                    data.forEach((user) => {
                       let city = user.city ? user.city : "";
                       let country = user.country ? user.country : "";
                       let state = user.state ? user.state : "";
@@ -3178,9 +3252,9 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
                     "",
                     "",
                     "error in get users phone number requestDateTime : " +
-                    requestDate +
-                    " ErrorDateTime: " +
-                    new Date(),
+                      requestDate +
+                      " ErrorDateTime: " +
+                      new Date(),
                     TeamName,
                     false,
                     clientVersion
@@ -3195,7 +3269,10 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
         }
       })
       .catch((error) => {
-        console.log("error at get access token in get users phone number", error);
+        console.log(
+          "error at get access token in get users phone number",
+          error
+        );
         // console.log(error);
         if (
           error.response.data.error == "invalid_grant" &&
@@ -3237,7 +3314,6 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
   return phone;
 };
 
-
 const sendSafetyCheckMessageAsync = async (
   incId,
   teamId,
@@ -3270,12 +3346,12 @@ const sendSafetyCheckMessageAsync = async (
           { id: 1, option: "I am safe", color: "#4CAF50" },
           { id: 2, option: "I need assistance", color: "#F44336" },
         ],
-        responseType: "buttons"
-      }
+        responseType: "buttons",
+      };
       if (incData.responseOptions && incData.responseType) {
         responseOptionData = {
           responseOptions: JSON.parse(incData.responseOptions),
-          responseType: incData.responseType
+          responseType: incData.responseType,
         };
       }
       const { serviceUrl, userTenantId, userId } = companyData;
@@ -3336,7 +3412,7 @@ const sendSafetyCheckMessageAsync = async (
           incCreatedBy: incCreatedByUserObj,
           incGuidance,
           incResponseSelectedUsersList,
-          responseOptionData
+          responseOptionData,
         };
         sendProactiveMessageAsync(
           allMembersArr,
@@ -3368,9 +3444,17 @@ const sendSafetyCheckMessageAsync = async (
             incData
           );
         }
-        if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
+        if (
+          companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
         ) {
-          sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, createdByUserInfo.user_name, responseOptionData.responseOptions);
+          sendSafetyCheckMsgViaWhatsapp(
+            companyData,
+            userAadObjIds,
+            incId,
+            incTitle,
+            createdByUserInfo.user_name,
+            responseOptionData.responseOptions
+          );
         }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
@@ -3530,11 +3614,11 @@ const sendSafetyCheckMessageAsync = async (
         "",
         userAadObjId,
         "error in sendSafetyCheckMessageAsync incId=" +
-        incId +
-        " createdByUserInfo=" +
-        JSON.stringify(createdByUserInfo) +
-        " resendSafetyCheck=" +
-        resendSafetyCheck
+          incId +
+          " createdByUserInfo=" +
+          JSON.stringify(createdByUserInfo) +
+          " resendSafetyCheck=" +
+          resendSafetyCheck
       );
       resolve(false);
     }
@@ -3565,12 +3649,12 @@ const sendSafetyCheckMessage = async (
 
     let allMembersArr = allMembers.map(
       (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
+        (tm = {
+          ...tm,
+          messageDelivered: "na",
+          response: "na",
+          responseValue: "na",
+        })
     );
 
     if (selectedMembers != null && selectedMembers?.split(",").length > 0) {
@@ -3677,9 +3761,9 @@ const sendSafetyCheckMessage = async (
       "",
       userAadObjId,
       "error in sendSafetyCheckMessageAsync incId=" +
-      incId +
-      " createdByUserInfo=" +
-      JSON.stringify(createdByUserInfo)
+        incId +
+        " createdByUserInfo=" +
+        JSON.stringify(createdByUserInfo)
     );
   }
   log.addLog(`sendSafetyCheckMessage end`);
@@ -3703,12 +3787,12 @@ const sendApproval = async (context) => {
 
   let allMembersArr = allMembers.map(
     (tm) =>
-    (tm = {
-      ...tm,
-      messageDelivered: "na",
-      response: "na",
-      responseValue: "na",
-    })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      })
   );
 
   if (selectedMembers.length > 0) {
@@ -3873,59 +3957,65 @@ const sendApprovalResponse = async (user, context) => {
     //   );
     // }
     let responseText = responseOptionData.responseOptions.filter(
-      (option) => option.id == respToBeUpdated)[0].option;
+      (option) => option.id == respToBeUpdated
+    )[0].option;
     //if (response == "need_assistance" || response == "i_am_safe") {
-      const approvalCardResponse = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: [
+    const approvalCardResponse = {
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      appId: process.env.MicrosoftAppId,
+      body: [
+        {
+          type: "TextBlock",
+          text: `User <at>${
+            user.name
+          }</at> responded **${responseText.trim()}** for Incident: **${incTitle}** `,
+          wrap: true,
+        },
+      ],
+      msteams: {
+        entities: [
           {
-            type: "TextBlock",
-            text: `User <at>${user.name}</at> responded **${responseText.trim()}** for Incident: **${incTitle}** `,
-            wrap: true,
+            type: "mention",
+            text: `<at>${user.name}</at>`,
+            mentioned: {
+              id: user.id,
+              name: user.name,
+            },
           },
         ],
-        msteams: {
-          entities: [
-            {
-              type: "mention",
-              text: `<at>${user.name}</at>`,
-              mentioned: {
-                id: user.id,
-                name: user.name,
-              },
-            },
-          ],
-        },
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
-      //send new msg just to emulate msg is being updated
-      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-      const serviceUrl = context?.activity?.serviceUrl;
-      await sendApprovalResponseToSelectedMembers(
-        incId,
-        context,
-        approvalCardResponse
+      },
+      type: "AdaptiveCard",
+      version: "1.4",
+    };
+    //send new msg just to emulate msg is being updated
+    //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+    const serviceUrl = context?.activity?.serviceUrl;
+    await sendApprovalResponseToSelectedMembers(
+      incId,
+      context,
+      approvalCardResponse
+    );
+    await sendApprovalResponseToSelectedTeams(
+      incId,
+      serviceUrl,
+      approvalCardResponse,
+      user.aadObjectId
+    );
+    if (
+      companyData.send_sms &&
+      (companyData.SubscriptionType == 3 ||
+        (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))
+    ) {
+      //let respOptions = JSON.parse(inc.responseOptionData.responseOptions);
+      let responsetextdata = inc.responseOptionData.responseOptions.find(
+        (resp) => resp.id == response
       );
-      await sendApprovalResponseToSelectedTeams(
-        incId,
-        serviceUrl,
-        approvalCardResponse,
-        user.aadObjectId
+      sendAcknowledmentinSMS(
+        companyData,
+        [user.aadObjectId],
+        responsetextdata.option
       );
-      if (
-        companyData.send_sms &&
-        (companyData.SubscriptionType == 3 ||
-          (companyData.SubscriptionType == 2 &&
-            companyData.sent_sms_count < 50))
-      ) {
-        sendAcknowledmentinSMS(
-          companyData,
-          [user.aadObjectId],
-          response === "i_am_safe" ? "I am safe" : "I need assistance"
-        );
-      }
+    }
     //}
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
@@ -3953,7 +4043,8 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
     for (let user of usrPhones) {
       try {
         if (
-          (companyData.PHONE_FIELD == "mobilePhone" && user.mobilePhone != "") ||
+          (companyData.PHONE_FIELD == "mobilePhone" &&
+            user.mobilePhone != "") ||
           (user.businessPhones.length > 0 && user.businessPhones[0] != "")
         ) {
           let phone =
@@ -4057,9 +4148,9 @@ const submitComment = async (context, user, companyData) => {
       user.name,
       user.aadObjectId,
       "error in submitComment context=" +
-      JSON.stringify(context) +
-      " companyData=" +
-      JSON.stringify(companyData)
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData)
     );
   }
 };
@@ -4206,11 +4297,11 @@ const Question1safetyVisitor = async (
       user.name,
       user.aadObjectId,
       "error in Question1safetyVisitor loggerName=" +
-      loggerName +
-      " context=" +
-      JSON.stringify(context) +
-      " questionNumber=" +
-      questionNumber
+        loggerName +
+        " context=" +
+        JSON.stringify(context) +
+        " questionNumber=" +
+        questionNumber
     );
   }
 };
@@ -4310,7 +4401,8 @@ const sendNewContactEmail = async (
       "Hi,<br/> <br />" +
       "Below user has provided feedback for Safety Check app installed in Microsoft Teams : " +
       "<br />" +
-      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
+      `${
+        userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
       } ` +
       "<b>Email: </b>" +
       emailVal +
@@ -4325,7 +4417,12 @@ const sendNewContactEmail = async (
     const subject = "Safety Check Teams Bot | Feedback";
 
     // await sendEmail(emailVal, subject, emailBody);
-    await sendCustomEmail("help@safetycheck.in", process.env.ADMIN_EMAIL, emailBody, subject);
+    await sendCustomEmail(
+      "help@safetycheck.in",
+      process.env.ADMIN_EMAIL,
+      emailBody,
+      subject
+    );
   } catch (err) {
     console.log(err);
     processSafetyBotError(
@@ -4610,12 +4707,12 @@ const sendRecurrEventMsgAsync = async (
       { id: 1, option: "I am safe", color: "#4CAF50" },
       { id: 2, option: "I need assistance", color: "#F44336" },
     ],
-    responseType: "buttons"
-  }
+    responseType: "buttons",
+  };
   if (subEventObj.RESPONSE_OPTIONS && subEventObj.RESPONSE_TYPE) {
     responseOptionData = {
       responseOptions: JSON.parse(subEventObj.RESPONSE_OPTIONS),
-    responseType: subEventObj.RESPONSE_TYPE
+      responseType: subEventObj.RESPONSE_TYPE,
     };
   }
   let incObj = {
@@ -4626,7 +4723,7 @@ const sendRecurrEventMsgAsync = async (
     incCreatedBy: incCreatedByUserObj,
     incGuidance,
     incResponseSelectedUsersList: null,
-    responseOptionData
+    responseOptionData,
   };
   let companyData = subEventObj.companyData;
   return new Promise(async (resolve, reject) => {
@@ -4648,8 +4745,7 @@ const sendRecurrEventMsgAsync = async (
     if (
       companyData.send_sms &&
       (companyData.SubscriptionType == 3 ||
-        (companyData.SubscriptionType == 2 &&
-          companyData.sent_sms_count < 50))
+        (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))
     ) {
       sendSafetyCheckMsgViaSMS(
         companyData,
@@ -4659,9 +4755,15 @@ const sendRecurrEventMsgAsync = async (
         subEventObj
       );
     }
-    if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
-    ) {
-      await sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, incId, incTitle, incCreatedByUserObj.name, responseOptionData.responseOptions);
+    if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4") {
+      await sendSafetyCheckMsgViaWhatsapp(
+        companyData,
+        userAadObjIds,
+        incId,
+        incTitle,
+        incCreatedByUserObj.name,
+        responseOptionData.responseOptions
+      );
     }
   });
 };
@@ -4794,13 +4896,13 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
       "",
       "",
       "error in sendRecurrEventMsg subEventObj=" +
-      JSON.stringify(subEventObj) +
-      " incId=" +
-      incId +
-      " incTitle=" +
-      incTitle +
-      " log=" +
-      log
+        JSON.stringify(subEventObj) +
+        " incId=" +
+        incId +
+        " incTitle=" +
+        incTitle +
+        " log=" +
+        log
     );
   }
   // return successflag;
@@ -4929,7 +5031,7 @@ const addteamsusers = async (context) => {
               "",
               "",
               "error in addteamsusers ->  getAllTeamMembersByConnectorClient -> cmpData=" +
-              JSON.stringify(cmpData)
+                JSON.stringify(cmpData)
             );
           } finally {
             log.addLog(`Inside loop start teamid: ${JSON.stringify(teamid)} `);
@@ -4990,7 +5092,7 @@ const sendNSRespToTeamChannel = async (
       "",
       userAadObjId,
       "error in sendNSRespToTeamChannel adaptiveCard=" +
-      JSON.stringify(adaptiveCard)
+        JSON.stringify(adaptiveCard)
     );
   }
 };
@@ -5548,5 +5650,5 @@ module.exports = {
   proccessWhatsappClick,
   getUserPhone,
   sendSafetyCheckMsgViaWhatsapp,
-  getUserDetails
+  getUserDetails,
 };
