@@ -1751,10 +1751,12 @@ const saveSOSResponder = async (teamId, rowsToSave) => {
   let sql = '';
   try {
     rows.map((row) => {
-      if (row.country) {
-        sql += `Insert into MSTeamsSOSResponder (TEAM_ID, COUNTRY, CITY, RESPONDER) VALUES ('${teamId}', '${row.country.replace(/'/g, "''")}', '${row.city.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');`;
-      } else if (row.department) {
-        sql += `Insert into MSTeamsSOSResponder (TEAM_ID, DEPARTMENT, RESPONDER) VALUES ('${teamId}', '${row.department.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');`;
+      if (row.department) {
+        sql += `Insert into MSTeamsSOSResponder (TEAM_ID, DEPARTMENT, RESPONDER) VALUES ('${teamId}', '${row.department?.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');`;
+      } else if (row.city) {
+        sql += `Insert into MSTeamsSOSResponder (TEAM_ID, ${row.country ? 'COUNTRY,' : ''} CITY, RESPONDER) VALUES ('${teamId}', ${row.country ? ("'" + row.country.replace(/'/g, "''") + "', ") : ''} '${row.city.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');`;
+      } else if (row.country) {
+        sql += `Insert into MSTeamsSOSResponder (TEAM_ID, COUNTRY, RESPONDER) VALUES ('${teamId}', '${row.country.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');`;
       }
     });
     console.log({ sql });
