@@ -347,7 +347,7 @@ const addComment = async (assistanceId, comment, ts, aadObjuserId) => {
 
 const getAssistanceData = async (aadObjuserId) => {
   try {
-    let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id desc`;
+    let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id`;
 
     const result = await db.getDataFromDB(selectQuery, aadObjuserId);
     return Promise.resolve(result);
@@ -1216,7 +1216,7 @@ const getTeamMemeberSqlQuery = (
       ? " CASE when tblAadObjId.useAadObjId is not null then 1 else 0 end isSuperUser "
       : " 0 isSuperUser ") +
     ` , u.conversationId,
-  case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department
+  case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department,u.email
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
@@ -1443,13 +1443,7 @@ const getFilterData = async (teamId) => {
     result = await db.getDataFromDB(sqlTeamInfo, "", false);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(
-      err,
-      "",
-      "",
-      userAadObjId,
-      "error in getFilterData"
-    );
+    processSafetyBotError(err, "", "", userAadObjId, "error in getFilterData");
   }
   return Promise.resolve(result);
 };
@@ -1525,8 +1519,10 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
         const emergencyContactsArr = [];
         const userTeamId = usr.team_id;
         if (usr.user_obj_id != null) {
-
-          if (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "") {
+          if (
+            usr.EMERGENCY_CONTACTS != null &&
+            usr.EMERGENCY_CONTACTS.trim() != ""
+          ) {
             let emergencyContacts = usr.EMERGENCY_CONTACTS.split(",");
             if (emergencyContacts.length > 0) {
               emergencyContacts.map((contact) => {
@@ -1537,7 +1533,8 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
 
           if (
             (aadObjuserId !== usr.user_obj_id ||
-              (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "")) &&
+              (usr.EMERGENCY_CONTACTS != null &&
+                usr.EMERGENCY_CONTACTS.trim() != "")) &&
             !teamsIds.includes(userTeamId)
           ) {
             teamsIds.push({ userTeamId, emergencyContactsArr });
@@ -1562,14 +1559,14 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${emergencyContactsArr.join(
                 "','"
-                )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+              )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
 
               const result = await db.getDataFromDB(selectQuery, aadObjuserId);
               if (result && result.length > 0) {
-                allTeamsEmergencyContactsData = allTeamsEmergencyContactsData.concat(result);
+                allTeamsEmergencyContactsData =
+                  allTeamsEmergencyContactsData.concat(result);
               }
-            } 
-
+            }
           } catch (err) {
             console.log(err);
           }
@@ -1585,7 +1582,13 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
     return Promise.resolve(emergencyContactsData);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, TeamID, "", aadObjuserId, "error in getEmergencyContacts");
+    processSafetyBotError(
+      err,
+      TeamID,
+      "",
+      aadObjuserId,
+      "error in getEmergencyContacts"
+    );
   }
 };
 const setSendSMS = async (teamId, sendSMS, phoneField) => {
@@ -1594,7 +1597,7 @@ const setSendSMS = async (teamId, sendSMS, phoneField) => {
     const qry = `update MSTeamsInstallationDetails set send_sms = '${sendSMS}', PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in setSendSMS");
@@ -1607,7 +1610,7 @@ const saveFilterChecked = async (teamId, filterEnabled) => {
     const qry = `update MSTeamsInstallationDetails set FILTER_ENABLED = '${filterEnabled}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in saveFilterChecked");
@@ -1620,20 +1623,20 @@ const setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     const qry = `update MSTeamsInstallationDetails set send_whatsapp = '${sendWhatsapp}', PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in setSendWhatsapp");
   }
   return Promise.resolve(result);
 };
-const saveRefreshToken = async (teamId, refresh_token, field = 'send_sms') => {
+const saveRefreshToken = async (teamId, refresh_token, field = "send_sms") => {
   let result = null;
   try {
     const qry = `update MSTeamsInstallationDetails set refresh_token = '${refresh_token}', ${field} = 1 where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in saveRefreshToken");
@@ -2526,7 +2529,10 @@ const updateSafetyCheckStatusViaSMSLink = async (
 ) => {
   try {
     let sql = "";
-    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}', response_via = '${viaSMS ? 'SMS' : 'whatsapp'}'
+    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
+      "yyyy-MM-dd hh:mm:ss",
+      new Date()
+    )}', response_via = '${viaSMS ? "SMS" : "whatsapp"}'
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
     const result = await db.updateDataIntoDB(sql, user_aadobject_id);
@@ -2538,11 +2544,11 @@ const updateSafetyCheckStatusViaSMSLink = async (
       "",
       userAadObjId,
       "error in updateSafetyCheckStatus incId=" +
-      incId +
-      " response=" +
-      resp +
-      " respTimestamp=" +
-      new date().toString()
+        incId +
+        " response=" +
+        resp +
+        " respTimestamp=" +
+        new date().toString()
     );
   }
   return false;
@@ -2551,7 +2557,10 @@ const updateSafetyCheckStatusViaSMSLink = async (
 const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
   try {
     const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data) 
-          values('${userid}', '${status}', '${SMS_TEXT.replaceAll("'", "''")}', '${RAW_DATA}')`;
+          values('${userid}', '${status}', '${SMS_TEXT.replaceAll(
+      "'",
+      "''"
+    )}', '${RAW_DATA}')`;
     pool = await poolPromise;
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
@@ -2584,7 +2593,6 @@ where team_id = '${team_id}'`;
     console.log();
   }
 };
-
 
 module.exports = {
   saveInc,
@@ -2667,5 +2675,5 @@ module.exports = {
   updateCommentViaSMSLink,
   getEmergencyContacts,
   getEmergencyContactsList,
-  getUserInfoByTeamId
+  getUserInfoByTeamId,
 };
