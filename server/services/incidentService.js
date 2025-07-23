@@ -1653,7 +1653,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
         } else if (responderDetail && responderDetail.CITY && responderDetail.CITY.trim() !== "") {
           responders = userDetail.city == responderDetail.CITY ? responderDetail.RESPONDER : null;
         }
-        if (responderDetail && responderDetail.COUNTRY && responderDetail.COUNTRY.trim() !== "") {
+        if (responderDetail && responderDetail.COUNTRY && responderDetail.COUNTRY.trim() !== "" && (responderDetail.CITY == null || responderDetail.CITY.trim() === "")) {
           responders = userDetail.country == responderDetail.COUNTRY ? responderDetail.RESPONDER : null;
         }
         if (responders && responders.trim() !== "") {
@@ -1731,11 +1731,13 @@ const deleteSOSResponder = async (teamId, city, country, department) => {
   let result = null;
   let sql = '';
   try {
-    if (country && country !== "" && country != "null") {
-      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and COUNTRY = '${country.replace(/'/g, "''")}' and CITY = '${city.replace(/'/g, "''")}'`;
-    } else if (department && department !== "" && department != "null") {
+    if (department && department !== "" && department != "null") {
       sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and DEPARTMENT = '${department.replace(/'/g, "''")}'`;
-    }
+    } else if (city && city !== "" && city != "null") {
+      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and CITY = '${city.replace(/'/g, "''")}'`;
+    } else if (country && country !== "" && country != "null") {
+      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and COUNTRY = '${country.replace(/'/g, "''")}'`;
+    } 
     console.log({ sql });
     await db.getDataFromDB(sql);
     result = 'success';
