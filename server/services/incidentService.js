@@ -1675,7 +1675,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
         }
 
         // Always include user_obj_id if present
-        if (usr.user_obj_id && !contactsArr.includes(usr.user_obj_id)) {
+        if (contactsArr.length == 0 && usr.user_obj_id && !contactsArr.includes(usr.user_obj_id)) {
           contactsArr.push(usr.user_obj_id);
         }
 
@@ -1758,11 +1758,35 @@ const saveSOSResponder = async (teamId, rowsToSave) => {
   try {
     rows.map((row) => {
       if (row.department) {
-        sql += `Insert into MSTeamsSOSResponder (TEAM_ID, DEPARTMENT, RESPONDER) VALUES ('${teamId}', '${row.department?.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');`;
+        sql += `
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND DEPARTMENT = '${row.department?.replace(/'/g, "''")}')
+        BEGIN
+        Insert into MSTeamsSOSResponder (TEAM_ID, DEPARTMENT, RESPONDER) VALUES ('${teamId}', '${row.department?.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        END
+        ELSE
+        BEGIN
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND DEPARTMENT = '${row.department?.replace(/'/g, "''")}';
+        END;`;
       } else if (row.city) {
-        sql += `Insert into MSTeamsSOSResponder (TEAM_ID, ${row.country ? 'COUNTRY,' : ''} CITY, RESPONDER) VALUES ('${teamId}', ${row.country ? ("'" + row.country.replace(/'/g, "''") + "', ") : ''} '${row.city.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');`;
+        sql += `
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(/'/g, "''")}')
+        BEGIN
+        Insert into MSTeamsSOSResponder (TEAM_ID, ${row.country ? 'COUNTRY,' : ''} CITY, RESPONDER) VALUES ('${teamId}', ${row.country ? ("'" + row.country.replace(/'/g, "''") + "', ") : ''} '${row.city.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        END
+        ELSE
+        BEGIN
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(/'/g, "''")}';
+        END;`;
       } else if (row.country) {
-        sql += `Insert into MSTeamsSOSResponder (TEAM_ID, COUNTRY, RESPONDER) VALUES ('${teamId}', '${row.country.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');`;
+        sql += `
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(/'/g, "''")}')
+        BEGIN
+        Insert into MSTeamsSOSResponder (TEAM_ID, COUNTRY, RESPONDER) VALUES ('${teamId}', '${row.country.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        END
+        ELSE
+        BEGIN
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(/'/g, "''")}';
+        END;`;
       }
     });
     console.log({ sql });
