@@ -836,7 +836,22 @@ const getCompanyDataByTenantId = async (tenantId, filter = null) => {
   }
   return Promise.resolve(result);
 };
-
+const getUserById = async (userAadObjId) => {
+  let result = null;
+  try {
+    const qry = `select * from MSTeamsTeamsUsers where user_aadobject_id = '${userAadObjId}'`;
+    result = await db.getDataFromDB(qry);
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in renameTeam tenantId=" + tenantId + " teamName=" + teamName
+    );
+  }
+  return Promise.resolve(result);
+};
 const renameTeam = async (teamId, teamName, tenantId) => {
   let result = null;
   try {
@@ -879,4 +894,5 @@ module.exports = {
   renameTeam,
   saveNARespSelectedTeams,
   getFilesByIncId,
+  getUserById
 };
