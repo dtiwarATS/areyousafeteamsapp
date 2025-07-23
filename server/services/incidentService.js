@@ -1640,24 +1640,25 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
       userResult.map((usr) => {
         let contactsArr = [];
         const userTeamId = usr.team_id;
-        let userDetail = null, responderDetail = null;
+        let userDetail = null, respDetailsForCurTeam = null;
         if (userDetails && userDetails.length > 0) {
           userDetail = userDetails.find((u) => u.team_id === userTeamId);
         }
         if (responderDetails && responderDetails.length > 0) {
-          responderDetail = responderDetails.find((r) => r.TEAM_ID === userTeamId);
+          respDetailsForCurTeam = responderDetails.filter((r) => r.TEAM_ID === userTeamId);
         }
 
         // Prefer emergency contacts if present, else use super_users
         let fieldToUse = null;
         let responders = null;
-        if (responderDetail && responderDetail.DEPARTMENT && responderDetail.DEPARTMENT.trim() !== "") {
-          responders = userDetail.department == responderDetail.DEPARTMENT ? responderDetail.RESPONDER : null;
-        } else if (responderDetail && responderDetail.CITY && responderDetail.CITY.trim() !== "") {
-          responders = userDetail.city == responderDetail.CITY ? responderDetail.RESPONDER : null;
-        }
-        if (responderDetail && responderDetail.COUNTRY && responderDetail.COUNTRY.trim() !== "" && (responderDetail.CITY == null || responderDetail.CITY.trim() === "")) {
-          responders = userDetail.country == responderDetail.COUNTRY ? responderDetail.RESPONDER : null;
+        let respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.city == r.CITY });
+        if (respDetails && respDetails.length > 0) {
+          responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+        } else {
+          respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.country == r.COUNTRY });
+          if (respDetails && respDetails.length > 0) {
+            responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+          }
         }
         if (responders && responders.trim() !== "") {
           let responderArr = JSON.parse(responders);
