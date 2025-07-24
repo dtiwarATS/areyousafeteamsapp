@@ -2,6 +2,7 @@ const poolPromise = require("./dbConn");
 const db = require("../db");
 const Company = require("../models/Company");
 const { processSafetyBotError } = require("../models/processError");
+const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 
 const parseCompanyData = (result) => {
   let parsedCompanyObj = {};
@@ -452,6 +453,63 @@ const updateUserLicenseStatus = async (teamId, tenantId, userObjId) => {
   }
 };
 
+const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
+  const installerName = companyDataObj?.userName || "Someone";
+  const teamName = companyDataObj.teamName || "your team";
+
+  // Create the Adaptive Card
+  const setupCard = {
+    type: "AdaptiveCard",
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    version: "1.4",
+    body: [
+      {
+        type: "TextBlock",
+        text: "👋 Hi there!",
+        weight: "Bolder",
+        size: "Medium"
+      },
+      {
+        type: "TextBlock",
+        text: `${installerName} just added the Safety Check app to your team **${teamName}**.`,
+        wrap: true
+      },
+      {
+        type: "TextBlock",
+        text: "To finish setting things up and get quick access to the Dashboard tab with the SOS button, Teams will ask for your permission.",
+        wrap: true
+      },
+      {
+        type: "TextBlock",
+        text: "It’s a quick, one-time step. Just click the button below and hit **Agree** when prompted.",
+        wrap: true
+      }
+    ],
+    actions: [
+      {
+        type: "Action.OpenUrl",
+        title: "Complete Setup",
+        url: process.env.TEAMS_DASHBOARD_URL || "https://teams.microsoft.com"
+      }
+    ]
+  };
+  members.forEach(async (member) => {
+    const userObj = {
+      id: member.id,
+      name: member.name,
+    };
+    await sendProactiveMessaageToUser(
+      [userObj],
+      setupCard,
+      null,
+      companyDataObj.serviceUrl,
+      companyDataObj.userTenantId,
+      null,
+      null
+    );
+  })
+};
+
 const addTypeOneSubscriptionDetails = async (
   tenantId,
   userEmailId,
@@ -619,6 +677,8 @@ const insertCompanyData = async (
           companyDataObj.userObjId,
           teamId
         );
+        await sendSetupMessageToAllMembers(
+          allMembersInfo, companyDataObj)
       }
     }
 

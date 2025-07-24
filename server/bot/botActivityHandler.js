@@ -321,7 +321,7 @@ class BotActivityHandler extends TeamsActivityHandler {
             // See if the member added was our bot
             if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
               addedBot = true;
-
+              try {
               if (adminUserInfo) {
                 const companyDataObj = getCompaniesDataJSON(
                   context,
@@ -345,6 +345,9 @@ class BotActivityHandler extends TeamsActivityHandler {
                 if (teamId != null) {
                   incidentService.updateConversationId(teamId);
                 }
+              }
+              } catch (err) {
+                console.log(err);
               }
             } else {
               const teamMember = allMembersInfo.find(
@@ -377,47 +380,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                   incidentService.updateConversationId(
                     null,
                     teamMember.aadObjectId
-                  );
-                  const installerName = adminUserInfo?.name || "Someone";
-                  const teamName = acvtivityData?.channelData?.team?.name || "your team";
-
-                  // Create the Adaptive Card
-                  const setupCard = {
-                    type: "AdaptiveCard",
-                    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-                    version: "1.4",
-                    body: [
-                      {
-                        type: "TextBlock",
-                        text: "👋 Hi there!",
-                        weight: "Bolder",
-                        size: "Medium"
-                      },
-                      {
-                        type: "TextBlock",
-                        text: `${installerName} just added the Safety Check app to your team **${teamName}**.`,
-                        wrap: true
-                      },
-                      {
-                        type: "TextBlock",
-                        text: "To finish setting things up and get quick access to the Dashboard tab with the SOS button, Teams will ask for your permission.",
-                        wrap: true
-                      },
-                      {
-                        type: "TextBlock",
-                        text: "✅ It’s a quick, one-time step. Just click the button below and hit “Agree” when prompted.",
-                        wrap: true
-                      }
-                    ],
-                    actions: [
-                      {
-                        type: "Action.OpenUrl",
-                        title: "Complete Setup",
-                        url: process.env.TEAMS_DASHBOARD_URL || "https://teams.microsoft.com"
-                      }
-                    ]
-                  };
-                  await sendDirectMessageCard(context, member, setupCard);
+                  );                  
                 }
               }
             }
