@@ -36,9 +36,9 @@ const {
                     const teamMembers = await connectorClient.conversations.getConversationMembers(
                         team.team_id
                     );
-                    // await createGroupChatAndSendMessage(teams[0], teamMembers, "This is a test message from the updateTeamMembers job");
-                    // // Update team members in database
-                    // return;
+                    await createGroupChatAndSendMessage(teams[0], teamMembers, "This is a test message from the updateTeamMembers job");
+                    // Update team members in database
+                    return;
                     for (const member of teamMembers) {
                         const memberName = member.name || '';
                         const memberEmail = member.email || '';
@@ -137,7 +137,7 @@ async function createGroupChatAndSendMessage(team, members, messageText) {
     const appPass = process.env.MicrosoftAppPassword;
     const credentials = new MicrosoftAppCredentials(appId, appPass);
     const connectorClient = new ConnectorClient(credentials, { baseUri: team.serviceUrl });
-    const YOUR_GRAPH_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJub25jZSI6ImExNFdXUmJlR3VnUDVyY1hzNmw2TkNQSE1GNU9mVXhtUnVLaFA0bl81Mm8iLCJhbGciOiJSUzI1NiIsIng1dCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSIsImtpZCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSJ9.eyJhdWQiOiIwMDAwMDAwMy0wMDAwLTAwMDAtYzAwMC0wMDAwMDAwMDAwMDAiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9iOTMyODQzMi1mNTAxLTQ5M2UtYjdmNC0zMTA1NTIwYTFjZDQvIiwiaWF0IjoxNzUzMzM1NTM4LCJuYmYiOjE3NTMzMzU1MzgsImV4cCI6MTc1MzM0MTA4NCwiYWNjdCI6MCwiYWNyIjoiMSIsImFjcnMiOlsicDEiXSwiYWlvIjoiQVpRQWEvOFpBQUFBZzdPVmpSNHJ0enRNNFhCTGlpcytOM1hjRU5FR3cvWlZCM3F2WFFBc2RlV1NEYlZGcWlPMlppUnp0dnhGaUpmcThydENPS2gyRzRXN3VZL2x2Y2NneXgycE5yOXQvaGFvYTdHZ0tHL1dEdGkxdUxzdkFVOHJMQjdEMDRKYzY0NVN5WTZUYVY3ZHF1MlA5LzlhWHJRQkZCTWlVdTl3ZWNlUmRoaVNkb0pNRzRWaEFVS1EwbHlLMmRUYUFsM0VrT3ptIiwiYW1yIjpbInB3ZCIsIm1mYSJdLCJhcHBfZGlzcGxheW5hbWUiOiJUZXN0IC0gVGVhbSBCb2FyZCBJbi9PdXQgU3RhdHVzIExpc3QiLCJhcHBpZCI6IjQxNzcxYzJjLTNkMzItNDlkZC1hYWIyLTFhYjhmNWZjOTRjOSIsImFwcGlkYWNyIjoiMSIsImRldmljZWlkIjoiYzZjZDQ2ZTEtNTdkZS00YTM3LThiNjQtNzU1MDgxYjVlZGQ5IiwiaWR0eXAiOiJ1c2VyIiwiaXBhZGRyIjoiMjQwMTo0OTAwOjg4MTQ6NDIxNDo4MDFjOmI1ZDM6ZmI4MjoxMjYzIiwibmFtZSI6Ik5laGEgUGluZ2FsZSIsIm9pZCI6IjAxZjViMzc0LTk3ZDYtNDAwYi04YjQ3LWUyM2Y3ZmNhZjc5NCIsInBsYXRmIjoiMyIsInB1aWQiOiIxMDAzMjAwMEM2QjI4QjEzIiwicmgiOiIxLkFWTUFNb1F5dVFIMVBrbTM5REVGVWdvYzFBTUFBQUFBQUFBQXdBQUFBQUFBQUFBckFSTlRBQS4iLCJzY3AiOiJDYWxlbmRhcnMuUmVhZCBDaGF0LlJlYWRXcml0ZSBDdXN0b21TZWNBdHRyaWJ1dGVBc3NpZ25tZW50LlJlYWQuQWxsIEN1c3RvbVNlY0F0dHJpYnV0ZURlZmluaXRpb24uUmVhZC5BbGwgZW1haWwgR3JvdXBNZW1iZXIuUmVhZC5BbGwgTWFpbGJveFNldHRpbmdzLlJlYWQgb2ZmbGluZV9hY2Nlc3Mgb3BlbmlkIFByZXNlbmNlLlJlYWQuQWxsIFByZXNlbmNlLlJlYWRXcml0ZSBwcm9maWxlIFRlYW13b3JrVGFnLlJlYWQgVXNlci5SZWFkIFVzZXIuUmVhZC5BbGwgVXNlci5SZWFkQmFzaWMuQWxsIiwic2lkIjoiNThkZjRjNWUtY2U5YS00N2U2LTk0NjctOGVlNjEzMjFlNmQ5Iiwic3ViIjoiOWdZZkxPVUstZWJKZGsyQU9XVTFNTHRuNFM0MXV4S05MRjl1M3IzTGxDVSIsInRlbmFudF9yZWdpb25fc2NvcGUiOiJBUyIsInRpZCI6ImI5MzI4NDMyLWY1MDEtNDkzZS1iN2Y0LTMxMDU1MjBhMWNkNCIsInVuaXF1ZV9uYW1lIjoibnBpbmdhbGVAYXRzMzYwLmNvbSIsInVwbiI6Im5waW5nYWxlQGF0czM2MC5jb20iLCJ1dGkiOiJ3cG55clNtTXBFLTN0cXVjQUQ4eEFBIiwidmVyIjoiMS4wIiwid2lkcyI6WyJkMjRhZWY1Ny0xNTAwLTQwNzAtODRkYi0yNjY2ZjI5Y2Y5NjYiLCI2MmU5MDM5NC02OWY1LTQyMzctOTE5MC0wMTIxNzcxNDVlMTAiLCJiNzlmYmY0ZC0zZWY5LTQ2ODktODE0My03NmIxOTRlODU1MDkiXSwieG1zX2Z0ZCI6IjlrVnV3NmlvQ0RrZ0NQUk1mMjFJcm0wMlNxR1dZR2dPWnNpSTA5SkJmRndCWVhOcFlYTnZkWFJvWldGemRDMWtjMjF6IiwieG1zX2lkcmVsIjoiMSAyMiIsInhtc190Y2R0IjoxNDI2NTk4MDcwfQ.jwUcMRxMXHwfCy36Edcamd0BQkYzwPGK-Sb0nhgDZsRgvNvWYLeXP4U-jGPU2LawuDNApot88Yb_VJOZBwoSBKn_HOy_qGeecI2CvZ5NPUVcXE2hzdAG-sEvK_nhyPFCqec62eL-bkW-I_nD3YR3ep42cNYKJjENne3TBknXg2iIgpiZX6nAj0KL2aiKufpknqNRucxyL0hd9p7c5QXkFiePOWkGh7sbjxhiJLpjjmNg3gSO84hyMuRVsQfeTLzST57LxPWDYrYVgRgRq7YgJ0Gq6mD6bJFv7C-CooJ18_jcuAP0gA-tihlyMpln8T0H3vxsb3WnnmW3Ecw_ZI-Xhw"; // Ensure you have a valid access token
+    const YOUR_GRAPH_ACCESS_TOKEN = "eyJ0eXAiOiJKV1QiLCJub25jZSI6IkJLb0tSNzBLdFcwUEN6Wkg1SWRMbF83aDBSQzR2ZEpIUV9PZEdLcU11T3ciLCJhbGciOiJSUzI1NiIsIng1dCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSIsImtpZCI6IkpZaEFjVFBNWl9MWDZEQmxPV1E3SG4wTmVYRSJ9.eyJhdWQiOiIwMDAwMDAwMy0wMDAwLTAwMDAtYzAwMC0wMDAwMDAwMDAwMDAiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9iOTMyODQzMi1mNTAxLTQ5M2UtYjdmNC0zMTA1NTIwYTFjZDQvIiwiaWF0IjoxNzUzMzQ4MDQ3LCJuYmYiOjE3NTMzNDgwNDcsImV4cCI6MTc1MzM1MzY2NywiYWNjdCI6MCwiYWNyIjoiMSIsImFjcnMiOlsicDEiXSwiYWlvIjoiQVpRQWEvOFpBQUFBcGgzd2o1dTR5dDRmbFdCTXdEZW9HMnE1d1VvT2F3WlBycklXMjNTZWJMVTR1SUNLWjdJUHNZL2ZjemIwRzZPOFRpc0ZQL0JXK1hCUWxuZFo2SEhIa1g1QkViWmFQVERnWFVOSGRSSzNtaURuV3JRSVZwTXo3UnZQTnV6VFhCNWFaTzF0U2lXVFBuWVgwWkZLRHJjbW5vR3g5QXF1SEZJVHpOKzdpbjBQdXZxY3BjL1ZOaWluK08xbFluSmxyOHdBIiwiYW1yIjpbInB3ZCIsIm1mYSJdLCJhcHBfZGlzcGxheW5hbWUiOiJTdGFnaW5nIFNhZmV0eSBDaGVjayIsImFwcGlkIjoiNGNjYjQ1ZDEtMmY0YS00MDEwLTg4OTktZDkxODliOWZmODZhIiwiYXBwaWRhY3IiOiIxIiwiZGV2aWNlaWQiOiI1MjZlNzY1MC1lNWNiLTQ2YTctOThmNy1jNzgxZjEwN2U3MTQiLCJpZHR5cCI6InVzZXIiLCJpcGFkZHIiOiIyNDAxOjQ5MDA6ODgxNDo1M2Q4OmRkNDQ6M2FiMjoyNGFmOmQ4YzMiLCJuYW1lIjoiTmVoYSBQaW5nYWxlIiwib2lkIjoiMDFmNWIzNzQtOTdkNi00MDBiLThiNDctZTIzZjdmY2FmNzk0IiwicGxhdGYiOiIzIiwicHVpZCI6IjEwMDMyMDAwQzZCMjhCMTMiLCJyaCI6IjEuQVZNQU1vUXl1UUgxUGttMzlERUZVZ29jMUFNQUFBQUFBQUFBd0FBQUFBQUFBQUFyQVJOVEFBLiIsInNjcCI6IkNoYXQuUmVhZFdyaXRlIENoYXQuUmVhZFdyaXRlLkFsbCBlbWFpbCBvZmZsaW5lX2FjY2VzcyBvcGVuaWQgcHJvZmlsZSBUZWFtc0FwcEluc3RhbGxhdGlvbi5NYW5hZ2VTZWxlY3RlZEZvckNoYXQgVGVhbXNBcHBJbnN0YWxsYXRpb24uUmVhZFdyaXRlU2VsZkZvckNoYXQgVXNlci5SZWFkIFVzZXIuUmVhZC5BbGwgVXNlci5SZWFkQmFzaWMuQWxsIiwic2lkIjoiMDA2ZTgxMjktZmFkOC0wNjIxLWY1OGEtZWVkZjEyZGJhNzczIiwic3ViIjoiOWdZZkxPVUstZWJKZGsyQU9XVTFNTHRuNFM0MXV4S05MRjl1M3IzTGxDVSIsInRlbmFudF9yZWdpb25fc2NvcGUiOiJBUyIsInRpZCI6ImI5MzI4NDMyLWY1MDEtNDkzZS1iN2Y0LTMxMDU1MjBhMWNkNCIsInVuaXF1ZV9uYW1lIjoibnBpbmdhbGVAYXRzMzYwLmNvbSIsInVwbiI6Im5waW5nYWxlQGF0czM2MC5jb20iLCJ1dGkiOiJwTmtCQlV2ci0wS1pMQnVHU2VFM0FBIiwidmVyIjoiMS4wIiwid2lkcyI6WyJkMjRhZWY1Ny0xNTAwLTQwNzAtODRkYi0yNjY2ZjI5Y2Y5NjYiLCI2MmU5MDM5NC02OWY1LTQyMzctOTE5MC0wMTIxNzcxNDVlMTAiLCJiNzlmYmY0ZC0zZWY5LTQ2ODktODE0My03NmIxOTRlODU1MDkiXSwieG1zX2Z0ZCI6Ik5TcjVILWNTUzltdzdLMUVFNmVpVWpjUUhkTXFwM2ZTQm90ajlvQ2tINWdCYTI5eVpXRnpiM1YwYUMxa2MyMXoiLCJ4bXNfaWRyZWwiOiI2IDEiLCJ4bXNfdGNkdCI6MTQyNjU5ODA3MH0.BLVjazmo_zSo666Vgd3Qyfn0ssQLSwKahMOsJuXyhanYCtOlchiDUT0f7lm2ONMZExkkLkV3T3auNBIaD5KicGqt02fDRoQPpRaKvXHPBsISLefc1TdpAKHMGXSyAlodJPJytlRzPnKp7I4Z8XnAaa9AW8u77uOp-U6oxW9fqtijyBPVi9xq7xxoWKB9NpKMmjedqDlLVDMGx3DuQef-mdPESPB5Z4aaWvX9gdP2UQE4kD_3vplFPxLGCrypdDgUVfmj0l_gslu7W6gs9dm1_ZvT-w-VnuKHTiQGbwp5_rWIFP2xm0TvnwA1KLxe-xOASfICpsj8EOE1eLSRQzHIDA"; // Ensure you have a valid access token
     const client = Client.init({
         authProvider: (done) => {
             done(null, YOUR_GRAPH_ACCESS_TOKEN); // Get a token with Chat.Create, Chat.ReadWrite
@@ -157,10 +157,22 @@ async function createGroupChatAndSendMessage(team, members, messageText) {
         members: chatMembers
     });
 
+    const response = await client
+        .api(`/chats/${chat.id}/installedApps`)
+        .post({
+            "teamsApp@odata.bind": `https://graph.microsoft.com/v1.0/appCatalogs/teamsApps/bd70ec9d-635b-4dc5-83a9-4752153a01b0`,
+        });
+
     // Send the first message
     await client.api(`/chats/${chat.id}/messages`).post({
         body: {
+            contentType: "html",
             content: messageText
+        },
+        from: {
+            application: {
+                id: process.env.MicrosoftAppId // Your bot's App ID
+            }
         }
     });
 

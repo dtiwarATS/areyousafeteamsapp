@@ -1115,7 +1115,7 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
   const Phonescope =
-    "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
+    "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All TeamsAppInstallation.ManageSelectedForChat TeamsAppInstallation.ReadWriteSelfForChat Chat.ReadWrite";
   app.get("/areyousafetabhandler/AdminConsentInfo", async (req, res) => {
     const SSOCode = req.query.code || "";
     var details = req.query.state?.toString();
