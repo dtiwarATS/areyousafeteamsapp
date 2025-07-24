@@ -1651,13 +1651,15 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
         // Prefer emergency contacts if present, else use super_users
         let fieldToUse = null;
         let responders = null;
-        let respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.city == r.CITY });
-        if (respDetails && respDetails.length > 0) {
-          responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
-        } else {
-          respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.country == r.COUNTRY });
+        if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
+          let respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.city == r.CITY });
           if (respDetails && respDetails.length > 0) {
             responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+          } else {
+            respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.country == r.COUNTRY });
+            if (respDetails && respDetails.length > 0) {
+              responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+            }
           }
         }
         if (responders && responders.trim() !== "") {
