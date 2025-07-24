@@ -1785,7 +1785,7 @@ const saveSOSResponder = async (teamId, rowsToSave) => {
         END
         ELSE
         BEGIN
-        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(/'/g, "''")}';
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(/'/g, "''")}' AND CITY IS NULL;
         END;`;
       }
     });
