@@ -347,7 +347,7 @@ const addComment = async (assistanceId, comment, ts, aadObjuserId) => {
 
 const getAssistanceData = async (aadObjuserId) => {
   try {
-    let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id desc`;
+    let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id`;
 
     const result = await db.getDataFromDB(selectQuery, aadObjuserId);
     return Promise.resolve(result);
@@ -1216,7 +1216,7 @@ const getTeamMemeberSqlQuery = (
       ? " CASE when tblAadObjId.useAadObjId is not null then 1 else 0 end isSuperUser "
       : " 0 isSuperUser ") +
     ` , u.conversationId,
-  case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department
+  case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department,u.email
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
@@ -1418,10 +1418,31 @@ const getUserInfoByUserAadObjId = async (useraadObjId) => {
 const getUserTeamInfo = async (userAadObjId) => {
   let result = null;
   try {
-    const sqlTeamInfo = `select  user_id userid,team_id teamId, team_name teamName, channelId, isnull(team_name, '') + ' - ' + isnull(channelName, '') channelName, user_tenant_id tenant_id, FILTER_ENABLED, s.UserLimit, s.SubscriptionType
-          from MSTeamsInstallationDetails t
-          left join MSTeamsSubscriptionDetails s on t.SubscriptionDetailsId = s.ID where (user_obj_id = '${userAadObjId}' OR super_users like '%${userAadObjId}%') AND uninstallation_date is null and team_id is not null and team_id <> '' order by team_name`;
-    result = await db.getDataFromDB(sqlTeamInfo, userAadObjId);
+    const sqlTeamInfo = `SELECT  
+          user_id AS userid,
+          team_id AS teamId,
+          team_name AS teamName,
+          channelId,
+          ISNULL(team_name, '') + ' - ' + ISNULL(channelName, '') AS channelName,
+          user_tenant_id AS tenant_id,
+          FILTER_ENABLED,
+          s.UserLimit,
+          s.SubscriptionType
+        INTO #CTE
+        FROM MSTeamsInstallationDetails t
+        LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
+        WHERE (user_obj_id = '${userAadObjId}' 
+                  OR super_users like '%${userAadObjId}%') 
+          AND uninstallation_date IS NULL 
+          AND team_id IS NOT NULL 
+          AND team_id <> '';
+
+        SELECT * FROM #CTE ORDER BY teamName;
+
+        SELECT * FROM MSTeamsSOSResponder WHERE team_id IN (SELECT teamId FROM #CTE);
+
+        DROP TABLE #CTE;`;
+    result = await db.getDataFromDB(sqlTeamInfo, userAadObjId, false);
   } catch (err) {
     console.log(err);
     processSafetyBotError(
@@ -1443,13 +1464,7 @@ const getFilterData = async (teamId) => {
     result = await db.getDataFromDB(sqlTeamInfo, "", false);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(
-      err,
-      "",
-      "",
-      userAadObjId,
-      "error in getFilterData"
-    );
+    processSafetyBotError(err, "", "", userAadObjId, "error in getFilterData");
   }
   return Promise.resolve(result);
 };
@@ -1525,8 +1540,10 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
         const emergencyContactsArr = [];
         const userTeamId = usr.team_id;
         if (usr.user_obj_id != null) {
-
-          if (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "") {
+          if (
+            usr.EMERGENCY_CONTACTS != null &&
+            usr.EMERGENCY_CONTACTS.trim() != ""
+          ) {
             let emergencyContacts = usr.EMERGENCY_CONTACTS.split(",");
             if (emergencyContacts.length > 0) {
               emergencyContacts.map((contact) => {
@@ -1537,7 +1554,8 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
 
           if (
             (aadObjuserId !== usr.user_obj_id ||
-              (usr.EMERGENCY_CONTACTS != null && usr.EMERGENCY_CONTACTS.trim() != "")) &&
+              (usr.EMERGENCY_CONTACTS != null &&
+                usr.EMERGENCY_CONTACTS.trim() != "")) &&
             !teamsIds.includes(userTeamId)
           ) {
             teamsIds.push({ userTeamId, emergencyContactsArr });
@@ -1562,14 +1580,14 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${emergencyContactsArr.join(
                 "','"
-                )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+              )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
 
               const result = await db.getDataFromDB(selectQuery, aadObjuserId);
               if (result && result.length > 0) {
-                allTeamsEmergencyContactsData = allTeamsEmergencyContactsData.concat(result);
+                allTeamsEmergencyContactsData =
+                  allTeamsEmergencyContactsData.concat(result);
               }
-            } 
-
+            }
           } catch (err) {
             console.log(err);
           }
@@ -1585,16 +1603,209 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
     return Promise.resolve(emergencyContactsData);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, TeamID, "", aadObjuserId, "error in getEmergencyContacts");
+    processSafetyBotError(
+      err,
+      TeamID,
+      "",
+      aadObjuserId,
+      "error in getEmergencyContacts"
+    );
   }
 };
+
+const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
+  console.log("Getting admins or emergency contacts");
+  try {
+    const resultData = [];
+
+    let userSql;
+    if (TeamID != "null") {
+      userSql = `select * from MSTeamsInstallationDetails where team_id='${TeamID}'; 
+      select * from MSTeamsSOSResponder where team_id='${TeamID}';
+      select team_id, country, city, department from MSTeamsTeamsUsers where team_id = '${TeamID}' and user_aadobject_id = '${aadObjuserId}';`;
+    } else {
+      userSql = `select user_obj_id, super_users, EMERGENCY_CONTACTS, team_id, team_name from msteamsinstallationdetails where team_id in
+      (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name;
+      select * from MSTeamsSOSResponder where team_id in (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');
+      select team_id, country, city, department from MSTeamsTeamsUsers where team_id in (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and user_aadobject_id = '${aadObjuserId}';`;
+    }
+
+    const dataResult = await db.getDataFromDB(userSql, aadObjuserId, false);
+    const userResult = dataResult ? dataResult[0] : null;
+    const responderDetails = dataResult ? dataResult[1] : null;
+    const userDetails = dataResult ? dataResult[2] : null;
+    const teamsIds = [];
+    if (userResult != null && userResult.length > 0) {
+
+      userResult.map((usr) => {
+        let contactsArr = [];
+        const userTeamId = usr.team_id;
+        let userDetail = null, respDetailsForCurTeam = null;
+        if (userDetails && userDetails.length > 0) {
+          userDetail = userDetails.find((u) => u.team_id === userTeamId);
+        }
+        if (responderDetails && responderDetails.length > 0) {
+          respDetailsForCurTeam = responderDetails.filter((r) => r.TEAM_ID === userTeamId);
+        }
+
+        // Prefer emergency contacts if present, else use super_users
+        let fieldToUse = null;
+        let responders = null;
+        let respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.city == r.CITY });
+        if (respDetails && respDetails.length > 0) {
+          responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+        } else {
+          respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.country == r.COUNTRY });
+          if (respDetails && respDetails.length > 0) {
+            responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+          }
+        }
+        if (responders && responders.trim() !== "") {
+          let responderArr = JSON.parse(responders);
+          fieldToUse = responderArr.map((r) => r).join(",");
+        } else if (usr.EMERGENCY_CONTACTS && usr.EMERGENCY_CONTACTS.trim() !== "") {
+          fieldToUse = usr.EMERGENCY_CONTACTS;
+        } else if (usr.super_users && usr.super_users.trim() !== "") {
+          fieldToUse = usr.super_users;
+        }
+
+        if (fieldToUse) {
+          let contacts = fieldToUse.split(",");
+          contactsArr = contacts.filter((c) => c && c.trim() !== "");
+        }
+
+        // Always include user_obj_id if present
+        if (contactsArr.length == 0 && usr.user_obj_id && !contactsArr.includes(usr.user_obj_id)) {
+          contactsArr.push(usr.user_obj_id);
+        }
+
+        if (
+          contactsArr.length > 0 &&
+          !teamsIds.some((t) => t.userTeamId === userTeamId)
+        ) {
+          teamsIds.push({ userTeamId, contactsArr });
+        }
+      });
+    }
+
+    let allTeamsContactsData = [];
+
+    if (teamsIds && teamsIds.length > 0) {
+      await Promise.all(
+        teamsIds.map(async (teamObj) => {
+          try {
+            const teamId = teamObj.userTeamId;
+            const contactsArr = teamObj.contactsArr;
+
+            let selectQuery = "";
+            if (contactsArr.length > 0) {
+              selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
+                            FROM MSTEAMSTEAMSUSERS A 
+                            LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
+                            WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
+                "','"
+              )
+                } ') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+
+              const result = await db.getDataFromDB(selectQuery, aadObjuserId);
+              if (result && result.length > 0) {
+                allTeamsContactsData = allTeamsContactsData.concat(result);
+              }
+            }
+          } catch (err) {
+            console.log(err);
+          }
+        })
+      );
+      const usersQuery = ` select * from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}'; `;
+      const userResult = await db.getDataFromDB(usersQuery, aadObjuserId);
+
+      resultData.push(allTeamsContactsData);
+      resultData.push(userResult);
+    }
+
+    return Promise.resolve(resultData);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, TeamID, "", aadObjuserId, "error in getAdminsOrEmergencyContacts");
+  }
+};
+
+const deleteSOSResponder = async (teamId, city, country, department) => {
+  let result = null;
+  let sql = '';
+  try {
+    if (department && department !== "" && department != "null") {
+      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and DEPARTMENT = '${department.replace(/'/g, "''")}'`;
+    } else if (city && city !== "" && city != "null") {
+      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and CITY = '${city.replace(/'/g, "''")}'`;
+    } else if (country && country !== "" && country != "null") {
+      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and COUNTRY = '${country.replace(/'/g, "''")}'`;
+    } 
+    console.log({ sql });
+    await db.getDataFromDB(sql);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in deleteSOSResponder");
+  }
+  return Promise.resolve(result);
+};
+const saveSOSResponder = async (teamId, rowsToSave) => {
+  let result = null;
+  let rows = JSON.parse(rowsToSave);
+  let sql = '';
+  try {
+    rows.map((row) => {
+      if (row.department) {
+        sql += `
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND DEPARTMENT = '${row.department?.replace(/'/g, "''")}')
+        BEGIN
+        Insert into MSTeamsSOSResponder (TEAM_ID, DEPARTMENT, RESPONDER) VALUES ('${teamId}', '${row.department?.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        END
+        ELSE
+        BEGIN
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND DEPARTMENT = '${row.department?.replace(/'/g, "''")}';
+        END;`;
+      } else if (row.city) {
+        sql += `
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(/'/g, "''")}')
+        BEGIN
+        Insert into MSTeamsSOSResponder (TEAM_ID, ${row.country ? 'COUNTRY,' : ''} CITY, RESPONDER) VALUES ('${teamId}', ${row.country ? ("'" + row.country.replace(/'/g, "''") + "', ") : ''} '${row.city.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        END
+        ELSE
+        BEGIN
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(/'/g, "''")}';
+        END;`;
+      } else if (row.country) {
+        sql += `
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(/'/g, "''")}')
+        BEGIN
+        Insert into MSTeamsSOSResponder (TEAM_ID, COUNTRY, RESPONDER) VALUES ('${teamId}', '${row.country.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        END
+        ELSE
+        BEGIN
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(/'/g, "''")}' AND CITY IS NULL;
+        END;`;
+      }
+    });
+    console.log({ sql });
+    await db.getDataFromDB(sql);
+    result = 'success';
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in saveSOSResponder");
+  }
+  return Promise.resolve(result);
+};
+
 const setSendSMS = async (teamId, sendSMS, phoneField) => {
   let result = null;
   try {
     const qry = `update MSTeamsInstallationDetails set send_sms = '${sendSMS}', PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in setSendSMS");
@@ -1607,7 +1818,7 @@ const saveFilterChecked = async (teamId, filterEnabled) => {
     const qry = `update MSTeamsInstallationDetails set FILTER_ENABLED = '${filterEnabled}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in saveFilterChecked");
@@ -1620,20 +1831,20 @@ const setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     const qry = `update MSTeamsInstallationDetails set send_whatsapp = '${sendWhatsapp}', PHONE_FIELD = '${phoneField}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in setSendWhatsapp");
   }
   return Promise.resolve(result);
 };
-const saveRefreshToken = async (teamId, refresh_token, field = 'send_sms') => {
+const saveRefreshToken = async (teamId, refresh_token, field = "send_sms") => {
   let result = null;
   try {
     const qry = `update MSTeamsInstallationDetails set refresh_token = '${refresh_token}', ${field} = 1 where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in saveRefreshToken");
@@ -2526,7 +2737,10 @@ const updateSafetyCheckStatusViaSMSLink = async (
 ) => {
   try {
     let sql = "";
-    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}', response_via = '${viaSMS ? 'SMS' : 'whatsapp'}'
+    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
+      "yyyy-MM-dd hh:mm:ss",
+      new Date()
+    )}', response_via = '${viaSMS ? "SMS" : "whatsapp"}'
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
     const result = await db.updateDataIntoDB(sql, user_aadobject_id);
@@ -2538,11 +2752,11 @@ const updateSafetyCheckStatusViaSMSLink = async (
       "",
       userAadObjId,
       "error in updateSafetyCheckStatus incId=" +
-      incId +
-      " response=" +
-      resp +
-      " respTimestamp=" +
-      new date().toString()
+        incId +
+        " response=" +
+        resp +
+        " respTimestamp=" +
+        new date().toString()
     );
   }
   return false;
@@ -2551,7 +2765,10 @@ const updateSafetyCheckStatusViaSMSLink = async (
 const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
   try {
     const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data) 
-          values('${userid}', '${status}', '${SMS_TEXT.replaceAll("'", "''")}', '${RAW_DATA}')`;
+          values('${userid}', '${status}', '${SMS_TEXT.replaceAll(
+      "'",
+      "''"
+    )}', '${RAW_DATA}')`;
     pool = await poolPromise;
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
@@ -2584,7 +2801,6 @@ where team_id = '${team_id}'`;
     console.log();
   }
 };
-
 
 module.exports = {
   saveInc,
@@ -2653,6 +2869,8 @@ module.exports = {
   getenablecheck,
   getSendSMS,
   setSendSMS,
+  deleteSOSResponder,
+  saveSOSResponder,
   saveFilterChecked,
   setSendWhatsapp,
   saveRefreshToken,
@@ -2666,6 +2884,7 @@ module.exports = {
   updateSentSMSCount,
   updateCommentViaSMSLink,
   getEmergencyContacts,
+  getAdminsOrEmergencyContacts,
   getEmergencyContactsList,
-  getUserInfoByTeamId
+  getUserInfoByTeamId,
 };

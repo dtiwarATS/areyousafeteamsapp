@@ -17,7 +17,7 @@ const {
   getCompaniesData,
   updateSuperUserDataByUserAadObjId,
   saveNARespSelectedTeams,
-  getCompanyDataByTeamId
+  getCompanyDataByTeamId,
 } = require("../db/dbOperations");
 
 require("dotenv").config({ path: ENV_FILE });
@@ -198,9 +198,9 @@ class AreYouSafeTab {
         "",
         "",
         "error in sortMembers members=" +
-        JSON.stringify(members) +
-        " incTypeId=" +
-        incTypeId
+          JSON.stringify(members) +
+          " incTypeId=" +
+          incTypeId
       );
     }
     return memberObj;
@@ -245,7 +245,7 @@ class AreYouSafeTab {
             SendRemindersCount,
             SendRemindersTime,
             incidentMediafiles,
-            responseOptions
+            responseOptions,
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -282,7 +282,7 @@ class AreYouSafeTab {
           ) {
             const memberObj = this.sortMembers(inc.members, inc.incTypeId);
             if (memberObj != null) {
-              if (!incTypeId || incTypeId == 1) {                
+              if (!incTypeId || incTypeId == 1) {
                 safe = memberObj.membersSafe;
                 needAssistance = memberObj.membersUnsafe;
                 notResponded = memberObj.membersNotResponded;
@@ -294,7 +294,7 @@ class AreYouSafeTab {
                   responsePercentage =
                     Math.round(
                       ((needAssistanceCount + safeCount) * 100) /
-                      inc.members.length
+                        inc.members.length
                     ).toString() + "%";
                 }
               } else {
@@ -306,10 +306,17 @@ class AreYouSafeTab {
                 deliveredCount = memberObj.delivered.length;
               }
             }
-            if(incTypeId && incTypeId == 1 && respOptions && respOptions.length > 0){
+            if (
+              incTypeId &&
+              incTypeId == 1 &&
+              respOptions &&
+              respOptions.length > 0
+            ) {
               respOptions.forEach((resp) => {
                 const dashResp = {};
-                let usersWithResponse = inc.members.filter((m) => {return m.responseValue == resp.id});
+                let usersWithResponse = inc.members.filter((m) => {
+                  return m.responseValue == resp.id;
+                });
                 dashResp.response = resp.id;
                 dashResp.responseText = resp.option;
                 dashResp.color = resp.color;
@@ -319,10 +326,7 @@ class AreYouSafeTab {
               });
               //console.log({responses});
             }
-
           }
-
-          
 
           const teamName = teamObj && teamObj[teamId] ? teamObj[teamId] : "";
           const userid = teamObj && teamObj["userid"] ? teamObj["userid"] : "";
@@ -368,7 +372,7 @@ class AreYouSafeTab {
             SendRemindersTime,
             incidentMediafiles,
             userid,
-            responses
+            responses,
           };
           incFormatedData.push(incObj);
         });
@@ -381,9 +385,9 @@ class AreYouSafeTab {
         "",
         userObjId,
         "error in getFormatedIncData incData=" +
-        JSON.stringify(incData) +
-        " teamInfo=" +
-        JSON.stringify(teamInfo)
+          JSON.stringify(incData) +
+          " teamInfo=" +
+          JSON.stringify(teamInfo)
       );
     }
     return incFormatedData;
@@ -426,6 +430,24 @@ class AreYouSafeTab {
           userAadObjId,
           superUsersLeftJoinQuery
         );
+      } else if (teamId == null || teamId == "null") {
+        var memberqery = `SELECT MIN(id) AS id,  -- optional: pick one id per user
+       MIN(team_id) AS team_id,  -- pick any team_id
+       user_aadobject_id,
+       MIN(user_id) AS value,
+       MIN(user_name) AS title,
+       MIN(email) AS email
+FROM MSTeamsTeamsUsers
+WHERE team_id IN (
+    SELECT team_id
+    FROM MSTeamsTeamsUsers
+    WHERE user_aadobject_id = '${userAadObjId}'
+)
+GROUP BY user_aadobject_id
+ORDER BY email;
+;
+`;
+        teamsMembers = await db.getDataFromDB(memberqery, userAadObjId);
       }
       // else if (userAadObjId != null && userAadObjId != "null") {
       //   teamsMembers = await incidentService.getAllTeamMembersByUserAadObjId(userAadObjId);
@@ -644,8 +666,8 @@ class AreYouSafeTab {
                 (index == 0
                   ? ""
                   : index == adminsArr.length - 1
-                    ? " and "
-                    : ", ") + usrName;
+                  ? " and "
+                  : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -663,8 +685,8 @@ class AreYouSafeTab {
                     (currentTeamsAdminsStr === ""
                       ? ""
                       : index == adminsArr.length - 1
-                        ? " and "
-                        : ", ") + usrName;
+                      ? " and "
+                      : ", ") + usrName;
                 }
               });
 
@@ -936,9 +958,9 @@ class AreYouSafeTab {
         createdByUserInfo?.user_name,
         userAadObjId,
         "error in sendSafetyCheckMessage incId=" +
-        incId +
-        " resendSafetyCheck=" +
-        resendSafetyCheck
+          incId +
+          " resendSafetyCheck=" +
+          resendSafetyCheck
       );
       return true;
     } finally {
@@ -1022,11 +1044,37 @@ class AreYouSafeTab {
   getEmergencyContacts = async (teamId) => {
     let emergencyContacts = null;
     try {
-      emergencyContacts = await incidentService.getEmergencyContactsList(teamId);
+      emergencyContacts = await incidentService.getEmergencyContactsList(
+        teamId
+      );
     } catch (err) {
-      processSafetyBotError(err, teamId, "", null, "error in getEmergencyContacts");
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in getEmergencyContacts"
+      );
     }
     return Promise.resolve(emergencyContacts);
+  };
+  deleteSOSResponder = async (teamId, city, country, department) => {
+    let res = null;
+    try {
+      res = await incidentService.deleteSOSResponder(teamId, city, country, department);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in deleteSOSResponder");
+    }
+    return Promise.resolve(res);
+  };
+  saveSOSResponder = async (teamId, rowsToSave) => {
+    let res = null;
+    try {
+      res = await incidentService.saveSOSResponder(teamId, rowsToSave);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in saveSOSResponder");
+    }
+    return Promise.resolve(res);
   };
 
   setSendSMS = async (teamId, sendSMS, phoneField) => {
@@ -1038,19 +1086,30 @@ class AreYouSafeTab {
     }
     return Promise.resolve(res);
   };
+
   saveFilterChecked = async (teamId, filterEnabled) => {
     let res = null;
     try {
       res = await incidentService.saveFilterChecked(teamId, filterEnabled);
     } catch (err) {
-      processSafetyBotError(err, teamId, "", null, "error in saveFilterChecked");
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in saveFilterChecked"
+      );
     }
     return Promise.resolve(res);
   };
   setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     let res = null;
     try {
-      res = await incidentService.setSendWhatsapp(teamId, sendWhatsapp, phoneField);
+      res = await incidentService.setSendWhatsapp(
+        teamId,
+        sendWhatsapp,
+        phoneField
+      );
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in setsendWhatsapp");
     }
@@ -1060,7 +1119,11 @@ class AreYouSafeTab {
   saveRefreshToken = async (teamId, refresh_token, field) => {
     let res = null;
     try {
-      res = await incidentService.saveRefreshToken(teamId, refresh_token, field);
+      res = await incidentService.saveRefreshToken(
+        teamId,
+        refresh_token,
+        field
+      );
       console.log({ res });
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in saveRefreshToken");
@@ -1077,7 +1140,7 @@ class AreYouSafeTab {
     SafetycheckForVisitorsQuestion1,
     SafetycheckForVisitorsQuestion2,
     SafetycheckForVisitorsQuestion3,
-    emergencyContactsStr
+    emergencyContactsStr,
   }) => {
     let result = null;
     try {
@@ -1150,11 +1213,14 @@ class AreYouSafeTab {
   fetchDataAndUpdateDB = async (teamId) => {
     try {
       const companyData = await getCompanyDataByTeamId(teamId);
-      incidentService.getUserInfoByTeamId(teamId)
-      .then(async (userInfo) => {
-        if (userInfo && userInfo.length > 0) { 
+      incidentService.getUserInfoByTeamId(teamId).then(async (userInfo) => {
+        if (userInfo && userInfo.length > 0) {
           let userIds = userInfo.map((user) => user.user_aadobject_id);
-          await bot.getUserDetails(companyData.userTenantId, companyData.refresh_token, userIds);
+          await bot.getUserDetails(
+            companyData.userTenantId,
+            companyData.refresh_token,
+            userIds
+          );
         }
       });
     } catch (err) {

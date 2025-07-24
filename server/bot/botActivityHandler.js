@@ -31,6 +31,7 @@ const {
   updateIsUserInfoSaved,
   getCompanyDataByTenantId,
   renameTeam,
+  getUserById
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
@@ -415,6 +416,13 @@ class BotActivityHandler extends TeamsActivityHandler {
             }
           }
         } else if (teamId == null && acvtivityData) {
+          if (acvtivityData.conversation.conversationType === "personal") {
+            const userAadObjectId = acvtivityData.from.aadObjectId;
+            let userData = await getUserById(userAadObjectId);
+            if (userData != null && userData.length > 0) {
+              return;
+            }
+          }
           const { membersAdded } = acvtivityData;
           if (membersAdded) {
             for (let i = 0; i < membersAdded.length; i++) {
