@@ -355,19 +355,19 @@ class BotActivityHandler extends TeamsActivityHandler {
                 (m) => m.id === membersAdded[i].id
               );
               if (teamMember != null) {
-                const teamMembers = [teamMember];
+                let teamMembers = [teamMember];
                 let data = await addTeamMember(teamId, teamMembers, true);
+                const companyDataObj = getCompaniesDataJSON(
+                  context,
+                  adminUserInfo,
+                  teamId,
+                  acvtivityData.channelData.team.name
+                );
                 if (adminUserInfo && i == membersAdded.length - 1) {
                   let userEmail = adminUserInfo.email
                     ? adminUserInfo.email
                     : adminUserInfo.userPrincipalName;
                   if (userEmail) {
-                    const companyDataObj = getCompaniesDataJSON(
-                      context,
-                      adminUserInfo,
-                      teamId,
-                      acvtivityData.channelData.team.name
-                    );
                     await this.onMemberAddedSendSubscriptionSelectionCard(
                       context,
                       acvtivityData.from,
@@ -385,8 +385,8 @@ class BotActivityHandler extends TeamsActivityHandler {
                 }
                 if (data.users && data.users.length > 0) {
                   teamMembers = teamMembers.filter(info => {
-                    let user = data.users.find(user => user.user_id === info.id);
-                    return user.SETUPCOMPLETED;
+                    let usr = data.users.find(user => user.user_id === info.id);
+                    return usr && (!usr.SETUPCOMPLETED || usr.SETUPCOMPLETED == null);
                   })
                 }
                 await sendSetupMessageToAllMembers(

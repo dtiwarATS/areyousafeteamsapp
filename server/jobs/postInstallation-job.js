@@ -115,7 +115,7 @@ const { processSafetyBotError } = require("../models/processError");
         select *,(select COUNT(*) from MSTeamsIncidents where team_id=MSTeamsInstallationDetails.team_id) incidentcount
         from MSTeamsInstallationDetails 
         where ${sqlWhere}  and uninstallation_date is null
-        )temp where incidentcount<=0   `;
+        )temp where incidentcount<=0 and team_id is not null and team_id != ''`;
   };
 
   let sqlTwoDayPostInstallation = postInstallationQuery(2);
