@@ -402,7 +402,8 @@ const addTeamMember = async (
     if (sqlInserUsers != "") {
       //console.log(sqlInserUsers);
       await pool.request().query(sqlInserUsers);
-      isUserInfoSaved = true;
+      let users = await db.getDataFromDB(`SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}'`);
+      isUserInfoSaved = { users, isUserInfoSaved: true };
     }
   } catch (err) {
     console.log(err);
@@ -486,10 +487,15 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
       }
     ],
     actions: [
+      // {
+      //   type: "Action.OpenUrl",
+      //   title: "Complete Setup",
+      //   url: process.env.TEAMS_DASHBOARD_URL || "https://teams.microsoft.com"
+      // },
       {
-        type: "Action.OpenUrl",
+        type: "Action.Execute",
+        verb: "completeSetup",
         title: "Complete Setup",
-        url: process.env.TEAMS_DASHBOARD_URL || "https://teams.microsoft.com"
       }
     ]
   };
@@ -508,6 +514,21 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
       null
     );
   })
+};
+
+const updateTeamUserSetup = async (userId) => {
+  try {
+    let sqlQry = `UPDATE MSTeamsTeamsUsers SET SETUPCOMPLETED = 1 WHERE user_aadobject_id = '${userId}'`;
+    res = await db.updateDataIntoDB(sqlQry, userId);
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userId,
+      "error in updateTeamUserSetup"
+    );
+  }
 };
 
 const addTypeOneSubscriptionDetails = async (
@@ -657,14 +678,14 @@ const insertCompanyData = async (
     res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
-      const isUserInfoSaved = await addTeamMember(
+      const data = await addTeamMember(
         teamId,
         allMembersInfo,
         false,
         true
       );
       const installationId = res[0].id;
-      if (isUserInfoSaved && Number(installationId) > 0) {
+      if (data.isUserInfoSaved && Number(installationId) > 0) {
         await updateIsUserInfoSaved(installationId);
         await updateUserLicenseStatus(
           teamId,
@@ -677,6 +698,13 @@ const insertCompanyData = async (
           companyDataObj.userObjId,
           teamId
         );
+
+        if (data.users && data.users.length > 0) {
+          allMembersInfo = allMembersInfo.filter(info => {
+            let user = data.users.find(user => user.user_id === info.id);
+            return !user.SETUPCOMPLETED;
+          })
+        }
         await sendSetupMessageToAllMembers(
           allMembersInfo, companyDataObj)
       }
@@ -954,5 +982,7 @@ module.exports = {
   renameTeam,
   saveNARespSelectedTeams,
   getFilesByIncId,
-  getUserById
+  getUserById,
+  sendSetupMessageToAllMembers,
+  updateTeamUserSetup
 };

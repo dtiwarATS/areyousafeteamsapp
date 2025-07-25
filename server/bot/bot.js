@@ -39,6 +39,7 @@ const {
   saveLog,
   addTeamMember,
   getCompanyDataByTeamId,
+  updateTeamUserSetup
 } = require("../db/dbOperations");
 const { sendMessageToServiceBus } = require("./sendToServiceBus");
 const accountSid = process.env.TWILIO_ACCOUNT_ID;
@@ -219,6 +220,8 @@ const selectResponseCard = async (context, user) => {
       await Question1safetyVisitor(context, user, 2);
     } else if (verb === "safetyVisitorQuestion3") {
       await Question1safetyVisitor(context, user, 3);
+    } else if (verb === "completeSetup") {
+      updateTeamUserSetup(user.aadObjectId);
     }
 
     return Promise.resolve(true);
@@ -5013,7 +5016,7 @@ const addteamsusers = async (context) => {
               const isUserInfoSaved = await addTeamMember(
                 teamid,
                 allTeamMembers
-              );
+              ).isUserInfoSaved;
               if (isUserInfoSaved) {
                 sqlUpdateIsUserInfoSavedFlag += ` update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id = ${id}; `;
               }

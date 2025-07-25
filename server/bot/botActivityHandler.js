@@ -31,7 +31,8 @@ const {
   updateIsUserInfoSaved,
   getCompanyDataByTenantId,
   renameTeam,
-  getUserById
+  getUserById,
+  sendSetupMessageToAllMembers
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
@@ -194,7 +195,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                             cmpData.team_id,
                             allTeamMembers,
                             false
-                          );
+                          ).isUserInfoSaved;
                           if (isUserInfoSaved) {
                             await updateIsUserInfoSaved(
                               cmpData.id,
@@ -355,7 +356,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               );
               if (teamMember != null) {
                 const teamMembers = [teamMember];
-                await addTeamMember(teamId, teamMembers, true);
+                let data = await addTeamMember(teamId, teamMembers, true);
                 if (adminUserInfo && i == membersAdded.length - 1) {
                   let userEmail = adminUserInfo.email
                     ? adminUserInfo.email
@@ -382,6 +383,14 @@ class BotActivityHandler extends TeamsActivityHandler {
                     teamMember.aadObjectId
                   );                  
                 }
+                if (data.users && data.users.length > 0) {
+                  teamMembers = teamMembers.filter(info => {
+                    let user = data.users.find(user => user.user_id === info.id);
+                    return user.SETUPCOMPLETED;
+                  })
+                }
+                await sendSetupMessageToAllMembers(
+                  teamMembers, companyDataObj)
               }
             }
           }
