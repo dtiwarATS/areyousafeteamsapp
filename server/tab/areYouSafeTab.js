@@ -964,7 +964,7 @@ ORDER BY email;
       );
       return true;
     } finally {
-      await log.saveLog(incId);
+      //await log.saveLog(incId);
     }
   };
 

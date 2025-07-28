@@ -2482,7 +2482,8 @@ const sendSafetyCheckMsgViaWhatsapp = async (
   incId,
   incTitle,
   incCreatorName,
-  responseOptions
+  responseOptions,
+  incObj
 ) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
@@ -2507,7 +2508,8 @@ const sendSafetyCheckMsgViaWhatsapp = async (
             incId,
             incTitle,
             companyData.teamName,
-            responseOptions.length == 2 ? 1 : 2
+            responseOptions.length == 2 ? 1 : 2,
+            incObj
           );
           await sendWhatsappMessage(payload, user, companyData);
         }
@@ -2530,7 +2532,8 @@ const getTemplateBasedPayload = (
   incId,
   incTitle,
   incCreatorName,
-  template = 1
+  template = 1,
+  incObj = null
 ) => {
   let payload = {
     messaging_product: "whatsapp",
@@ -2565,7 +2568,7 @@ const getTemplateBasedPayload = (
           parameters: [
             {
               type: "payload",
-              payload: `1_${user.id}_${incId}_${process.env.build}_teams`,
+              payload: `1_${user.id}_${incId}_${incObj.runAt}_${process.env.build}_teams`,
             },
           ],
         },
@@ -2576,7 +2579,7 @@ const getTemplateBasedPayload = (
           parameters: [
             {
               type: "payload",
-              payload: `2_${user.id}_${incId}_${process.env.build}_teams`,
+              payload: `2_${user.id}_${incId}_${incObj.runAt}_${process.env.build}_teams`,
             },
           ],
         },
@@ -2617,7 +2620,7 @@ const getTemplateBasedPayload = (
             parameters: [
               {
                 type: "payload",
-                payload: `RESPONSE_${user.id}_${incId}_${process.env.build}_teams`,
+                payload: `RESPONSE_${user.id}_${incId}_${incObj.runAt}_${process.env.build}_teams`,
               },
             ],
           },
@@ -4778,7 +4781,8 @@ const sendRecurrEventMsgAsync = async (
         incId,
         incTitle,
         incCreatedByUserObj.name,
-        responseOptionData.responseOptions
+        responseOptionData.responseOptions,
+        incObj
       );
     }
   });
