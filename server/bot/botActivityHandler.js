@@ -243,9 +243,9 @@ class BotActivityHandler extends TeamsActivityHandler {
     });
 
     const getCompaniesDataJSON = (context, adminUserInfo, teamId, teamName) => {
-      let userEmail = adminUserInfo?.email;
+      let userEmail = adminUserInfo?.email ?? null;
       if (userEmail == null) {
-        userEmail = adminUserInfo?.userPrincipalName;
+        userEmail = adminUserInfo?.userPrincipalName ?? null;
       }
       let channelId = "",
         channelName = "";
