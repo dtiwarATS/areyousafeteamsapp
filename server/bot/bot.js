@@ -2568,7 +2568,7 @@ const getTemplateBasedPayload = (
           parameters: [
             {
               type: "payload",
-              payload: `1_${user.id}_${incId}_${incObj.runAt}_${process.env.build}_teams`,
+              payload: `1_${user.id}_${incId}_${incObj?.runAt}_${process.env.build}_teams`,
             },
           ],
         },
@@ -2579,7 +2579,7 @@ const getTemplateBasedPayload = (
           parameters: [
             {
               type: "payload",
-              payload: `2_${user.id}_${incId}_${incObj.runAt}_${process.env.build}_teams`,
+              payload: `2_${user.id}_${incId}_${incObj?.runAt}_${process.env.build}_teams`,
             },
           ],
         },
@@ -2620,7 +2620,7 @@ const getTemplateBasedPayload = (
             parameters: [
               {
                 type: "payload",
-                payload: `RESPONSE_${user.id}_${incId}_${incObj.runAt}_${process.env.build}_teams`,
+                payload: `RESPONSE_${user.id}_${incId}_${incObj?.runAt}_${process.env.build}_teams`,
               },
             ],
           },
@@ -2810,9 +2810,9 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
   }
 };
 
-const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
+const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber, runat) => {
   if (userId && eventId) {
-    const incData = await incidentService.getInc(eventId, null, userId);
+    const incData = await incidentService.getInc(eventId, runat, userId);
     const compData = await incidentService.getCompanyData(incData.teamId);
     const users = await incidentService.getUserInfo(incData.teamId, userId);
     let user = users[0];
@@ -2858,7 +2858,8 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
       text,
       userId,
       compData.teamId,
-      false
+      false,
+      runat
     );
     if (text == "2") {
       const approvalCardResponse = {

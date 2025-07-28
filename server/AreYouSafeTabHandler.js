@@ -1304,7 +1304,8 @@ const handlerForSafetyBotTab = (app) => {
             let userId = response[1];
             let incId = response[2];
             let resp = response[0];
-            await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
+            let runat = response[3] || null;
+            await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from, runat);
           }
         } else if (type == 'interactive') {
           const interactiveType = message.interactive.type;

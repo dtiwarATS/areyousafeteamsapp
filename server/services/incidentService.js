@@ -2738,13 +2738,17 @@ const updateSafetyCheckStatusViaSMSLink = async (
   resp,
   user_aadobject_id,
   team_id,
-  viaSMS = true
+  viaSMS = true,
+  runat = null,
 ) => {
   try {
     let sql = "";
-    if (isRecurring) {
-      sql = `update MSTeamsMemberResponsesRecurr set response = 1 , response_value = ${resp}, timestamp = ${respTimestamp},
-      is_marked_by_admin = ${isMarkedByAdmin}, admin_aadObjId = ${adminAadObjId}, admin_name = ${adminName} where id = ${respId}`;
+    if (runat != null && runat != "") {
+      sql = `update MSTeamsMemberResponsesRecurr set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}'
+       where runat = '${runat}' and 
+      memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
+      (select id from MSTeamsMemberResponses where inc_id = ${incId} and 
+      user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}' and team_id = '${team_id}')))`;
     } else {
     sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
       "yyyy-MM-dd hh:mm:ss",
