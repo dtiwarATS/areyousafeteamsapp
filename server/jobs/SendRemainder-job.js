@@ -144,7 +144,7 @@ const { processSafetyBotError } = require("../models/processError");
                 if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
                   await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name, null);
                 }
-                if (companyData.send_whatsapp) {
+                if (inc_type_id == 1 && companyData.send_whatsapp) {
                   await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME, responseOptionData.responseOptions);
                 }
               } else {

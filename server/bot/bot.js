@@ -3465,7 +3465,7 @@ const sendSafetyCheckMessageAsync = async (
           );
         }
         if (
-          companyData.send_whatsapp
+          incData.incTypeId == 1 && companyData.send_whatsapp
         ) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
@@ -4775,7 +4775,7 @@ const sendRecurrEventMsgAsync = async (
         subEventObj
       );
     }
-    if (companyData.send_whatsapp) {
+    if (subEventObj.incTypeId == 1 && companyData.send_whatsapp) {
       await sendSafetyCheckMsgViaWhatsapp(
         companyData,
         userAadObjIds,
