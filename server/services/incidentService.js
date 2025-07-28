@@ -829,6 +829,9 @@ const getCompanyData = async (teamId) => {
       serviceUrl: result[0].serviceUrl,
       refresh_token: result[0].refresh_token,
       PHONE_FIELD: result[0].PHONE_FIELD,
+      send_whatsapp: result[0].SEND_WHATSAPP,
+      WHATSAPP_TOKEN: result[0].WHATSAPP_TOKEN,
+      WHATSAPP_PHONE_NUMBER_ID: result[0].WHATSAPP_PHONE_NUMBER_ID,
     };
   }
   return companyDataObj;
@@ -2739,12 +2742,17 @@ const updateSafetyCheckStatusViaSMSLink = async (
 ) => {
   try {
     let sql = "";
+    if (isRecurring) {
+      sql = `update MSTeamsMemberResponsesRecurr set response = 1 , response_value = ${resp}, timestamp = ${respTimestamp},
+      is_marked_by_admin = ${isMarkedByAdmin}, admin_aadObjId = ${adminAadObjId}, admin_name = ${adminName} where id = ${respId}`;
+    } else {
     sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
       "yyyy-MM-dd hh:mm:ss",
       new Date()
     )}', response_via = '${viaSMS ? "SMS" : "whatsapp"}'
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
+    }
     const result = await db.updateDataIntoDB(sql, user_aadobject_id);
     return result?.rowsAffected?.length > 0;
   } catch (err) {

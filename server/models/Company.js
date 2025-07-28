@@ -27,7 +27,9 @@ class Company {
     sent_sms_count,
     SubscriptionType,
     PHONE_FIELD,
-    FILTER_ENABLED
+    FILTER_ENABLED,
+    WHATSAPP_TOKEN,
+    WHATSAPP_PHONE_NUMBER_ID,
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -56,7 +58,9 @@ class Company {
     this.sent_sms_count = sent_sms_count;
     this.SubscriptionType = SubscriptionType;
     this.PHONE_FIELD = PHONE_FIELD;
-    this.filterEnabled = FILTER_ENABLED;
+    this.filterEnabled = FILTER_ENABLED;    
+    this.WHATSAPP_TOKEN = WHATSAPP_TOKEN;
+    this.WHATSAPP_PHONE_NUMBER_ID = WHATSAPP_PHONE_NUMBER_ID;
   }
 }
 

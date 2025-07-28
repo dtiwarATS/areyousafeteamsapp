@@ -2434,11 +2434,24 @@ const sendSafetyCheckMsgViaSMS = async (
     }
   }
 };
-const sendWhatsappMessage = async (payload, user, teamId) => {
+const sendWhatsappMessage = async (payload, user, companyData) => {
   try {
-    const token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
-
+    let token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
+    let phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID; // Your WhatsApp Business API phone number ID
+    if (companyData.userTenantId == "9d23e93f-ba4f-4581-bccf-a364fdcc272b") {
+      token = companyData.WHATSAPP_TOKEN;
+      phoneNumberId = companyData.WHATSAPP_PHONE_NUMBER_ID;
+    }
+    if (!token || !phoneNumberId) {
+      processSafetyBotError(
+        null,
+        companyData.teamId || "",
+        user.id || user.user_aadobject_id || "",
+        null,
+        "NO WHATSAPP_TOKEN or WHATSAPP_PHONE_NUMBER_ID found in environment variables or company data"
+      );
+      return;
+    }
     let response = await axios.post(
       `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
       payload,
@@ -2456,7 +2469,7 @@ const sendWhatsappMessage = async (payload, user, teamId) => {
   } catch (err) {
     processSafetyBotError(
       err,
-      teamId || "",
+      companyData.teamId || "",
       user.id || user.user_aadobject_id || "",
       null,
       "error in sending message via Whatsapp"
@@ -2496,7 +2509,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
             companyData.teamName,
             responseOptions.length == 2 ? 1 : 2
           );
-          await sendWhatsappMessage(payload, user, companyData.teamId);
+          await sendWhatsappMessage(payload, user, companyData);
         }
       } catch (err) {
         processSafetyBotError(
@@ -2826,7 +2839,7 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber) => {
         fromPhnNumber,
         incData
       );
-      await sendWhatsappMessage(payload, user, compData.teamId);
+      await sendWhatsappMessage(payload, user, compData);
       return;
     }
     let context = {
@@ -3448,7 +3461,7 @@ const sendSafetyCheckMessageAsync = async (
           );
         }
         if (
-          companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4"
+          companyData.send_whatsapp
         ) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
@@ -4758,7 +4771,7 @@ const sendRecurrEventMsgAsync = async (
         subEventObj
       );
     }
-    if (companyData.userTenantId == "b9328432-f501-493e-b7f4-3105520a1cd4") {
+    if (companyData.send_whatsapp) {
       await sendSafetyCheckMsgViaWhatsapp(
         companyData,
         userAadObjIds,
