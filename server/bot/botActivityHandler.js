@@ -217,7 +217,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                  JSON.stringify(context)
+                JSON.stringify(context)
               );
             }
 
@@ -243,9 +243,9 @@ class BotActivityHandler extends TeamsActivityHandler {
     });
 
     const getCompaniesDataJSON = (context, adminUserInfo, teamId, teamName) => {
-      let userEmail = adminUserInfo?.email;
+      let userEmail = adminUserInfo?.email ?? null;
       if (userEmail == null) {
-        userEmail = adminUserInfo?.userPrincipalName;
+        userEmail = adminUserInfo?.userPrincipalName ?? null;
       }
       let channelId = "",
         channelName = "";
@@ -323,30 +323,30 @@ class BotActivityHandler extends TeamsActivityHandler {
             if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
               addedBot = true;
               try {
-              if (adminUserInfo) {
-                const companyDataObj = getCompaniesDataJSON(
-                  context,
-                  adminUserInfo,
-                  teamId,
-                  acvtivityData.channelData.team.name
-                );
-                const companyData = await insertCompanyData(
-                  companyDataObj,
-                  allMembersInfo,
-                  conversationType
-                );
-                //const newInc = await bot.createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjectId, acvtivityData.from, companyData);
-                await this.sendWelcomeMessage(
-                  context,
-                  acvtivityData,
-                  adminUserInfo,
-                  companyData,
-                  teamMemberCount
-                );
-                if (teamId != null) {
-                  incidentService.updateConversationId(teamId);
+                if (adminUserInfo) {
+                  const companyDataObj = getCompaniesDataJSON(
+                    context,
+                    adminUserInfo,
+                    teamId,
+                    acvtivityData.channelData.team.name
+                  );
+                  const companyData = await insertCompanyData(
+                    companyDataObj,
+                    allMembersInfo,
+                    conversationType
+                  );
+                  //const newInc = await bot.createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjectId, acvtivityData.from, companyData);
+                  await this.sendWelcomeMessage(
+                    context,
+                    acvtivityData,
+                    adminUserInfo,
+                    companyData,
+                    teamMemberCount
+                  );
+                  if (teamId != null) {
+                    incidentService.updateConversationId(teamId);
+                  }
                 }
-              }
               } catch (err) {
                 console.log(err);
               }
@@ -381,7 +381,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                   incidentService.updateConversationId(
                     null,
                     teamMember.aadObjectId
-                  );                  
+                  );
                 }
                 if (data.users && data.users.length > 0) {
                   teamMembers = teamMembers.filter(info => {
@@ -954,9 +954,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-          JSON.stringify(context) +
-          " companyData=" +
-          JSON.stringify(companyData)
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData)
       );
     }
   }
@@ -1058,11 +1058,11 @@ class BotActivityHandler extends TeamsActivityHandler {
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-          JSON.stringify(context) +
-          " userEmail=" +
-          userEmail +
-          " companyDataObj=" +
-          JSON.stringify(companyDataObj)
+        JSON.stringify(context) +
+        " userEmail=" +
+        userEmail +
+        " companyDataObj=" +
+        JSON.stringify(companyDataObj)
       );
     }
   }
@@ -1178,7 +1178,7 @@ class BotActivityHandler extends TeamsActivityHandler {
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => {})
+        .then(() => { })
         .catch((err) => {
           console.log(err);
         });
