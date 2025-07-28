@@ -2743,7 +2743,7 @@ const updateSafetyCheckStatusViaSMSLink = async (
 ) => {
   try {
     let sql = "";
-    if (runat != null && runat != "") {
+    if (runat != null && runat != "" && runat != "undefined" && runat != "null") {
       sql = `update MSTeamsMemberResponsesRecurr set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}'
       , response_via = '${viaSMS ? "SMS" : "whatsapp"}' 
        where runat = '${runat}' and 

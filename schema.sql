@@ -893,6 +893,12 @@ BEGIN
 END 
 GO
 
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'MSTeamsMemberResponsesRecurr' AND COLUMN_NAME = 'response_via') 
+BEGIN 
+ ALTER TABLE MSTeamsMemberResponsesRecurr ADD response_via varchar(20) 
+END 
+GO
+
 CREATE TABLE [dbo].[MSTeamsSMSlogs](
 	[SMS_LOG_ID] [int] IDENTITY(101,1) NOT NULL,
 	[USR_ID] [nvarchar](255) NOT NULL,
