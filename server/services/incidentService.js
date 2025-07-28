@@ -2745,6 +2745,7 @@ const updateSafetyCheckStatusViaSMSLink = async (
     let sql = "";
     if (runat != null && runat != "") {
       sql = `update MSTeamsMemberResponsesRecurr set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}'
+      , response_via = '${viaSMS ? "SMS" : "whatsapp"}' 
        where runat = '${runat}' and 
       memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
       (select id from MSTeamsMemberResponses where inc_id = ${incId} and 
