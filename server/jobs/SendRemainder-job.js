@@ -97,7 +97,7 @@ const { processSafetyBotError } = require("../models/processError");
                 incId: inc_id,
                 incTitle: inc_name,
                 inc_type_id,
-                runAt: null,
+                runAt: member.runAt,
                 incCreatedBy: {
                   id: created_by,
                   name: CREATED_BY_NAME,
@@ -132,6 +132,7 @@ const { processSafetyBotError } = require("../models/processError");
               log.addLog(
                 `send proactive reminder messaage to ${member.user_id} successfully`
               );
+              let userAadObjIds = [member.user_aadobj_id];
               if (member.inc_type == "onetime") {
                 await incidentService.updateremaindercounter(
                   member.inc_id,
@@ -140,12 +141,9 @@ const { processSafetyBotError } = require("../models/processError");
                 log.addLog(
                   `Update oneTime reminder message count in DB  ${member.user_id} successfully`
                 );
-                let userAadObjIds = [member.user_aadobj_id];
+
                 if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
                   await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name, null);
-                }
-                if (inc_type_id == 1 && companyData.send_whatsapp) {
-                  await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME, responseOptionData.responseOptions);
                 }
               } else {
                 await incidentService.updateRecurrremaindercounter(
@@ -154,6 +152,9 @@ const { processSafetyBotError } = require("../models/processError");
                 log.addLog(
                   `Update Reccuring reminder message count in DB  ${member.user_id} successfully`
                 );
+              }
+              if (inc_type_id == 1 && companyData.send_whatsapp) {
+                await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME, responseOptionData.responseOptions);
               }
             }
           })
