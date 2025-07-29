@@ -715,8 +715,8 @@ const updateIncResponseData = async (
   let updateRespRecurrQuery = null;
   if (
     incData != null &&
-    incData.incType == "recurringIncident" &&
-    incData.runAt != null
+    (incData.incType == "recurringIncident" ||
+      incData.runAt != null)
   ) {
     updateRespRecurrQuery =
       `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
