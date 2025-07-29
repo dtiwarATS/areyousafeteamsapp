@@ -719,7 +719,7 @@ const updateIncResponseData = async (
     incData.runAt != null
   ) {
     updateRespRecurrQuery =
-      `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
+      `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   } else {
