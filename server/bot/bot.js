@@ -2817,7 +2817,7 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber, runat
     const users = await incidentService.getUserInfo(incData.teamId, userId);
     let user = users[0];
     const incStatusId = await incidentService.getIncStatus(eventId);
-    if (incStatusId == -1 || incStatusId == 2) {
+    if (incStatusId == 2) {
       try {
         await sendAcknowledgeViaWhatsapp(
           fromPhnNumber,
@@ -2835,6 +2835,8 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber, runat
       return {
         status: StatusCodes.OK,
       };
+    } else if (incStatusId == -1) {
+      return;
     }
     if (text == "RESPONSE") {
       let payload = getMultipleResponsePayload(
@@ -3465,7 +3467,7 @@ const sendSafetyCheckMessageAsync = async (
           );
         }
         if (
-          companyData.send_whatsapp
+          incData.incTypeId == 1 && companyData.send_whatsapp
         ) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
@@ -4775,7 +4777,7 @@ const sendRecurrEventMsgAsync = async (
         subEventObj
       );
     }
-    if (companyData.send_whatsapp) {
+    if (subEventObj.incTypeId == 1 && companyData.send_whatsapp) {
       await sendSafetyCheckMsgViaWhatsapp(
         companyData,
         userAadObjIds,

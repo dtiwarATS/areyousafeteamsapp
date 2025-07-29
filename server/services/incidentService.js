@@ -113,7 +113,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
   try {
     let eventData = {};
     let selectQuery = "";
-    if (runAt != null) {
+    if (runAt != null && runAt != "" && runAt != "undefined" && runAt != "null") {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
       inc.selected_members, inc.created_by, inc.CREATED_BY_NAME, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
@@ -2865,7 +2865,7 @@ const updateSafetyCheckStatusViaSMSLink = async (
 ) => {
   try {
     let sql = "";
-    if (runat != null && runat != "") {
+    if (runat != null && runat != "" && runat != "undefined" && runat != "null") {
       sql = `update MSTeamsMemberResponsesRecurr set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}'
       , response_via = '${viaSMS ? "SMS" : "whatsapp"}' 
        where runat = '${runat}' and 
