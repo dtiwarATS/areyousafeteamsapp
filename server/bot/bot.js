@@ -2602,12 +2602,12 @@ const getTemplateBasedPayload = (
             type: "body",
             parameters: [
               {
-                parameter_name: "company",
+                parameter_name: "incidentcreator",
                 type: "text",
                 text: incCreatorName, // {{1}} - Company Name
               },
               {
-                parameter_name: "inctitle",
+                parameter_name: "incidenttitle",
                 type: "text",
                 text: incTitle, // {{2}} - Incident Title
               },
