@@ -60,6 +60,7 @@ const parseEventData = (
               member.is_message_delivered =
                 recurrMemberResp.is_message_deliveredR;
               member.msgStatus = recurrMemberResp.msgStatusR;
+              member.response_via = recurrMemberResp.response_viaR;
               member.timestamp = recurrMemberResp.timestampR;
               member.admin_name = recurrMemberResp.admin_nameR;
               member.is_marked_by_admin = recurrMemberResp.is_marked_by_adminR;
@@ -190,7 +191,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
 
   m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
   
-  mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR, 
+  mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.response_via response_viaR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR,
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
   mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID,
   inc.RESPONSE_TYPE, inc.RESPONSE_OPTIONS
@@ -749,11 +750,11 @@ const updateIncResponseComment = async (
   ) {
     console.log("test updateIncResponseComment");
     query =
-      `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' ) ` +
+      `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText.replace(/'/g, "''")}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' ) ` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   } else {
-    query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText.replace(/'/g, "''")}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
   console.log("update query >> ", query);
