@@ -1430,6 +1430,9 @@ const getUserTeamInfo = async (userAadObjId) => {
           ISNULL(team_name, '') + ' - ' + ISNULL(channelName, '') AS channelName,
           user_tenant_id AS tenant_id,
           FILTER_ENABLED,
+		  SEND_WHATSAPP,
+		  send_sms,
+		 refresh_token,
           s.UserLimit,
           s.SubscriptionType
         INTO #CTE
@@ -1459,7 +1462,50 @@ const getUserTeamInfo = async (userAadObjId) => {
   }
   return Promise.resolve(result);
 };
+const getUserTeamInfoData = async (userAadObjId) => {
+  let result = null;
+  try {
+    const sqlTeamInfo = `SELECT  
+          user_id AS userid,
+          team_id AS teamId,
+          team_name AS teamName,
+          channelId,
+          ISNULL(team_name, '') + ' - ' + ISNULL(channelName, '') AS channelName,
+          user_tenant_id AS tenant_id,
+          FILTER_ENABLED,
+		  SEND_WHATSAPP,
+		  send_sms,
+		 refresh_token,
+          s.UserLimit,
+          s.SubscriptionType
+        INTO #CTE
+        FROM MSTeamsInstallationDetails t
+        LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
+        WHERE (user_obj_id = '${userAadObjId}' 
+                  OR super_users like '%${userAadObjId}%') 
+          AND uninstallation_date IS NULL 
+          AND team_id IS NOT NULL 
+          AND team_id <> ''
+		  AND refresh_token IS NOT NULL;
 
+        SELECT * FROM #CTE ORDER BY teamName;
+
+        SELECT * FROM MSTeamsSOSResponder WHERE team_id IN (SELECT teamId FROM #CTE);
+
+        DROP TABLE #CTE;`;
+    result = await db.getDataFromDB(sqlTeamInfo, userAadObjId, false);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in getUserTeamInfoData"
+    );
+  }
+  return Promise.resolve(result);
+};
 const getFilterData = async (teamId) => {
   let result = null;
   try {
@@ -1640,36 +1686,49 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
     const userDetails = dataResult ? dataResult[2] : null;
     const teamsIds = [];
     if (userResult != null && userResult.length > 0) {
-
       userResult.map((usr) => {
         let contactsArr = [];
         const userTeamId = usr.team_id;
-        let userDetail = null, respDetailsForCurTeam = null;
+        let userDetail = null,
+          respDetailsForCurTeam = null;
         if (userDetails && userDetails.length > 0) {
           userDetail = userDetails.find((u) => u.team_id === userTeamId);
         }
         if (responderDetails && responderDetails.length > 0) {
-          respDetailsForCurTeam = responderDetails.filter((r) => r.TEAM_ID === userTeamId);
+          respDetailsForCurTeam = responderDetails.filter(
+            (r) => r.TEAM_ID === userTeamId
+          );
         }
 
         // Prefer emergency contacts if present, else use super_users
         let fieldToUse = null;
         let responders = null;
         if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
-          let respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.city == r.CITY });
+          let respDetails = respDetailsForCurTeam.filter((r) => {
+            return userDetail.city == r.CITY;
+          });
           if (respDetails && respDetails.length > 0) {
-            responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+            responders = respDetails[0].RESPONDER
+              ? respDetails[0].RESPONDER
+              : null;
           } else {
-            respDetails = respDetailsForCurTeam.filter((r) => { return userDetail.country == r.COUNTRY });
+            respDetails = respDetailsForCurTeam.filter((r) => {
+              return userDetail.country == r.COUNTRY;
+            });
             if (respDetails && respDetails.length > 0) {
-              responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+              responders = respDetails[0].RESPONDER
+                ? respDetails[0].RESPONDER
+                : null;
             }
           }
         }
         if (responders && responders.trim() !== "") {
           let responderArr = JSON.parse(responders);
           fieldToUse = responderArr.map((r) => r).join(",");
-        } else if (usr.EMERGENCY_CONTACTS && usr.EMERGENCY_CONTACTS.trim() !== "") {
+        } else if (
+          usr.EMERGENCY_CONTACTS &&
+          usr.EMERGENCY_CONTACTS.trim() !== ""
+        ) {
           fieldToUse = usr.EMERGENCY_CONTACTS;
         } else if (usr.super_users && usr.super_users.trim() !== "") {
           fieldToUse = usr.super_users;
@@ -1681,7 +1740,11 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
         }
 
         // Always include user_obj_id if present
-        if (contactsArr.length == 0 && usr.user_obj_id && !contactsArr.includes(usr.user_obj_id)) {
+        if (
+          contactsArr.length == 0 &&
+          usr.user_obj_id &&
+          !contactsArr.includes(usr.user_obj_id)
+        ) {
           contactsArr.push(usr.user_obj_id);
         }
 
@@ -1710,8 +1773,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
                 "','"
-              )
-                } ') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+              )} ') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
 
               const result = await db.getDataFromDB(selectQuery, aadObjuserId);
               if (result && result.length > 0) {
@@ -1733,24 +1795,39 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
     return Promise.resolve(resultData);
   } catch (err) {
     console.log(err);
-    processSafetyBotError(err, TeamID, "", aadObjuserId, "error in getAdminsOrEmergencyContacts");
+    processSafetyBotError(
+      err,
+      TeamID,
+      "",
+      aadObjuserId,
+      "error in getAdminsOrEmergencyContacts"
+    );
   }
 };
 
 const deleteSOSResponder = async (teamId, city, country, department) => {
   let result = null;
-  let sql = '';
+  let sql = "";
   try {
     if (department && department !== "" && department != "null") {
-      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and DEPARTMENT = '${department.replace(/'/g, "''")}'`;
+      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and DEPARTMENT = '${department.replace(
+        /'/g,
+        "''"
+      )}'`;
     } else if (city && city !== "" && city != "null") {
-      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and CITY = '${city.replace(/'/g, "''")}'`;
+      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and CITY = '${city.replace(
+        /'/g,
+        "''"
+      )}'`;
     } else if (country && country !== "" && country != "null") {
-      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and COUNTRY = '${country.replace(/'/g, "''")}'`;
-    } 
+      sql = `Delete from MSTeamsSOSResponder where TEAM_ID = '${teamId}' and COUNTRY = '${country.replace(
+        /'/g,
+        "''"
+      )}'`;
+    }
     console.log({ sql });
     await db.getDataFromDB(sql);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in deleteSOSResponder");
@@ -1760,44 +1837,89 @@ const deleteSOSResponder = async (teamId, city, country, department) => {
 const saveSOSResponder = async (teamId, rowsToSave) => {
   let result = null;
   let rows = JSON.parse(rowsToSave);
-  let sql = '';
+  let sql = "";
   try {
     rows.map((row) => {
       if (row.department) {
         sql += `
-        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND DEPARTMENT = '${row.department?.replace(/'/g, "''")}')
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND DEPARTMENT = '${row.department?.replace(
+          /'/g,
+          "''"
+        )}')
         BEGIN
-        Insert into MSTeamsSOSResponder (TEAM_ID, DEPARTMENT, RESPONDER) VALUES ('${teamId}', '${row.department?.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        Insert into MSTeamsSOSResponder (TEAM_ID, DEPARTMENT, RESPONDER) VALUES ('${teamId}', '${row.department?.replace(
+          /'/g,
+          "''"
+        )}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
         END
         ELSE
         BEGIN
-        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND DEPARTMENT = '${row.department?.replace(/'/g, "''")}';
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(
+          row.users
+        ).replace(
+          /'/g,
+          "''"
+        )}' WHERE TEAM_ID = '${teamId}' AND DEPARTMENT = '${row.department?.replace(
+          /'/g,
+          "''"
+        )}';
         END;`;
       } else if (row.city) {
         sql += `
-        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(/'/g, "''")}')
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(
+          /'/g,
+          "''"
+        )}')
         BEGIN
-        Insert into MSTeamsSOSResponder (TEAM_ID, ${row.country ? 'COUNTRY,' : ''} CITY, RESPONDER) VALUES ('${teamId}', ${row.country ? ("'" + row.country.replace(/'/g, "''") + "', ") : ''} '${row.city.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        Insert into MSTeamsSOSResponder (TEAM_ID, ${
+          row.country ? "COUNTRY," : ""
+        } CITY, RESPONDER) VALUES ('${teamId}', ${
+          row.country ? "'" + row.country.replace(/'/g, "''") + "', " : ""
+        } '${row.city.replace(/'/g, "''")}', '${JSON.stringify(
+          row.users
+        ).replace(/'/g, "''")}');
         END
         ELSE
         BEGIN
-        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(/'/g, "''")}';
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(
+          row.users
+        ).replace(
+          /'/g,
+          "''"
+        )}' WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(
+          /'/g,
+          "''"
+        )}';
         END;`;
       } else if (row.country) {
         sql += `
-        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(/'/g, "''")}')
+        IF NOT EXISTS (SELECT * FROM MSTeamsSOSResponder WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(
+          /'/g,
+          "''"
+        )}')
         BEGIN
-        Insert into MSTeamsSOSResponder (TEAM_ID, COUNTRY, RESPONDER) VALUES ('${teamId}', '${row.country.replace(/'/g, "''")}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
+        Insert into MSTeamsSOSResponder (TEAM_ID, COUNTRY, RESPONDER) VALUES ('${teamId}', '${row.country.replace(
+          /'/g,
+          "''"
+        )}', '${JSON.stringify(row.users).replace(/'/g, "''")}');
         END
         ELSE
         BEGIN
-        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(row.users).replace(/'/g, "''")}' WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(/'/g, "''")}' AND CITY IS NULL;
+        Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(
+          row.users
+        ).replace(
+          /'/g,
+          "''"
+        )}' WHERE TEAM_ID = '${teamId}' AND COUNTRY = '${row.country?.replace(
+          /'/g,
+          "''"
+        )}' AND CITY IS NULL;
         END;`;
       }
     });
     console.log({ sql });
     await db.getDataFromDB(sql);
-    result = 'success';
+    result = "success";
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in saveSOSResponder");
@@ -2855,6 +2977,7 @@ module.exports = {
   getUserInfo,
   createNewInc,
   getUserTeamInfo,
+  getUserTeamInfoData,
   getFilterData,
   getSuperUsersByTeamId,
   isWelcomeMessageSend,

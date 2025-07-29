@@ -8,7 +8,8 @@ const tab = require("./tab/AreYouSafeTab");
 const { processSafetyBotError } = require("./models/processError");
 const { getConversationMembers } = require("./api/apiMethods");
 const { formatedDate } = require("./utils/index");
-const bot = require('./bot/bot');
+const bot = require("./bot/bot");
+const { console } = require("inspector");
 
 const handlerForSafetyBotTab = (app) => {
   const tabObj = new tab.AreYouSafeTab();
@@ -101,7 +102,187 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  const getUserPhone = async (refreshToken, tenantId, arrIds) => {
+    var phone = [""];
+    phone.pop();
+    try {
+      let data = new FormData();
+      data.append("grant_type", "refresh_token");
+      data.append("client_Id", process.env.MicrosoftAppId);
+      data.append("client_secret", process.env.MicrosoftAppPassword);
+      data.append("refresh_token", refreshToken);
 
+      let config = {
+        method: "post",
+        maxBodyLength: Infinity,
+        url: `https://login.microsoftonline.com/${tenantId}/oauth2/token`,
+        data: data,
+        // timeout: 10000,
+      };
+      await axios
+        .request(config)
+        .then(async (response) => {
+          // console.log(response.data);
+          if (response.data.scope?.indexOf("User.Read.All") == -1) {
+            res.json({ NoPhonePermission: true });
+          } else {
+            let accessToken = response.data.access_token;
+            // console.log({ arrIds });
+            var startIndex = 0;
+            var endIndex = 14;
+            if (endIndex > arrIds.length) endIndex = arrIds.length;
+            // console.log({ endIndex });
+            while (endIndex <= arrIds.length && startIndex != endIndex) {
+              var userIds = arrIds.slice(startIndex, endIndex).toString();
+              if (userIds.length) {
+                userIds = "'" + userIds.replaceAll(",", "','") + "'";
+                // console.log({ userIds });
+                startIndex = endIndex;
+                endIndex = startIndex + 14;
+                if (endIndex > arrIds.length) endIndex = arrIds.length;
+
+                let config = {
+                  method: "get",
+                  maxBodyLength: Infinity,
+                  // timeout: 10000,
+                  url:
+                    "https://graph.microsoft.com/v1.0/users?$select=displayName,id,businessPhones,mobilePhone" +
+                    "&$filter=id in (" +
+                    userIds +
+                    ")",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Bearer " + accessToken,
+                  },
+                  // data: data,
+                };
+                var requestDate = new Date();
+                var a = await axios
+                  .request(config)
+                  .then((response) => {
+                    phone.push(...response.data.value);
+                    // console.log({ phone });
+                    // var data = {
+                    //   status: status,
+                    //   teamData: teamData,
+                    // };
+                  })
+                  .catch((error) => {
+                    console.log({
+                      "error in get users phone number requestDate": error,
+                    });
+                    processSafetyBotError(
+                      error,
+                      teamId,
+                      "",
+                      "",
+                      "error in get users phone number requestDateTime : " +
+                        requestDate +
+                        " ErrorDateTime: " +
+                        new Date(),
+                      TeamName,
+                      false,
+                      clientVersion
+                    );
+                    res.json({ error: error });
+                  });
+              } else {
+                return;
+              }
+            }
+            // console.log({ finalphone: phone });
+          }
+        })
+        .catch((error) => {
+          console.log(
+            "error at get access token in get users phone number",
+            error
+          );
+          // console.log(error);
+          if (
+            error.response.data.error == "invalid_grant" &&
+            error.response.data.error_description &&
+            error.response.data.error_description
+              .toString()
+              .indexOf("The refresh token has expired due to inactivity.") >= 0 //&&
+            //  teamId == "19:3684c109f05f44efb4fb54a988d70286@thread.tacv2"
+          ) {
+            res.json({ authFailed: true });
+          } else if (
+            error.response.data.error == "invalid_grant" ||
+            error.response.data.error == "interaction_required" ||
+            error.response.data.error == "insufficient_claims"
+          ) {
+            res.json({ invalid_grant: true });
+          } else {
+            console.log({
+              "error in get access token from microsoft at get users phone number":
+                error,
+            });
+            processSafetyBotError(
+              error,
+              teamId,
+              "",
+              "",
+              "error in get access token from microsoft at get users phone number",
+              TeamName,
+              false,
+              clientVersion
+            );
+            res.json({ error: error });
+          }
+        });
+      return phone;
+    } catch (err) {
+      console.log(err);
+    }
+    return phone;
+  };
+  app.get("/areyousafetabhandler/getuserphonedata", async (req, res) => {
+    const userObjId = req.query.userId;
+    const teamid = req.query.teamid;
+    try {
+      const teamInfo = await incidentService.getUserTeamInfoData(userObjId);
+      var memberqery = "";
+      memberqery = `select * from MSTeamsTeamsUsers where team_id in(select team_id from MSTeamsInstallationDetails where user_obj_id='${userObjId}' and refresh_token is NOT NULL)`;
+      var teamsMembers = await db.getDataFromDB(memberqery, userObjId);
+      let userAadObjIds = teamsMembers.map((x) => x.user_aadobject_id);
+      if (teamInfo[0].length && teamInfo) {
+        teamInfo[0].map(async (team) => {
+          if (team.refresh_token) {
+            var phonedata = await getUserPhone(
+              team.refresh_token,
+              team.tenant_id,
+              userAadObjIds
+            );
+            phonedata = phonedata.map((item) => {
+              const match = teamsMembers.find(
+                (u) => u.user_aadobject_id === item.id
+              );
+              return {
+                ...item,
+                user_id: match ? match.user_id : null,
+              };
+            });
+            console.log({ phonedata });
+            res.send(phonedata);
+          }
+        });
+      } else {
+        res.send([]);
+      }
+
+      console.log(teamInfo);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userObjId,
+        "error in /areyousafetabhandler/getTemplateList"
+      );
+    }
+  });
   app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
     const userObjId = req.query.userId;
     try {
@@ -332,7 +513,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       await tabObj.deleteSOSResponder(teamId, city, country, department);
-      res.send('success');
+      res.send("success");
     } catch (err) {
       processSafetyBotError(
         err,
@@ -349,7 +530,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       await tabObj.saveSOSResponder(teamId, rowsToSave);
-      res.send('success');
+      res.send("success");
     } catch (err) {
       processSafetyBotError(
         err,
@@ -368,7 +549,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       await tabObj.setSendSMS(teamId, sendSMS, phoneField);
-      res.send('success');
+      res.send("success");
     } catch (err) {
       processSafetyBotError(
         err,
@@ -386,7 +567,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       await tabObj.saveFilterChecked(teamId, filterEnabled);
-      res.send('success');
+      res.send("success");
     } catch (err) {
       processSafetyBotError(
         err,
@@ -404,7 +585,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       await tabObj.setSendWhatsapp(teamId, sendWhatsapp, phoneField);
-      res.send('success');
+      res.send("success");
     } catch (err) {
       processSafetyBotError(
         err,
@@ -427,7 +608,7 @@ const handlerForSafetyBotTab = (app) => {
       tabObj.fetchDataAndUpdateDB(teamId);
       console.log(data);
       if (data.length) {
-        res.send('success');
+        res.send("success");
       } else {
         res.send(null);
       }
@@ -485,8 +666,15 @@ const handlerForSafetyBotTab = (app) => {
       UserDataUpdateID = req.query.ID;
     }
     try {
-      let incData = await incidentService.getAdminsOrEmergencyContacts(userAadObjId, TeamId);
-      if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {        
+      let incData = await incidentService.getAdminsOrEmergencyContacts(
+        userAadObjId,
+        TeamId
+      );
+      if (
+        incData === null ||
+        (Array.isArray(incData) && incData.length === 0) ||
+        incData[0].length === 0
+      ) {
         res.send("no safety officers");
         return;
       }
@@ -515,7 +703,6 @@ const handlerForSafetyBotTab = (app) => {
         assistanceData = "no safety officers";
       }
       res.send(assistanceData);
-
     } catch (err) {
       processSafetyBotError(
         err,
@@ -534,7 +721,10 @@ const handlerForSafetyBotTab = (app) => {
       const teamId = req.query.teamId;
       let incData = null;
       try {
-        incData = await incidentService.getAdminsOrEmergencyContacts(userAadObjId, teamId);
+        incData = await incidentService.getAdminsOrEmergencyContacts(
+          userAadObjId,
+          teamId
+        );
       } catch (err) {
         console.log(err);
         processSafetyBotError(
@@ -545,7 +735,11 @@ const handlerForSafetyBotTab = (app) => {
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> getEmergencyContacts"
         );
       }
-      if (incData === null || (Array.isArray(incData) && incData.length === 0) || incData[0].length === 0) {
+      if (
+        incData === null ||
+        (Array.isArray(incData) && incData.length === 0) ||
+        incData[0].length === 0
+      ) {
         incData = JSON.parse(req.query.adminlist);
       }
       var userlocation = null;
@@ -601,14 +795,21 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
           .addComment(data.assistId, reqBody.comment, ts, userAadObjId)
           .then(async (respData) => {
-            let admins = await incidentService.getAdminsOrEmergencyContacts(userAadObjId, TeamId);            
-            if (admins != null || (Array.isArray(admins) && admins.length > 0) || admins[0].length > 0) {
-                const tabObj = new tab.AreYouSafeTab();
-                tabObj.sendUserCommentToAdmin(
-                  admins,
-                  reqBody.comment,
-                  userAadObjId
-                );
+            let admins = await incidentService.getAdminsOrEmergencyContacts(
+              userAadObjId,
+              TeamId
+            );
+            if (
+              admins != null ||
+              (Array.isArray(admins) && admins.length > 0) ||
+              admins[0].length > 0
+            ) {
+              const tabObj = new tab.AreYouSafeTab();
+              tabObj.sendUserCommentToAdmin(
+                admins,
+                reqBody.comment,
+                userAadObjId
+              );
             }
             res.send(true);
           })
@@ -768,7 +969,6 @@ const handlerForSafetyBotTab = (app) => {
     const filterData = await tabObj.getFilterData(teamId);
     res.send(filterData);
   });
-
 
   app.put("/areyousafetabhandler/contactus", async (req, res) => {
     const email = req.query.email;
@@ -1123,7 +1323,8 @@ const handlerForSafetyBotTab = (app) => {
     let field = Tdata?.[1];
     const teamId = Tdata?.[0];
     console.log({ AdminconsentinfoteamId: teamId });
-    var Tscope = "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
+    var Tscope =
+      "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
     //log("Got the resposne in AdminConsentInfo", { query: req.query });
     const aadTokenEndPoint =
       "https://login.microsoftonline.com/common/oauth2/v2.0/token";
@@ -1143,7 +1344,9 @@ const handlerForSafetyBotTab = (app) => {
       };
 
       const oAuthOboRequest = Object.keys(oAuthOBOParams)
-        .map((key, index) => `${key}=${encodeURIComponent(oAuthOBOParams[key])}`)
+        .map(
+          (key, index) => `${key}=${encodeURIComponent(oAuthOBOParams[key])}`
+        )
         .join("&");
 
       const HEADERS = {
@@ -1161,7 +1364,12 @@ const handlerForSafetyBotTab = (app) => {
             : "";
           // log({ refreshToken });
           // log(teamId);
-          field = field.toLowerCase() == "whatsapp" ? "send_whatsapp" : (field.toLowerCase() == "filter" ? "FILTER_ENABLED" : "send_sms");
+          field =
+            field.toLowerCase() == "whatsapp"
+              ? "send_whatsapp"
+              : field.toLowerCase() == "filter"
+              ? "FILTER_ENABLED"
+              : "send_sms";
           let config = {
             method: "post",
             maxBodyLength: Infinity,
@@ -1183,7 +1391,7 @@ const handlerForSafetyBotTab = (app) => {
                 "",
                 "",
                 "Error in Saving refresh token, isRefershTokenBlank: " +
-                (refreshToken ? "true" : "false")
+                  (refreshToken ? "true" : "false")
               );
             });
         } else {
@@ -1213,42 +1421,64 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   app.get("/posresp", async (req, res) => {
-    const userAgent = req.headers['user-agent'];
-    console.log('useragent', userAgent);
+    const userAgent = req.headers["user-agent"];
+    console.log("useragent", userAgent);
     const botAgents = [
-      'Google-PageRenderer',
-      'Google (+https://developers.google.com/+/web/snippet/)',
+      "Google-PageRenderer",
+      "Google (+https://developers.google.com/+/web/snippet/)",
       // Add more if you find other auto-clickers
     ];
-    if (botAgents.some(agent => userAgent.includes(agent))) {
-      console.log('Ignored auto-click from bot/crawler:', userAgent);
+    if (botAgents.some((agent) => userAgent.includes(agent))) {
+      console.log("Ignored auto-click from bot/crawler:", userAgent);
       return res.status(204).end(); // No Content
     }
     console.log("got reply for sms", req.query);
     let { userId, eventId } = req.query;
     console.log({ userId, eventId });
     await bot.proccessSMSLinkClick(userId, eventId, "YES");
-    bot.SaveSmsLog(userId, "INCOMING", "YES", JSON.stringify({ eventId, userId }));
-    res.redirect(process.env.SMS_CONFIRMATION_URL + "?userId=" + userId + "&eventId=" + eventId);
+    bot.SaveSmsLog(
+      userId,
+      "INCOMING",
+      "YES",
+      JSON.stringify({ eventId, userId })
+    );
+    res.redirect(
+      process.env.SMS_CONFIRMATION_URL +
+        "?userId=" +
+        userId +
+        "&eventId=" +
+        eventId
+    );
   });
   app.get("/negresp", async (req, res) => {
-    const userAgent = req.headers['user-agent'];
-    console.log('useragent', userAgent);
+    const userAgent = req.headers["user-agent"];
+    console.log("useragent", userAgent);
     const botAgents = [
-      'Google-PageRenderer',
-      'Google (+https://developers.google.com/+/web/snippet/)',
+      "Google-PageRenderer",
+      "Google (+https://developers.google.com/+/web/snippet/)",
       // Add more if you find other auto-clickers
     ];
-    if (botAgents.some(agent => userAgent.includes(agent))) {
-      console.log('Ignored auto-click from bot/crawler:', userAgent);
+    if (botAgents.some((agent) => userAgent.includes(agent))) {
+      console.log("Ignored auto-click from bot/crawler:", userAgent);
       return res.status(204).end(); // No Content
     }
     console.log("got reply for sms", req.query);
     let { userId, eventId } = req.query;
     console.log({ userId, eventId });
     await bot.proccessSMSLinkClick(userId, eventId, "NO");
-    bot.SaveSmsLog(userId, "INCOMING", "NO", JSON.stringify({ eventId, userId }));
-    res.redirect(process.env.SMS_CONFIRMATION_URL + "?userId=" + userId + "&eventId=" + eventId);
+    bot.SaveSmsLog(
+      userId,
+      "INCOMING",
+      "NO",
+      JSON.stringify({ eventId, userId })
+    );
+    res.redirect(
+      process.env.SMS_CONFIRMATION_URL +
+        "?userId=" +
+        userId +
+        "&eventId=" +
+        eventId
+    );
   });
   app.post("/smscomment", async (req, res) => {
     console.log("got reply for sms comment", req.body);
@@ -1258,25 +1488,27 @@ const handlerForSafetyBotTab = (app) => {
     res.status(200);
   });
   app.post("/handleWhatsappResponse", async (req, res) => {
-    if (
-      req.body &&
-      req.body.message
-    ) {
+    if (req.body && req.body.message) {
       const from = message.from; // user's WhatsApp number
       const type = message.type;
 
       // Handle button replies
-      if (type === 'button') {
+      if (type === "button") {
         const buttonPayload = message.button.payload;
         console.log(`User ${from} clicked: ${buttonPayload}`);
-        let response = buttonPayload.split('_');
+        let response = buttonPayload.split("_");
         if (response.length > 2) {
           let userId = response[1];
           let incId = response[2];
           let resp = response[0];
-          await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
+          await bot.proccessWhatsappClick(
+            userId,
+            incId,
+            resp.toUpperCase(),
+            from
+          );
         }
-      } else if (type === 'text') {
+      } else if (type === "text") {
         console.log(`User ${from} sent message: ${message.text.body}`);
       }
     }
@@ -1284,7 +1516,7 @@ const handlerForSafetyBotTab = (app) => {
   app.post("/whatsapp", async (req, res) => {
     const body = req.body;
 
-    console.log('Incoming Webhook:', JSON.stringify(body, null, 2));
+    console.log("Incoming Webhook:", JSON.stringify(body, null, 2));
     if (body.object) {
       if (
         body.entry &&
@@ -1296,31 +1528,42 @@ const handlerForSafetyBotTab = (app) => {
         const type = message.type;
 
         // Handle button replies
-        if (type === 'button') {
+        if (type === "button") {
           const buttonPayload = message.button.payload;
           console.log(`User ${from} clicked: ${buttonPayload}`);
-          let response = buttonPayload.split('_');
+          let response = buttonPayload.split("_");
           if (response.length > 2) {
             let userId = response[1];
             let incId = response[2];
             let resp = response[0];
             let runat = response[3] || null;
-            await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from, runat);
+            await bot.proccessWhatsappClick(
+              userId,
+              incId,
+              resp.toUpperCase(),
+              from,
+              runat
+            );
           }
-        } else if (type == 'interactive') {
+        } else if (type == "interactive") {
           const interactiveType = message.interactive.type;
-          if (interactiveType === 'list_reply') {
+          if (interactiveType === "list_reply") {
             const buttonPayload = message.interactive.list_reply.id;
             console.log(`User ${from} clicked: ${buttonPayload}`);
-            let response = buttonPayload.split('_');
+            let response = buttonPayload.split("_");
             if (response.length > 2) {
               let userId = response[1];
               let incId = response[2];
               let resp = response[0];
-              await bot.proccessWhatsappClick(userId, incId, resp.toUpperCase(), from);
+              await bot.proccessWhatsappClick(
+                userId,
+                incId,
+                resp.toUpperCase(),
+                from
+              );
             }
           }
-        } else if (type === 'text') {
+        } else if (type === "text") {
           console.log(`User ${from} sent message: ${message.text.body}`);
         }
       }
@@ -1331,14 +1574,14 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
   app.get("/whatsapp", async (req, res) => {
-    const verifyToken = 'areyousafewhatsapptoken'; // same as set in Meta Dashboard
+    const verifyToken = "areyousafewhatsapptoken"; // same as set in Meta Dashboard
 
-    const mode = req.query['hub.mode'];
-    const token = req.query['hub.verify_token'];
-    const challenge = req.query['hub.challenge'];
+    const mode = req.query["hub.mode"];
+    const token = req.query["hub.verify_token"];
+    const challenge = req.query["hub.challenge"];
 
-    if (mode === 'subscribe' && token === verifyToken) {
-      console.log('WEBHOOK_VERIFIED');
+    if (mode === "subscribe" && token === verifyToken) {
+      console.log("WEBHOOK_VERIFIED");
       res.status(200).send(challenge);
     } else {
       res.sendStatus(403);
