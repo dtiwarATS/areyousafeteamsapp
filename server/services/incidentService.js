@@ -1099,7 +1099,7 @@ const updateIncStatus = async (incId, incStatus, userAadObjId) => {
     if (incStatus == "Closed") {
       incStatusId = 2;
     }
-    const query = `UPDATE MSTEAMSINCIDENTS SET INC_STATUS_ID = ${incStatusId} WHERE ID = ${incId}`;
+    const query = `UPDATE MSTEAMSINCIDENTS SET INC_STATUS_ID = ${incStatusId}, updatedOn = CONVERT(VARCHAR(23), GETDATE(), 121) WHERE ID = ${incId}`;
     const updateResult = await db.updateDataIntoDB(query, userAadObjId);
     isupdated = updateResult != null && updateResult.rowsAffected.length > 0;
   } catch (err) {

@@ -154,7 +154,7 @@ const { processSafetyBotError } = require("../models/processError");
                 );
               }
               if (inc_type_id == 1 && companyData.send_whatsapp) {
-                await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME, responseOptionData.responseOptions);
+                await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME, responseOptionData.responseOptions, incObj);
               }
             }
           })
