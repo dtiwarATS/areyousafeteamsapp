@@ -114,7 +114,12 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
   try {
     let eventData = {};
     let selectQuery = "";
-    if (runAt != null && runAt != "" && runAt != "undefined" && runAt != "null") {
+    if (
+      runAt != null &&
+      runAt != "" &&
+      runAt != "undefined" &&
+      runAt != "null"
+    ) {
       selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
       inc.selected_members, inc.created_by, inc.CREATED_BY_NAME, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
@@ -750,11 +755,19 @@ const updateIncResponseComment = async (
   ) {
     console.log("test updateIncResponseComment");
     query =
-      `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText.replace(/'/g, "''")}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' ) ` +
+      `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText.replace(
+        /'/g,
+        "''"
+      )}' WHERE convert(datetime, runAt) = convert(datetime, '${
+        incData.runAt
+      }' ) ` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
   } else {
-    query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText.replace(/'/g, "''")}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText.replace(
+      /'/g,
+      "''"
+    )}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
   }
 
   console.log("update query >> ", query);
@@ -1433,6 +1446,7 @@ const getUserTeamInfo = async (userAadObjId) => {
 		  SEND_WHATSAPP,
 		  send_sms,
 		 refresh_token,
+     PHONE_FIELD,
           s.UserLimit,
           s.SubscriptionType
         INTO #CTE
@@ -2862,22 +2876,30 @@ const updateSafetyCheckStatusViaSMSLink = async (
   user_aadobject_id,
   team_id,
   viaSMS = true,
-  runat = null,
+  runat = null
 ) => {
   try {
     let sql = "";
-    if (runat != null && runat != "" && runat != "undefined" && runat != "null") {
-      sql = `update MSTeamsMemberResponsesRecurr set response = 1 , response_value = ${resp}, timestamp = '${formatedDate("yyyy-MM-dd hh:mm:ss", new Date())}'
+    if (
+      runat != null &&
+      runat != "" &&
+      runat != "undefined" &&
+      runat != "null"
+    ) {
+      sql = `update MSTeamsMemberResponsesRecurr set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
+        "yyyy-MM-dd hh:mm:ss",
+        new Date()
+      )}'
       , response_via = '${viaSMS ? "SMS" : "whatsapp"}' 
        where runat = '${runat}' and 
       memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
       (select id from MSTeamsMemberResponses where inc_id = ${incId} and 
       user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}' and team_id = '${team_id}')))`;
     } else {
-    sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
-      "yyyy-MM-dd hh:mm:ss",
-      new Date()
-    )}', response_via = '${viaSMS ? "SMS" : "whatsapp"}'
+      sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
+        "yyyy-MM-dd hh:mm:ss",
+        new Date()
+      )}', response_via = '${viaSMS ? "SMS" : "whatsapp"}'
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
     }
