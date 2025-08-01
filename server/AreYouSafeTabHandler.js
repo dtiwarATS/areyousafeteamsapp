@@ -714,7 +714,7 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  app.get(
+  app.post(
     "/areyousafetabhandler/sendNeedAssistanceProactiveMessage",
     async (req, res) => {
       const userAadObjId = req.query.userId;
@@ -740,11 +740,11 @@ const handlerForSafetyBotTab = (app) => {
         (Array.isArray(incData) && incData.length === 0) ||
         incData[0].length === 0
       ) {
-        incData = JSON.parse(req.query.adminlist);
+        incData = JSON.parse(req.body.data.adminlist);
       }
       var userlocation = null;
-      if (req.query.Location != undefined) {
-        userlocation = JSON.parse(req.query.Location);
+      if (req.body.data.Location != undefined) {
+        userlocation = JSON.parse(req.body.data.Location);
       }
       try {
         const tabObj = new tab.AreYouSafeTab();
@@ -763,7 +763,7 @@ const handlerForSafetyBotTab = (app) => {
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
             userlocation +
             " req.query.adminlist=" +
-            req.query.adminlist
+            req.body.data
         );
       }
     }
