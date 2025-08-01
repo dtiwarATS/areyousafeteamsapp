@@ -1488,13 +1488,33 @@ const handlerForSafetyBotTab = (app) => {
     res.status(200);
   });
   app.post("/handleWhatsappResponse", async (req, res) => {
-    if (req.body && req.body.message) {
-      const from = message.from; // user's WhatsApp number
-      const type = message.type;
+    const body = req.body;
+    const message = req.body.message;
+    const from = message.from; // user's WhatsApp number
+    const type = message.type;
 
-      // Handle button replies
-      if (type === "button") {
-        const buttonPayload = message.button.payload;
+    // Handle button replies
+    if (type === "button") {
+      const buttonPayload = message.button.payload;
+      console.log(`User ${from} clicked: ${buttonPayload}`);
+      let response = buttonPayload.split("_");
+      if (response.length > 2) {
+        let userId = response[1];
+        let incId = response[2];
+        let resp = response[0];
+        let runat = response[3] || null;
+        await bot.proccessWhatsappClick(
+          userId,
+          incId,
+          resp.toUpperCase(),
+          from,
+          runat
+        );
+      }
+    } else if (type == "interactive") {
+      const interactiveType = message.interactive.type;
+      if (interactiveType === "list_reply") {
+        const buttonPayload = message.interactive.list_reply.id;
         console.log(`User ${from} clicked: ${buttonPayload}`);
         let response = buttonPayload.split("_");
         if (response.length > 2) {
@@ -1508,10 +1528,11 @@ const handlerForSafetyBotTab = (app) => {
             from
           );
         }
-      } else if (type === "text") {
-        console.log(`User ${from} sent message: ${message.text.body}`);
       }
+    } else if (type === "text") {
+      console.log(`User ${from} sent message: ${message.text.body}`);
     }
+    res.sendStatus(200);
   });
   app.post("/whatsapp", async (req, res) => {
     const body = req.body;
