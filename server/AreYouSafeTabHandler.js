@@ -1521,11 +1521,13 @@ const handlerForSafetyBotTab = (app) => {
           let userId = response[1];
           let incId = response[2];
           let resp = response[0];
+          let runat = response[3] || null;
           await bot.proccessWhatsappClick(
             userId,
             incId,
             resp.toUpperCase(),
-            from
+            from,
+            runat
           );
         }
       }

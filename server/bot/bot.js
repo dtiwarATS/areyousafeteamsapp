@@ -2630,11 +2630,11 @@ const getTemplateBasedPayload = (
   }
   return payload;
 };
-const getMultipleResponsePayload = (userId, to, incData) => {
+const getMultipleResponsePayload = (userId, to, incData, runat) => {
   let respOptions = JSON.parse(incData.responseOptions);
   let buttons = respOptions.map((option, index) => {
     return {
-      id: `${option.id}_${userId}_${incData.incId}_${process.env.build}_teams`,
+      id: `${option.id}_${userId}_${incData.incId}_${runat}_${process.env.build}_teams`,
       title: option.option,
     };
   });
@@ -2842,7 +2842,8 @@ const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber, runat
       let payload = getMultipleResponsePayload(
         user.user_aadobject_id,
         fromPhnNumber,
-        incData
+        incData,
+        runat
       );
       await sendWhatsappMessage(payload, user, compData);
       return;
