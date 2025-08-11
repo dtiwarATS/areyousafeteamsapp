@@ -39,7 +39,7 @@ const {
   saveLog,
   addTeamMember,
   getCompanyDataByTeamId,
-  updateTeamUserSetup
+  updateTeamUserSetup,
 } = require("../db/dbOperations");
 const { sendMessageToServiceBus } = require("./sendToServiceBus");
 const accountSid = process.env.TWILIO_ACCOUNT_ID;
@@ -2377,6 +2377,15 @@ const sendSafetyCheckMsgViaSMS = async (
           phone = user.mobilePhone;
         }
         if (phone == null || phone == "" || phone == "null") {
+          SaveSmsLog(
+            user.id,
+            "PHONE_NUMBER_NOT_FOUND",
+            "PHONE_NUMBER_NOT_FOUND",
+            JSON.stringify({ eventId: incId, userId: user.id }),
+            null,
+            null,
+            incId
+          );
           continue;
         }
         if (incTypeId == 1) {
@@ -2405,19 +2414,53 @@ const sendSafetyCheckMsgViaSMS = async (
             notSafeUrl +
             " if you need help.";
         }
-        await tClient.messages.create({
-          body: body,
-          from: "+18023277232",
-          shortenUrls: true,
-          messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-          to: phone,
-        });
+        try {
+          SaveSmsLog(
+            user.id,
+            "SENT_TO_TWILIO",
+            body,
+            JSON.stringify({ eventId: incId, userId: user.id }),
+            null,
+            null,
+            incId
+          );
+          var twiliosend = await tClient.messages.create({
+            body: body,
+            from: "+18023277232",
+            shortenUrls: true,
+            messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+            to: phone,
+          });
+        } catch (err) {
+          console.error("Error sending SMS:", err.message);
+          SaveSmsLog(
+            user.id,
+            "SEND_FAILED",
+            body,
+            JSON.stringify({ eventId: incId, userId: user.id }),
+            null,
+            err.message,
+            incId
+          );
+          continue;
+        }
+
+        console.log(
+          "SMS sent successfully",
+          twiliosend.errorCode,
+          twiliosend.sid,
+          twiliosend.errorMessage
+        );
+        // Save SMS log
         counter++;
         SaveSmsLog(
           user.id,
-          "OUTGOING",
+          "SEND_SUCCESS",
           body,
-          JSON.stringify({ eventId: incId, userId: user.id })
+          JSON.stringify({ eventId: incId, userId: user.id }),
+          twiliosend.sid,
+          null,
+          incId
         );
         if (companyData.SubscriptionType == 2) {
           incidentService.updateSentSMSCount(companyData.teamId, counter);
@@ -2810,7 +2853,13 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
   }
 };
 
-const proccessWhatsappClick = async (userId, eventId, text, fromPhnNumber, runat) => {
+const proccessWhatsappClick = async (
+  userId,
+  eventId,
+  text,
+  fromPhnNumber,
+  runat
+) => {
   if (userId && eventId) {
     const incData = await incidentService.getInc(eventId, runat, userId);
     const compData = await incidentService.getCompanyData(incData.teamId);
@@ -2979,14 +3028,25 @@ const acknowledgeSMSReplyInTeams = async (
   }
 };
 
-const SaveSmsLog = async (userid, status, SMS_TEXT, RAW_DATA) => {
+const SaveSmsLog = async (
+  userid,
+  status,
+  SMS_TEXT,
+  RAW_DATA,
+  sid = null,
+  errormessage = null,
+  eventid = ""
+) => {
   let superUsers = null;
   try {
     superUsers = await incidentService.saveSMSlogs(
       userid,
       status,
       SMS_TEXT,
-      RAW_DATA
+      RAW_DATA,
+      sid,
+      errormessage,
+      eventid
     );
   } catch (err) {
     processSafetyBotError(err, "", "", null, "error in saveSMSLog");
@@ -3467,9 +3527,7 @@ const sendSafetyCheckMessageAsync = async (
             incData
           );
         }
-        if (
-          incData.incTypeId == 1 && companyData.send_whatsapp
-        ) {
+        if (incData.incTypeId == 1 && companyData.send_whatsapp) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
             userAadObjIds,

@@ -720,8 +720,7 @@ const updateIncResponseData = async (
   let updateRespRecurrQuery = null;
   if (
     incData != null &&
-    (incData.incType == "recurringIncident" ||
-      incData.runAt != null)
+    (incData.incType == "recurringIncident" || incData.runAt != null)
   ) {
     updateRespRecurrQuery =
       `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
@@ -2922,13 +2921,23 @@ const updateSafetyCheckStatusViaSMSLink = async (
   return false;
 };
 
-const saveSMSlogs = async (userid, status, SMS_TEXT, RAW_DATA) => {
+const saveSMSlogs = async (
+  userid,
+  status,
+  SMS_TEXT,
+  RAW_DATA,
+  sid = null,
+  error = null,
+  eventid = ""
+) => {
   try {
-    const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data) 
+    const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data,TWILIO_ID,ERROR_DETAILS,EVENT_ID) 
           values('${userid}', '${status}', '${SMS_TEXT.replaceAll(
       "'",
       "''"
-    )}', '${RAW_DATA}')`;
+    )}', '${RAW_DATA}', '${sid ? sid.replaceAll("'", "''") : sid}', '${
+      error ? error.replaceAll("'", "''") : error
+    }','${eventid}')`;
     pool = await poolPromise;
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);

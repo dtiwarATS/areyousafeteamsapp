@@ -1438,9 +1438,12 @@ const handlerForSafetyBotTab = (app) => {
     await bot.proccessSMSLinkClick(userId, eventId, "YES");
     bot.SaveSmsLog(
       userId,
-      "INCOMING",
+      "LINK_CLICKED",
       "YES",
-      JSON.stringify({ eventId, userId })
+      JSON.stringify({ eventId, userId }),
+      null,
+      null,
+      eventId
     );
     res.redirect(
       process.env.SMS_CONFIRMATION_URL +
@@ -1468,9 +1471,12 @@ const handlerForSafetyBotTab = (app) => {
     await bot.proccessSMSLinkClick(userId, eventId, "NO");
     bot.SaveSmsLog(
       userId,
-      "INCOMING",
+      "LINK_CLICKED",
       "NO",
-      JSON.stringify({ eventId, userId })
+      JSON.stringify({ eventId, userId }),
+      null,
+      null,
+      eventId
     );
     res.redirect(
       process.env.SMS_CONFIRMATION_URL +
