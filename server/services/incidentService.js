@@ -2945,6 +2945,132 @@ const saveSMSlogs = async (
     console.log();
   }
 };
+const saveAllTypelogs = async (
+  USER_ID,
+  USER_NAME,
+  IS_FROM,
+  PHONE_NUMBER,
+  INCIDENT_ID,
+  DELIVERY_STATUS,
+  MESSAGE_TYPE,
+  ACTION_TYPE,
+  MESSAGE_CONTENT,
+  INTERACTION_VALUE,
+  ERROR_MESSAGE
+) => {
+  try {
+    const recurrRespQuery = `INSERT INTO MessageActivityLog (
+    USER_ID,
+    USER_NAME,
+    IS_FROM,
+    PHONE_NUMBER,
+    INCIDENT_ID,
+    DELIVERY_STATUS,
+    MESSAGE_TYPE,
+    ACTION_TYPE,
+    MESSAGE_CONTENT,
+    INTERACTION_VALUE,
+    ERROR_MESSAGE,
+    ACTION_TIME
+)
+          values('${USER_ID}', '${USER_NAME}', '${IS_FROM}', '${PHONE_NUMBER}', '${INCIDENT_ID}', '${DELIVERY_STATUS}','${MESSAGE_TYPE}','${ACTION_TYPE}','${MESSAGE_CONTENT}','${INTERACTION_VALUE}','${ERROR_MESSAGE}', GETDATE())`;
+    pool = await poolPromise;
+    //console.log("insert query => ", recurrRespQuery);
+    await pool.request().query(recurrRespQuery);
+  } catch (err) {
+    console.log();
+  }
+};
+// Keep this array globally (or at least in a scope that persists between calls)
+let UserSendLogQuery = [];
+
+var count = 0;
+const saveAllTypeQuerylogs = async (
+  USER_ID,
+  USER_NAME,
+  IS_FROM,
+  PHONE_NUMBER,
+  INCIDENT_ID,
+  DELIVERY_STATUS,
+  MESSAGE_TYPE,
+  ACTION_TYPE,
+  MESSAGE_CONTENT,
+  INTERACTION_VALUE,
+  ERROR_MESSAGE
+) => {
+  try {
+    console.log({ insidesaveAllTypeQuerylogs: count++ });
+    // Remove existing entry for this USER_ID (keep only latest)
+    // const existingIndex = UserSendLogQuery.findIndex(
+    //   (log) => log.USER_ID === USER_ID
+    // );
+    // if (existingIndex !== -1) {
+    //   UserSendLogQuery.splice(existingIndex, 1);
+    // }
+
+    // Push new log into buffer
+    UserSendLogQuery.push({
+      USER_ID,
+      USER_NAME,
+      IS_FROM,
+      PHONE_NUMBER,
+      INCIDENT_ID,
+      DELIVERY_STATUS,
+      MESSAGE_TYPE,
+      ACTION_TYPE,
+      MESSAGE_CONTENT,
+      INTERACTION_VALUE,
+      ERROR_MESSAGE,
+      EventDateTime: new Date().toISOString().slice(0, -1),
+    });
+
+    // If we have 10 logs, run batch insert
+    // if (UserSendLogQuery.length >= 2) {
+    const valuesString = UserSendLogQuery.map(
+      (log) =>
+        `('${log.USER_ID}', '${log.IS_FROM}', '${log.PHONE_NUMBER}', 
+        '${log.INCIDENT_ID}', '${log.DELIVERY_STATUS}', '${log.MESSAGE_TYPE}', 
+         '${log.MESSAGE_CONTENT.replaceAll(
+           "'",
+           "''"
+         )}', '${log.INTERACTION_VALUE.replaceAll("'", "''")}', '${
+          log.ERROR_MESSAGE
+        }','${log.EventDateTime.replaceAll("'", "''")}', GETDATE())`
+    ).join(", ");
+
+    const batchQuery = `
+        INSERT INTO MessageActivityLog (
+          UserId,
+          MessageSentVia,
+          RecipientContact,
+          IncidentId,
+          DeliveryStatus,
+          MessageType,
+          MessageContent,
+          UserResponse,
+          FailureReason,
+          EventDateTime,
+          LogEntryCreatedAt
+        ) VALUES ${valuesString};
+      `;
+
+    console.log("Executing batch insert:", batchQuery);
+    UserSendLogQuery = [];
+    // Uncomment when ready to execute against DB
+    const pool = await poolPromise;
+    await pool
+      .request()
+      .query(batchQuery)
+      .then((res) => {
+        UserSendLogQuery = [];
+      });
+
+    // Clear buffer after insert
+    // }
+  } catch (err) {
+    console.error("Error in saveAllTypeQuerylogs:", err);
+  }
+};
 
 const updateCommentViaSMSLink = async (userId, incId, comment) => {
   try {
@@ -3057,4 +3183,6 @@ module.exports = {
   getAdminsOrEmergencyContacts,
   getEmergencyContactsList,
   getUserInfoByTeamId,
+  saveAllTypelogs,
+  saveAllTypeQuerylogs,
 };

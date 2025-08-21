@@ -38,7 +38,10 @@ const { processSafetyBotError } = require("../models/processError");
         sqlQueryquerryReccuring
       );
       membersNotRespondedList = membersNotRespondedOneTimeList;
-      if (membersNotRespondedRecurringList && membersNotRespondedRecurringList.length > 0) {
+      if (
+        membersNotRespondedRecurringList &&
+        membersNotRespondedRecurringList.length > 0
+      ) {
         membersNotRespondedList.push(...membersNotRespondedRecurringList);
       }
       if (
@@ -62,6 +65,7 @@ const { processSafetyBotError } = require("../models/processError");
               user_id,
               inc_type,
               MemberResponsesRecurrId,
+              user_aadobj_id,
             } = member;
 
             let ctime = new Date();
@@ -85,14 +89,14 @@ const { processSafetyBotError } = require("../models/processError");
                   { id: 1, option: "I am safe", color: "#4CAF50" },
                   { id: 2, option: "I need assistance", color: "#F44336" },
                 ],
-                responseType: "buttons"
-              }
+                responseType: "buttons",
+              };
               if (member.RESPONSE_TYPE && member.RESPONSE_OPTIONS) {
                 responseOptionData = {
                   responseOptions: JSON.parse(member.RESPONSE_OPTIONS),
-                responseType: member.RESPONSE_TYPE
-        };
-      }
+                  responseType: member.RESPONSE_TYPE,
+                };
+              }
               let incObj = {
                 incId: inc_id,
                 incTitle: inc_name,
@@ -102,8 +106,22 @@ const { processSafetyBotError } = require("../models/processError");
                   id: created_by,
                   name: CREATED_BY_NAME,
                 },
-                responseOptionData
+                responseOptionData,
               };
+              incidentService.saveAllTypeQuerylogs(
+                user_aadobj_id,
+                "",
+                "TEAMS",
+                "",
+                incObj.incId,
+                "SENDING",
+                "Follow-up",
+                "",
+                inc_name,
+                "",
+                "",
+                ""
+              );
               const approvalCard = await SafetyCheckCard(
                 inc_name,
                 incObj,
@@ -129,6 +147,20 @@ const { processSafetyBotError } = require("../models/processError");
                 null,
                 filesData
               );
+              incidentService.saveAllTypeQuerylogs(
+                user_aadobj_id,
+                "",
+                "TEAMS",
+                "",
+                incObj.incId,
+                "SEND_SUCCESS",
+                "Follow-up",
+                "",
+                inc_name,
+                "",
+                "",
+                ""
+              );
               log.addLog(
                 `send proactive reminder messaage to ${member.user_id} successfully`
               );
@@ -142,8 +174,20 @@ const { processSafetyBotError } = require("../models/processError");
                   `Update oneTime reminder message count in DB  ${member.user_id} successfully`
                 );
 
-                if (companyData.send_sms && (companyData.SubscriptionType == 3 || (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))) {
-                  await bot.sendSafetyCheckMsgViaSMS(companyData, userAadObjIds, inc_id, inc_name, null);
+                if (
+                  companyData.send_sms &&
+                  (companyData.SubscriptionType == 3 ||
+                    (companyData.SubscriptionType == 2 &&
+                      companyData.sent_sms_count < 50))
+                ) {
+                  await bot.sendSafetyCheckMsgViaSMS(
+                    companyData,
+                    userAadObjIds,
+                    inc_id,
+                    inc_name,
+                    null,
+                    "Follow-up"
+                  );
                 }
               } else {
                 await incidentService.updateRecurrremaindercounter(
@@ -154,7 +198,16 @@ const { processSafetyBotError } = require("../models/processError");
                 );
               }
               if (inc_type_id == 1 && companyData.send_whatsapp) {
-                await bot.sendSafetyCheckMsgViaWhatsapp(companyData, userAadObjIds, inc_id, inc_name, CREATED_BY_NAME, responseOptionData.responseOptions, incObj);
+                await bot.sendSafetyCheckMsgViaWhatsapp(
+                  companyData,
+                  userAadObjIds,
+                  inc_id,
+                  inc_name,
+                  CREATED_BY_NAME,
+                  responseOptionData.responseOptions,
+                  incObj,
+                  "Follow-up"
+                );
               }
             }
           })
@@ -181,12 +234,12 @@ const { processSafetyBotError } = require("../models/processError");
   //let querry = `select mstm.* ,mst.* from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 )`;
   let querry = `select mstm.* ,mst.* , (select top 1 user_aadobject_id from MSTeamsTeamsUsers where user_id = mstm.user_id) 'user_aadobj_id'
   from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id 
-  IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 ) and MST.inc_type='onetime'`;
+  IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 and SendRemindersCount > 0 and SendRemindersTime > 0 ) and MST.inc_type='onetime'`;
 
   let querryReccuring = `select distinct  Mmrr.* ,mst.* , (select top 1 user_aadobject_id from MSTeamsTeamsUsers where user_id = mstm.user_id) 'user_aadobj_id'
   ,mstm.user_id,mstm.inc_id,Mmrr.id as 'MemberResponsesRecurrId'
   from  MSTeamsMemberResponsesRecurr Mmrr left join MSTeamsMemberResponses mstm on mstm.id=Mmrr.memberResponsesId  left join MSTeamsIncidents MST on mst.id = mstm.inc_id where Mmrr.response=0 and mstm.inc_id 
-  IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 ) and MST.inc_type='recurringIncident'`;
+  IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 and SendRemindersCount > 0 and SendRemindersTime > 0 ) and MST.inc_type='recurringIncident'`;
   await sendProactiveMessage(querry, querryReccuring);
 
   // signal to parent that the job is done

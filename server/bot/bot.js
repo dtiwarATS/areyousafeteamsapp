@@ -1781,7 +1781,8 @@ const sendProactiveMessageAsync = async (
   rejectFn,
   runAt = null,
   incFilesData = null,
-  incCreaterConversationId = ""
+  incCreaterConversationId = "",
+  resendSafetyCheck = "false"
 ) => {
   try {
     if (log == null) {
@@ -2163,7 +2164,24 @@ const sendProactiveMessageAsync = async (
           : membersToSendMessageArray.length;
 
       const afterMessageSent = (msgResp, index) => {
-        console.log({ msgResp });
+        // Push latest data
+        console.log({ afterMessageSent: msgResp.memberObj.userAadObjId });
+        if (!msgResp.isSafetyCheckTitleResponse) {
+          incidentService.saveAllTypeQuerylogs(
+            msgResp.memberObj.userAadObjId,
+            msgResp.memberObj.name,
+            "TEAMS",
+            "",
+            incObj.incId,
+            "SEND_SUCCESS",
+            resendSafetyCheck != "false" ? "Manual_Resend" : incObj.incType,
+            "",
+            incTitle,
+            "",
+            ""
+          );
+        }
+
         callbackFn(msgResp, index);
 
         //callbackFn(msgResp, index);
@@ -2183,7 +2201,7 @@ const sendProactiveMessageAsync = async (
         }
       };
 
-      const fnRecursiveCall = (startIndex, endIndex) => {
+      const fnRecursiveCall = async (startIndex, endIndex) => {
         try {
           const i = startIndex;
           const member = membersToSendMessageArray[i];
@@ -2194,6 +2212,22 @@ const sendProactiveMessageAsync = async (
                 name: member.name,
               },
             ];
+            incidentService.saveAllTypeQuerylogs(
+              member.userAadObjId,
+              member.name,
+              "TEAMS",
+              "",
+              incObj.incId,
+              "SENDING",
+              resendSafetyCheck != "false" ? "Manual_Resend" : incObj.incType,
+              "",
+              incTitle,
+              "",
+              ""
+            );
+            console.log({
+              insidesendProactiveMessaageToUserAsync: member.userAadObjId,
+            });
             const conversationId = member.conversationId;
             sendProactiveMessaageToUserAsync(
               memberArr,
@@ -2213,7 +2247,10 @@ const sendProactiveMessageAsync = async (
               sendErrorEmail,
               retryCounter
             );
-            setTimeout(() => {
+            setTimeout(async () => {
+              console.log({
+                insidesendProactiveMessaageToUserAsync: member.userAadObjId,
+              });
               sendProactiveMessaageToUserAsync(
                 memberArr,
                 activity,
@@ -2324,7 +2361,8 @@ const sendSafetyCheckMsgViaSMS = async (
   users,
   incId,
   incTitle,
-  incData
+  incData,
+  isfrominctype = "onetime"
 ) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
@@ -2386,6 +2424,20 @@ const sendSafetyCheckMsgViaSMS = async (
             null,
             incId
           );
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName,
+            "SMS",
+            "",
+            incId,
+            "PHONE_NUM_NOT_FOUND",
+            isfrominctype,
+            "",
+            incTitle,
+            "",
+            ""
+          );
+
           continue;
         }
         if (incTypeId == 1) {
@@ -2424,6 +2476,20 @@ const sendSafetyCheckMsgViaSMS = async (
             null,
             incId
           );
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName,
+            "SMS",
+            phone.slice(-4).padStart(phone.length, "x"),
+            incId,
+            "SENT_TO_TWILIO",
+            isfrominctype,
+            "",
+            JSON.stringify(body),
+            "",
+            ""
+          );
+
           var twiliosend = await tClient.messages.create({
             body: body,
             from: "+18023277232",
@@ -2442,6 +2508,20 @@ const sendSafetyCheckMsgViaSMS = async (
             err.message,
             incId
           );
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName,
+            "SMS",
+            phone.slice(-4).padStart(phone.length, "x"),
+            incId,
+            "SEND_FAILED",
+            isfrominctype,
+            "",
+            JSON.stringify(body),
+            "",
+            JSON.stringify(err.message)
+          );
+
           continue;
         }
 
@@ -2462,6 +2542,20 @@ const sendSafetyCheckMsgViaSMS = async (
           null,
           incId
         );
+        incidentService.saveAllTypeQuerylogs(
+          user.id,
+          user.displayName,
+          "SMS",
+          phone.slice(-4).padStart(phone.length, "x"),
+          incId,
+          "SEND_SUCCESS",
+          isfrominctype,
+          "",
+          JSON.stringify(body),
+          "",
+          ""
+        );
+
         if (companyData.SubscriptionType == 2) {
           incidentService.updateSentSMSCount(companyData.teamId, counter);
         }
@@ -2526,7 +2620,8 @@ const sendSafetyCheckMsgViaWhatsapp = async (
   incTitle,
   incCreatorName,
   responseOptions,
-  incObj
+  incObj,
+  isfrominctype = "onetime"
 ) => {
   let tenantId = companyData.userTenantId;
   let refresh_token = companyData.refresh_token;
@@ -2542,6 +2637,20 @@ const sendSafetyCheckMsgViaWhatsapp = async (
           phone = user.mobilePhone;
         }
         if (phone == null || phone == "" || phone == "null") {
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName,
+            "WHATSAPP",
+            "",
+            incId,
+            "PHONE_NUM_NOT_FOUND",
+            isfrominctype,
+            "",
+            incTitle,
+            "",
+            ""
+          );
+
           continue;
         }
         if (phone != null && phone != "" && phone != "null") {
@@ -2554,7 +2663,52 @@ const sendSafetyCheckMsgViaWhatsapp = async (
             responseOptions.length == 2 ? 1 : 2,
             incObj
           );
-          await sendWhatsappMessage(payload, user, companyData);
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName,
+            "WHATSAPP",
+            phone.slice(-4).padStart(phone.length, "x"),
+            incId,
+            "SENT_TO_WHATSAPP",
+            isfrominctype,
+            "",
+            incTitle,
+            "",
+            ""
+          );
+          try {
+            await sendWhatsappMessage(payload, user, companyData).then(
+              (res) => {
+                incidentService.saveAllTypeQuerylogs(
+                  user.id,
+                  user.displayName,
+                  "WHATSAPP",
+                  phone.slice(-4).padStart(phone.length, "x"),
+                  incId,
+                  "SEND_SUCCESS",
+                  isfrominctype,
+                  "",
+                  incTitle,
+                  "",
+                  ""
+                );
+              }
+            );
+          } catch (err) {
+            incidentService.saveAllTypeQuerylogs(
+              user.id,
+              user.displayName,
+              "WHATSAPP",
+              phone.slice(-4).padStart(phone.length, "x"),
+              incId,
+              "SEND_FAILED",
+              isfrominctype,
+              "",
+              incTitle,
+              "",
+              JSON.stringify(err.message)
+            );
+          }
         }
       } catch (err) {
         processSafetyBotError(
@@ -2968,6 +3122,19 @@ const proccessWhatsappClick = async (
       response.option,
       compData.teamName
     );
+    incidentService.saveAllTypeQuerylogs(
+      userId,
+      "",
+      "Whatsapp",
+      fromPhnNumber.slice(-4).padStart(fromPhnNumber.length, "x"),
+      eventId,
+      "BUTTON_CLICKED",
+      "",
+      "",
+      "",
+      response.option,
+      ""
+    );
   }
 };
 
@@ -3053,7 +3220,39 @@ const SaveSmsLog = async (
   }
   return Promise.resolve(superUsers);
 };
-
+const saveAllTypelogs = async (
+  USER_ID,
+  USER_NAME,
+  IS_FROM,
+  PHONE_NUMBER,
+  INCIDENT_ID,
+  DELIVERY_STATUS,
+  MESSAGE_TYPE,
+  ACTION_TYPE,
+  MESSAGE_CONTENT,
+  INTERACTION_VALUE,
+  ERROR_MESSAGE
+) => {
+  let superUsers = null;
+  try {
+    superUsers = await incidentService.saveAllTypelogs(
+      USER_ID,
+      USER_NAME,
+      IS_FROM,
+      PHONE_NUMBER,
+      INCIDENT_ID,
+      DELIVERY_STATUS,
+      MESSAGE_TYPE,
+      ACTION_TYPE,
+      MESSAGE_CONTENT,
+      INTERACTION_VALUE,
+      ERROR_MESSAGE
+    );
+  } catch (err) {
+    processSafetyBotError(err, "", "", null, "error in saveAllTypelogs");
+  }
+  return Promise.resolve(superUsers);
+};
 const processCommentViaLink = async (userId, incId, comment) => {
   let superUsers = null;
   try {
@@ -3065,6 +3264,7 @@ const processCommentViaLink = async (userId, incId, comment) => {
       const compData = await incidentService.getCompanyData(incData.teamId);
       const users = await incidentService.getUserInfo(incData.teamId, userId);
       let user = users[0];
+      console.log({ processCommentViaLink: user });
       let context = {
         activity: {
           serviceUrl: compData.serviceUrl,
@@ -3497,6 +3697,7 @@ const sendSafetyCheckMessageAsync = async (
           incResponseSelectedUsersList,
           responseOptionData,
         };
+
         sendProactiveMessageAsync(
           allMembersArr,
           incData,
@@ -3510,7 +3711,8 @@ const sendSafetyCheckMessageAsync = async (
           reject,
           null,
           incFilesData,
-          createdByUserInfo.conversationId
+          createdByUserInfo.conversationId,
+          resendSafetyCheck
         );
         let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
@@ -3534,7 +3736,8 @@ const sendSafetyCheckMessageAsync = async (
             incId,
             incTitle,
             createdByUserInfo.user_name,
-            responseOptionData.responseOptions
+            responseOptionData.responseOptions,
+            incData
           );
         }
         /*const incCreatedByUserArr = [];
@@ -4082,21 +4285,35 @@ const sendApprovalResponse = async (user, context) => {
       approvalCardResponse,
       user.aadObjectId
     );
+    let responsetextdata = inc.responseOptionData.responseOptions.find(
+      (resp) => resp.id == response
+    );
     if (
       companyData.send_sms &&
       (companyData.SubscriptionType == 3 ||
         (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))
     ) {
       //let respOptions = JSON.parse(inc.responseOptionData.responseOptions);
-      let responsetextdata = inc.responseOptionData.responseOptions.find(
-        (resp) => resp.id == response
-      );
+
       sendAcknowledmentinSMS(
         companyData,
         [user.aadObjectId],
         responsetextdata.option
       );
     }
+    incidentService.saveAllTypeQuerylogs(
+      user.aadObjectId,
+      "",
+      "TEAMS",
+      "",
+      incId,
+      "BUTTON_CLICKED",
+      "",
+      "",
+      incTitle,
+      responsetextdata.option,
+      ""
+    );
     //}
 
     //const dashboardCard = await getOneTimeDashboardCard(incId, runAt);
@@ -4219,6 +4436,19 @@ const submitComment = async (context, user, companyData) => {
         serviceUrl,
         approvalCardResponse,
         user.aadObjectId
+      );
+      incidentService.saveAllTypeQuerylogs(
+        user.aadObjectId,
+        "",
+        "TEAMS",
+        "",
+        incId,
+        "TEAMS_COMMENT",
+        "",
+        "",
+        "",
+        `${commentVal}`,
+        ""
       );
     }
   } catch (error) {
@@ -4833,7 +5063,8 @@ const sendRecurrEventMsgAsync = async (
         userAadObjIds,
         incId,
         incTitle,
-        subEventObj
+        subEventObj,
+        "recurringIncident"
       );
     }
     if (subEventObj.incTypeId == 1 && companyData.send_whatsapp) {
@@ -4844,7 +5075,8 @@ const sendRecurrEventMsgAsync = async (
         incTitle,
         incCreatedByUserObj.name,
         responseOptionData.responseOptions,
-        incObj
+        incObj,
+        "recurringIncident"
       );
     }
   });
@@ -5727,6 +5959,7 @@ module.exports = {
   sendAcknowledmentinSMS,
   proccessSMSLinkClick,
   SaveSmsLog,
+  saveAllTypelogs,
   acknowledgeSMSReplyInTeams,
   processCommentViaLink,
   proccessWhatsappClick,

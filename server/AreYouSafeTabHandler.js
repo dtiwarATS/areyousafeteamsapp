@@ -1445,6 +1445,19 @@ const handlerForSafetyBotTab = (app) => {
       null,
       eventId
     );
+    incidentService.saveAllTypeQuerylogs(
+      userId,
+      "",
+      "SMS",
+      "",
+      eventId,
+      "LINK_CLICKED",
+      "",
+      "",
+      "",
+      "YES",
+      ""
+    );
     res.redirect(
       process.env.SMS_CONFIRMATION_URL +
         "?userId=" +
@@ -1478,6 +1491,19 @@ const handlerForSafetyBotTab = (app) => {
       null,
       eventId
     );
+    incidentService.saveAllTypeQuerylogs(
+      userId,
+      "",
+      "SMS",
+      "",
+      eventId,
+      "LINK_CLICKED",
+      "",
+      "",
+      "",
+      "NO",
+      ""
+    );
     res.redirect(
       process.env.SMS_CONFIRMATION_URL +
         "?userId=" +
@@ -1491,6 +1517,20 @@ const handlerForSafetyBotTab = (app) => {
     let { userId, eventId, comments } = req.body;
     console.log({ userId, eventId, comments });
     await bot.processCommentViaLink(userId, eventId, comments);
+
+    incidentService.saveAllTypeQuerylogs(
+      userId,
+      "",
+      "SMS",
+      "",
+      eventId,
+      "SMS_COMMENT",
+      "",
+      "",
+      "",
+      `${comments}`,
+      ""
+    );
     res.status(200);
   });
   app.post("/handleWhatsappResponse", async (req, res) => {
