@@ -1656,6 +1656,60 @@ const handlerForSafetyBotTab = (app) => {
       res.sendStatus(403);
     }
   });
+
+  // Add Message Activity Log endpoint
+  app.get("/areyousafetabhandler/getMessageActivityLog", async (req, res) => {
+    try {
+      const { incId, userAadObjId } = req.query;
+
+      console.log("getMessageActivityLog called with incId:", incId, "userAadObjId:", userAadObjId);
+
+      if (!incId || !userAadObjId) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+
+      // SQL query to get MessageActivityLog data for the specific incident
+      const query = `
+        SELECT 
+          LogId,
+          UserId,
+          MessageSentVia,
+          RecipientContact,
+          IncidentId,
+          DeliveryStatus,
+          MessageType,
+          MessageContent,
+          UserResponse,
+          FailureReason,
+          EventDateTime,
+          LogEntryCreatedAt
+        FROM MessageActivityLog 
+        WHERE IncidentId = @incId
+        ORDER BY EventDateTime DESC
+      `;
+
+      // Use mssql to specify type
+      const sql = require('mssql');
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('incId', sql.Int, parseInt(incId))
+        .query(query);
+
+      console.log("MessageActivityLog DB result:", result.recordset);
+      res.json(result.recordset || []);
+    } catch (error) {
+      console.error("Error fetching MessageActivityLog:", error);
+      processSafetyBotError(
+        error,
+        "",
+        "",
+        req.query.userAadObjId,
+        "Error in /areyousafetabhandler/getMessageActivityLog"
+      );
+      res.status(500).json({ error: "Failed to fetch message activity log" });
+    }
+  });
+  
 };
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;
