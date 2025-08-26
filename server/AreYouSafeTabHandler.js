@@ -1668,24 +1668,12 @@ const handlerForSafetyBotTab = (app) => {
         return res.status(400).json({ error: "Missing required parameters" });
       }
 
-      // SQL query to get MessageActivityLog data for the specific incident
+      // SQL query to get MessageActivityLog data using the view
       const query = `
-        SELECT 
-          LogId,
-          UserId,
-          MessageSentVia,
-          RecipientContact,
-          IncidentId,
-          DeliveryStatus,
-          MessageType,
-          MessageContent,
-          UserResponse,
-          FailureReason,
-          EventDateTime,
-          LogEntryCreatedAt
-        FROM MessageActivityLog 
+        SELECT *
+        FROM vw_MessageActivityLogWithUser
         WHERE IncidentId = @incId
-        ORDER BY EventDateTime DESC
+        ORDER BY MessageSendDateTime DESC
       `;
 
       // Use mssql to specify type
