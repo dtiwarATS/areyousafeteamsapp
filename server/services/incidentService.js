@@ -351,6 +351,35 @@ const addComment = async (assistanceId, comment, ts, aadObjuserId) => {
   }
 };
 
+const updateSosStatus = async (
+  assistanceId,
+  ts,
+  closedbyuser,
+  aadObjuserId = ""
+) => {
+  try {
+    let sqlUpdate = `
+ update MSTeamsAssistance
+ set status='Closed',closed_by_user='${closedbyuser}',closed_at='${ts}'
+ where id=${assistanceId}`;
+    let res = await db.updateDataIntoDB(sqlUpdate, aadObjuserId);
+    console.log(res);
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      aadObjuserId,
+      "error in updateSosStatus assistanceId=" +
+        assistanceId +
+        " comment=" +
+        comment +
+        " ts=" +
+        ts
+    );
+  }
+};
+
 const getAssistanceData = async (aadObjuserId) => {
   try {
     let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id`;
@@ -379,6 +408,10 @@ SELECT
     a.user_id,
     u.user_name AS UserName,
     a.sent_to_ids,
+    u.user_aadobject_id,
+    a.status,
+	a.closed_by_user,
+	a.closed_at,
     a.comment_date as real_comment_date,
     (
         SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
@@ -413,6 +446,10 @@ SELECT
     a.user_id,
     u.user_name AS UserName,
     a.sent_to_ids,
+    u.user_aadobject_id,
+    a.status,
+	a.closed_by_user,
+	a.closed_at,
     a.comment_date as real_comment_date,
     (
         SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
@@ -1532,6 +1569,7 @@ const getUserTeamInfo = async (userAadObjId) => {
 		  SEND_WHATSAPP,
 		  send_sms,
 		 refresh_token,
+      serviceUrl,
      PHONE_FIELD,
           s.UserLimit,
           s.SubscriptionType
@@ -3210,6 +3248,7 @@ module.exports = {
   getAllIncByUserId,
   getAdmins,
   addComment,
+  updateSosStatus,
   getAssistanceData,
   getAllUserAssistanceData,
   getUserTenantDetails,

@@ -5,6 +5,7 @@ const db = require("./db");
 const dbOperation = require("./db/dbOperations");
 const axios = require("axios");
 const tab = require("./tab/AreYouSafeTab");
+const apimeth = require("./api/apiMethods");
 const { processSafetyBotError } = require("./models/processError");
 const { getConversationMembers } = require("./api/apiMethods");
 const { formatedDate } = require("./utils/index");
@@ -682,6 +683,140 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getAssistanceData"
+      );
+    }
+  });
+  const SendSOSClosedCardToRequester = async (
+    requestedUserData,
+    closedByUserData,
+    serviceUrl,
+    user_tenant_id,
+    userAadObjId
+  ) => {
+    try {
+      //requestedUserData should have 2 properties: user_id and user_name
+      //closedByUserData should have 2 properties: user_id and user_name
+      let requestedUser = requestedUserData[0];
+      //let closedByUser = closedByUserData[0];
+      if (requestedUserData != null) {
+        let mentionUserEntities = [];
+        dashboard.mentionUser(
+          mentionUserEntities,
+          requestedUser.user_id,
+          requestedUser.user_name
+        );
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: `User <at>Admin</at> has closed your SOS Request`,
+              wrap: true,
+            },
+          ],
+          msteams: {
+            entities: mentionUserEntities,
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+        let memberArr = [
+          {
+            id: requestedUser.user_id,
+            name: requestedUser.user_name,
+          },
+        ];
+
+        const res = await apimeth.sendProactiveMessaageToUser(
+          memberArr,
+          approvalCardResponse,
+          null,
+          serviceUrl,
+          user_tenant_id,
+          null,
+          userAadObjId
+        );
+      }
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in SendSOSClosedCardToRequester data=" + JSON.stringify(data)
+      );
+    }
+  };
+  app.put("/areyousafetabhandler/updatesosassistancestatus", (req, res) => {
+    const data = req.query;
+    const reqBody = req.body;
+    // const userAadObjId = data.userAadObjId;
+    //const TeamId = req.query.teamid;
+    const assistanceuseraadobjectid = data.assistanceuseraadobjectid;
+    const assistanceuserId = data.assistanceuserId;
+    const assistanceusername = data.assistanceusername;
+    const assistId = data.assistId;
+    const closedbyuser = data.closedbyuser;
+    const serviceurl = data.serviceurl;
+    const tenentid = data.tenentid;
+    try {
+      if (data) {
+        let ts = req.query.ts;
+        if (ts != null) {
+          ts = ts.replace(/-/g, "/");
+        }
+        incidentService
+          .updateSosStatus(assistId, ts, closedbyuser, closedbyuser)
+          .then(async (respData) => {
+            var userdata = [
+              {
+                user_id: assistanceuseraadobjectid,
+                user_name: assistanceusername,
+              },
+            ];
+            const res = await SendSOSClosedCardToRequester(
+              userdata,
+              [],
+              serviceurl,
+              tenentid,
+              assistanceuseraadobjectid
+            );
+            // if (
+            //   admins != null ||
+            //   (Array.isArray(admins) && admins.length > 0) ||
+            //   admins[0].length > 0
+            // ) {
+            //   const tabObj = new tab.AreYouSafeTab();
+            //   tabObj.sendUserCommentToAdmin(
+            //     admins,
+            //     reqBody.comment,
+            //     userAadObjId
+            //   );
+            // }
+            res.send(true);
+          })
+          .catch((err) => {
+            console.log(err);
+            processSafetyBotError(
+              err,
+              TeamId,
+              "",
+              userAadObjId,
+              "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
+                reqBody.comment
+            );
+            res.send(false);
+          });
+      }
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        TeamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
+          reqBody.comment
       );
     }
   });
