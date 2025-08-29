@@ -1380,7 +1380,7 @@ const handlerForSafetyBotTab = (app) => {
             .request(config)
 
             .then((response) => {
-              const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;font-family: &quot;Montserrat&quot;, sans-serif;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Are You Safe?</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://areyousafe.in/img/SafetyBot%20Icon.png" style=" width: 150px;"></div><h3 style="margin-bottom: 5px;font-size: 31px;">Thank you for granting permission(s)</h3> <label style="font-family: &quot;Montserrat&quot;, sans-serif;font-weight: 700;display: inline-block;padding: 10px 20px;border-radius: 4px;color: #fff;color: #5783db;text-decoration: none;font-size: 21px;">Go back to Teams and reload the Safety check tab</label></div>`;
+              const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;font-family: &quot;Montserrat&quot;, sans-serif;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Safety Check</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://areyousafe.in/img/SafetyBot%20Icon.png" style=" width: 150px;"></div><h3 style="margin-bottom: 5px;font-size: 31px;">Thank you for granting permission(s)</h3> <label style="font-family: &quot;Montserrat&quot;, sans-serif;font-weight: 700;display: inline-block;padding: 10px 20px;border-radius: 4px;color: #fff;color: #5783db;text-decoration: none;font-size: 21px;">Go back to Teams and reload the Safety check tab</label></div>`;
               res.status(200).send(msg);
             })
             .catch((error) => {
@@ -1695,6 +1695,46 @@ const handlerForSafetyBotTab = (app) => {
         "Error in /areyousafetabhandler/getMessageActivityLog"
       );
       res.status(500).json({ error: "Failed to fetch message activity log" });
+    }
+  });
+
+  app.get("/areyousafetabhandler/getSOSLog", async (req, res) => {
+    try {
+      const { teamId, userAadObjId } = req.query;
+
+      console.log("getSOSLog called with teamId:", teamId, "userAadObjId:", userAadObjId);
+
+      if (!teamId || !userAadObjId) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+
+      // SQL query to get SOS log data using the view
+      const query = `
+        SELECT * 
+        FROM ViewSOSlog 
+        WHERE team_ids = @teamId
+        ORDER BY requested_date DESC, UserName
+      `;
+
+      // Use mssql to specify type
+      const sql = require('mssql');
+      const pool = await poolPromise;
+      const result = await pool.request()
+        .input('teamId', sql.VarChar, teamId)
+        .query(query);
+
+      console.log("SOSLog DB result:", result.recordset);
+      res.json(result.recordset || []);
+    } catch (error) {
+      console.error("Error fetching SOSLog:", error);
+      processSafetyBotError(
+        error,
+        "",
+        "",
+        req.query.userAadObjId,
+        "Error in /areyousafetabhandler/getSOSLog"
+      );
+      res.status(500).json({ error: "Failed to fetch SOS log" });
     }
   });
   
