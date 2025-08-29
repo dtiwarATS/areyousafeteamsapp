@@ -47,19 +47,28 @@ const parseCompanyData = (result) => {
   return parsedCompanyObj;
 };
 
-const isAdminUser = async (userObjId) => {
+const isAdminUser = async (userObjId, teamid) => {
   try {
     selectQuery = "";
     let adminUserLogin = false;
     selectQuery = `SELECT * FROM MSTeamsInstallationDetails where user_obj_id = '${userObjId}' and uninstallation_date is null`; //If bot is added using 'Add Me', team Id is always blank. Hence removed 'team-id' from where condition
+    // if teamid is provided, add condition
+    if (teamid && teamid != null && teamid != "null" && teamid != "NULL") {
+      selectQuery += ` AND team_id = '${teamid}'`;
+    }
 
     let res = await db.getDataFromDB(selectQuery, userObjId);
     // check if the user is super user or not
     if (!res || res.length == 0) {
-      res = await db.getDataFromDB(
-        `select * from [dbo].[MSTeamsInstallationDetails] where super_users like '%${userObjId}%' and uninstallation_date is null`,
-        userObjId
-      );
+      let superUserQuery = `SELECT * FROM [dbo].[MSTeamsInstallationDetails] 
+                            WHERE super_users LIKE '%${userObjId}%' 
+                            AND uninstallation_date IS NULL`;
+
+      if (teamid && teamid != null && teamid != "null" && teamid != "NULL") {
+        superUserQuery += ` AND team_id = '${teamid}'`;
+      }
+
+      res = await db.getDataFromDB(superUserQuery, userObjId);
     }
 
     // check if the user is super user or not
@@ -81,10 +90,10 @@ const isAdminUser = async (userObjId) => {
   }
 };
 
-const verifyAdminUserForDashboardTab = async (userObjId) => {
+const verifyAdminUserForDashboardTab = async (userObjId, teamid = "") => {
   let isAdmin = false;
   try {
-    isAdmin = await isAdminUser(userObjId);
+    isAdmin = await isAdminUser(userObjId, teamid);
   } catch (err) {
     console.log(err);
     processSafetyBotError(
@@ -327,10 +336,9 @@ const teamMemberInsertQuery = (teamId, m) => {
   }')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[hasLicense])
-    VALUES('${teamId}', '${m.aadObjectId ?? m.objectId}', '${m.id}', N'${m.name.replace(
-    /'/g,
-    "''"
-    )}', '${m.tenantId}', '${m.userRole}',1);
+    VALUES('${teamId}', '${m.aadObjectId ?? m.objectId}', '${
+    m.id
+  }', N'${m.name.replace(/'/g, "''")}', '${m.tenantId}', '${m.userRole}',1);
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
     m.aadObjectId ?? m.objectId
@@ -339,7 +347,9 @@ const teamMemberInsertQuery = (teamId, m) => {
       UPDATE MSTeamsTeamsUsers SET tenantid = '${m.tenantId}', userRole = '${
     m.userRole
   }'
-      WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${m.aadObjectId ?? m.objectId}';
+      WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
+    m.aadObjectId ?? m.objectId
+  }';
     END`;
 };
 
@@ -402,7 +412,9 @@ const addTeamMember = async (
     if (sqlInserUsers != "") {
       //console.log(sqlInserUsers);
       await pool.request().query(sqlInserUsers);
-      let users = await db.getDataFromDB(`SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}'`);
+      let users = await db.getDataFromDB(
+        `SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}'`
+      );
       isUserInfoSaved = { users, isUserInfoSaved: true };
     }
   } catch (err) {
@@ -468,23 +480,23 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
         type: "TextBlock",
         text: "👋 Hi there!",
         weight: "Bolder",
-        size: "Medium"
+        size: "Medium",
       },
       {
         type: "TextBlock",
         text: `${installerName} just added the Safety Check app to your team **${teamName}**.`,
-        wrap: true
+        wrap: true,
       },
       {
         type: "TextBlock",
         text: "To finish setting things up and get quick access to the Dashboard tab with the SOS button, Teams will ask for your permission.",
-        wrap: true
+        wrap: true,
       },
       {
         type: "TextBlock",
         text: "It’s a quick, one-time step. Just click the button below and hit **Agree** when prompted.",
-        wrap: true
-      }
+        wrap: true,
+      },
     ],
     actions: [
       // {
@@ -496,8 +508,8 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
         type: "Action.Execute",
         verb: "completeSetup",
         title: "Complete Setup",
-      }
-    ]
+      },
+    ],
   };
   members.forEach(async (member) => {
     const userObj = {
@@ -513,7 +525,7 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
       null,
       null
     );
-  })
+  });
 };
 
 const updateTeamUserSetup = async (userId) => {
@@ -521,13 +533,7 @@ const updateTeamUserSetup = async (userId) => {
     let sqlQry = `UPDATE MSTeamsTeamsUsers SET SETUPCOMPLETED = 1 WHERE user_aadobject_id = '${userId}'`;
     res = await db.updateDataIntoDB(sqlQry, userId);
   } catch (err) {
-    processSafetyBotError(
-      err,
-      "",
-      "",
-      userId,
-      "error in updateTeamUserSetup"
-    );
+    processSafetyBotError(err, "", "", userId, "error in updateTeamUserSetup");
   }
 };
 
@@ -678,12 +684,7 @@ const insertCompanyData = async (
     res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
-      const data = await addTeamMember(
-        teamId,
-        allMembersInfo,
-        false,
-        true
-      );
+      const data = await addTeamMember(teamId, allMembersInfo, false, true);
       const installationId = res[0].id;
       if (data.isUserInfoSaved && Number(installationId) > 0) {
         await updateIsUserInfoSaved(installationId);
@@ -700,13 +701,12 @@ const insertCompanyData = async (
         );
 
         if (data.users && data.users.length > 0) {
-          allMembersInfo = allMembersInfo.filter(info => {
-            let user = data.users.find(user => user.user_id === info.id);
+          allMembersInfo = allMembersInfo.filter((info) => {
+            let user = data.users.find((user) => user.user_id === info.id);
             return !user.SETUPCOMPLETED;
-          })
+          });
         }
-        await sendSetupMessageToAllMembers(
-          allMembersInfo, companyDataObj)
+        await sendSetupMessageToAllMembers(allMembersInfo, companyDataObj);
       }
     }
 
@@ -817,7 +817,7 @@ const updateSuperUserDataByUserAadObjId = async (
     pool = await poolPromise;
     const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',EnableSafetycheckForVisitors=${
       EnableSafetycheckForVisitors ? 1 : 0
-      } ,SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' 
+    } ,SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' 
 ,EMERGENCY_CONTACTS='${emergencyContactsStr}'
     WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
 
@@ -984,5 +984,5 @@ module.exports = {
   getFilesByIncId,
   getUserById,
   sendSetupMessageToAllMembers,
-  updateTeamUserSetup
+  updateTeamUserSetup,
 };

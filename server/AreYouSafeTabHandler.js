@@ -32,7 +32,7 @@ const handlerForSafetyBotTab = (app) => {
         userObjId
       );
       dbOperation
-        .verifyAdminUserForDashboardTab(req.query.userId)
+        .verifyAdminUserForDashboardTab(req.query.userId, teamId)
         .then(async (safetyInitiatorObj) => {
           isAdmin = safetyInitiatorObj.isAdmin;
           responseObj.isAdmin = isAdmin;
@@ -285,12 +285,16 @@ const handlerForSafetyBotTab = (app) => {
   });
   app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
     const userObjId = req.query.userId;
+    const teamId =
+      req.query.teamId != null && req.query.teamId != "null"
+        ? req.query.teamId
+        : null;
     try {
       let isAdmin = false;
       const tabObj = new tab.AreYouSafeTab(userObjId);
       const teamInfo = await incidentService.getUserTeamInfo(userObjId);
       dbOperation
-        .verifyAdminUserForDashboardTab(req.query.userId)
+        .verifyAdminUserForDashboardTab(req.query.userId, teamId)
         .then((safetyInitiatorObj) => {
           isAdmin = safetyInitiatorObj.isAdmin;
           //const safetyInitiator = safetyInitiatorObj.safetyInitiator;
@@ -652,7 +656,35 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
-
+  app.get("/areyousafetabhandler/getAllUserAssistanceData", (req, res) => {
+    const userAadObjId = req.query.userId;
+    const teamid = req.query.teamid;
+    try {
+      incidentService
+        .getAllUserAssistanceData(userAadObjId, teamid)
+        .then((incData) => {
+          res.send(incData);
+        })
+        .catch((err) => {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/getAllUserAssistanceData -> then"
+          );
+        });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getAssistanceData"
+      );
+    }
+  });
   app.get("/areyousafetabhandler/requestAssistance", async (req, res) => {
     console.log("came in request");
     const userAadObjId = req.query.userId;
@@ -1662,7 +1694,12 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const { incId, userAadObjId } = req.query;
 
-      console.log("getMessageActivityLog called with incId:", incId, "userAadObjId:", userAadObjId);
+      console.log(
+        "getMessageActivityLog called with incId:",
+        incId,
+        "userAadObjId:",
+        userAadObjId
+      );
 
       if (!incId || !userAadObjId) {
         return res.status(400).json({ error: "Missing required parameters" });
@@ -1677,10 +1714,11 @@ const handlerForSafetyBotTab = (app) => {
       `;
 
       // Use mssql to specify type
-      const sql = require('mssql');
+      const sql = require("mssql");
       const pool = await poolPromise;
-      const result = await pool.request()
-        .input('incId', sql.Int, parseInt(incId))
+      const result = await pool
+        .request()
+        .input("incId", sql.Int, parseInt(incId))
         .query(query);
 
       console.log("MessageActivityLog DB result:", result.recordset);
@@ -1697,7 +1735,6 @@ const handlerForSafetyBotTab = (app) => {
       res.status(500).json({ error: "Failed to fetch message activity log" });
     }
   });
-  
 };
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;
