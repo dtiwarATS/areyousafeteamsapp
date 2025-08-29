@@ -1737,39 +1737,36 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   app.get("/areyousafetabhandler/getSOSLog", async (req, res) => {
+    const userAadObjId = req.query.userAadObjId;
+    const teamId = req.query.teamId;
+    
+    console.log("getSOSLog called with teamId:", teamId, "userAadObjId:", userAadObjId);
+    
     try {
-      const { teamId, userAadObjId } = req.query;
-
-      console.log("getSOSLog called with teamId:", teamId, "userAadObjId:", userAadObjId);
-
-      if (!teamId || !userAadObjId) {
-        return res.status(400).json({ error: "Missing required parameters" });
-      }
-
-      // SQL query to get SOS log data using the view
-      const query = `
-        SELECT * 
-        FROM ViewSOSlog 
-        WHERE team_ids = @teamId
-        ORDER BY requested_date DESC, UserName
-      `;
-
-      // Use mssql to specify type
-      const sql = require('mssql');
-      const pool = await poolPromise;
-      const result = await pool.request()
-        .input('teamId', sql.VarChar, teamId)
-        .query(query);
-
-      console.log("SOSLog DB result:", result.recordset);
-      res.json(result.recordset || []);
+      incidentService
+        .getAllUserAssistanceData(userAadObjId, teamId)
+        .then((sosData) => {
+          console.log("SOSLog data retrieved successfully");
+          res.send(sosData);
+        })
+        .catch((err) => {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/getSOSLog -> then"
+          );
+          res.status(500).json({ error: "Failed to fetch SOS log" });
+        });
     } catch (error) {
       console.error("Error fetching SOSLog:", error);
       processSafetyBotError(
         error,
         "",
         "",
-        req.query.userAadObjId,
+        userAadObjId,
         "Error in /areyousafetabhandler/getSOSLog"
       );
       res.status(500).json({ error: "Failed to fetch SOS log" });
