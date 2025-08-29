@@ -369,6 +369,93 @@ const getAssistanceData = async (aadObjuserId) => {
   }
 };
 
+const getAllUserAssistanceData = async (userid, teamid) => {
+  try {
+    let selectQuery = "";
+    if (teamid && teamid != null && teamid != "null" && teamid != "NULL") {
+      selectQuery = `
+SELECT 
+    a.id,
+    a.user_id,
+    u.user_name AS UserName,
+    a.sent_to_ids,
+    a.comment_date as real_comment_date,
+    (
+        SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
+               WITHIN GROUP (ORDER BY s.ordinal)
+        FROM STRING_SPLIT(a.sent_to_ids, ',', 1) s
+        LEFT JOIN dbo.MSTeamsTeamsUsers u2
+               ON LTRIM(RTRIM(s.value)) = u2.user_id
+              AND u2.team_id = a.team_ids
+    ) AS SentToUserNames,
+    a.comments,
+	CASE 
+    WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime, a.comment_date)
+    ELSE TRY_CONVERT(datetime, a.requested_date)
+END AS requested_date,
+a.requested_date AS Real_requested_date,
+    a.team_ids
+FROM dbo.MSTeamsAssistance a
+LEFT JOIN dbo.MSTeamsTeamsUsers u 
+       ON u.user_id = a.user_id
+      AND u.team_id = a.team_ids
+WHERE a.team_ids in ('${teamid}')
+  AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
+ORDER BY 
+   requested_date DESC, u.user_name
+      ;   -- <-- convert here
+
+`;
+    } else {
+      selectQuery = `
+SELECT 
+    a.id,
+    a.user_id,
+    u.user_name AS UserName,
+    a.sent_to_ids,
+    a.comment_date as real_comment_date,
+    (
+        SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
+               WITHIN GROUP (ORDER BY s.ordinal)
+        FROM STRING_SPLIT(a.sent_to_ids, ',', 1) s
+        LEFT JOIN dbo.MSTeamsTeamsUsers u2
+               ON LTRIM(RTRIM(s.value)) = u2.user_id
+              AND u2.team_id = a.team_ids
+    ) AS SentToUserNames,
+    a.comments,
+	CASE 
+    WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime, a.comment_date)
+    ELSE TRY_CONVERT(datetime, a.requested_date)
+END AS requested_date,
+a.requested_date AS Real_requested_date,
+    a.team_ids
+FROM dbo.MSTeamsAssistance a
+LEFT JOIN dbo.MSTeamsTeamsUsers u 
+       ON u.user_id = a.user_id
+      AND u.team_id = a.team_ids
+WHERE a.team_ids in ( select team_id from MSTeamsInstallationDetails where user_obj_id='${userid}' or super_users like '%${userid}%')
+  AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
+ORDER BY 
+   requested_date DESC, u.user_name
+      ;   -- <-- convert here
+
+`;
+    }
+
+    const result = await db.getDataFromDB(selectQuery, userid);
+    return Promise.resolve(result);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      aadObjuserId,
+      "error in getAllUserAssistanceData"
+    );
+  }
+};
+
 const getAllIncByUserId = async (aadObjuserId, orderBy) => {
   try {
     const selectQuery = getAllIncQuery(null, aadObjuserId, orderBy);
@@ -3124,6 +3211,7 @@ module.exports = {
   getAdmins,
   addComment,
   getAssistanceData,
+  getAllUserAssistanceData,
   getUserTenantDetails,
   saveServiceUrl,
   getAllTeamsIdByTenantId,
