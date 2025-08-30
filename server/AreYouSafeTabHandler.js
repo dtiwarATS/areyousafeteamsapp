@@ -699,24 +699,27 @@ const handlerForSafetyBotTab = (app) => {
       let requestedUser = requestedUserData[0];
       //let closedByUser = closedByUserData[0];
       if (requestedUserData != null) {
-        let mentionUserEntities = [];
-        dashboard.mentionUser(
-          mentionUserEntities,
-          requestedUser.user_id,
-          requestedUser.user_name
-        );
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
           body: [
             {
               type: "TextBlock",
-              text: `User <at>Admin</at> has closed your SOS Request`,
+              text: `User <at>${requestedUser.user_name}</at> has closed your SOS Request`,
               wrap: true,
             },
           ],
           msteams: {
-            entities: mentionUserEntities,
+            entities: [
+              {
+                type: "mention",
+                text: `<at>${requestedUser.user_name}</at>`,
+                mentioned: {
+                  id: requestedUser.user_id,
+                  name: requestedUser.user_name,
+                },
+              },
+            ],
           },
           type: "AdaptiveCard",
           version: "1.4",
