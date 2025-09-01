@@ -691,7 +691,8 @@ const handlerForSafetyBotTab = (app) => {
     closedByUserData,
     serviceUrl,
     user_tenant_id,
-    userAadObjId
+    userAadObjId,
+    comment
   ) => {
     try {
       //requestedUserData should have 2 properties: user_id and user_name
@@ -705,7 +706,29 @@ const handlerForSafetyBotTab = (app) => {
           body: [
             {
               type: "TextBlock",
-              text: `User <at>${requestedUser.user_name}</at> has closed your SOS Request`,
+              text: `🔔 **SOS Request Closed**`,
+              wrap: true,
+            },
+            {
+              type: "TextBlock",
+              text: `Your SOS request raised on **${new Date().toLocaleString(
+                "en-US",
+                {
+                  month: "short",
+                  day: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                }
+              )}** has been marked as closed by **<at>${
+                requestedUser.user_name
+              }</at>**.`,
+              wrap: true,
+            },
+            {
+              type: "TextBlock",
+              text: `**Message:** ${comment}`,
               wrap: true,
             },
           ],
@@ -763,6 +786,8 @@ const handlerForSafetyBotTab = (app) => {
     const closedbyuser = data.closedbyuser;
     const serviceurl = data.serviceurl;
     const tenentid = data.tenentid;
+    const closedByUserName = data.closedByUserName;
+    const comment = data.comment;
     try {
       if (data) {
         let ts = req.query.ts;
@@ -774,29 +799,18 @@ const handlerForSafetyBotTab = (app) => {
           .then(async (respData) => {
             var userdata = [
               {
-                user_id: assistanceuseraadobjectid,
-                user_name: assistanceusername,
+                user_id: closedbyuser,
+                user_name: closedByUserName,
               },
             ];
-            const res = await SendSOSClosedCardToRequester(
+            await SendSOSClosedCardToRequester(
               userdata,
               [],
               serviceurl,
               tenentid,
-              assistanceuseraadobjectid
+              assistanceuseraadobjectid,
+              comment
             );
-            // if (
-            //   admins != null ||
-            //   (Array.isArray(admins) && admins.length > 0) ||
-            //   admins[0].length > 0
-            // ) {
-            //   const tabObj = new tab.AreYouSafeTab();
-            //   tabObj.sendUserCommentToAdmin(
-            //     admins,
-            //     reqBody.comment,
-            //     userAadObjId
-            //   );
-            // }
             res.send(true);
           })
           .catch((err) => {
