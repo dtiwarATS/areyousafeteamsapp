@@ -705,7 +705,29 @@ const handlerForSafetyBotTab = (app) => {
           body: [
             {
               type: "TextBlock",
-              text: `User <at>${requestedUser.user_name}</at> has closed your SOS Request`,
+              text: `🔔 **SOS Request Closed**`,
+              wrap: true,
+            },
+            {
+              type: "TextBlock",
+              text: `Your SOS request raised on **${new Date().toLocaleString(
+                "en-US",
+                {
+                  month: "short",
+                  day: "2-digit",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                }
+              )}** has been marked as closed by **<at>${
+                requestedUser.user_name
+              }</at>**.`,
+              wrap: true,
+            },
+            {
+              type: "TextBlock",
+              text: `**Message:** I am stuck in the B wing elevator.`,
               wrap: true,
             },
           ],
