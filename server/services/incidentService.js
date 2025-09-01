@@ -411,6 +411,7 @@ SELECT
     u.user_aadobject_id,
     a.status,
 	a.closed_by_user,
+  (select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = a.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name',
 	a.closed_at,
     a.comment_date as real_comment_date,
     (
@@ -449,6 +450,7 @@ SELECT
     u.user_aadobject_id,
     a.status,
 	a.closed_by_user,
+  (select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = a.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name',
 	a.closed_at,
     a.comment_date as real_comment_date,
     (
