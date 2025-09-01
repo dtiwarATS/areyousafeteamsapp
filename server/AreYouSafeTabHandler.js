@@ -698,7 +698,7 @@ const handlerForSafetyBotTab = (app) => {
       //requestedUserData should have 2 properties: user_id and user_name
       //closedByUserData should have 2 properties: user_id and user_name
       let requestedUser = requestedUserData[0];
-      //let closedByUser = closedByUserData[0];
+      let closedByUser = closedByUserData[0];
       if (requestedUserData != null) {
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -722,7 +722,7 @@ const handlerForSafetyBotTab = (app) => {
                   hour12: true,
                 }
               )}** has been marked as closed by **<at>${
-                requestedUser.user_name
+                closedByUser.user_name
               }</at>**.`,
               wrap: true,
             },
@@ -736,10 +736,10 @@ const handlerForSafetyBotTab = (app) => {
             entities: [
               {
                 type: "mention",
-                text: `<at>${requestedUser.user_name}</at>`,
+                text: `<at>${closedByUser.user_name}</at>`,
                 mentioned: {
-                  id: requestedUser.user_id,
-                  name: requestedUser.user_name,
+                  id: closedByUser.user_id,
+                  name: closedByUser.user_name,
                 },
               },
             ],
@@ -797,15 +797,20 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
           .updateSosStatus(assistId, ts, closedbyuser, closedbyuser)
           .then(async (respData) => {
-            var userdata = [
-              {
-                user_id: closedbyuser,
-                user_name: closedByUserName,
-              },
-            ];
             await SendSOSClosedCardToRequester(
-              userdata,
-              [],
+              [
+                {
+                  user_id: assistanceuserId,
+                  user_name: assistanceusername,
+                },
+              ],
+              [
+                {
+                  user_id: closedbyuser,
+                  user_name: closedByUserName,
+                },
+              ],
+
               serviceurl,
               tenentid,
               assistanceuseraadobjectid,
@@ -1891,9 +1896,14 @@ const handlerForSafetyBotTab = (app) => {
   app.get("/areyousafetabhandler/getSOSLog", async (req, res) => {
     const userAadObjId = req.query.userAadObjId;
     const teamId = req.query.teamId;
-    
-    console.log("getSOSLog called with teamId:", teamId, "userAadObjId:", userAadObjId);
-    
+
+    console.log(
+      "getSOSLog called with teamId:",
+      teamId,
+      "userAadObjId:",
+      userAadObjId
+    );
+
     try {
       incidentService
         .getAllUserAssistanceData(userAadObjId, teamId)
@@ -1924,7 +1934,6 @@ const handlerForSafetyBotTab = (app) => {
       res.status(500).json({ error: "Failed to fetch SOS log" });
     }
   });
-  
 };
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;
