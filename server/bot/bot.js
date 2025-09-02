@@ -2963,7 +2963,7 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
         body: [
           {
             type: "TextBlock",
-            text: `User <at>${user.user_name}</at> needs assistance for Incident: **${incData.incTitle}** `,
+            text: `User **<at>${user.user_name}</at>** needs assistance for Incident: **${incData.incTitle}** `,
             wrap: true,
           },
         ],
@@ -3074,7 +3074,7 @@ const proccessWhatsappClick = async (
         body: [
           {
             type: "TextBlock",
-            text: `User <at>${user.user_name}</at> needs assistance for Incident: **${incData.incTitle}** `,
+            text: `User **<at>${user.user_name}</at>** needs assistance for Incident: **${incData.incTitle}** `,
             wrap: true,
           },
         ],
@@ -3281,7 +3281,7 @@ const processCommentViaLink = async (userId, incId, comment) => {
         body: [
           {
             type: "TextBlock",
-            text: `User <at>${user.user_name}</at> has commented for incident **${incData.incTitle}**: \n${comment} `,
+            text: `User **<at>${user.user_name}</at>** has commented for incident **${incData.incTitle}**: \n${comment} `,
             wrap: true,
           },
         ],
@@ -4402,7 +4402,7 @@ const submitComment = async (context, user, companyData) => {
         body: [
           {
             type: "TextBlock",
-            text: `User <at>${user.name}</at> has commented for incident **${incTitle}**: \n${commentVal} `,
+            text: `User **<at>${user.name}</at>** has commented for incident **${incTitle}**: \n${commentVal} `,
             wrap: true,
           },
         ],

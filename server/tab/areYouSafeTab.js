@@ -514,7 +514,7 @@ ORDER BY email;
           body: [
             {
               type: "TextBlock",
-              text: `User <at>${user.user_name}</at> needs assistance.`,
+              text: `User **<at>${user.user_name}</at>** needs assistance.`,
               wrap: true,
             },
             // {
@@ -744,7 +744,7 @@ ORDER BY email;
           body: [
             {
               type: "TextBlock",
-              text: `User <at>${user.user_name}</at> has commented : ${userComment}`,
+              text: `User **<at>${user.user_name}</at>** has commented : ${userComment}`,
               wrap: true,
             },
           ],
@@ -1061,9 +1061,20 @@ ORDER BY email;
   deleteSOSResponder = async (teamId, city, country, department) => {
     let res = null;
     try {
-      res = await incidentService.deleteSOSResponder(teamId, city, country, department);
+      res = await incidentService.deleteSOSResponder(
+        teamId,
+        city,
+        country,
+        department
+      );
     } catch (err) {
-      processSafetyBotError(err, teamId, "", null, "error in deleteSOSResponder");
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in deleteSOSResponder"
+      );
     }
     return Promise.resolve(res);
   };
