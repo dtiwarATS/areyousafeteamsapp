@@ -436,7 +436,7 @@ LEFT JOIN dbo.MSTeamsTeamsUsers u
 WHERE a.team_ids in ('${teamid}')
   AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
 ORDER BY 
-   requested_date DESC, u.user_name
+   Real_requested_date DESC, u.user_name
       ;   -- <-- convert here
 
 `;
@@ -475,7 +475,7 @@ LEFT JOIN dbo.MSTeamsTeamsUsers u
 WHERE a.team_ids in ( select team_id from MSTeamsInstallationDetails where user_obj_id='${userid}' or super_users like '%${userid}%')
   AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
 ORDER BY 
-   requested_date DESC, u.user_name
+   Real_requested_date DESC, u.user_name
       ;   -- <-- convert here
 
 `;
