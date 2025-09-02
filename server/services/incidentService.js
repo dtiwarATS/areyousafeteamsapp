@@ -382,7 +382,7 @@ const updateSosStatus = async (
 
 const getAssistanceData = async (aadObjuserId) => {
   try {
-    let selectQuery = `SELECT * from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id`;
+    let selectQuery = `SELECT *,(select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = MSTeamsAssistance.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name' from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id`;
 
     const result = await db.getDataFromDB(selectQuery, aadObjuserId);
     return Promise.resolve(result);
