@@ -733,7 +733,7 @@ const handlerForSafetyBotTab = (app) => {
             },
             {
               type: "TextBlock",
-              text: `If this was closed by mistake, please go to the Dashboard tab and click I Need Assistance again.`,
+              text: `If this was closed by mistake, please go to the **Dashboard** tab and click **I Need Assistance** again.`,
               wrap: true,
             },
           ],
