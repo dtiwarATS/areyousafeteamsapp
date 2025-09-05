@@ -442,41 +442,66 @@ ORDER BY
 `;
     } else {
       selectQuery = `
-SELECT 
-    a.id,
-    a.user_id,
-    u.user_name AS UserName,
-    a.sent_to_ids,
-    u.user_aadobject_id,
-    a.status,
-	a.closed_by_user,
-  (select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = a.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name',
-	a.closed_at,
-    a.comment_date as real_comment_date,
-    (
-        SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
-               WITHIN GROUP (ORDER BY s.ordinal)
-        FROM STRING_SPLIT(a.sent_to_ids, ',', 1) s
-        LEFT JOIN dbo.MSTeamsTeamsUsers u2
-               ON LTRIM(RTRIM(s.value)) = u2.user_id
-              AND u2.team_id = a.team_ids
-    ) AS SentToUserNames,
-    a.comments,
-	CASE 
-    WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime, a.comment_date)
-    ELSE TRY_CONVERT(datetime, a.requested_date)
-END AS requested_date,
-a.requested_date AS Real_requested_date,
-    a.team_ids
-FROM dbo.MSTeamsAssistance a
-LEFT JOIN dbo.MSTeamsTeamsUsers u 
-       ON u.user_id = a.user_id
-      AND u.team_id = a.team_ids
-WHERE a.team_ids in ( select team_id from MSTeamsInstallationDetails where user_obj_id='${userid}' or super_users like '%${userid}%')
-  AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
-ORDER BY 
-   Real_requested_date DESC, u.user_name
-      ;   -- <-- convert here
+;WITH A AS (
+    SELECT
+        a.*,
+        LTRIM(RTRIM(s.value)) AS team_id_single,
+        CASE 
+            WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime2, a.comment_date)
+            ELSE TRY_CONVERT(datetime2, a.requested_date)
+        END AS sort_dt
+    FROM dbo.MSTeamsAssistance a
+    CROSS APPLY STRING_SPLIT(a.team_ids, ',', 1) s
+),
+B AS (
+    SELECT
+        A.id,
+        A.user_id,
+        u.user_name AS UserName,
+        A.sent_to_ids,
+        u.user_aadobject_id,
+        A.status,
+        A.closed_by_user,
+        (SELECT TOP 1 user_name
+         FROM MSTeamsTeamsUsers tt
+         WHERE tt.user_aadobject_id = A.closed_by_user
+           AND tt.user_name IS NOT NULL
+           AND tt.user_name <> ''
+        ) AS closed_by_user_name,
+        A.closed_at,
+        A.comment_date AS real_comment_date,
+        (
+            SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
+            FROM STRING_SPLIT(A.sent_to_ids, ',', 1) s2
+            LEFT JOIN dbo.MSTeamsTeamsUsers u2
+                   ON LTRIM(RTRIM(s2.value)) = u2.user_id
+                  AND u2.team_id = A.team_id_single
+        ) AS SentToUserNames,
+        A.comments,
+        CONVERT(varchar(23), A.sort_dt, 121) AS requested_date,
+        A.requested_date AS Real_requested_date,
+        A.team_ids,
+        A.sort_dt,
+        ROW_NUMBER() OVER (PARTITION BY A.id ORDER BY A.sort_dt DESC) AS rn
+    FROM A
+    LEFT JOIN dbo.MSTeamsTeamsUsers u
+           ON u.user_id = A.user_id
+          AND u.team_id = A.team_id_single
+    WHERE A.team_id_single IN (
+            SELECT team_id
+            FROM MSTeamsInstallationDetails
+            WHERE user_obj_id = '${userid}'
+               OR super_users LIKE '%${userid}%'
+               AND uninstallation_date IS NULL
+        )
+      AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
+)
+SELECT *
+FROM B
+WHERE rn = 1   -- ✅ only keep 1 row per Assistance record
+ORDER BY sort_dt DESC, UserName;
+
+
 
 `;
     }
