@@ -378,8 +378,14 @@ const addTeamMember = async (
         Declare @hasLicense bit = (select case when @userLimit${index} > 0 AND @licensedUsed${index} > 0 AND @licensedUsed${index} < @userLimit${index} then 1 else null end)
         if (@hasLicense = 1)
         begin
-              update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id = '${m.objectId}'
-        end `;
+              update MSTeamsTeamsUsers set hasLicense = 1 where user_aadobject_id = '${m.aadObjectId}'
+        end 
+        ELSE IF (@hasLicense IS NULL)
+BEGIN
+    UPDATE MSTeamsTeamsUsers 
+    SET hasLicense = 0 
+    WHERE user_aadobject_id = '${m.aadObjectId}';
+END`;
       });
     } else {
       teamMembers.map((m) => {

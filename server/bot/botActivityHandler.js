@@ -32,7 +32,7 @@ const {
   getCompanyDataByTenantId,
   renameTeam,
   getUserById,
-  sendSetupMessageToAllMembers
+  sendSetupMessageToAllMembers,
 } = require("../db/dbOperations");
 const {
   sendDirectMessage,
@@ -41,6 +41,7 @@ const {
   getAllTeamMembersByConnectorClient,
   sendMultipleDirectMessageCard,
   getConversationMembers,
+  sendProactiveMessaageToUser,
 } = require("../api/apiMethods");
 const {
   updateMainCard,
@@ -217,7 +218,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                JSON.stringify(context)
+                  JSON.stringify(context)
               );
             }
 
@@ -294,7 +295,8 @@ class BotActivityHandler extends TeamsActivityHandler {
           // );
           let allMembersInfo = [];
           let continuationToken;
-
+          let serviceUrl = "";
+          let userTenantId = "";
           do {
             const pagedMembers = await TeamsInfo.getPagedTeamMembers(
               context,
@@ -318,6 +320,19 @@ class BotActivityHandler extends TeamsActivityHandler {
           const adminUserInfo = allMembersInfo.find(
             (m) => m.id === acvtivityData.from.id
           );
+          try {
+            let selectQuery = `select UserLimit from MSTeamsSubscriptionDetails where ID in (select SubscriptionDetailsId from MSTeamsInstallationDetails where team_id='${teamId}')`;
+            let res = await db.getDataFromDB(selectQuery, "");
+            var LicenseLimitCard = await this.getLicenseLimitCard(
+              allMembersInfo.length,
+              res[0].UserLimit
+            );
+            console.log({ res: res });
+            var licensecount = res[0].UserLimit;
+          } catch (err) {
+            console.log({ err: err });
+          }
+
           for (let i = 0; i < membersAdded.length; i++) {
             // See if the member added was our bot
             if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
@@ -363,6 +378,9 @@ class BotActivityHandler extends TeamsActivityHandler {
                   teamId,
                   acvtivityData.channelData.team.name
                 );
+                serviceUrl = companyDataObj.serviceUrl;
+                userTenantId = companyDataObj.userTenantId;
+
                 if (adminUserInfo && i == membersAdded.length - 1) {
                   let userEmail = adminUserInfo.email
                     ? adminUserInfo.email
@@ -384,15 +402,35 @@ class BotActivityHandler extends TeamsActivityHandler {
                   );
                 }
                 if (data.users && data.users.length > 0) {
-                  teamMembers = teamMembers.filter(info => {
-                    let usr = data.users.find(user => user.user_id === info.id);
-                    return usr && (!usr.SETUPCOMPLETED || usr.SETUPCOMPLETED == null);
-                  })
+                  teamMembers = teamMembers.filter((info) => {
+                    let usr = data.users.find(
+                      (user) => user.user_id === info.id
+                    );
+                    return (
+                      usr && (!usr.SETUPCOMPLETED || usr.SETUPCOMPLETED == null)
+                    );
+                  });
                 }
-                await sendSetupMessageToAllMembers(
-                  teamMembers, companyDataObj)
+                await sendSetupMessageToAllMembers(teamMembers, companyDataObj);
               }
             }
+          }
+          if (allMembersInfo.length > licensecount && membersAdded.length) {
+            try {
+              const userObj = {
+                id: adminUserInfo.id,
+                name: adminUserInfo.name,
+              };
+              await sendProactiveMessaageToUser(
+                [userObj],
+                LicenseLimitCard,
+                null,
+                serviceUrl,
+                userTenantId,
+                null,
+                null
+              );
+            } catch (err) {}
           }
         } else if (
           (acvtivityData &&
@@ -499,6 +537,75 @@ class BotActivityHandler extends TeamsActivityHandler {
           );
       }
     });
+  }
+
+  async getLicenseLimitCard(xxUsers, yyLicenses) {
+    return {
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      type: "AdaptiveCard",
+      version: "1.3",
+      body: [
+        {
+          type: "ColumnSet",
+          columns: [
+            {
+              type: "Column",
+              width: "stretch",
+              items: [
+                {
+                  type: "TextBlock",
+                  text: "⚠️License Limit Reached",
+                  weight: "Bolder",
+                  wrap: true,
+                },
+                {
+                  type: "TextBlock",
+                  text: `Your team now has **${xxUsers}** users, but your subscription includes **${yyLicenses}** licenses. Some users may not have access.`,
+                  wrap: true,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          type: "TextBlock",
+          text: "**To add more licenses:**",
+          weight: "Bolder",
+          spacing: "Medium",
+          wrap: true,
+        },
+        {
+          type: "TextBlock",
+          text: "• Open the [Microsoft 365 Admin Center](https://admin.microsoft.com/).",
+          wrap: true,
+        },
+        {
+          type: "TextBlock",
+          text: "• Navigate to **Billing → Your products**.",
+          wrap: true,
+        },
+        {
+          type: "TextBlock",
+          text: "• Under **Apps**, select **Safety Check**.",
+          wrap: true,
+        },
+        {
+          type: "TextBlock",
+          text: "• Click **Buy licenses**.",
+          wrap: true,
+        },
+        {
+          type: "TextBlock",
+          text: "• Update the **Total licenses** field with the new number. Example: If you currently have 100 licenses and want to add 50 more, enter 150 in the Total licenses field.",
+          wrap: true,
+        },
+        {
+          type: "TextBlock",
+          text: "• Click **Save**.",
+          wrap: true,
+        },
+      ],
+    };
   }
 
   async notifyUserForInvalidLicense(
@@ -954,9 +1061,9 @@ class BotActivityHandler extends TeamsActivityHandler {
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-        JSON.stringify(context) +
-        " companyData=" +
-        JSON.stringify(companyData)
+          JSON.stringify(context) +
+          " companyData=" +
+          JSON.stringify(companyData)
       );
     }
   }
@@ -1058,11 +1165,11 @@ class BotActivityHandler extends TeamsActivityHandler {
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-        JSON.stringify(context) +
-        " userEmail=" +
-        userEmail +
-        " companyDataObj=" +
-        JSON.stringify(companyDataObj)
+          JSON.stringify(context) +
+          " userEmail=" +
+          userEmail +
+          " companyDataObj=" +
+          JSON.stringify(companyDataObj)
       );
     }
   }
@@ -1178,7 +1285,7 @@ class BotActivityHandler extends TeamsActivityHandler {
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => { })
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
