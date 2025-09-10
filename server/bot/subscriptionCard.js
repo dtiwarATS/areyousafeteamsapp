@@ -144,7 +144,22 @@ const getWelcomeMessageCard = (teamMemberCount, teamName) => {
     ],
   };
 };
-
+const getWelcomeMessageCardformpersonal = (teamname) => {
+  return {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    type: "AdaptiveCard",
+    version: "1.5",
+    body: [
+      {
+        type: "TextBlock",
+        text: `**Welcome to Safety Check!**\n
+You’re now linked to **${teamname}**, where the app was originally installed.\n 
+You can use the **Dashboard** tab to trigger **SOS alerts** and stay connected to the team during emergencies.`,
+        wrap: true,
+      },
+    ],
+  };
+};
 const getWelcomeMessageCard2 = (teamMemberCount, teamName) => {
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -1130,6 +1145,7 @@ const getWelcomeMessageCardForChannel = (userName, userId) => {
 
 module.exports = {
   getWelcomeMessageCard,
+  getWelcomeMessageCardformpersonal,
   getWelcomeMessageCard2,
   getSubcriptionSelectionCard,
   getAfterUsrSubscribedTypeOneCard,

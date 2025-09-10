@@ -5,6 +5,7 @@ const path = require("path");
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
 const { AYSLog } = require("../utils/log");
+const poolPromise = require("../db/dbConn");
 const {
   TeamsActivityHandler,
   CardFactory,
@@ -60,6 +61,7 @@ const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const {
   getWelcomeMessageCard,
+  getWelcomeMessageCardformpersonal,
   getWelcomeMessageCard2,
   getSubcriptionSelectionCard,
   getTestIncPreviewCard,
@@ -242,7 +244,19 @@ class BotActivityHandler extends TeamsActivityHandler {
         );
       }
     });
-
+    const insertData = async (sqlInsertQuery) => {
+      let result = null;
+      if (sqlInsertQuery != null) {
+        try {
+          const pool = await poolPromise;
+          console.log("insert query => ", sqlInsertQuery);
+          result = await pool.request().query(sqlInsertQuery);
+        } catch (err) {
+          console.log(err);
+        }
+      }
+      return result;
+    };
     const getCompaniesDataJSON = (context, adminUserInfo, teamId, teamName) => {
       let userEmail = adminUserInfo?.email ?? null;
       if (userEmail == null) {
@@ -491,18 +505,70 @@ class BotActivityHandler extends TeamsActivityHandler {
                     "",
                     ""
                   );
-                  const companyData = await insertCompanyData(
-                    companyDataObj,
-                    null,
-                    conversationType
-                  );
-                  await this.sendWelcomeMessage(
+                  // const companyData = await insertCompanyData(
+                  //   companyDataObj,
+                  //   null,
+                  //   conversationType
+                  // );
+                  var teamname = "none";
+                  var isInstalledInTeam = true;
+
+                  ({ isInstalledInTeam } =
+                    await incidentService.isBotInstalledInTeam(
+                      userAadObjectId
+                    ));
+
+                  try {
+                    const companyDataofSameTenantId =
+                      await getCompanyDataByTenantId(
+                        acvtivityData.channelData.tenant.id
+                      );
+                    console.log({ isInstalledInTeam: isInstalledInTeam });
+                    if (companyDataofSameTenantId.length > 0) {
+                      teamname = companyDataofSameTenantId[0].team_name;
+                      //await Promise.all(
+                      //companyDataofSameTenantId.map(async (cmpData) => {
+                      // console.log({ cmpData: cmpData });
+                      var sql = `INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[conversationId],[email],[hasLicense]) VALUES('${
+                        companyDataofSameTenantId[0].team_id
+                      }', '${
+                        adminUserInfo.aadObjectId ?? adminUserInfo.objectId
+                      }', '${adminUserInfo.id}', N'${adminUserInfo.name.replace(
+                        /'/g,
+                        "''"
+                      )}', '${adminUserInfo.tenantId}', '${
+                        adminUserInfo.userRole
+                      }','${acvtivityData.conversation.id}','${
+                        adminUserInfo.email
+                      }',0)`;
+                      await insertData(sql);
+                      // })
+                      //);
+                    }
+                  } catch (err) {
+                    processSafetyBotError(
+                      err,
+                      "",
+                      "",
+                      "",
+                      "error in onMessage - personal context=" +
+                        JSON.stringify(context)
+                    );
+                  }
+                  const welcomeMessageCard =
+                    await getWelcomeMessageCardformpersonal(teamname);
+                  await sendDirectMessageCard(
                     context,
-                    acvtivityData,
-                    adminUserInfo,
-                    companyData,
-                    0
+                    acvtivityData.from,
+                    welcomeMessageCard
                   );
+                  // await this.sendWelcomeMessage(
+                  //   context,
+                  //   acvtivityData,
+                  //   adminUserInfo,
+                  //   companyData,
+                  //   0
+                  // );
                 }
               }
             }

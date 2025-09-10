@@ -912,9 +912,16 @@ const saveLog = async (sqlLog) => {
 
 const getCompanyDataByTenantId = async (tenantId, filter = null) => {
   let result = null;
+  let sqlCompanyData = "";
   try {
-    const sqlCompanyData = `select id, user_tenant_id, user_obj_id, team_id, serviceUrl from MSTeamsInstallationDetails 
+    if (filter) {
+      sqlCompanyData = `select id, user_tenant_id, user_obj_id, team_id, serviceUrl,team_name from MSTeamsInstallationDetails 
     where user_tenant_id = '${tenantId}' ${filter} `;
+    } else {
+      sqlCompanyData = `select id, user_tenant_id, user_obj_id, team_id, serviceUrl,team_name from MSTeamsInstallationDetails 
+    where user_tenant_id = '${tenantId}'  `;
+    }
+
     result = await db.getDataFromDB(sqlCompanyData);
   } catch (err) {
     processSafetyBotError(
