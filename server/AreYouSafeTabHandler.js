@@ -601,7 +601,24 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
-
+  app.post("/areyousafetabhandler/setavailableforapp", async (req, res) => {
+    const teamId = req.query.teamId;
+    const tenantId = req.query.tenantId;
+    const availablefor = req.query.availablefor;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setavailableforapp(availablefor, tenantId, teamId);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setavailableforapp"
+      );
+    }
+  });
   app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
     const teamId = req.query.teamId;
     const refresh_token = req.query.refresh_token;

@@ -1597,6 +1597,7 @@ const getUserTeamInfo = async (userAadObjId) => {
 		  send_sms,
 		 refresh_token,
       serviceUrl,
+      AVAILABLE_FOR,
      PHONE_FIELD,
           s.UserLimit,
           s.SubscriptionType
@@ -2128,6 +2129,19 @@ const setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in setSendWhatsapp");
+  }
+  return Promise.resolve(result);
+};
+const setavailableforapp = async (AVAILABLE_FOR, tenantId, teamId) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set AVAILABLE_FOR = '${AVAILABLE_FOR}' where user_tenant_id='${tenantId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in setavailableforapp");
   }
   return Promise.resolve(result);
 };
@@ -3323,6 +3337,7 @@ module.exports = {
   saveSOSResponder,
   saveFilterChecked,
   setSendWhatsapp,
+  setavailableforapp,
   saveRefreshToken,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,

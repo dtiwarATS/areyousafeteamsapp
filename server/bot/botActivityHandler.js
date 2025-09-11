@@ -521,7 +521,8 @@ class BotActivityHandler extends TeamsActivityHandler {
                   try {
                     const companyDataofSameTenantId =
                       await getCompanyDataByTenantId(
-                        acvtivityData.channelData.tenant.id
+                        acvtivityData.channelData.tenant.id,
+                        `and AVAILABLE_FOR='Tenant'`
                       );
                     console.log({ isInstalledInTeam: isInstalledInTeam });
                     if (companyDataofSameTenantId.length > 0) {
@@ -542,6 +543,13 @@ class BotActivityHandler extends TeamsActivityHandler {
                         adminUserInfo.email
                       }',0)`;
                       await insertData(sql);
+                      const welcomeMessageCard =
+                        await getWelcomeMessageCardformpersonal(teamname);
+                      await sendDirectMessageCard(
+                        context,
+                        acvtivityData.from,
+                        welcomeMessageCard
+                      );
                       // })
                       //);
                     }
@@ -555,13 +563,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                         JSON.stringify(context)
                     );
                   }
-                  const welcomeMessageCard =
-                    await getWelcomeMessageCardformpersonal(teamname);
-                  await sendDirectMessageCard(
-                    context,
-                    acvtivityData.from,
-                    welcomeMessageCard
-                  );
+
                   // await this.sendWelcomeMessage(
                   //   context,
                   //   acvtivityData,

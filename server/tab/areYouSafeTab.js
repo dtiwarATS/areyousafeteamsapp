@@ -1126,6 +1126,19 @@ ORDER BY email;
     }
     return Promise.resolve(res);
   };
+  setavailableforapp = async (AVAILABLE_FOR, tenantId, teamId) => {
+    let res = null;
+    try {
+      res = await incidentService.setavailableforapp(
+        AVAILABLE_FOR,
+        tenantId,
+        teamId
+      );
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in setsendWhatsapp");
+    }
+    return Promise.resolve(res);
+  };
 
   saveRefreshToken = async (teamId, refresh_token, field) => {
     let res = null;
