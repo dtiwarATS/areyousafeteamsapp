@@ -400,45 +400,72 @@ const getAssistanceData = async (aadObjuserId) => {
 
 const getAllUserAssistanceData = async (userid, teamid) => {
   try {
+ 
     let selectQuery = "";
     if (teamid && teamid != null && teamid != "null" && teamid != "NULL") {
       selectQuery = `
-SELECT 
+SELECT
     a.id,
     a.user_id,
     u.user_name AS UserName,
+    u.CITY,
+    u.COUNTRY,
+    u.DEPARTMENT,
     a.sent_to_ids,
     u.user_aadobject_id,
     a.status,
-	a.closed_by_user,
+  a.closed_by_user,
   (select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = a.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name',
-	a.closed_at,
+  a.closed_at,
     a.comment_date as real_comment_date,
     (
-        SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
-               WITHIN GROUP (ORDER BY s.ordinal)
-        FROM STRING_SPLIT(a.sent_to_ids, ',', 1) s
-        LEFT JOIN dbo.MSTeamsTeamsUsers u2
-               ON LTRIM(RTRIM(s.value)) = u2.user_id
-              AND u2.team_id = a.team_ids
-    ) AS SentToUserNames,
+    SELECT
+        ISNULL(mid.team_name, '')
+        + CASE
+            WHEN mid.team_name IS NOT NULL AND mid.team_name <> '' THEN ' - '
+            ELSE ''
+          END
+        + REPLACE(COALESCE(ulist.UserList, ''), ', and ', ' and ')
+    FROM (
+        SELECT
+            STRING_AGG(
+                CASE
+                    WHEN x.cnt > 1 AND x.rn = x.cnt THEN 'and ' + x.user_name
+                    ELSE x.user_name
+                END,
+                ', '
+            ) WITHIN GROUP (ORDER BY x.rn) AS UserList
+        FROM (
+            SELECT
+                u2.user_name,
+                ROW_NUMBER() OVER (ORDER BY s.ordinal) AS rn,
+                COUNT(*) OVER() AS cnt
+            FROM STRING_SPLIT(a.sent_to_ids, ',', 1) s
+            LEFT JOIN dbo.MSTeamsTeamsUsers u2
+                   ON LTRIM(RTRIM(s.value)) = u2.user_id
+                  AND u2.team_id = a.team_ids
+        ) x
+    ) ulist
+    LEFT JOIN dbo.MSTeamsInstallationDetails mid
+           ON mid.team_id = a.team_ids
+) AS SentToUserNames,
     a.comments,
-	CASE 
+  CASE
     WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime, a.comment_date)
     ELSE TRY_CONVERT(datetime, a.requested_date)
 END AS requested_date,
 a.requested_date AS Real_requested_date,
     a.team_ids
 FROM dbo.MSTeamsAssistance a
-LEFT JOIN dbo.MSTeamsTeamsUsers u 
+LEFT JOIN dbo.MSTeamsTeamsUsers u
        ON u.user_id = a.user_id
       AND u.team_id = a.team_ids
 WHERE a.team_ids in ('${teamid}')
   AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
-ORDER BY 
+ORDER BY
    Real_requested_date DESC, u.user_name
       ;   -- <-- convert here
-
+ 
 `;
     } else {
       selectQuery = `
@@ -446,7 +473,7 @@ ORDER BY
     SELECT
         a.*,
         LTRIM(RTRIM(s.value)) AS team_id_single,
-        CASE 
+        CASE
             WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime2, a.comment_date)
             ELSE TRY_CONVERT(datetime2, a.requested_date)
         END AS sort_dt
@@ -456,7 +483,10 @@ ORDER BY
 B AS (
     SELECT
         A.id,
-        A.user_id,
+        A.user_id,    
+        u.CITY,
+        u.COUNTRY,
+        u.DEPARTMENT,
         u.user_name AS UserName,
         A.sent_to_ids,
         u.user_aadobject_id,
@@ -470,13 +500,43 @@ B AS (
         ) AS closed_by_user_name,
         A.closed_at,
         A.comment_date AS real_comment_date,
-        (
-            SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
-            FROM STRING_SPLIT(A.sent_to_ids, ',', 1) s2
-            LEFT JOIN dbo.MSTeamsTeamsUsers u2
-                   ON LTRIM(RTRIM(s2.value)) = u2.user_id
-                  AND u2.team_id = A.team_id_single
-        ) AS SentToUserNames,
+       CASE
+    WHEN (LEN(A.team_ids) - LEN(REPLACE(A.team_ids, ',', ''))) = 0
+         -- means no comma → single team only
+    THEN (
+        SELECT
+            ISNULL(mid.team_name, '')
+            + CASE
+                WHEN mid.team_name IS NOT NULL AND mid.team_name <> ''
+                THEN ' - '
+                ELSE ''
+              END
+            + REPLACE(UserList, ', and ', ' and ')
+        FROM (
+            SELECT
+                STRING_AGG(
+                    CASE
+                        WHEN x.cnt > 1 AND x.rn = x.cnt THEN 'and ' + x.user_name
+                        ELSE x.user_name
+                    END,
+                    ', '
+                ) WITHIN GROUP (ORDER BY x.rn) AS UserList
+            FROM (
+                SELECT
+                    u2.user_name,
+                    ROW_NUMBER() OVER (ORDER BY s2.ordinal) AS rn,
+                    COUNT(*) OVER() AS cnt
+                FROM STRING_SPLIT(A.sent_to_ids, ',', 1) s2
+                LEFT JOIN dbo.MSTeamsTeamsUsers u2
+                       ON LTRIM(RTRIM(s2.value)) = u2.user_id
+                      AND u2.team_id = A.team_id_single
+            ) x
+        ) ulist
+        LEFT JOIN dbo.MSTeamsInstallationDetails mid
+               ON mid.team_id = A.team_id_single
+    )
+    ELSE A.sent_to_names
+END AS SentToUserNames,
         A.comments,
         CONVERT(varchar(23), A.sort_dt, 121) AS requested_date,
         A.requested_date AS Real_requested_date,
@@ -500,12 +560,12 @@ SELECT *
 FROM B
 WHERE rn = 1   -- ✅ only keep 1 row per Assistance record
 ORDER BY sort_dt DESC, UserName;
-
-
-
+ 
+ 
+ 
 `;
     }
-
+ 
     const result = await db.getDataFromDB(selectQuery, userid);
     return Promise.resolve(result);
   } catch (err) {
