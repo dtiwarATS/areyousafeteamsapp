@@ -526,32 +526,64 @@ class BotActivityHandler extends TeamsActivityHandler {
                       );
                     console.log({ isInstalledInTeam: isInstalledInTeam });
                     if (companyDataofSameTenantId.length > 0) {
-                      teamname = companyDataofSameTenantId[0].team_name;
-                      //await Promise.all(
-                      //companyDataofSameTenantId.map(async (cmpData) => {
-                      // console.log({ cmpData: cmpData });
-                      var sql = `INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[conversationId],[email],[hasLicense]) VALUES('${
-                        companyDataofSameTenantId[0].team_id
-                      }', '${
-                        adminUserInfo.aadObjectId ?? adminUserInfo.objectId
-                      }', '${adminUserInfo.id}', N'${adminUserInfo.name.replace(
-                        /'/g,
-                        "''"
-                      )}', '${adminUserInfo.tenantId}', '${
-                        adminUserInfo.userRole
-                      }','${acvtivityData.conversation.id}','${
-                        adminUserInfo.email
-                      }',0)`;
-                      await insertData(sql);
-                      const welcomeMessageCard =
-                        await getWelcomeMessageCardformpersonal(teamname);
-                      await sendDirectMessageCard(
-                        context,
-                        acvtivityData.from,
-                        welcomeMessageCard
+                      await Promise.all(
+                        companyDataofSameTenantId.map(async (cmpData) => {
+                          console.log({ cmpData });
+                          teamname = cmpData.team_name;
+
+                          var sql = `
+        DECLARE @userLimit INT, @licensedUsed INT;
+
+        -- Get license info
+        SELECT TOP 1 
+            @userLimit = B.UserLimit,
+            @licensedUsed = (
+                SELECT COUNT(DISTINCT user_aadobject_id) 
+                FROM MSTeamsTeamsUsers 
+                WHERE tenantid = '${cmpData.user_tenant_id}' 
+                  AND hasLicense = 1 
+                  AND team_id = '${cmpData.team_id}'
+            )
+        FROM MSTeamsInstallationDetails A
+        LEFT JOIN MSTeamsSubscriptionDetails B 
+            ON A.SubscriptionDetailsId = B.id
+        WHERE team_id = '${cmpData.team_id}';
+
+        -- Insert with license check
+        INSERT INTO MSTeamsTeamsUsers
+        ([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[conversationId],[email],[hasLicense])
+        VALUES (
+            '${cmpData.team_id}',
+            '${adminUserInfo.aadObjectId ?? adminUserInfo.objectId}',
+            '${adminUserInfo.id}',
+            N'${adminUserInfo.name.replace(/'/g, "''")}',
+            '${adminUserInfo.tenantId}',
+            '${adminUserInfo.userRole}',
+            '${acvtivityData.conversation.id}',
+            '${adminUserInfo.email}',
+            CASE 
+                WHEN @userLimit > 0 
+                     AND @licensedUsed > 0 
+                     AND @licensedUsed < @userLimit 
+                THEN 1 
+                ELSE 0 
+            END
+        );`;
+
+                          await insertData(sql);
+                        })
                       );
-                      // })
-                      //);
+                      if (teamname != "") {
+                        const welcomeMessageCard =
+                          await getWelcomeMessageCardformpersonal(teamname);
+                        await sendDirectMessageCard(
+                          context,
+                          acvtivityData.from,
+                          welcomeMessageCard
+                        );
+                      }
+                    } else {
+                      bot.sendIntroductionMessage(context, acvtivityData.from);
                     }
                   } catch (err) {
                     processSafetyBotError(
