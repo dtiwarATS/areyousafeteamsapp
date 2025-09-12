@@ -403,16 +403,16 @@ const getAllUserAssistanceData = async (userid, teamid) => {
     let selectQuery = "";
     if (teamid && teamid != null && teamid != "null" && teamid != "NULL") {
       selectQuery = `
-SELECT 
+SELECT
     a.id,
     a.user_id,
     u.user_name AS UserName,
     a.sent_to_ids,
     u.user_aadobject_id,
     a.status,
-	a.closed_by_user,
+  a.closed_by_user,
   (select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = a.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name',
-	a.closed_at,
+  a.closed_at,
     a.comment_date as real_comment_date,
     (
         SELECT STRING_AGG(CAST(u2.user_name AS NVARCHAR(MAX)), ', ')
@@ -423,22 +423,22 @@ SELECT
               AND u2.team_id = a.team_ids
     ) AS SentToUserNames,
     a.comments,
-	CASE 
+  CASE
     WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime, a.comment_date)
     ELSE TRY_CONVERT(datetime, a.requested_date)
 END AS requested_date,
 a.requested_date AS Real_requested_date,
     a.team_ids
 FROM dbo.MSTeamsAssistance a
-LEFT JOIN dbo.MSTeamsTeamsUsers u 
+LEFT JOIN dbo.MSTeamsTeamsUsers u
        ON u.user_id = a.user_id
       AND u.team_id = a.team_ids
 WHERE a.team_ids in ('${teamid}')
   AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
-ORDER BY 
+ORDER BY
    Real_requested_date DESC, u.user_name
       ;   -- <-- convert here
-
+ 
 `;
     } else {
       selectQuery = `
@@ -446,7 +446,7 @@ ORDER BY
     SELECT
         a.*,
         LTRIM(RTRIM(s.value)) AS team_id_single,
-        CASE 
+        CASE
             WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime2, a.comment_date)
             ELSE TRY_CONVERT(datetime2, a.requested_date)
         END AS sort_dt
@@ -500,9 +500,9 @@ SELECT *
 FROM B
 WHERE rn = 1   -- ✅ only keep 1 row per Assistance record
 ORDER BY sort_dt DESC, UserName;
-
-
-
+ 
+ 
+ 
 `;
     }
 
