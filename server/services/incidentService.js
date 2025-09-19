@@ -400,7 +400,6 @@ const getAssistanceData = async (aadObjuserId) => {
 
 const getAllUserAssistanceData = async (userid, teamid) => {
   try {
- 
     let selectQuery = "";
     if (teamid && teamid != null && teamid != "null" && teamid != "NULL") {
       selectQuery = `
@@ -419,8 +418,7 @@ SELECT
   a.closed_at,
     a.comment_date as real_comment_date,
     (
-    SELECT
-        ISNULL(mid.team_name, '')
+    SELECT Top 1 ISNULL(mid.team_name, '')
         + CASE
             WHEN mid.team_name IS NOT NULL AND mid.team_name <> '' THEN ' - '
             ELSE ''
@@ -504,8 +502,7 @@ B AS (
     WHEN (LEN(A.team_ids) - LEN(REPLACE(A.team_ids, ',', ''))) = 0
          -- means no comma → single team only
     THEN (
-        SELECT
-            ISNULL(mid.team_name, '')
+        SELECT Top 1 ISNULL(mid.team_name, '')
             + CASE
                 WHEN mid.team_name IS NOT NULL AND mid.team_name <> ''
                 THEN ' - '
@@ -565,7 +562,7 @@ ORDER BY sort_dt DESC, UserName;
  
 `;
     }
- 
+
     const result = await db.getDataFromDB(selectQuery, userid);
     return Promise.resolve(result);
   } catch (err) {
