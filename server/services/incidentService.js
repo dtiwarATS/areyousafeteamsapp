@@ -3045,7 +3045,10 @@ const updateSafetyCheckStatus = async (
   isSafe,
   respTimestamp,
   adminName,
-  userAadObjId
+  userAadObjId,
+  resuserid,
+  resusername,
+  type
 ) => {
   try {
     let sql = "",
@@ -3071,6 +3074,50 @@ const updateSafetyCheckStatus = async (
       sql = `update MSTeamsMemberResponses set response = ${resp} , response_value = ${userRespValue}, timestamp = ${respTimestamp},
       is_marked_by_admin = ${isMarkedByAdmin}, admin_aadObjId = ${adminAadObjId}, admin_name = ${adminName} where id = ${respId}`;
     }
+
+    const batchQuery = `
+  INSERT INTO MessageActivityLog (
+    UserId,
+    MessageSentVia,
+    RecipientContact,
+    IncidentId,
+    DeliveryStatus,
+    MessageType,
+    MessageContent,
+    UserResponse,
+    FailureReason,
+    EventDateTime,
+    LogEntryCreatedAt,
+    is_marked_by_admin,
+    marked_by_user_id
+  )
+  SELECT 
+    (SELECT TOP 1 user_aadobject_id 
+     FROM MSTeamsTeamsUsers 
+     WHERE user_id = '${resuserid}'),
+    'TEAMS',
+    '',
+    (SELECT TOP 1 inc_id 
+     FROM MSTeamsMemberResponses 
+     WHERE id = ${respId}),
+    'SAVE_BY_ADMIN',
+    '',
+    '',
+    'I am safe',
+    '',
+    GETDATE(),
+    GETDATE(),
+    1,
+    '${userAadObjId}';
+`;
+
+    await pool
+      .request()
+      .query(batchQuery)
+      .then((res) => {
+        UserSendLogQuery = [];
+      });
+
     const result = await db.updateDataIntoDB(sql, userAadObjId);
     return result?.rowsAffected?.length > 0;
   } catch (err) {

@@ -1393,6 +1393,9 @@ const handlerForSafetyBotTab = (app) => {
       userAadObjId,
       respTimestamp,
       adminName,
+      resuserid,
+      resusername,
+      incType,
     } = req.query;
     try {
       incidentService
@@ -1402,7 +1405,10 @@ const handlerForSafetyBotTab = (app) => {
           isSafe,
           respTimestamp,
           adminName,
-          userAadObjId
+          userAadObjId,
+          resuserid,
+          resusername,
+          incType
         )
         .then((data) => {
           if (data) {
