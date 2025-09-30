@@ -619,6 +619,24 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post("/areyousafetabhandler/setSOSNotification", async (req, res) => {
+    const teamId = req.query.teamId;
+
+    const SosNotificationFor = req.query.SosNotificationFor;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.SosNotificationFor(SosNotificationFor, teamId);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setSOSNotification"
+      );
+    }
+  });
   app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
     const teamId = req.query.teamId;
     const refresh_token = req.query.refresh_token;
@@ -931,6 +949,7 @@ const handlerForSafetyBotTab = (app) => {
       const userAadObjId = req.query.userId;
       const teamId = req.query.teamId;
       let incData = null;
+      let requestAssistanceid = req.query.requestAssistance;
       try {
         incData = await incidentService.getAdminsOrEmergencyContacts(
           userAadObjId,
@@ -962,7 +981,8 @@ const handlerForSafetyBotTab = (app) => {
         const isProactiveMessageSent = await tabObj.requestAssistance(
           incData,
           userAadObjId,
-          userlocation
+          userlocation,
+          requestAssistanceid
         );
         res.send(isProactiveMessageSent);
       } catch (err) {
@@ -997,6 +1017,7 @@ const handlerForSafetyBotTab = (app) => {
     const reqBody = req.body;
     const userAadObjId = data.userAadObjId;
     const TeamId = req.query.teamid;
+    const assistId = req.query.assistId;
     try {
       if (reqBody && reqBody.comment != null && reqBody.comment != "") {
         let ts = req.query.ts;
@@ -1019,7 +1040,8 @@ const handlerForSafetyBotTab = (app) => {
               tabObj.sendUserCommentToAdmin(
                 admins,
                 reqBody.comment,
-                userAadObjId
+                userAadObjId,
+                assistId
               );
             }
             res.send(true);

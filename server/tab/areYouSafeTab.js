@@ -26,6 +26,9 @@ const {
   ConnectorClient,
   MicrosoftAppCredentials,
 } = require("botframework-connector");
+const accountSid = process.env.TWILIO_ACCOUNT_ID;
+const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
+const tClient = require("twilio")(accountSid, authToken);
 const { Promise } = require("mssql/lib/base");
 const { AYSLog } = require("../utils/log");
 const {
@@ -485,12 +488,24 @@ ORDER BY email;
     return Promise.resolve(teamsMembers);
   };
 
-  requestAssistance = async (data, userAadObjId, userlocation) => {
+  requestAssistance = async (
+    data,
+    userAadObjId,
+    userlocation,
+    requestAssistanceid
+  ) => {
     let isMessageSent = false;
     var isVisi = false;
     var LocationUrl;
     var MapUrl;
-
+    //  var ids = data[0].map((item) => item.user_aadobject_id).join(", ");
+    let userAadObjIds = data[0].map((x) => x.user_aadobject_id);
+    let usrPhones = await bot.getUserPhone(
+      data[0][0].refresh_token,
+      data[0][0].user_tenant_id,
+      userAadObjIds
+    );
+    console.log({ usrPhones });
     try {
       let admins = data[0];
       let user = data[1][0];
@@ -594,15 +609,191 @@ ORDER BY email;
                 name: admins[i].user_name,
               },
             ];
-            const res = await sendProactiveMessaageToUser(
-              memberArr,
-              approvalCardResponse,
-              null,
-              admins[i].serviceUrl,
-              admins[i].user_tenant_id,
-              null,
-              userAadObjId
-            );
+            try {
+              incidentService.saveAllTypeQuerylogs(
+                admins[i].user_aadobject_id,
+                "",
+                "SOS_TEAMS",
+                "",
+                requestAssistanceid,
+                "SENDING",
+                "",
+                "",
+                "",
+                "",
+                ""
+              );
+              const res = await sendProactiveMessaageToUser(
+                memberArr,
+                approvalCardResponse,
+                null,
+                admins[i].serviceUrl,
+                admins[i].user_tenant_id,
+                null,
+                userAadObjId
+              ).then(() => {
+                incidentService.saveAllTypeQuerylogs(
+                  admins[i].user_aadobject_id,
+                  "",
+                  "SOS_TEAMS",
+                  "",
+                  requestAssistanceid,
+                  "SEND_SUCCESS",
+                  "",
+                  "",
+                  "",
+                  "",
+                  ""
+                );
+              });
+            } catch (ex) {
+              incidentService.saveAllTypeQuerylogs(
+                admins[i].user_aadobject_id,
+                "",
+                "SOS_TEAMS",
+                "",
+                requestAssistanceid,
+                "SENDING_ERROR",
+                "",
+                "",
+                "",
+                "",
+                JSON.stringify(ex)
+              );
+            }
+
+            if (admins[i].SOS_NOTIFICATION.includes("SMS")) {
+              usrPhones.map(async (userpho) => {
+                if (userpho.id == admins[i].user_aadobject_id) {
+                  var num =
+                    admins[i].PHONE_FIELD == "businessPhones"
+                      ? userpho.businessPhones[0]
+                      : userpho.mobilePhone;
+                  // var num = "+91 8652473863";
+                  if (num) {
+                    try {
+                      incidentService.saveAllTypeQuerylogs(
+                        admins[i].user_aadobject_id,
+                        "",
+                        "SOS_SMS",
+                        "",
+                        requestAssistanceid,
+                        "SENT_TO_TWILIO",
+                        "",
+                        "",
+                        "",
+                        "",
+                        ""
+                      );
+                      var twiliosend = await tClient.messages
+                        .create({
+                          body: `SOS Alert - User ${user.user_name} needs assistance.`,
+                          from: "+18023277232",
+                          shortenUrls: true,
+                          messagingServiceSid:
+                            "MGdf47b6f3eb771ed026921c6e71017771",
+                          to: num,
+                        })
+                        .then((res) => {
+                          console.log({ res });
+                          incidentService.saveAllTypeQuerylogs(
+                            admins[i].user_aadobject_id,
+                            "",
+                            "SOS_SMS",
+                            "",
+                            requestAssistanceid,
+                            "SEND_SUCCESS",
+                            "",
+                            "",
+                            "",
+                            "",
+                            ""
+                          );
+                        });
+                    } catch (err) {
+                      console.log({ err });
+                      incidentService.saveAllTypeQuerylogs(
+                        admins[i].user_aadobject_id,
+                        "",
+                        "SOS_SMS",
+                        "",
+                        requestAssistanceid,
+                        "SEND_FAILED",
+                        "",
+                        "",
+                        "",
+                        "",
+                        JSON.stringify(err.message)
+                      );
+                    }
+                  } else {
+                    incidentService.saveAllTypeQuerylogs(
+                      admins[i].user_aadobject_id,
+                      "",
+                      "SOS_SMS",
+                      "",
+                      requestAssistanceid,
+                      "PHONE_NUM_NOT_FOUND",
+                      "",
+                      "",
+                      "",
+                      "",
+                      ""
+                    );
+                  }
+                }
+              });
+            }
+            // if (admins[i].SOS_NOTIFICATION.includes("WhatsApp")) {
+            //   usrPhones.map(async (userpho) => {
+            //     if (userpho.id == admins[i].user_aadobject_id) {
+            //       // var num =
+            //       //   admins[i].PHONE_FIELD == "businessPhones"
+            //       //     ? userpho.businessPhones[0]
+            //       //     : userpho.mobilePhone;
+            //       var num = "+91 8652473863";
+            //       if (num) {
+            //         let payload = {
+            //           messaging_product: "whatsapp",
+            //           recipient_type: "individual",
+            //           to: num,
+            //           type: "template",
+            //           template: {
+            //             name: "safety_check",
+            //             language: {
+            //               code: "en",
+            //             },
+            //             components: [
+            //               {
+            //                 type: "body",
+            //                 parameters: [
+            //                   {
+            //                     parameter_name: "incidenttitle",
+            //                     type: "text",
+            //                     text: "from sos request", // {{2}} - Incident Title
+            //                   },
+            //                 ],
+            //               },
+            //             ],
+            //           },
+            //         };
+            //         try {
+            //           bot
+            //             .sendWhatsappMessage(
+            //               payload,
+            //               admins[i].user_aadobject_id,
+            //               admins[i]
+            //             )
+            //             .then((res) => {
+            //               console.log({ res });
+            //             });
+            //         } catch (err) {
+            //           console.log({ err });
+            //         }
+            //       }
+            //     }
+            //   });
+            // }
           }
         }
         bot.sendNSRespToTeamChannel(
@@ -727,7 +918,12 @@ ORDER BY email;
     return res;
   };
 
-  sendUserCommentToAdmin = async (data, userComment, userAadObjId) => {
+  sendUserCommentToAdmin = async (
+    data,
+    userComment,
+    userAadObjId,
+    requestAssistanceid
+  ) => {
     try {
       let admins = data[0];
       let user = data[1][0];
@@ -770,15 +966,140 @@ ORDER BY email;
                 name: admins[i].user_name,
               },
             ];
-            const res = await sendProactiveMessaageToUser(
-              memberArr,
-              approvalCardResponse,
-              null,
-              admins[i].serviceUrl,
-              admins[i].user_tenant_id,
-              null,
-              userAadObjId
-            );
+            try {
+              incidentService.saveAllTypeQuerylogs(
+                admins[i].user_aadobject_id,
+                "",
+                "SOS_TEAMS",
+                "",
+                requestAssistanceid,
+                "SENDING",
+                "",
+                "",
+                "",
+                userComment,
+                ""
+              );
+              const res = await sendProactiveMessaageToUser(
+                memberArr,
+                approvalCardResponse,
+                null,
+                admins[i].serviceUrl,
+                admins[i].user_tenant_id,
+                null,
+                userAadObjId
+              ).then(() => {
+                incidentService.saveAllTypeQuerylogs(
+                  admins[i].user_aadobject_id,
+                  "",
+                  "SOS_TEAMS",
+                  "",
+                  requestAssistanceid,
+                  "SEND_SUCCESS",
+                  "",
+                  "",
+                  "",
+                  userComment,
+                  ""
+                );
+              });
+            } catch (ex) {
+              incidentService.saveAllTypeQuerylogs(
+                admins[i].user_aadobject_id,
+                "",
+                "SOS_TEAMS",
+                "",
+                requestAssistanceid,
+                "SENDING_ERROR",
+                "",
+                "",
+                "",
+                userComment,
+                JSON.stringify(ex)
+              );
+            }
+            if (admins[i].SOS_NOTIFICATION.includes("SMS")) {
+              usrPhones.map(async (userpho) => {
+                if (userpho.id == admins[i].user_aadobject_id) {
+                  var num =
+                    admins[i].PHONE_FIELD == "businessPhones"
+                      ? userpho.businessPhones[0]
+                      : userpho.mobilePhone;
+                  // var num = "+91 8652473863";
+                  if (num) {
+                    try {
+                      incidentService.saveAllTypeQuerylogs(
+                        admins[i].user_aadobject_id,
+                        "",
+                        "SOS_SMS",
+                        "",
+                        requestAssistanceid,
+                        "SENT_TO_TWILIO",
+                        "",
+                        "",
+                        "",
+                        userComment,
+                        ""
+                      );
+                      var twiliosend = await tClient.messages
+                        .create({
+                          body: `${user.user_name} added a comment - ${userComment}`,
+                          from: "+18023277232",
+                          shortenUrls: true,
+                          messagingServiceSid:
+                            "MGdf47b6f3eb771ed026921c6e71017771",
+                          to: num,
+                        })
+                        .then((res) => {
+                          console.log({ res });
+                          incidentService.saveAllTypeQuerylogs(
+                            admins[i].user_aadobject_id,
+                            "",
+                            "SOS_SMS",
+                            "",
+                            requestAssistanceid,
+                            "SEND_SUCCESS",
+                            "",
+                            "",
+                            "",
+                            userComment,
+                            ""
+                          );
+                        });
+                    } catch (err) {
+                      console.log({ err });
+                      incidentService.saveAllTypeQuerylogs(
+                        admins[i].user_aadobject_id,
+                        "",
+                        "SOS_SMS",
+                        "",
+                        requestAssistanceid,
+                        "SEND_FAILED",
+                        "",
+                        "",
+                        "",
+                        userComment,
+                        JSON.stringify(err.message)
+                      );
+                    }
+                  } else {
+                    incidentService.saveAllTypeQuerylogs(
+                      admins[i].user_aadobject_id,
+                      "",
+                      "SOS_SMS",
+                      "",
+                      requestAssistanceid,
+                      "PHONE_NUM_NOT_FOUND",
+                      "",
+                      "",
+                      "",
+                      userComment,
+                      ""
+                    );
+                  }
+                }
+              });
+            }
           }
         }
         bot.sendNSRespToTeamChannel(
@@ -1136,6 +1457,25 @@ ORDER BY email;
       );
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in setsendWhatsapp");
+    }
+    return Promise.resolve(res);
+  };
+  SosNotificationFor = async (AVAILABLE_FOR, teamId) => {
+    let res = null;
+    try {
+      res = await incidentService.SosNotificationFor(
+        AVAILABLE_FOR,
+
+        teamId
+      );
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in SosNotificationFor"
+      );
     }
     return Promise.resolve(res);
   };

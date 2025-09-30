@@ -292,7 +292,7 @@ const getAdmins = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (superUsersArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
+              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.refresh_token
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join(
@@ -413,56 +413,74 @@ SELECT
     a.sent_to_ids,
     u.user_aadobject_id,
     a.status,
-  a.closed_by_user,
-  (select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = a.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name',
-  a.closed_at,
-    a.comment_date as real_comment_date,
+    a.closed_by_user,
+    (SELECT TOP 1 user_name 
+     FROM MSTeamsTeamsUsers tt 
+     WHERE tt.user_aadobject_id = a.closed_by_user 
+       AND user_name IS NOT NULL 
+       AND user_name <> '') AS closed_by_user_name,
+    a.closed_at,
+    a.comment_date AS real_comment_date,
     (
-    SELECT Top 1 ISNULL(mid.team_name, '')
-        + CASE
-            WHEN mid.team_name IS NOT NULL AND mid.team_name <> '' THEN ' - '
-            ELSE ''
-          END
-        + REPLACE(COALESCE(ulist.UserList, ''), ', and ', ' and ')
-    FROM (
-        SELECT
-            STRING_AGG(
-                CASE
-                    WHEN x.cnt > 1 AND x.rn = x.cnt THEN 'and ' + x.user_name
-                    ELSE x.user_name
-                END,
-                ', '
-            ) WITHIN GROUP (ORDER BY x.rn) AS UserList
+        SELECT TOP 1 ISNULL(mid.team_name, '') 
+             + CASE WHEN mid.team_name IS NOT NULL AND mid.team_name <> '' 
+                    THEN ' - ' ELSE '' END
+             + REPLACE(COALESCE(ulist.UserList, ''), ', and ', ' and ')
         FROM (
-            SELECT
-                u2.user_name,
-                ROW_NUMBER() OVER (ORDER BY s.ordinal) AS rn,
-                COUNT(*) OVER() AS cnt
-            FROM STRING_SPLIT(a.sent_to_ids, ',', 1) s
-            LEFT JOIN dbo.MSTeamsTeamsUsers u2
-                   ON LTRIM(RTRIM(s.value)) = u2.user_id
-                  AND u2.team_id = a.team_ids
-        ) x
-    ) ulist
-    LEFT JOIN dbo.MSTeamsInstallationDetails mid
-           ON mid.team_id = a.team_ids
-) AS SentToUserNames,
+            SELECT STRING_AGG(
+                       CASE 
+                          WHEN x.cnt > 1 AND x.rn = x.cnt THEN 'and ' + x.user_name
+                          ELSE x.user_name
+                       END, ', ') 
+                       WITHIN GROUP (ORDER BY x.rn) AS UserList
+            FROM (
+                SELECT
+                    u2.user_name,
+                    ROW_NUMBER() OVER (ORDER BY s.ordinal) AS rn,
+                    COUNT(*) OVER() AS cnt
+                FROM STRING_SPLIT(a.sent_to_ids, ',', 1) s
+                LEFT JOIN dbo.MSTeamsTeamsUsers u2
+                       ON LTRIM(RTRIM(s.value)) = u2.user_id
+                      AND u2.team_id = a.team_ids
+            ) x
+        ) ulist
+        LEFT JOIN dbo.MSTeamsInstallationDetails mid
+               ON mid.team_id = a.team_ids
+    ) AS SentToUserNames,
     a.comments,
-  CASE
-    WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime, a.comment_date)
-    ELSE TRY_CONVERT(datetime, a.requested_date)
-END AS requested_date,
-a.requested_date AS Real_requested_date,
-    a.team_ids
+    CASE
+        WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 
+             THEN TRY_CONVERT(datetime, a.comment_date)
+        ELSE TRY_CONVERT(datetime, a.requested_date)
+    END AS requested_date,
+    a.requested_date AS Real_requested_date,
+    a.team_ids,
+
+    -- 🔹 NEW COLUMN: Collect successful send channels with friendly names
+    ISNULL((
+        SELECT STRING_AGG(mal2.ChannelName, ', ')
+        FROM (
+            SELECT DISTINCT 
+                CASE mal.MessageSentVia
+                    WHEN 'SOS_TEAMS' THEN 'TEAMS'
+                    WHEN 'SOS_SMS' THEN 'SMS'
+                    WHEN 'SOS_WHATSAPP' THEN 'WHATSAPP'
+                    ELSE 'TEAMS'   -- default fallback
+                END AS ChannelName
+            FROM MessageActivityLog mal
+            WHERE mal.IncidentId = a.id
+              AND mal.DeliveryStatus = 'SEND_SUCCESS'
+        ) mal2
+    ), 'TEAMS') AS send_via
+
 FROM dbo.MSTeamsAssistance a
 LEFT JOIN dbo.MSTeamsTeamsUsers u
        ON u.user_id = a.user_id
       AND u.team_id = a.team_ids
-WHERE a.team_ids in ('${teamid}')
+WHERE a.team_ids IN ('${teamid}')
   AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
-ORDER BY
-   Real_requested_date DESC, u.user_name
-      ;   -- <-- convert here
+ORDER BY Real_requested_date DESC, u.user_name;
+
  
 `;
     } else {
@@ -498,48 +516,61 @@ B AS (
         ) AS closed_by_user_name,
         A.closed_at,
         A.comment_date AS real_comment_date,
-       CASE
-    WHEN (LEN(A.team_ids) - LEN(REPLACE(A.team_ids, ',', ''))) = 0
-         -- means no comma → single team only
-    THEN (
-        SELECT Top 1 ISNULL(mid.team_name, '')
-            + CASE
-                WHEN mid.team_name IS NOT NULL AND mid.team_name <> ''
-                THEN ' - '
-                ELSE ''
-              END
-            + REPLACE(UserList, ', and ', ' and ')
-        FROM (
-            SELECT
-                STRING_AGG(
-                    CASE
-                        WHEN x.cnt > 1 AND x.rn = x.cnt THEN 'and ' + x.user_name
-                        ELSE x.user_name
-                    END,
-                    ', '
-                ) WITHIN GROUP (ORDER BY x.rn) AS UserList
-            FROM (
-                SELECT
-                    u2.user_name,
-                    ROW_NUMBER() OVER (ORDER BY s2.ordinal) AS rn,
-                    COUNT(*) OVER() AS cnt
-                FROM STRING_SPLIT(A.sent_to_ids, ',', 1) s2
-                LEFT JOIN dbo.MSTeamsTeamsUsers u2
-                       ON LTRIM(RTRIM(s2.value)) = u2.user_id
-                      AND u2.team_id = A.team_id_single
-            ) x
-        ) ulist
-        LEFT JOIN dbo.MSTeamsInstallationDetails mid
-               ON mid.team_id = A.team_id_single
-    )
-    ELSE A.sent_to_names
-END AS SentToUserNames,
+        CASE
+            WHEN (LEN(A.team_ids) - LEN(REPLACE(A.team_ids, ',', ''))) = 0
+            THEN (
+                SELECT TOP 1 ISNULL(mid.team_name, '') 
+                    + CASE
+                        WHEN mid.team_name IS NOT NULL AND mid.team_name <> '' 
+                        THEN ' - ' ELSE '' END
+                    + REPLACE(UserList, ', and ', ' and ')
+                FROM (
+                    SELECT STRING_AGG(
+                               CASE 
+                                   WHEN x.cnt > 1 AND x.rn = x.cnt THEN 'and ' + x.user_name
+                                   ELSE x.user_name
+                               END, ', ') 
+                               WITHIN GROUP (ORDER BY x.rn) AS UserList
+                    FROM (
+                        SELECT
+                            u2.user_name,
+                            ROW_NUMBER() OVER (ORDER BY s2.ordinal) AS rn,
+                            COUNT(*) OVER() AS cnt
+                        FROM STRING_SPLIT(A.sent_to_ids, ',', 1) s2
+                        LEFT JOIN dbo.MSTeamsTeamsUsers u2
+                               ON LTRIM(RTRIM(s2.value)) = u2.user_id
+                              AND u2.team_id = A.team_id_single
+                    ) x
+                ) ulist
+                LEFT JOIN dbo.MSTeamsInstallationDetails mid
+                       ON mid.team_id = A.team_id_single
+            )
+            ELSE A.sent_to_names
+        END AS SentToUserNames,
         A.comments,
         CONVERT(varchar(23), A.sort_dt, 121) AS requested_date,
         A.requested_date AS Real_requested_date,
         A.team_ids,
         A.sort_dt,
-        ROW_NUMBER() OVER (PARTITION BY A.id ORDER BY A.sort_dt DESC) AS rn
+        ROW_NUMBER() OVER (PARTITION BY A.id ORDER BY A.sort_dt DESC) AS rn,
+
+        -- 🔹 NEW COLUMN: Collect successful send channels
+        ISNULL((
+            SELECT STRING_AGG(mal2.ChannelName, ', ')
+            FROM (
+                SELECT DISTINCT 
+                    CASE mal.MessageSentVia
+                        WHEN 'SOS_TEAMS' THEN 'TEAMS'
+                        WHEN 'SOS_SMS' THEN 'SMS'
+                        WHEN 'SOS_WHATSAPP' THEN 'WHATSAPP'
+                        ELSE 'TEAMS'
+                    END AS ChannelName
+                FROM MessageActivityLog mal
+                WHERE mal.IncidentId = A.id
+                  AND mal.DeliveryStatus = 'SEND_SUCCESS'
+            ) mal2
+        ), 'TEAMS') AS send_via
+
     FROM A
     LEFT JOIN dbo.MSTeamsTeamsUsers u
            ON u.user_id = A.user_id
@@ -557,6 +588,7 @@ SELECT *
 FROM B
 WHERE rn = 1   -- ✅ only keep 1 row per Assistance record
 ORDER BY sort_dt DESC, UserName;
+
  
  
  
@@ -1646,6 +1678,7 @@ const getUserTeamInfo = async (userAadObjId) => {
           user_id AS userid,
           team_id AS teamId,
           team_name AS teamName,
+          SOS_NOTIFICATION,
           channelId,
           ISNULL(team_name, '') + ' - ' + ISNULL(channelName, '') AS channelName,
           user_tenant_id AS tenant_id,
@@ -1991,7 +2024,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (contactsArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name
+              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.refresh_token
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
@@ -2199,6 +2232,19 @@ const setavailableforapp = async (AVAILABLE_FOR, tenantId, teamId) => {
   } catch (err) {
     console.log(err);
     processSafetyBotError(err, teamId, "", "", "error in setavailableforapp");
+  }
+  return Promise.resolve(result);
+};
+const SosNotificationFor = async (SOS_NOTIFICATION_FOR, teamId) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set SOS_NOTIFICATION = '${SOS_NOTIFICATION_FOR}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in SosNotificationFor");
   }
   return Promise.resolve(result);
 };
@@ -3303,9 +3349,13 @@ const saveAllTypeQuerylogs = async (
          '${log.MESSAGE_CONTENT.replaceAll(
            "'",
            "''"
-         )}', '${log.INTERACTION_VALUE.replaceAll("'", "''")}', '${
-          log.ERROR_MESSAGE
-        }','${log.EventDateTime.replaceAll("'", "''")}', GETDATE())`
+         )}', '${log.INTERACTION_VALUE.replaceAll(
+          "'",
+          "''"
+        )}', '${log.ERROR_MESSAGE.replaceAll(
+          "'",
+          "''"
+        )}','${log.EventDateTime.replaceAll("'", "''")}', GETDATE())`
     ).join(", ");
 
     const batchQuery = `
@@ -3458,4 +3508,5 @@ module.exports = {
   getUserInfoByTeamId,
   saveAllTypelogs,
   saveAllTypeQuerylogs,
+  SosNotificationFor,
 };

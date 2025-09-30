@@ -5966,4 +5966,5 @@ module.exports = {
   getUserPhone,
   sendSafetyCheckMsgViaWhatsapp,
   getUserDetails,
+  sendWhatsappMessage,
 };
