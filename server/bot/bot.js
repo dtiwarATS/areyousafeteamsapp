@@ -1782,7 +1782,9 @@ const sendProactiveMessageAsync = async (
   runAt = null,
   incFilesData = null,
   incCreaterConversationId = "",
-  resendSafetyCheck = "false"
+  resendSafetyCheck = "false",
+  isLastBatch = "true",
+  allincMembers = []
 ) => {
   try {
     if (log == null) {
@@ -2290,13 +2292,15 @@ const sendProactiveMessageAsync = async (
       fnRecursiveCall(0, endIndex);
     };
     sendProactiveMessage(allMembersArr);
-    if (incCreaterConversationId) {
+    if (incCreaterConversationId && isLastBatch == "true") {
       sendAcknowledgeMsgToCreator(
         connectorClient,
         incData,
         serviceUrl,
         incCreaterConversationId,
-        allMembersArr.length,
+        allincMembers?.length != 0
+          ? allincMembers.length
+          : allMembersArr.length,
         companyData.teamName,
         companyData.channelName
       );
@@ -3908,7 +3912,174 @@ const sendSafetyCheckMessageAsync = async (
     }
   });
 };
+const NewsendSafetyCheckMessageAsync = async (
+  incId,
+  teamId,
+  createdByUserInfo,
+  log,
+  userAadObjId,
+  resendSafetyCheck = false,
+  incData,
+  allincMembers,
+  companyData,
+  isLastBatch,
+  isFirstBatch
+) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let allMembers = [];
+      let incFilesData = [];
+      if (allMembers.length == 0) {
+        let resData = await incidentService.getRequiredDataToSendMessage(
+          incId,
+          teamId,
+          userAadObjId,
+          "id",
+          "name",
+          resendSafetyCheck
+        );
+        allMembers = resData.allMembers;
+        incFilesData = resData.incFilesData;
+      }
 
+      let {
+        incTitle,
+        selectedMembers,
+        incCreatedBy,
+        incType,
+        incTypeId,
+        incGuidance,
+      } = incData;
+      let responseOptionData = {
+        responseOptions: [
+          { id: 1, option: "I am safe", color: "#4CAF50" },
+          { id: 2, option: "I need assistance", color: "#F44336" },
+        ],
+        responseType: "buttons",
+      };
+
+      if (allincMembers > 0 && isFirstBatch == "true") {
+        saveallMembersArr = allMembers.filter((tm) =>
+          allincMembers.includes(tm.id)
+        );
+      } else {
+        saveallMembersArr = allMembers;
+      }
+      if (
+        !resendSafetyCheck ||
+        (resendSafetyCheck === "false" && isFirstBatch == "true")
+      ) {
+        await incidentService.addMembersIntoIncData(
+          incId,
+          saveallMembersArr,
+          incCreatedBy,
+          userAadObjId
+        );
+      }
+      if (incData.responseOptions && incData.responseType) {
+        responseOptionData = {
+          responseOptions: JSON.parse(incData.responseOptions),
+          responseType: incData.responseType,
+        };
+      }
+      const { serviceUrl, userTenantId, userId } = companyData;
+      if (resendSafetyCheck === "true") {
+        createdByUserInfo.user_id = userId;
+      }
+      let selectedMembersArr = [];
+      if (
+        typeof selectedMembers == "string" &&
+        selectedMembers &&
+        selectedMembers?.split(",").length > 0
+      ) {
+        selectedMembersArr = selectedMembers?.split(",");
+      } else if (selectedMembers && selectedMembers.length > 0)
+        selectedMembersArr = selectedMembers;
+
+      let allMembersArr = [];
+      if (selectedMembersArr && selectedMembersArr?.length > 0) {
+        allMembersArr = allMembers.filter((tm) =>
+          selectedMembersArr.includes(tm.id)
+        );
+      } else {
+        allMembersArr = allMembers;
+      }
+      // if (!resendSafetyCheck || resendSafetyCheck === "false") {
+      //   await incidentService.addMembersIntoIncData(
+      //     incId,
+      //     allMembersArr,
+      //     incCreatedBy,
+      //     userAadObjId
+      //   );
+      // }
+      // logTimeInSeconds(startTime, `addMembersIntoIncData end`);
+      // startTime = (new Date()).getTime();
+
+      if (Number(incTypeId) == 1 && incType == "recurringIncident") {
+        const userTimeZone = createdByUserInfo.userTimeZone;
+        const actionData = { incident: incData };
+        if (!resendSafetyCheck || resendSafetyCheck === "false") {
+          await incidentService.saveRecurrSubEventInc(
+            actionData,
+            companyData,
+            userTimeZone
+          );
+        }
+        resolve(true);
+      } else {
+        incGuidance = incGuidance ? incGuidance : "";
+        const incCreatedByUserObj = {
+          id: createdByUserInfo.user_id,
+          name: createdByUserInfo.user_name,
+        };
+        let incObj = {
+          incId,
+          incTitle,
+          incType,
+          runAt: null,
+          incCreatedBy: incCreatedByUserObj,
+          incGuidance,
+          incResponseSelectedUsersList: null,
+          responseOptionData,
+        };
+
+        await sendProactiveMessageAsync(
+          allMembersArr,
+          incData,
+          incObj,
+          companyData,
+          serviceUrl,
+          userAadObjId,
+          userTenantId,
+          log,
+          resolve,
+          reject,
+          null,
+          incFilesData,
+          createdByUserInfo.conversationId,
+          resendSafetyCheck,
+          isLastBatch,
+          allincMembers
+        );
+      }
+    } catch (err) {
+      console.log(`sendSafetyCheckMessage error: ${err} `);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in sendSafetyCheckMessageAsync incId=" +
+          incId +
+          " createdByUserInfo=" +
+          JSON.stringify(createdByUserInfo) +
+          " resendSafetyCheck=" +
+          resendSafetyCheck
+      );
+      resolve(false);
+    }
+  });
+};
 const sendSafetyCheckMessage = async (
   incId,
   teamId,
@@ -5952,6 +6123,7 @@ module.exports = {
   sendProactiveMessaageToUserTest,
   sendProactiveMessaageToChannel,
   sendSafetyCheckMessageAsync,
+  NewsendSafetyCheckMessageAsync,
   sendNSRespToTeamChannel,
   createTestIncident,
   onInvokeActivity,

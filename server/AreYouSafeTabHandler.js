@@ -10,6 +10,7 @@ const { processSafetyBotError } = require("./models/processError");
 const { getConversationMembers } = require("./api/apiMethods");
 const { formatedDate } = require("./utils/index");
 const bot = require("./bot/bot");
+const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
 
 const handlerForSafetyBotTab = (app) => {
@@ -1168,14 +1169,18 @@ const handlerForSafetyBotTab = (app) => {
       const resendSafetyCheck = qs.resendSafetyCheck;
       //const responseOptionData = JSON.parse(qs.responseOptionData);
       const tabObj = new tab.AreYouSafeTab();
-      const safetyCheckSend = await tabObj.sendSafetyCheckMessage(
-        incId,
-        teamId,
-        createdByUserInfo,
-        userAadObjId,
-        resendSafetyCheck
-      );
-      res.send(safetyCheckSend);
+
+      tabObj
+        .sendSafetyCheckMessage(
+          incId,
+          teamId,
+          createdByUserInfo,
+          userAadObjId,
+          resendSafetyCheck
+        )
+        .then((safetyCheckSend) => {
+          res.send(safetyCheckSend);
+        });
     } catch (err) {
       console.log(err);
       processSafetyBotError(
@@ -1189,7 +1194,55 @@ const handlerForSafetyBotTab = (app) => {
       res.send({ error: "Error: Please try again" });
     }
   });
-
+  app.post(
+    "/areyousafetabhandler/NewsendSafetyCheckMessage",
+    async (req, res) => {
+      try {
+        const qs = req.query;
+        const incId = qs.incId;
+        const teamId = qs.teamId;
+        const createdByUserInfo = req.body.createByInfo;
+        const companyData = req.body.createByInfo.companyData;
+        const members = req.body.members;
+        const incdata = req.body.incdata;
+        const userAadObjId = qs.userAadObjId;
+        const resendSafetyCheck = qs.resendSafetyCheck || false;
+        const isLastBatch = qs.isLastBatch;
+        const isFirstBatch = qs.isFirstBatch;
+        //const responseOptionData = JSON.parse(qs.responseOptionData);
+        const tabObj = new tab.AreYouSafeTab();
+        const log = new AYSLog();
+        await bot
+          .NewsendSafetyCheckMessageAsync(
+            incId,
+            teamId,
+            createdByUserInfo,
+            log,
+            userAadObjId,
+            resendSafetyCheck,
+            incdata,
+            members,
+            companyData,
+            isLastBatch,
+            isFirstBatch
+          )
+          .then((safetyCheckSend) => {
+            res.send(safetyCheckSend);
+          });
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(
+          err,
+          req.query.teamId,
+          "",
+          req.query.userAadObjId,
+          "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
+            req.query.incId
+        );
+        res.send({ error: "Error: Please try again" });
+      }
+    }
+  );
   app.get("/areyousafetabhandler/getUserTeamInfo", async (req, res) => {
     const userAadObjId = req.query.userAadObjId;
     const tabObj = new tab.AreYouSafeTab();

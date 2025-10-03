@@ -908,8 +908,10 @@ const addMembersIntoIncData = async (
     let insertMembersQuery = "";
     for (let i = 0; i < allMembers.length; i++) {
       let member = allMembers[i];
+      let memberid = member.id || member.value;
+      let membername = member.name || member.title;
       insertMembersQuery += ` insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
-          values(${incId}, '${member.id}', '${member.name.replace(
+          values(${incId}, '${memberid}', '${membername.replace(
         /'/g,
         "''"
       )}', 0, 0, NULL, NULL, NULL); `;
