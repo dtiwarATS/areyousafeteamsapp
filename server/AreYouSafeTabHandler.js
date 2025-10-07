@@ -358,10 +358,10 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  app.delete("/areyousafetabhandler/deleteIncident", (req, res) => {
+  app.delete("/areyousafetabhandler/deleteIncident", async (req, res) => {
     const userAadObjId = req.query.userAadObjId;
     try {
-      incidentService
+      await incidentService
         .deleteInc(req.query.incid, userAadObjId)
         .then((incData) => {
           res.send(incData !== null);
@@ -1460,60 +1460,63 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  app.post("/areyousafetabhandler/updateSafetyCheckStatus", (req, res) => {
-    const {
-      respId,
-      isRecurring,
-      isSafe,
-      userAadObjId,
-      respTimestamp,
-      adminName,
-      resuserid,
-      resusername,
-      incType,
-    } = req.query;
-    try {
-      incidentService
-        .updateSafetyCheckStatus(
-          respId,
-          isRecurring === "true",
-          isSafe,
-          respTimestamp,
-          adminName,
-          userAadObjId,
-          resuserid,
-          resusername,
-          incType
-        )
-        .then((data) => {
-          if (data) {
-            res.send("true");
-          } else {
-            res.send("false");
-          }
-        })
-        .catch((err) => {
-          console.log(err);
-          processSafetyBotError(
-            err,
-            "",
-            "",
-            userAadObjId,
-            "error in /areyousafetabhandler/updateSafetyCheckStatus"
-          );
-          res.send("false");
-        });
-    } catch (err) {
-      processSafetyBotError(
-        err,
-        "",
-        "",
+  app.post(
+    "/areyousafetabhandler/updateSafetyCheckStatus",
+    async (req, res) => {
+      const {
+        respId,
+        isRecurring,
+        isSafe,
         userAadObjId,
-        "error in /areyousafetabhandler/updateSafetyCheckStatus"
-      );
-      res.send("false");
+        respTimestamp,
+        adminName,
+        resuserid,
+        resusername,
+        incType,
+      } = req.query;
+      try {
+        await incidentService
+          .updateSafetyCheckStatus(
+            respId,
+            isRecurring === "true",
+            isSafe,
+            respTimestamp,
+            adminName,
+            userAadObjId,
+            resuserid,
+            resusername,
+            incType
+          )
+          .then((data) => {
+            if (data) {
+              res.send("true");
+            } else {
+              res.send("false");
+            }
+          })
+          .catch((err) => {
+            console.log(err);
+            processSafetyBotError(
+              err,
+              "",
+              "",
+              userAadObjId,
+              "error in /areyousafetabhandler/updateSafetyCheckStatus"
+            );
+            res.send("false");
+          });
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          userAadObjId,
+          "error in /areyousafetabhandler/updateSafetyCheckStatus"
+        );
+        res.send("false");
+      }
     }
-  });
+  );
 
   app.get("/areyousafetabhandler/getEmergencyContactUsers", (req, res) => {
     console.log("came in request");
