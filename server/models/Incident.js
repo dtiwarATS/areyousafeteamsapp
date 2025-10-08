@@ -41,6 +41,7 @@ class Incident {
     incidentMediafiles,
     RESPONSE_TYPE,
     RESPONSE_OPTIONS,
+    selectedMembersCount,
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -84,6 +85,7 @@ class Incident {
     this.SendRemindersCount = SendRemindersCount;
     this.SendRemindersTime = SendRemindersTime;
     this.incidentMediafiles = incidentMediafiles;
+    this.selectedMembersCount = selectedMembersCount;
     this.responseType = RESPONSE_TYPE; // Initialize with null or default value
     this.responseOptions = RESPONSE_OPTIONS; // Initialize with null or default value
   }

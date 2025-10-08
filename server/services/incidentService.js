@@ -95,6 +95,7 @@ const parseEventData = (
           selectedMembers: selectedMembers,
           m: memberResponseData,
           membersCount,
+          selectedMembersCount: selectedMembers.length,
           messageDeliveredCount,
           incidentMediafiles: myfiledata.filter(
             (data) => data.inc_id == parsedData.id

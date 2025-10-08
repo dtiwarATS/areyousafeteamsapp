@@ -249,6 +249,7 @@ class AreYouSafeTab {
             SendRemindersTime,
             incidentMediafiles,
             responseOptions,
+            selectedMembersCount,
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -376,6 +377,7 @@ class AreYouSafeTab {
             incidentMediafiles,
             userid,
             responses,
+            selectedMembersCount,
           };
           incFormatedData.push(incObj);
         });

@@ -249,15 +249,15 @@ const handlerForSafetyBotTab = (app) => {
       memberqery = `select * from MSTeamsTeamsUsers where team_id in(select team_id from MSTeamsInstallationDetails where user_obj_id='${userObjId}' and refresh_token is NOT NULL)`;
       var teamsMembers = await db.getDataFromDB(memberqery, userObjId);
       let userAadObjIds = teamsMembers.map((x) => x.user_aadobject_id);
-      if (teamInfo[0].length && teamInfo) {
-        teamInfo[0].map(async (team) => {
+      if (teamInfo[0]?.length && teamInfo) {
+        const phoneDataPromises = teamInfo[0].map(async (team) => {
           if (team.refresh_token) {
-            var phonedata = await getUserPhone(
+            let phonedata = await getUserPhone(
               team.refresh_token,
               team.tenant_id,
               userAadObjIds
             );
-            phonedata = phonedata.map((item) => {
+            return phonedata.map((item) => {
               const match = teamsMembers.find(
                 (u) => u.user_aadobject_id === item.id
               );
@@ -266,10 +266,16 @@ const handlerForSafetyBotTab = (app) => {
                 user_id: match ? match.user_id : null,
               };
             });
-            console.log({ phonedata });
-            res.send(phonedata);
+          } else {
+            return []; // no refresh_token, return empty array
           }
         });
+
+        const allPhoneData = await Promise.all(phoneDataPromises);
+        // Flatten array of arrays
+        const flattenedData = allPhoneData.flat();
+        console.log({ flattenedData });
+        res.send(flattenedData);
       } else {
         res.send([]);
       }
