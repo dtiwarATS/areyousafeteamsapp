@@ -4,8 +4,6 @@ const qs = require("qs");
 const { parentPort } = require("worker_threads");
 const sql = require("mssql");
 const tenantId = "b9328432-f501-493e-b7f4-3105520a1cd4";
-const clientId = "4ccb45d1-2f4a-4010-8899-d9189b9ff86a";
-const clientSecret = "2RV8Q~eQAFyGFzJMElKob0fjNf6MBgqwtWq5lcb1";
 
 async function getAccessToken() {
   let data = new FormData();
