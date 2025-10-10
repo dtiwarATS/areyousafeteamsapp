@@ -532,43 +532,65 @@ class BotActivityHandler extends TeamsActivityHandler {
                           teamname = cmpData.team_name;
 
                           var sql = `
-        DECLARE @userLimit INT, @licensedUsed INT;
+DECLARE @userLimit INT, @licensedUsed INT;
 
-        -- Get license info
-        SELECT TOP 1 
-            @userLimit = B.UserLimit,
-            @licensedUsed = (
-                SELECT COUNT(DISTINCT user_aadobject_id) 
-                FROM MSTeamsTeamsUsers 
-                WHERE tenantid = '${cmpData.user_tenant_id}' 
-                  AND hasLicense = 1 
-                  AND team_id = '${cmpData.team_id}'
-            )
-        FROM MSTeamsInstallationDetails A
-        LEFT JOIN MSTeamsSubscriptionDetails B 
-            ON A.SubscriptionDetailsId = B.id
-        WHERE team_id = '${cmpData.team_id}';
+-- Get license info
+SELECT TOP 1 
+    @userLimit = B.UserLimit,
+    @licensedUsed = (
+        SELECT COUNT(DISTINCT user_aadobject_id) 
+        FROM MSTeamsTeamsUsers 
+        WHERE tenantid = '${cmpData.user_tenant_id}' 
+          AND hasLicense = 1 
+          AND team_id = '${cmpData.team_id}'
+    )
+FROM MSTeamsInstallationDetails A
+LEFT JOIN MSTeamsSubscriptionDetails B 
+    ON A.SubscriptionDetailsId = B.id
+WHERE team_id = '${cmpData.team_id}';
 
-        -- Insert with license check
-        INSERT INTO MSTeamsTeamsUsers
-        ([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[conversationId],[email],[hasLicense])
-        VALUES (
-            '${cmpData.team_id}',
-            '${adminUserInfo.aadObjectId ?? adminUserInfo.objectId}',
-            '${adminUserInfo.id}',
-            N'${adminUserInfo.name.replace(/'/g, "''")}',
-            '${adminUserInfo.tenantId}',
-            '${adminUserInfo.userRole}',
-            '${acvtivityData.conversation.id}',
-            '${adminUserInfo.email}',
-            CASE 
-                WHEN @userLimit > 0 
-                     AND @licensedUsed > 0 
-                     AND @licensedUsed < @userLimit 
-                THEN 1 
-                ELSE 0 
-            END
-        );`;
+-- Merge: Insert if not exists, update if exists
+MERGE INTO MSTeamsTeamsUsers AS target
+USING (VALUES
+    (
+        '${cmpData.team_id}',
+        '${adminUserInfo.aadObjectId ?? adminUserInfo.objectId}',
+        '${adminUserInfo.id}',
+        N'${adminUserInfo.name.replace(/'/g, "''")}',
+        '${adminUserInfo.tenantId}',
+        '${adminUserInfo.userRole}',
+        '${acvtivityData.conversation.id}',
+        '${adminUserInfo.email}',
+        CASE 
+            WHEN @userLimit > 0 
+                 AND @licensedUsed > 0 
+                 AND @licensedUsed < @userLimit 
+            THEN 1 
+            ELSE 0 
+        END
+    )
+) AS source
+(
+    team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense
+)
+ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${
+                            cmpData.team_id
+                          }'
+WHEN MATCHED THEN
+    UPDATE SET 
+        user_id = source.user_id,
+        conversationId = source.conversationId,
+        hasLicense = CASE 
+            WHEN @userLimit > 0 
+                 AND @licensedUsed > 0 
+                 AND @licensedUsed < @userLimit 
+            THEN 1 
+            ELSE 0 
+        END
+WHEN NOT MATCHED THEN
+    INSERT (team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense)
+    VALUES (source.team_id, source.user_aadobject_id, source.user_id, source.user_name, source.tenantid, source.userRole, source.conversationId, source.email, source.hasLicense);
+`;
 
                           await insertData(sql);
                         })

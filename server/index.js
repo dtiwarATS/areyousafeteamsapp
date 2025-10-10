@@ -55,6 +55,11 @@ function initJob() {
         path: path.join(__dirname, "jobs", "updateUserDetails-job.js"),
         cron: "0 */1 * * *",
       },
+      // {
+      //   name: "GetAllUser-job",
+      //   path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
+      //   cron: "*/15 * * * *",
+      // },
     ],
   });
   //cron1: "*/1 * * * *"

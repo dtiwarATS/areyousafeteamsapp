@@ -448,7 +448,26 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
-
+  app.get("/areyousafetabhandler/GetAllMembersByTenantid", async (req, res) => {
+    const Tenantid = req.query.Tenantid;
+    const userAadObjId = "";
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const teamsMember = await tabObj.GetAllMembersByTenantid(
+        Tenantid,
+        userAadObjId
+      );
+      res.send(teamsMember);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        Tenantid,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getTeamsMembers"
+      );
+    }
+  });
   app.get("/areyousafetabhandler/getEnableSafetyCheck", async (req, res) => {
     const teamId = req.query.teamId;
     const userAadObjId = req.query.userAadObjId;

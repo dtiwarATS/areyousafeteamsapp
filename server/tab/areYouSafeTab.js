@@ -489,7 +489,21 @@ ORDER BY email;
     }
     return Promise.resolve(teamsMembers);
   };
+  GetAllMembersByTenantid = async (Tenantid) => {
+    let teamsMembers = null;
+    try {
+      var memberqery = `
+select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,STATE as state, CITY as city,COUNTRY as country, DEPARTMENT as department,hasLicense as hasLicense ,email,conversationId,0 AS isAdmin,
+    0 AS isSuperUser from MSTeamsTeamsUsers where tenantid= '${Tenantid}' and hasLicense=0
 
+;
+`;
+      teamsMembers = await db.getDataFromDB(memberqery, "");
+    } catch (err) {
+      processSafetyBotError(err, Tenantid, "", "", "error in getTeamMembers");
+    }
+    return Promise.resolve(teamsMembers);
+  };
   requestAssistance = async (
     data,
     userAadObjId,

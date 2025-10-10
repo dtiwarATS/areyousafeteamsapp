@@ -1475,7 +1475,7 @@ const getTeamMemeberSqlQuery = (
       ? " CASE when tblAadObjId.useAadObjId is not null then 1 else 0 end isSuperUser "
       : " 0 isSuperUser ") +
     ` , u.conversationId,
-  case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department,u.email
+  case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department,u.email,u.hasLicense
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
