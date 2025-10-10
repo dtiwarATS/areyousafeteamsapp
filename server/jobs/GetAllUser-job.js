@@ -10,12 +10,9 @@ const clientSecret = "2RV8Q~eQAFyGFzJMElKob0fjNf6MBgqwtWq5lcb1";
 async function getAccessToken() {
   let data = new FormData();
   data.append("grant_type", "refresh_token");
-  data.append("client_Id", "f1739c01-2e62-404b-80d4-72f79582ba0f");
-  data.append("client_secret", "Zsh8Q~pfaxvh6PSXOBWZ8FRMmajhs7WGcdYQJcKX");
-  data.append(
-    "refresh_token",
-    "1.AUoAcrociKITAES6xcBd1HMGdQGcc_FiLktAgNRy95WCug-JAJpKAA.BQABAwEAAAADAOz_BQD0_ySXb6AQbxjpa9LMfjvPdlf0kzaZ6QHmrO1685mAP2TdAHJqLut2j1ki7F6F_d97gArV1OwZY5sFNU7BhlaSg5lS4IFzh82rh3lAb2ZE3VPWKaX-ppGbFqhMGH0Yhh24ohTpYiOYdmVwQvJe_3omzqvkRurpNFvbIMv6rp2IrSkPNBzKkrd6U_tdCSSYL7xeYwSpehKc8J6dr9NfOG10RqA4AOWZeO5TyRMwj34ywDtTDUHImRxXTX2IC7MFItKvK-o600pg9upWwwv6A5EepfVCjYU-nVLYab3m57-KhuejdNe88SHPhAdya6VvzAGLtI1pI5gW-0vjIxkRFv63j7ZowWMn2_J07UNJNvrKjJFqDEiTnX0Fo8UxWmqkfpr-QiCnyCJTIjtK78GgQTWs_PjKytzQDQuR6tiQd_0k-BIj_RPWn0V8apaBKVKhWvqmHJi7AkJlhVUQ6xVtHFCFzuKBLpr7JFPFEwzc_Jb-XHwXJIVCgr3BQR0RszuAxhAlSPQa3exVaPjZvNgXmptiW-_Y5gGTE8UJmtvnTX58A-ibOz6RyY1sv1LrLTmz7BisCjkphLrHHt7mV9oSXD_LyNU21VHvhOu-X1kmjvJl5RPObhKY5QpC-E9k_Q8sgfL9NlYm6v5-5Rh1dkIjWZ9B777I1qrf_zZO5bStn39bIpwBHpJwcrJFjVFmsiFrWQv6MQy4QQge20wlYEMt0OXlDFc19iHqg7lswntjLWn5r7pO69saib1sCh2lnB9FXs6CLG2fTQJJxotLS2ahzaZANi4QfLtfB2vl-5Zk6Ep0cMH5qaRT_6FIM_xN-UU2-UGOcJunELT7iM4wnX7SmR2xPROfWkuJX8DZrcN-dncB_HwsgJPudfBaICIg9ydKK5OnX3B75KylmtDYdFAUcjZ3kZzdK7m8S9chLlTI5P0WyXDDG0zMV-FzekkVonxAhX6OfVXv5lY7ZLigPvXorZaK-kQLSBcLwDfHyJslFjorOxILkKYQ0E-8sralBkUOBi9MIs-HXI8Vys6ehf0irB-nP8geqbmKBgv4mS0xqagXx-2jAob-K8QLMXnVNisy-O1EeQe0dEJGoFPOAMqnoo5cCtiWCYDyI2gmFp7G44p6Pr6oKRlaJRKXXclfA7hIbb7GH0VKlEnCnQ7K3Pongx8oSz4RC5_2A3N1aOr1Ju4dl5jMvPxYzBBDrFkUweBV4IlPw9XvxSdk2c7e9oZFwVkzdlOf7oEZ3xnKEI7SrMozMHq9NcMRCvhMhPosJ32c4hasWtel6R5ZFdGDefF8RsE5h4nDXVO3xgmWom_EA8mGuFqBYTqfvPakjBU8TfdjCI3QoeNnQV1-LWJ-AnxFQ0ChNr6se3xv4DOMb3APb2ixN5BX8yoE3QEFoZ-fFxkeaZqSEvFAOKqblj_tO-JsiWajZdiubKNiXosXBb8wOGBTnA"
-  );
+  data.append("client_Id", "client_Id");
+  data.append("client_secret", "client_secret");
+  data.append("refresh_token", "refresh_token");
   let accessToken = "";
   let config = {
     method: "post",
