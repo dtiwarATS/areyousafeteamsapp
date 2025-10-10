@@ -3,7 +3,6 @@ const poolPromise = require("../db/dbConn");
 const qs = require("qs");
 const { parentPort } = require("worker_threads");
 const sql = require("mssql");
-const tenantId = "b9328432-f501-493e-b7f4-3105520a1cd4";
 
 async function getAccessToken() {
   let data = new FormData();
