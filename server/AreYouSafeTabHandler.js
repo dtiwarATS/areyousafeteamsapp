@@ -1985,8 +1985,8 @@ const handlerForSafetyBotTab = (app) => {
         "userAadObjId:",
         userAadObjId
       );
-
-      if (!incId || !userAadObjId) {
+      const parsedIncId = parseInt(incId);
+      if (!parsedIncId || !incId || !userAadObjId) {
         return res.status(400).json({ error: "Missing required parameters" });
       }
 
