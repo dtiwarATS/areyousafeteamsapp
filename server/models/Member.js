@@ -18,25 +18,38 @@ class Member {
     SafetyCheckVisitorsQuestion2Response,
     SafetyCheckVisitorsQuestion3Response,
     EnableSafetycheckForVisitors,
+    COUNTRY,
+    CITY,
+    STATE,
+    DEPARTMENT,
   }) {
     this.respId = respId;
     this.userId = user_id;
     this.userName = user_name;
-    this.isMessageDelivered = is_message_delivered != null ? is_message_delivered : null;
+    this.isMessageDelivered =
+      is_message_delivered != null ? is_message_delivered : null;
     this.response = response;
     this.responseValue = response_value;
     this.responseVia = response_via;
     this.comment = comment;
     this.timestamp = timestamp;
-    this.userPrincipalName = (tu && tu.length > 0) ? tu[0].userPrincipalName : null;
+    this.userPrincipalName =
+      tu && tu.length > 0 ? tu[0].userPrincipalName : null;
     this.msgStatus = msgStatus;
     this.error = error;
     this.adminName = admin_name;
     this.isMarkedByAdmin = is_marked_by_admin;
-    this.SafetyCheckVisitorsQuestion1Response = SafetyCheckVisitorsQuestion1Response;
-    this.SafetyCheckVisitorsQuestion2Response = SafetyCheckVisitorsQuestion2Response;
-    this.SafetyCheckVisitorsQuestion3Response = SafetyCheckVisitorsQuestion3Response;
+    this.SafetyCheckVisitorsQuestion1Response =
+      SafetyCheckVisitorsQuestion1Response;
+    this.SafetyCheckVisitorsQuestion2Response =
+      SafetyCheckVisitorsQuestion2Response;
+    this.SafetyCheckVisitorsQuestion3Response =
+      SafetyCheckVisitorsQuestion3Response;
     this.EnableSafetycheckForVisitors = EnableSafetycheckForVisitors;
+    this.COUNTRY = COUNTRY;
+    this.CITY = CITY;
+    this.STATE = STATE;
+    this.DEPARTMENT = DEPARTMENT;
   }
 }
 

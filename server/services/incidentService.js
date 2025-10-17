@@ -46,6 +46,19 @@ const parseEventData = (
           parsedData?.m?.length != null ? parsedData.m.length : 0;
         let messageDeliveredCount = 0;
         let memberResponseData = parsedData.m.map((member) => {
+          var MembersCityData = member.mRecurr[0].tu[0];
+          member.COUNTRY = MembersCityData.userCountry
+            ? MembersCityData.userCountry
+            : "";
+          member.CITY = MembersCityData.userCity
+            ? MembersCityData.userCity
+            : "";
+          member.DEPARTMENT = MembersCityData.userDepartment
+            ? MembersCityData.userDepartment
+            : "";
+          member.STATE = MembersCityData.userState
+            ? MembersCityData.userState
+            : "";
           if (
             member.mRecurr != null &&
             member.mRecurr.length == 1 &&
@@ -200,10 +213,15 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.response_via response_viaR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR,
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
   mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID,
+      tu.COUNTRY AS userCountry,
+      tu.CITY AS userCity,
+      tu.STATE AS userState,
+      tu.DEPARTMENT AS userDepartment,
   inc.RESPONSE_TYPE, inc.RESPONSE_OPTIONS
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
-  
+  LEFT JOIN MSTeamsTeamsUsers tu   -- ✅ New join to get city
+  ON tu.user_id = m.user_id
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
   Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
   
