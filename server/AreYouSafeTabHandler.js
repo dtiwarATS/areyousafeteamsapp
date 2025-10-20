@@ -999,8 +999,8 @@ const handlerForSafetyBotTab = (app) => {
         incData = JSON.parse(req.body.data.adminlist);
       }
       var userlocation = null;
-      if (req.body.data.Location != undefined) {
-        userlocation = JSON.parse(req.body.data.Location);
+      if (req.body.data.ulocData != undefined) {
+        userlocation = JSON.parse(req.body.data.ulocData);
       }
       try {
         const tabObj = new tab.AreYouSafeTab();
@@ -2003,7 +2003,7 @@ const handlerForSafetyBotTab = (app) => {
       const pool = await poolPromise;
       const result = await pool
         .request()
-        .input("incId", sql.Int, parseInt(incId))
+        .input("incId", sql.Int, parsedIncId)
         .query(query);
 
       console.log("MessageActivityLog DB result:", result.recordset);
