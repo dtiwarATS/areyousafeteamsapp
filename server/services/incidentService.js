@@ -46,7 +46,7 @@ const parseEventData = (
           parsedData?.m?.length != null ? parsedData.m.length : 0;
         let messageDeliveredCount = 0;
         let memberResponseData = parsedData.m.map((member) => {
-          var MembersCityData = member.mRecurr[0].tu[0];
+          var MembersCityData = member?.mRecurr?.[0]?.tu?.[0] || [];
           member.COUNTRY = MembersCityData.userCountry
             ? MembersCityData.userCountry
             : "";
@@ -487,7 +487,7 @@ SELECT
                     ELSE 'TEAMS'   -- default fallback
                 END AS ChannelName
             FROM MessageActivityLog mal
-            WHERE mal.IncidentId = a.id
+            WHERE TRY_CONVERT(int, MAL.IncidentId) = a.id
               AND mal.DeliveryStatus = 'SEND_SUCCESS'
         ) mal2
     ), 'TEAMS') AS send_via
@@ -585,7 +585,7 @@ B AS (
                         ELSE 'TEAMS'
                     END AS ChannelName
                 FROM MessageActivityLog mal
-                WHERE mal.IncidentId = A.id
+                WHERE TRY_CONVERT(int, MAL.IncidentId) = A.id
                   AND mal.DeliveryStatus = 'SEND_SUCCESS'
             ) mal2
         ), 'TEAMS') AS send_via
