@@ -1738,99 +1738,169 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   app.get("/posresp", async (req, res) => {
-    console.log({ "inside posresp": req.query });
-    const userAgent = req.headers["user-agent"];
-    console.log("useragent", userAgent);
-    const botAgents = [
-      "Google-PageRenderer",
-      "Google (+https://developers.google.com/+/web/snippet/)",
-      // Add more if you find other auto-clickers
-    ];
-    if (botAgents.some((agent) => userAgent.includes(agent))) {
-      console.log("Ignored auto-click from bot/crawler:", userAgent);
-      return res.status(204).end(); // No Content
-    }
-    console.log("got reply for sms", req.query);
-    let { userId, eventId } = req.query;
-    console.log({ userId, eventId });
-    await bot.proccessSMSLinkClick(userId, eventId, "YES");
-    bot.SaveSmsLog(
-      userId,
-      "LINK_CLICKED",
-      "YES",
-      JSON.stringify({ eventId, userId }),
-      null,
-      null,
-      eventId
-    );
-    incidentService.saveAllTypeQuerylogs(
-      userId,
-      "",
-      "SMS",
-      "",
-      eventId,
-      "LINK_CLICKED",
-      "",
-      "",
-      "",
-      "YES",
-      ""
-    );
-    res.redirect(
-      process.env.SMS_CONFIRMATION_URL +
-        "?userId=" +
-        userId +
-        "&eventId=" +
+    try {
+      console.log("Inside /posresp:", req.query);
+
+      const userAgent = req.headers["user-agent"] || "";
+      const acceptHeader = req.headers["accept"] || "";
+      console.log("User-Agent:", userAgent);
+      console.log("Accept Header:", acceptHeader);
+
+      // --- 1. Known bot / crawler user agents ---
+      const botAgents = [
+        "Google-PageRenderer",
+        "Google (+https://developers.google.com/+/web/snippet/)",
+        "Slackbot-LinkExpanding",
+        "Discordbot",
+        "TelegramBot",
+        "WhatsApp",
+        "Twitterbot",
+      ];
+
+      if (botAgents.some((agent) => userAgent.includes(agent))) {
+        console.log("Ignored known bot/crawler:", userAgent);
+        return res.status(204).end();
+      }
+
+      // --- 2. Android prefetch / preview detection ---
+      if (
+        req.method === "HEAD" ||
+        !acceptHeader.includes("text/html") ||
+        userAgent.includes("okhttp") || // Android system prefetch
+        userAgent.includes("wv") || // Android WebView
+        userAgent.includes("WhatsApp") // WhatsApp preview
+      ) {
+        console.log("Ignored Android preview/prefetch:", userAgent);
+        return res.status(204).end();
+      }
+
+      // --- 4. Process actual SMS link click ---
+      const { userId, eventId } = req.query;
+      if (!userId || !eventId) {
+        console.log("Missing userId or eventId in query");
+        return res.status(400).send("Missing required parameters");
+      }
+
+      console.log("Processing real click for SMS:", { userId, eventId });
+
+      await bot.proccessSMSLinkClick(userId, eventId, "YES");
+
+      bot.SaveSmsLog(
+        userId,
+        "LINK_CLICKED",
+        "YES",
+        JSON.stringify({ eventId, userId }),
+        null,
+        null,
         eventId
-    );
+      );
+
+      incidentService.saveAllTypeQuerylogs(
+        userId,
+        "",
+        "SMS",
+        "",
+        eventId,
+        "LINK_CLICKED",
+        "",
+        "",
+        "",
+        "YES",
+        ""
+      );
+
+      // --- 5. Redirect to confirmation page ---
+      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL}?userId=${userId}&eventId=${eventId}`;
+      console.log("Redirecting user to:", redirectUrl);
+      return res.redirect(redirectUrl);
+    } catch (err) {
+      console.error("Error in /posresp:", err);
+      return res.status(500).send("Internal Server Error");
+    }
   });
+
   app.get("/negresp", async (req, res) => {
-    console.log({ "inside negreso": req.query });
-    const userAgent = req.headers["user-agent"];
-    console.log("useragent", userAgent);
-    const botAgents = [
-      "Google-PageRenderer",
-      "Google (+https://developers.google.com/+/web/snippet/)",
-      // Add more if you find other auto-clickers
-    ];
-    if (botAgents.some((agent) => userAgent.includes(agent))) {
-      console.log("Ignored auto-click from bot/crawler:", userAgent);
-      return res.status(204).end(); // No Content
-    }
-    console.log("got reply for sms", req.query);
-    let { userId, eventId } = req.query;
-    console.log({ userId, eventId });
-    await bot.proccessSMSLinkClick(userId, eventId, "NO");
-    bot.SaveSmsLog(
-      userId,
-      "LINK_CLICKED",
-      "NO",
-      JSON.stringify({ eventId, userId }),
-      null,
-      null,
-      eventId
-    );
-    incidentService.saveAllTypeQuerylogs(
-      userId,
-      "",
-      "SMS",
-      "",
-      eventId,
-      "LINK_CLICKED",
-      "",
-      "",
-      "",
-      "NO",
-      ""
-    );
-    res.redirect(
-      process.env.SMS_CONFIRMATION_URL +
-        "?userId=" +
-        userId +
-        "&eventId=" +
+    try {
+      console.log("Inside /negresp:", req.query);
+
+      const userAgent = req.headers["user-agent"] || "";
+      const acceptHeader = req.headers["accept"] || "";
+      console.log("User-Agent:", userAgent);
+      console.log("Accept Header:", acceptHeader);
+
+      // --- 1. Known bot/crawler agents ---
+      const botAgents = [
+        "Google-PageRenderer",
+        "Google (+https://developers.google.com/+/web/snippet/)",
+        "Slackbot-LinkExpanding",
+        "Discordbot",
+        "TelegramBot",
+        "WhatsApp",
+        "Twitterbot",
+      ];
+
+      if (botAgents.some((agent) => userAgent.includes(agent))) {
+        console.log("Ignored known bot/crawler:", userAgent);
+        return res.status(204).end(); // No Content
+      }
+
+      // --- 2. Android prefetch / preview detection ---
+      if (
+        req.method === "HEAD" ||
+        !acceptHeader.includes("text/html") ||
+        userAgent.includes("okhttp") || // Android system fetch
+        userAgent.includes("wv") || // Android WebView
+        userAgent.includes("WhatsApp") // WhatsApp preview
+      ) {
+        console.log("Ignored Android preview/prefetch:", userAgent);
+        return res.status(204).end();
+      }
+
+      // --- 4. Process actual click ---
+      const { userId, eventId } = req.query;
+      if (!userId || !eventId) {
+        console.log("Missing userId or eventId in query");
+        return res.status(400).send("Missing required parameters");
+      }
+
+      console.log("Processing real click for SMS:", { userId, eventId });
+
+      await bot.proccessSMSLinkClick(userId, eventId, "NO");
+
+      bot.SaveSmsLog(
+        userId,
+        "LINK_CLICKED",
+        "NO",
+        JSON.stringify({ eventId, userId }),
+        null,
+        null,
         eventId
-    );
+      );
+
+      incidentService.saveAllTypeQuerylogs(
+        userId,
+        "",
+        "SMS",
+        "",
+        eventId,
+        "LINK_CLICKED",
+        "",
+        "",
+        "",
+        "NO",
+        ""
+      );
+
+      // --- 5. Redirect to confirmation page ---
+      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL}?userId=${userId}&eventId=${eventId}`;
+      console.log("Redirecting user to:", redirectUrl);
+      return res.redirect(redirectUrl);
+    } catch (err) {
+      console.error("Error in /negresp:", err);
+      return res.status(500).send("Internal Server Error");
+    }
   });
+
   app.post("/smscomment", async (req, res) => {
     console.log("got reply for sms comment", req.body);
     let { userId, eventId, comments } = req.body;
