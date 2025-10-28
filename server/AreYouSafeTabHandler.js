@@ -1738,6 +1738,7 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   app.get("/posresp", async (req, res) => {
+    console.log({ "inside posresp": req.query });
     const userAgent = req.headers["user-agent"];
     console.log("useragent", userAgent);
     const botAgents = [
@@ -1784,6 +1785,7 @@ const handlerForSafetyBotTab = (app) => {
     );
   });
   app.get("/negresp", async (req, res) => {
+    console.log({ "inside negreso": req.query });
     const userAgent = req.headers["user-agent"];
     console.log("useragent", userAgent);
     const botAgents = [

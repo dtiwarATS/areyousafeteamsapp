@@ -3940,6 +3940,7 @@ const NewsendSafetyCheckMessageAsync = async (
         );
         allMembers = resData.allMembers;
         incFilesData = resData.incFilesData;
+        companyData = resData.companyData;
       }
 
       let {
@@ -4061,6 +4062,32 @@ const NewsendSafetyCheckMessageAsync = async (
           isLastBatch,
           allincMembers
         );
+        let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
+        if (
+          companyData.send_sms &&
+          (companyData.SubscriptionType == 3 ||
+            (companyData.SubscriptionType == 2 &&
+              companyData.sent_sms_count < 50))
+        ) {
+          sendSafetyCheckMsgViaSMS(
+            companyData,
+            userAadObjIds,
+            incId,
+            incTitle,
+            incData
+          );
+        }
+        if (incData.incTypeId == 1 && companyData.send_whatsapp) {
+          sendSafetyCheckMsgViaWhatsapp(
+            companyData,
+            userAadObjIds,
+            incId,
+            incTitle,
+            createdByUserInfo.user_name,
+            responseOptionData.responseOptions,
+            incData
+          );
+        }
       }
     } catch (err) {
       console.log(`sendSafetyCheckMessage error: ${err} `);
