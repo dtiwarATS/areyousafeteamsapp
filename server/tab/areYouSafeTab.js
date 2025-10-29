@@ -1510,6 +1510,32 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
+  saveAppPermission = async (
+    teamId,
+    IsAppPermissionGranted,
+    tenantid,
+    field
+  ) => {
+    let res = null;
+    try {
+      res = await incidentService.saveAppPermission(
+        teamId,
+        IsAppPermissionGranted,
+        tenantid,
+        field
+      );
+      console.log({ res });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in saveAppPermission"
+      );
+    }
+    return Promise.resolve(res);
+  };
 
   saveUserSetting = async ({
     teamId,

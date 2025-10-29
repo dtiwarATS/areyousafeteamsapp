@@ -2282,6 +2282,25 @@ const saveRefreshToken = async (teamId, refresh_token, field = "send_sms") => {
   }
   return Promise.resolve(result);
 };
+const saveAppPermission = async (
+  teamId,
+  IsAppPermissionGranted,
+  tenantid,
+  field = "send_sms"
+) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set  ${field} = 1 where team_id='${teamId}' ;
+    update MSTeamsInstallationDetails set  IS_APP_PERMISSION_GRANTED = '${IsAppPermissionGranted}' where user_tenant_id='${tenantid}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in saveAppPermission");
+  }
+  return Promise.resolve(result);
+};
 const getremaindercheck = async (inc_id) => {
   let result = null;
   try {
@@ -3514,6 +3533,7 @@ module.exports = {
   setSendWhatsapp,
   setavailableforapp,
   saveRefreshToken,
+  saveAppPermission,
   safteyvisiterresponseupdate,
   updatepostSentPostInstallationFlag,
   updateremaindercounter,

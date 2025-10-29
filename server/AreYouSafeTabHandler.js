@@ -689,7 +689,38 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
-
+  app.post("/areyousafetabhandler/saveAppPermission", async (req, res) => {
+    const teamId = req.query.teamId;
+    const field = req.query.field;
+    const IsAppPermissionGranted = req.query.IsAppPermissionGranted;
+    const tenantid = req.query.tenantid;
+    console.log({ teamId, IsAppPermissionGranted });
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const data = await tabObj.saveAppPermission(
+        teamId,
+        IsAppPermissionGranted == "True" ? true : false,
+        tenantid,
+        field
+      );
+      tabObj.fetchDataAndUpdateDB(teamId);
+      console.log(data);
+      if (data.length) {
+        res.send("success");
+      } else {
+        res.send(null);
+      }
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setRefreshToken"
+      );
+    }
+  });
   app.get("/areyousafetabhandler/getAssistanceData", (req, res) => {
     const userAadObjId = req.query.userId;
     try {
@@ -1736,7 +1767,49 @@ const handlerForSafetyBotTab = (app) => {
       }
     }
   });
+  app.get("/areyousafetabhandler/AllAdminConsentInfo", async (req, res) => {
+    var details = req.query.state?.toString();
+    const Tdata = details?.split("$$$");
+    let field = Tdata?.[1];
+    const teamId = Tdata?.[0];
+    const tenantid = req.query.tenant;
+    let IsAppPermissionGranted = req.query.admin_consent;
+    const axios = require("axios");
+    if (IsAppPermissionGranted) {
+      field =
+        field.toLowerCase() == "whatsapp"
+          ? "send_whatsapp"
+          : field.toLowerCase() == "filter"
+          ? "FILTER_ENABLED"
+          : "send_sms";
+      let config = {
+        method: "post",
+        maxBodyLength: Infinity,
+        url: `${process.env.serviceUrl}/areyousafetabhandler/saveAppPermission?teamId=${teamId}&tenantid=${tenantid}&IsAppPermissionGranted=${IsAppPermissionGranted}&field=${field}`,
+        // timeout: 10000,
+      };
+      axios
+        .request(config)
 
+        .then((response) => {
+          const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;font-family: &quot;Montserrat&quot;, sans-serif;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Safety Check</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://areyousafe.in/img/SafetyBot%20Icon.png" style=" width: 150px;"></div><h3 style="margin-bottom: 5px;font-size: 31px;">Thank you for granting permission(s)</h3> <label style="font-family: &quot;Montserrat&quot;, sans-serif;font-weight: 700;display: inline-block;padding: 10px 20px;border-radius: 4px;color: #fff;color: #5783db;text-decoration: none;font-size: 21px;">Go back to Teams and reload the Safety check tab</label></div>`;
+          res.status(200).send(msg);
+        })
+        .catch((error) => {
+          // console.log({
+          //   "Error in Saving AllAdminConsentInfo_IsAppPermissionGranted": error,
+          // });
+          processBotError(
+            error,
+            teamId,
+            "",
+            "",
+            "Error in Saving AllAdminConsentInfo_IsAppPermissionGranted: " +
+              IsAppPermissionGranted
+          );
+        });
+    }
+  });
   app.get("/posresp", async (req, res) => {
     try {
       console.log("Inside /posresp:", req.query);
