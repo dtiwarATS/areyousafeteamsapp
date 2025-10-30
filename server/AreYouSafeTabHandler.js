@@ -109,15 +109,15 @@ const handlerForSafetyBotTab = (app) => {
     phone.pop();
     try {
       let data = new FormData();
-      data.append("grant_type", "refresh_token");
+      data.append("grant_type", "client_credentials");
       data.append("client_Id", process.env.MicrosoftAppId);
       data.append("client_secret", process.env.MicrosoftAppPassword);
-      data.append("refresh_token", refreshToken);
+      data.append("scope", "https://graph.microsoft.com/.default");
 
       let config = {
         method: "post",
         maxBodyLength: Infinity,
-        url: `https://login.microsoftonline.com/${tenantId}/oauth2/token`,
+        url: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
         data: data,
         // timeout: 10000,
       };
@@ -182,7 +182,7 @@ const handlerForSafetyBotTab = (app) => {
                         requestDate +
                         " ErrorDateTime: " +
                         new Date(),
-                      TeamName,
+                      "",
                       false,
                       clientVersion
                     );
@@ -227,7 +227,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               "",
               "error in get access token from microsoft at get users phone number",
-              TeamName,
+              "",
               false,
               clientVersion
             );
@@ -246,14 +246,14 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const teamInfo = await incidentService.getUserTeamInfoData(userObjId);
       var memberqery = "";
-      memberqery = `select * from MSTeamsTeamsUsers where team_id in(select team_id from MSTeamsInstallationDetails where user_obj_id='${userObjId}' and refresh_token is NOT NULL)`;
+      memberqery = `select * from MSTeamsTeamsUsers where team_id in(select team_id from MSTeamsInstallationDetails where user_obj_id='${userObjId}' and IS_APP_PERMISSION_GRANTED is NOT NULL)`;
       var teamsMembers = await db.getDataFromDB(memberqery, userObjId);
       let userAadObjIds = teamsMembers.map((x) => x.user_aadobject_id);
       if (teamInfo[0]?.length && teamInfo) {
         const phoneDataPromises = teamInfo[0].map(async (team) => {
-          if (team.refresh_token) {
+          if (team.IS_APP_PERMISSION_GRANTED) {
             let phonedata = await getUserPhone(
-              team.refresh_token,
+              team.IS_APP_PERMISSION_GRANTED,
               team.tenant_id,
               userAadObjIds
             );
@@ -663,32 +663,32 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
-  app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
-    const teamId = req.query.teamId;
-    const refresh_token = req.query.refresh_token;
-    const field = req.query.field;
-    console.log({ teamId, refresh_token });
-    try {
-      const tabObj = new tab.AreYouSafeTab();
-      const data = await tabObj.saveRefreshToken(teamId, refresh_token, field);
-      tabObj.fetchDataAndUpdateDB(teamId);
-      console.log(data);
-      if (data.length) {
-        res.send("success");
-      } else {
-        res.send(null);
-      }
-    } catch (err) {
-      console.log(err);
-      processSafetyBotError(
-        err,
-        teamId,
-        "",
-        userAadObjId,
-        "error in /areyousafetabhandler/setRefreshToken"
-      );
-    }
-  });
+  // app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
+  //   const teamId = req.query.teamId;
+  //   const refresh_token = req.query.refresh_token;
+  //   const field = req.query.field;
+  //   console.log({ teamId, refresh_token });
+  //   try {
+  //     const tabObj = new tab.AreYouSafeTab();
+  //     const data = await tabObj.saveRefreshToken(teamId, refresh_token, field);
+  //     tabObj.fetchDataAndUpdateDB(teamId);
+  //     console.log(data);
+  //     if (data.length) {
+  //       res.send("success");
+  //     } else {
+  //       res.send(null);
+  //     }
+  //   } catch (err) {
+  //     console.log(err);
+  //     processSafetyBotError(
+  //       err,
+  //       teamId,
+  //       "",
+  //       userAadObjId,
+  //       "error in /areyousafetabhandler/setRefreshToken"
+  //     );
+  //   }
+  // });
   app.post("/areyousafetabhandler/saveAppPermission", async (req, res) => {
     const teamId = req.query.teamId;
     const field = req.query.field;
@@ -1664,109 +1664,109 @@ const handlerForSafetyBotTab = (app) => {
   });
   const Phonescope =
     "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
-  app.get("/areyousafetabhandler/AdminConsentInfo", async (req, res) => {
-    const SSOCode = req.query.code || "";
-    var details = req.query.state?.toString();
-    const Tdata = details?.split("$$$");
-    let field = Tdata?.[1];
-    const teamId = Tdata?.[0];
-    console.log({ AdminconsentinfoteamId: teamId });
-    var Tscope =
-      "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
-    //log("Got the resposne in AdminConsentInfo", { query: req.query });
-    const aadTokenEndPoint =
-      "https://login.microsoftonline.com/common/oauth2/v2.0/token";
-    if (SSOCode == "") {
-      res.json("No authentication.");
-      return;
-    } else {
-      const oAuthOBOParams = {
-        grant_type: "authorization_code",
-        client_Id: process.env.MicrosoftAppId,
-        client_secret: process.env.MicrosoftAppPassword,
-        // client_Id: client_id,
-        // client_secret: client_secret,
-        code: SSOCode,
-        scope: Tscope,
-        redirect_uri: `${process.env.serviceUrl}/areyousafetabhandler/AdminConsentInfo`,
-      };
+  // app.get("/areyousafetabhandler/AdminConsentInfo", async (req, res) => {
+  //   const SSOCode = req.query.code || "";
+  //   var details = req.query.state?.toString();
+  //   const Tdata = details?.split("$$$");
+  //   let field = Tdata?.[1];
+  //   const teamId = Tdata?.[0];
+  //   console.log({ AdminconsentinfoteamId: teamId });
+  //   var Tscope =
+  //     "User.Read email openid profile offline_access User.ReadBasic.All User.Read.All";
+  //   //log("Got the resposne in AdminConsentInfo", { query: req.query });
+  //   const aadTokenEndPoint =
+  //     "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+  //   if (SSOCode == "") {
+  //     res.json("No authentication.");
+  //     return;
+  //   } else {
+  //     const oAuthOBOParams = {
+  //       grant_type: "authorization_code",
+  //       client_Id: process.env.MicrosoftAppId,
+  //       client_secret: process.env.MicrosoftAppPassword,
+  //       // client_Id: client_id,
+  //       // client_secret: client_secret,
+  //       code: SSOCode,
+  //       scope: Tscope,
+  //       redirect_uri: `${process.env.serviceUrl}/areyousafetabhandler/AdminConsentInfo`,
+  //     };
 
-      const oAuthOboRequest = Object.keys(oAuthOBOParams)
-        .map(
-          (key, index) => `${key}=${encodeURIComponent(oAuthOBOParams[key])}`
-        )
-        .join("&");
+  //     const oAuthOboRequest = Object.keys(oAuthOBOParams)
+  //       .map(
+  //         (key, index) => `${key}=${encodeURIComponent(oAuthOBOParams[key])}`
+  //       )
+  //       .join("&");
 
-      const HEADERS = {
-        "content-type": "application/x-www-form-urlencoded",
-      };
+  //     const HEADERS = {
+  //       "content-type": "application/x-www-form-urlencoded",
+  //     };
 
-      try {
-        const response = await axios.post(aadTokenEndPoint, oAuthOboRequest, {
-          headers: HEADERS,
-          // timeout: 10000,
-        });
-        if (response.status === 200) {
-          const refreshToken = response.data.refresh_token
-            ? response.data.refresh_token
-            : "";
-          // log({ refreshToken });
-          // log(teamId);
-          field =
-            field.toLowerCase() == "whatsapp"
-              ? "send_whatsapp"
-              : field.toLowerCase() == "filter"
-              ? "FILTER_ENABLED"
-              : "send_sms";
-          let config = {
-            method: "post",
-            maxBodyLength: Infinity,
-            url: `${process.env.serviceUrl}/areyousafetabhandler/setRefreshToken?teamId=${teamId}&refresh_token=${refreshToken}&field=${field}`,
-            // timeout: 10000,
-          };
-          axios
-            .request(config)
+  //     try {
+  //       const response = await axios.post(aadTokenEndPoint, oAuthOboRequest, {
+  //         headers: HEADERS,
+  //         // timeout: 10000,
+  //       });
+  //       if (response.status === 200) {
+  //         const refreshToken = response.data.refresh_token
+  //           ? response.data.refresh_token
+  //           : "";
+  //         // log({ refreshToken });
+  //         // log(teamId);
+  //         field =
+  //           field.toLowerCase() == "whatsapp"
+  //             ? "send_whatsapp"
+  //             : field.toLowerCase() == "filter"
+  //             ? "FILTER_ENABLED"
+  //             : "send_sms";
+  //         let config = {
+  //           method: "post",
+  //           maxBodyLength: Infinity,
+  //           url: `${process.env.serviceUrl}/areyousafetabhandler/setRefreshToken?teamId=${teamId}&refresh_token=${refreshToken}&field=${field}`,
+  //           // timeout: 10000,
+  //         };
+  //         axios
+  //           .request(config)
 
-            .then((response) => {
-              const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;font-family: &quot;Montserrat&quot;, sans-serif;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Safety Check</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://areyousafe.in/img/SafetyBot%20Icon.png" style=" width: 150px;"></div><h3 style="margin-bottom: 5px;font-size: 31px;">Thank you for granting permission(s)</h3> <label style="font-family: &quot;Montserrat&quot;, sans-serif;font-weight: 700;display: inline-block;padding: 10px 20px;border-radius: 4px;color: #fff;color: #5783db;text-decoration: none;font-size: 21px;">Go back to Teams and reload the Safety check tab</label></div>`;
-              res.status(200).send(msg);
-            })
-            .catch((error) => {
-              console.log({ "Error in Saving refresh token": error });
-              processSafetyBotError(
-                error,
-                teamId,
-                "",
-                "",
-                "Error in Saving refresh token, isRefershTokenBlank: " +
-                  (refreshToken ? "true" : "false")
-              );
-            });
-        } else {
-          if (
-            response.data.error === "invalid_grant" ||
-            response.data.error === "interaction_required" ||
-            response.data.error == "insufficient_claims"
-          ) {
-            res.status(403).json({ error: "consent_required" });
-          } else {
-            res.status(500).json({ error: "Could not exchange access token" });
-          }
-        }
-      } catch (error) {
-        console.log({ "Calling the Axios": JSON.stringify(error) });
-        processSafetyBotError(
-          error,
-          teamId,
-          "",
-          "",
-          "Error in processing grant permission in adminconsentinfo"
-        );
-        //log({ error: `unknown error ${error}` });
-        res.status(400).json({ error: `unknown error ${error}` });
-      }
-    }
-  });
+  //           .then((response) => {
+  //             const msg = `<div style="text-align: center;margin-left: 25%;background: white;padding: 30px;margin: auto;vertical-align: middle;position: absolute;top: 50%;right: 0px;bottom: 50%;left: 0px;display: inline-table;font-family: &quot;Montserrat&quot;, sans-serif;"><h1 style=" margin-bottom: 20px;font-weight: 700;font-family: &quot;Montserrat&quot;, sans-serif;font-size: 70px;">Safety Check</h1><div style="vertical-align:middle; text-align:center; box-shadow:none;padding:0px"><img src="https://areyousafe.in/img/SafetyBot%20Icon.png" style=" width: 150px;"></div><h3 style="margin-bottom: 5px;font-size: 31px;">Thank you for granting permission(s)</h3> <label style="font-family: &quot;Montserrat&quot;, sans-serif;font-weight: 700;display: inline-block;padding: 10px 20px;border-radius: 4px;color: #fff;color: #5783db;text-decoration: none;font-size: 21px;">Go back to Teams and reload the Safety check tab</label></div>`;
+  //             res.status(200).send(msg);
+  //           })
+  //           .catch((error) => {
+  //             console.log({ "Error in Saving refresh token": error });
+  //             processSafetyBotError(
+  //               error,
+  //               teamId,
+  //               "",
+  //               "",
+  //               "Error in Saving refresh token, isRefershTokenBlank: " +
+  //                 (refreshToken ? "true" : "false")
+  //             );
+  //           });
+  //       } else {
+  //         if (
+  //           response.data.error === "invalid_grant" ||
+  //           response.data.error === "interaction_required" ||
+  //           response.data.error == "insufficient_claims"
+  //         ) {
+  //           res.status(403).json({ error: "consent_required" });
+  //         } else {
+  //           res.status(500).json({ error: "Could not exchange access token" });
+  //         }
+  //       }
+  //     } catch (error) {
+  //       console.log({ "Calling the Axios": JSON.stringify(error) });
+  //       processSafetyBotError(
+  //         error,
+  //         teamId,
+  //         "",
+  //         "",
+  //         "Error in processing grant permission in adminconsentinfo"
+  //       );
+  //       //log({ error: `unknown error ${error}` });
+  //       res.status(400).json({ error: `unknown error ${error}` });
+  //     }
+  //   }
+  // });
   app.get("/areyousafetabhandler/AllAdminConsentInfo", async (req, res) => {
     var details = req.query.state?.toString();
     const Tdata = details?.split("$$$");

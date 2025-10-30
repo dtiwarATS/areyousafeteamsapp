@@ -21,7 +21,7 @@ class Company {
     SafetycheckForVisitorsQuestion1,
     SafetycheckForVisitorsQuestion2,
     SafetycheckForVisitorsQuestion3,
-    refresh_token,
+    IS_APP_PERMISSION_GRANTED,
     send_sms,
     SEND_WHATSAPP,
     sent_sms_count,
@@ -52,13 +52,13 @@ class Company {
     this.SafetycheckForVisitorsQuestion2 = SafetycheckForVisitorsQuestion2;
     this.SafetycheckForVisitorsQuestion3 = SafetycheckForVisitorsQuestion3;
     this.EnableSafetycheckForVisitors = EnableSafetycheckForVisitors;
-    this.refresh_token = refresh_token;
+    this.IS_APP_PERMISSION_GRANTED = IS_APP_PERMISSION_GRANTED;
     this.send_sms = send_sms;
     this.send_whatsapp = SEND_WHATSAPP;
     this.sent_sms_count = sent_sms_count;
     this.SubscriptionType = SubscriptionType;
     this.PHONE_FIELD = PHONE_FIELD;
-    this.filterEnabled = FILTER_ENABLED;    
+    this.filterEnabled = FILTER_ENABLED;
     this.WHATSAPP_TOKEN = WHATSAPP_TOKEN;
     this.WHATSAPP_PHONE_NUMBER_ID = WHATSAPP_PHONE_NUMBER_ID;
   }

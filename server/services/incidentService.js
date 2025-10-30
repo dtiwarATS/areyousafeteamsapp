@@ -311,7 +311,7 @@ const getAdmins = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (superUsersArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.refresh_token
+              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join(
@@ -1101,7 +1101,7 @@ const getCompanyData = async (teamId) => {
       createdDate: result[0].created_date,
       welcomeMessageSent: result[0].welcomeMessageSent,
       serviceUrl: result[0].serviceUrl,
-      refresh_token: result[0].refresh_token,
+      IS_APP_PERMISSION_GRANTED: result[0].IS_APP_PERMISSION_GRANTED,
       PHONE_FIELD: result[0].PHONE_FIELD,
       send_whatsapp: result[0].SEND_WHATSAPP,
       WHATSAPP_TOKEN: result[0].WHATSAPP_TOKEN,
@@ -1706,7 +1706,7 @@ const getUserTeamInfo = async (userAadObjId) => {
           FILTER_ENABLED,
 		  SEND_WHATSAPP,
 		  send_sms,
-		 refresh_token,
+		 IS_APP_PERMISSION_GRANTED,
       serviceUrl,
       AVAILABLE_FOR,
      PHONE_FIELD,
@@ -1752,7 +1752,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
           FILTER_ENABLED,
 		  SEND_WHATSAPP,
 		  send_sms,
-		 refresh_token,
+		 IS_APP_PERMISSION_GRANTED,
           s.UserLimit,
           s.SubscriptionType
         INTO #CTE
@@ -1763,7 +1763,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
           AND uninstallation_date IS NULL 
           AND team_id IS NOT NULL 
           AND team_id <> ''
-		  AND refresh_token IS NOT NULL;
+		  AND IS_APP_PERMISSION_GRANTED IS NOT NULL;
 
         SELECT * FROM #CTE ORDER BY teamName;
 
@@ -1828,7 +1828,7 @@ const getenablecheck = async (teamId) => {
 const getSendSMS = async (teamId) => {
   let result = null;
   try {
-    const qry = `select refresh_token, send_sms, send_whatsapp, PHONE_FIELD, FILTER_ENABLED as filterEnabled from MSTeamsInstallationDetails where team_id='${teamId}' `;
+    const qry = `select IS_APP_PERMISSION_GRANTED, send_sms, send_whatsapp, PHONE_FIELD, FILTER_ENABLED as filterEnabled from MSTeamsInstallationDetails where team_id='${teamId}' `;
     result = await db.getDataFromDB(qry);
   } catch (err) {
     console.log(err);
@@ -2045,7 +2045,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (contactsArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.refresh_token
+              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(

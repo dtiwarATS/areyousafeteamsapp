@@ -2369,8 +2369,12 @@ const sendSafetyCheckMsgViaSMS = async (
   isfrominctype = "onetime"
 ) => {
   let tenantId = companyData.userTenantId;
-  let refresh_token = companyData.refresh_token;
-  let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
+  let usrPhones = await getUserPhone(
+    IS_APP_PERMISSION_GRANTED,
+    tenantId,
+    users
+  );
   let counter = Number(
     companyData.sent_sms_count && companyData.sent_sms_count != ""
       ? companyData.sent_sms_count
@@ -2628,9 +2632,13 @@ const sendSafetyCheckMsgViaWhatsapp = async (
   isfrominctype = "onetime"
 ) => {
   let tenantId = companyData.userTenantId;
-  let refresh_token = companyData.refresh_token;
-  if (refresh_token) {
-    let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
+  if (IS_APP_PERMISSION_GRANTED) {
+    let usrPhones = await getUserPhone(
+      IS_APP_PERMISSION_GRANTED,
+      tenantId,
+      users
+    );
     for (let user of usrPhones) {
       try {
         let phone =
@@ -3319,20 +3327,20 @@ const processCommentViaLink = async (userId, incId, comment) => {
   return Promise.resolve(superUsers);
 };
 
-const getUserPhone = async (refreshToken, tenantId, arrIds) => {
+const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
   var phone = [""];
   phone.pop();
   try {
     let data = new FormData();
-    data.append("grant_type", "refresh_token");
     data.append("client_Id", process.env.MicrosoftAppId);
     data.append("client_secret", process.env.MicrosoftAppPassword);
-    data.append("refresh_token", refreshToken);
+    data.append("scope", "https://graph.microsoft.com/.default");
+    data.append("grant_type", "client_credentials");
 
     let config = {
       method: "post",
       maxBodyLength: Infinity,
-      url: `https://login.microsoftonline.com/${tenantId}/oauth2/token`,
+      url: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
       data: data,
       // timeout: 10000,
     };
@@ -3397,7 +3405,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
                       requestDate +
                       " ErrorDateTime: " +
                       new Date(),
-                    TeamName,
+                    "",
                     false,
                     clientVersion
                   );
@@ -3442,7 +3450,7 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
             "",
             "",
             "error in get access token from microsoft at get users phone number",
-            TeamName,
+            "",
             false,
             clientVersion
           );
@@ -3456,20 +3464,20 @@ const getUserPhone = async (refreshToken, tenantId, arrIds) => {
   return phone;
 };
 
-const getUserDetails = async (tenantId, refreshToken, arrIds) => {
+const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
   var phone = [""];
   phone.pop();
   try {
     let data = new FormData();
-    data.append("grant_type", "refresh_token");
     data.append("client_Id", process.env.MicrosoftAppId);
     data.append("client_secret", process.env.MicrosoftAppPassword);
-    data.append("refresh_token", refreshToken);
+    data.append("scope", "https://graph.microsoft.com/.default");
+    data.append("grant_type", "client_credentials");
 
     let config = {
       method: "post",
       maxBodyLength: Infinity,
-      url: `https://login.microsoftonline.com/${tenantId}/oauth2/token`,
+      url: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
       data: data,
       // timeout: 10000,
     };
@@ -3542,7 +3550,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
                       requestDate +
                       " ErrorDateTime: " +
                       new Date(),
-                    TeamName,
+                    "",
                     false,
                     clientVersion
                   );
@@ -3587,7 +3595,7 @@ const getUserDetails = async (tenantId, refreshToken, arrIds) => {
             "",
             "",
             "error in get access token from microsoft at get users phone number",
-            TeamName,
+            "",
             false,
             clientVersion
           );
@@ -4532,9 +4540,13 @@ const sendApprovalResponse = async (user, context) => {
 
 const sendAcknowledmentinSMS = async (companyData, users, text) => {
   let tenantId = companyData.userTenantId;
-  let refresh_token = companyData.refresh_token;
-  if (refresh_token) {
-    let usrPhones = await getUserPhone(refresh_token, tenantId, users);
+  let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
+  if (IS_APP_PERMISSION_GRANTED) {
+    let usrPhones = await getUserPhone(
+      IS_APP_PERMISSION_GRANTED,
+      tenantId,
+      users
+    );
     let counter = 0;
     for (let user of usrPhones) {
       try {

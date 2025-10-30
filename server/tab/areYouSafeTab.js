@@ -517,7 +517,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     //  var ids = data[0].map((item) => item.user_aadobject_id).join(", ");
     let userAadObjIds = data[0].map((x) => x.user_aadobject_id);
     let usrPhones = await bot.getUserPhone(
-      data[0][0].refresh_token,
+      data[0][0].IS_APP_PERMISSION_GRANTED,
       data[0][0].user_tenant_id,
       userAadObjIds
     );
@@ -1496,20 +1496,20 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     return Promise.resolve(res);
   };
 
-  saveRefreshToken = async (teamId, refresh_token, field) => {
-    let res = null;
-    try {
-      res = await incidentService.saveRefreshToken(
-        teamId,
-        refresh_token,
-        field
-      );
-      console.log({ res });
-    } catch (err) {
-      processSafetyBotError(err, teamId, "", null, "error in saveRefreshToken");
-    }
-    return Promise.resolve(res);
-  };
+  // saveRefreshToken = async (teamId, refresh_token, field) => {
+  //   let res = null;
+  //   try {
+  //     res = await incidentService.saveRefreshToken(
+  //       teamId,
+  //       refresh_token,
+  //       field
+  //     );
+  //     console.log({ res });
+  //   } catch (err) {
+  //     processSafetyBotError(err, teamId, "", null, "error in saveRefreshToken");
+  //   }
+  //   return Promise.resolve(res);
+  // };
   saveAppPermission = async (
     teamId,
     IsAppPermissionGranted,
@@ -1624,7 +1624,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
           let userIds = userInfo.map((user) => user.user_aadobject_id);
           await bot.getUserDetails(
             companyData.userTenantId,
-            companyData.refresh_token,
+            companyData.IS_APP_PERMISSION_GRANTED,
             userIds
           );
         }
