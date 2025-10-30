@@ -11,7 +11,7 @@ const getMobileDashboardMsgBlockJSON = (companyData) => {
   return {
     type: "TextBlock",
     wrap: true,
-    text: `For mobile, navigate to the  **${teamName}** team -> **${channelName}** channel -> **Safety Check** tab`,
+    text: `On mobile, navigate to your **team**, open the **channel**, tap **More**, and then select the **Safety Check app**.`,
   };
 };
 
