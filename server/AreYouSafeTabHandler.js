@@ -184,7 +184,7 @@ const handlerForSafetyBotTab = (app) => {
                         new Date(),
                       "",
                       false,
-                      clientVersion
+                      ""
                     );
                     res.json({ error: error });
                   });
@@ -229,7 +229,7 @@ const handlerForSafetyBotTab = (app) => {
               "error in get access token from microsoft at get users phone number",
               "",
               false,
-              clientVersion
+              ""
             );
             res.json({ error: error });
           }

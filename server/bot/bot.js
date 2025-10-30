@@ -3407,7 +3407,7 @@ const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
                       new Date(),
                     "",
                     false,
-                    clientVersion
+                    ""
                   );
                   res.json({ error: error });
                 });
@@ -3452,7 +3452,7 @@ const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
             "error in get access token from microsoft at get users phone number",
             "",
             false,
-            clientVersion
+            ""
           );
           res.json({ error: error });
         }
@@ -3552,7 +3552,7 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                       new Date(),
                     "",
                     false,
-                    clientVersion
+                    ""
                   );
                   res.json({ error: error });
                 });
@@ -3597,7 +3597,7 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
             "error in get access token from microsoft at get users phone number",
             "",
             false,
-            clientVersion
+            ""
           );
           res.json({ error: error });
         }

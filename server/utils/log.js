@@ -13,6 +13,7 @@ class AYSLog {
   };
 
   saveLog = async (incId) => {
+    return "";
     try {
       if (incId == null || Number(incId) <= 0) {
         incId = -1;

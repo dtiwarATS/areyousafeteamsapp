@@ -1622,11 +1622,13 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       incidentService.getUserInfoByTeamId(teamId).then(async (userInfo) => {
         if (userInfo && userInfo.length > 0) {
           let userIds = userInfo.map((user) => user.user_aadobject_id);
-          await bot.getUserDetails(
-            companyData.userTenantId,
-            companyData.IS_APP_PERMISSION_GRANTED,
-            userIds
-          );
+          if (companyData.IS_APP_PERMISSION_GRANTED) {
+            await bot.getUserDetails(
+              companyData.userTenantId,
+              companyData.IS_APP_PERMISSION_GRANTED,
+              userIds
+            );
+          }
         }
       });
     } catch (err) {

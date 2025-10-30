@@ -23,12 +23,12 @@ function initJob() {
       {
         name: "recurr-job",
         path: path.join(__dirname, "jobs", "recurr-job.js"),
-        cron: "*/1 * * * *",
+        cron: "*/15 * * * *",
       },
       {
         name: "newSubcriptionAdded-job",
         path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
-        cron: "*/1 * * * *",
+        cron: "*/10 * * * *",
       },
       {
         name: "subscription-job",
@@ -43,7 +43,7 @@ function initJob() {
       {
         name: "SendRemainder-job",
         path: path.join(__dirname, "jobs", "SendRemainder-job.js"),
-        cron: "*/1 * * * *",
+        cron: "*/3 * * * *",
       },
       {
         name: "updateTeamMembers-job",
