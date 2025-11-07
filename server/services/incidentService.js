@@ -311,7 +311,7 @@ const getAdmins = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (superUsersArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED
+              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join(
@@ -1106,6 +1106,7 @@ const getCompanyData = async (teamId) => {
       send_whatsapp: result[0].SEND_WHATSAPP,
       WHATSAPP_TOKEN: result[0].WHATSAPP_TOKEN,
       WHATSAPP_PHONE_NUMBER_ID: result[0].WHATSAPP_PHONE_NUMBER_ID,
+      SEND_EMAIL: result[0].SEND_EMAIL,
     };
   }
   return companyDataObj;
@@ -1709,6 +1710,8 @@ const getUserTeamInfo = async (userAadObjId) => {
 		 IS_APP_PERMISSION_GRANTED,
       serviceUrl,
       AVAILABLE_FOR,
+      SMS_INFO_DISPLAY,
+      SEND_EMAIL,
      PHONE_FIELD,
           s.UserLimit,
           s.SubscriptionType
@@ -1752,6 +1755,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
           FILTER_ENABLED,
 		  SEND_WHATSAPP,
 		  send_sms,
+      SEND_EMAIL,
 		 IS_APP_PERMISSION_GRANTED,
           s.UserLimit,
           s.SubscriptionType
@@ -2045,7 +2049,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (contactsArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED
+              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
@@ -2217,10 +2221,37 @@ const setSendSMS = async (teamId, sendSMS, phoneField) => {
   }
   return Promise.resolve(result);
 };
+const SavesmsInfoDisplay = async (teamId, displaymsg) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set SMS_INFO_DISPLAY = '${displaymsg}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in setSendSMS");
+  }
+  return Promise.resolve(result);
+};
+
 const saveFilterChecked = async (teamId, filterEnabled) => {
   let result = null;
   try {
     const qry = `update MSTeamsInstallationDetails set FILTER_ENABLED = '${filterEnabled}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in saveFilterChecked");
+  }
+  return Promise.resolve(result);
+};
+const setSendEmail = async (teamId, sendemail) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set SEND_EMAIL = '${sendemail}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
@@ -3230,7 +3261,7 @@ const updateSafetyCheckStatusViaSMSLink = async (
   resp,
   user_aadobject_id,
   team_id,
-  viaSMS = true,
+  viaSMS = "SMS",
   runat = null
 ) => {
   try {
@@ -3245,7 +3276,9 @@ const updateSafetyCheckStatusViaSMSLink = async (
         "yyyy-MM-dd hh:mm:ss",
         new Date()
       )}'
-      , response_via = '${viaSMS ? "SMS" : "whatsapp"}' 
+      , response_via = '${
+        viaSMS == "SMS" ? "SMS" : viaSMS == "Email" ? "Email" : "whatsapp"
+      }' 
        where runat = '${runat}' and 
       memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
       (select id from MSTeamsMemberResponses where inc_id = ${incId} and 
@@ -3254,7 +3287,9 @@ const updateSafetyCheckStatusViaSMSLink = async (
       sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
         "yyyy-MM-dd hh:mm:ss",
         new Date()
-      )}', response_via = '${viaSMS ? "SMS" : "whatsapp"}'
+      )}', response_via = '${
+        viaSMS == "SMS" ? "SMS" : viaSMS == "Email" ? "Email" : "whatsapp"
+      }'
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
     }
@@ -3527,10 +3562,12 @@ module.exports = {
   getenablecheck,
   getSendSMS,
   setSendSMS,
+  SavesmsInfoDisplay,
   deleteSOSResponder,
   saveSOSResponder,
   saveFilterChecked,
   setSendWhatsapp,
+  setSendEmail,
   setavailableforapp,
   saveRefreshToken,
   saveAppPermission,

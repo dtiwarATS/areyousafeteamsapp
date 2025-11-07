@@ -30,6 +30,8 @@ class Company {
     FILTER_ENABLED,
     WHATSAPP_TOKEN,
     WHATSAPP_PHONE_NUMBER_ID,
+    SMS_INFO_DISPLAY,
+    SEND_EMAIL,
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -61,6 +63,8 @@ class Company {
     this.filterEnabled = FILTER_ENABLED;
     this.WHATSAPP_TOKEN = WHATSAPP_TOKEN;
     this.WHATSAPP_PHONE_NUMBER_ID = WHATSAPP_PHONE_NUMBER_ID;
+    this.SMS_INFO_DISPLAY = SMS_INFO_DISPLAY;
+    this.SEND_EMAIL = SEND_EMAIL;
   }
 }
 

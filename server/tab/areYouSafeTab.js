@@ -508,7 +508,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     data,
     userAadObjId,
     userlocation,
-    requestAssistanceid
+    requestAssistanceid,
+    issendemail
   ) => {
     let isMessageSent = false;
     var isVisi = false;
@@ -759,6 +760,101 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   }
                 }
               });
+            }
+            if (admins[i].SEND_EMAIL && issendemail == "true") {
+              try {
+                var useremail = admins[i].email;
+                if (useremail) {
+                  try {
+                    incidentService.saveAllTypeQuerylogs(
+                      admins[i].user_aadobject_id,
+                      "",
+                      "SOS_EMAIL",
+                      "",
+                      requestAssistanceid,
+                      "SENT_TO_EMAIL",
+                      "",
+                      "",
+                      "",
+                      "",
+                      ""
+                    );
+                    const raw = JSON.stringify({
+                      projectName: "AYS",
+                      emailSubject: `Saftey check - SOS`,
+
+                      emailBody: `SOS Alert - User ${user.user_name} needs assistance.`,
+                      emailTo: admins[i].email,
+                      emailFrom: "donotreply@safetycheck.in",
+                      authkey: "A9fG4dX2pL7qW8mZ",
+                    });
+                    const myHeaders = new Headers();
+                    myHeaders.append("Content-Type", "application/json");
+                    const requestOptions = {
+                      method: "POST",
+                      headers: myHeaders,
+                      body: raw,
+                      redirect: "follow",
+                    };
+                    const response = fetch(
+                      "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
+                      requestOptions
+                    ).then((res) => {
+                      console.log({ res });
+                      incidentService.saveAllTypeQuerylogs(
+                        admins[i].user_aadobject_id,
+                        "",
+                        "SOS_EMAIL",
+                        "",
+                        requestAssistanceid,
+                        "SEND_SUCCESS",
+                        "",
+                        "",
+                        "",
+                        "",
+                        ""
+                      );
+                    });
+                  } catch (err) {
+                    console.log({ err });
+                    incidentService.saveAllTypeQuerylogs(
+                      admins[i].user_aadobject_id,
+                      "",
+                      "SOS_EMAIL",
+                      "",
+                      requestAssistanceid,
+                      "SEND_FAILED",
+                      "",
+                      "",
+                      "",
+                      "",
+                      JSON.stringify(err.message)
+                    );
+                  }
+                } else {
+                  incidentService.saveAllTypeQuerylogs(
+                    admins[i].user_aadobject_id,
+                    "",
+                    "SOS_EMAIL",
+                    "",
+                    requestAssistanceid,
+                    "EMAIL_NOT_FOUND",
+                    "",
+                    "",
+                    "",
+                    "",
+                    ""
+                  );
+                }
+              } catch (err) {
+                processSafetyBotError(
+                  err,
+                  companyData.teamId,
+                  user.id,
+                  null,
+                  "error in sending safety check via EMAIL"
+                );
+              }
             }
             // if (admins[i].SOS_NOTIFICATION.includes("WhatsApp")) {
             //   usrPhones.map(async (userpho) => {
@@ -1434,7 +1530,30 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
-
+  SavesmsInfoDisplay = async (teamId, dsiplaysmsinfo) => {
+    let res = null;
+    try {
+      res = await incidentService.SavesmsInfoDisplay(teamId, dsiplaysmsinfo);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in SavesmsInfoDisplay"
+      );
+    }
+    return Promise.resolve(res);
+  };
+  setSendEmail = async (teamId, sendemail) => {
+    let res = null;
+    try {
+      res = await incidentService.setSendEmail(teamId, sendemail);
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", null, "error in setSendEmail");
+    }
+    return Promise.resolve(res);
+  };
   saveFilterChecked = async (teamId, filterEnabled) => {
     let res = null;
     try {

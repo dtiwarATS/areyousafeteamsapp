@@ -13,6 +13,7 @@ const {
 const incidentService = require("../services/incidentService");
 const path = require("path");
 const FormData = require("form-data");
+const mail = require("../utils/mail");
 const {
   getAllTeamMembers,
   sendDirectMessage,
@@ -2382,32 +2383,83 @@ const sendSafetyCheckMsgViaSMS = async (
   );
   let body = "";
   let incTypeId = 1;
-  if (incData && Number(incData.incTypeId) != 1) {
+  // if (incData && Number(incData.incTypeId) != 1) {
+  //   incTypeId = Number(incData.incTypeId);
+  //   let incTypeName = "",
+  //     data = "";
+  //   switch (incTypeId) {
+  //     case 2:
+  //       incTypeName = "Safety alert";
+  //       data = incData.incGuidance;
+  //       break;
+  //     case 3:
+  //       incTypeName = "Important bulletin";
+  //       data = incData.incGuidance;
+  //       break;
+  //     case 4:
+  //       incTypeName = "Travel advisory";
+  //       data = incData.travelUpdate;
+  //       break;
+  //     case 5:
+  //       incTypeName = "Stakeholder notice";
+  //       data = incData.situation;
+  //       break;
+  //   }
+  //   body = `${incTypeName} from ${companyData.teamName} - ${incTitle} \n${data} `;
+  //   body = body.substring(0, 142);
+  // }
+  if (incData && Number(incData.incTypeId) !== 1) {
     incTypeId = Number(incData.incTypeId);
-    let incTypeName = "",
-      data = "";
+    incTypeName = "";
+    data = "";
+    body = "";
+
     switch (incTypeId) {
-      case 2:
+      case 2: // Safety Alert
         incTypeName = "Safety alert";
-        data = incData.incGuidance;
+        data = `Guidance:\n${incData.incGuidance || ""}`;
         break;
-      case 3:
+
+      case 3: // Important Bulletin
         incTypeName = "Important bulletin";
-        data = incData.incGuidance;
+        data = `Guidance:\n${
+          incData.incGuidance || ""
+        }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
         break;
-      case 4:
+
+      case 4: // Travel Advisory
         incTypeName = "Travel advisory";
-        data = incData.travelUpdate;
+        data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${
+          incData.incGuidance || ""
+        }\n\nContact Information:\n${incData.contactInfo || ""}`;
         break;
-      case 5:
+
+      case 5: // Stakeholder Notice
         incTypeName = "Stakeholder notice";
-        data = incData.situation;
+        data = `Situation:\n${
+          incData.situation || ""
+        }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
         break;
     }
-    body = `${incTypeName} from ${companyData.teamName} - ${incTitle} \n${data}`;
-    body = body.substring(0, 142);
-  }
 
+    // Common base message
+    body = `${incTypeName} from ${companyData.teamName} - ${incTitle}`;
+
+    if (companyData.SMS_INFO_DISPLAY === "includeHyperlink") {
+      // ✅ Case 1: Include hyperlink
+      const incidentUrl =
+        process.env.serviceUrl +
+        "/IncDetails?eventId=" +
+        encodeURIComponent(incId);
+      body += `\nSee more: ${incidentUrl}`;
+      body = body.substring(0, 142);
+    } else if (companyData.SMS_INFO_DISPLAY === "displayFullMessage") {
+      // ✅ Case 2: Display full message directly
+      body += `\n\n${data}`;
+    }
+
+    console.log("Final SMS body:", body);
+  }
   for (let user of usrPhones) {
     if (counter == 50 && companyData.SubscriptionType == 2) break;
     try {
@@ -2734,6 +2786,466 @@ const sendSafetyCheckMsgViaWhatsapp = async (
     }
   }
 };
+const sendSafetyCheckMsgViaEmail = async (
+  companyData,
+  users,
+  incId,
+  incTitle,
+  incCreatorName,
+  responseOptions,
+  incObj,
+  isfrominctype = "onetime"
+) => {
+  if (users?.length || users) {
+    for (let user of users) {
+      try {
+        if (
+          isfrominctype == "Follow-up" ||
+          isfrominctype == "recurringIncident"
+        ) {
+          (incObj.incCreatedByName =
+            incObj?.CREATED_BY_NAME || incObj?.createdByName),
+            (incObj.incTitle = incObj?.inc_name || incObj?.incTitle),
+            (incObj.incId = incObj?.inc_id || incObj?.INC_ID);
+          incObj.incCreatedDate = incObj?.created_date;
+          incObj.incGuidance = incObj?.GUIDANCE || incObj?.incGuidance;
+          incObj.incTypeId = incObj?.inc_type_id || incObj?.incTypeId;
+        }
+        let useremail = user.email;
+
+        if (useremail == null || useremail == "" || useremail == "null") {
+          incidentService.saveAllTypeQuerylogs(
+            user.userAadObjId || user.user_aadobj_id,
+            user.name,
+            "EMAIL",
+            "",
+            incId,
+            "EMAIL_NOT_FOUND",
+            isfrominctype,
+            "",
+            incTitle,
+            "",
+            ""
+          );
+
+          continue;
+        }
+        if (useremail != null && useremail != "" && useremail != "null") {
+          incidentService.saveAllTypeQuerylogs(
+            user.userAadObjId,
+            user.name,
+            "EMAIL",
+            useremail,
+            incId,
+            "SENT_TO_EMAIL",
+            isfrominctype,
+            "",
+            incTitle,
+            "",
+            ""
+          );
+          try {
+            await sendFeedbackEmail(incObj, useremail, user).then((res) => {
+              incidentService.saveAllTypeQuerylogs(
+                user.userAadObjId,
+                user.name,
+                "EMAIL",
+                useremail,
+                incId,
+                "SEND_SUCCESS",
+                isfrominctype,
+                "",
+                incTitle,
+                "",
+                ""
+              );
+            });
+          } catch (err) {
+            incidentService.saveAllTypeQuerylogs(
+              user.userAadObjId,
+              user.name,
+              "EMAIL",
+              useremail,
+              incId,
+              "SEND_FAILED",
+              isfrominctype,
+              "",
+              incTitle,
+              "",
+              JSON.stringify(err.message)
+            );
+          }
+        }
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          companyData.teamId,
+          user.id,
+          null,
+          "error in sending safety check via EMAIL"
+        );
+      }
+    }
+  }
+};
+
+function getSafetyCheckEmailHtml(senderName, incidentName, incid, user) {
+  let safeUrl =
+    process.env.serviceUrl +
+    "/posresp?userId=" +
+    encodeURIComponent(user.userAadObjId) +
+    "&eventId=" +
+    encodeURIComponent(incid) +
+    "&isfrom=Email";
+  let notSafeUrl =
+    process.env.serviceUrl +
+    "/negresp?userId=" +
+    encodeURIComponent(user.userAadObjId) +
+    "&eventId=" +
+    encodeURIComponent(incid) +
+    "&isfrom=Email";
+
+  return `
+  <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-family:Segoe UI, Arial, sans-serif;">
+  <tr>
+  <td style="padding:20px; border:1px solid #e1dfdd; border-radius:8px;">
+  <h3 style="margin:0; color:#4b5563;">Hello!</h3>
+  <p style="margin:8px 0 16px 0; color:#4b5563;">
+          This is a safety check from <strong style="color:#c43e00;">${senderName}</strong>.
+          We think you may be affected by <strong>${incidentName}</strong>. 
+          Mark yourself as safe or ask for assistance.
+  </p>
+  <table cellpadding="0" cellspacing="0" border="0">
+  <tr>
+  <td align="center" style="background-color:#e8f9e9; border:1px solid #4CAF50; border-radius:4px; padding:8px 16px;">
+  <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">I am safe</a>
+  </td>
+  <td width="8"></td>
+  <td align="center" style="background-color:#FFEEEE; border:1px solid #F44336; border-radius:4px; padding:8px 16px;">
+  <a href="${notSafeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">I need assistance</a>
+  </td>
+  </tr>
+  </table>
+  </td>
+  </tr>
+  </table>
+  `;
+}
+
+const incTypeObj = {
+  1: "Safety Check",
+  2: "Safety Alert",
+  3: "Important Bulletin",
+  4: "Travel Advisory",
+  5: "Stakeholder Notice",
+};
+
+const getIncTypeText = (incTypeId) => {
+  return incTypeObj[incTypeId] || null;
+};
+const withhoutsafteycard = async (incdata) => {
+  try {
+    const myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+
+    // ✅ Pre-render notification HTML based on type (email-safe)
+    const renderNotification = (incdata) => {
+      const createdDate = new Date(incdata.incCreatedDate);
+      const formattedDate = createdDate.toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+
+      const wrapperTop = `
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" 
+      style="max-width:600px; margin:auto; background:#fff; border-radius:12px; 
+             border:1px solid #f8f9fa; box-shadow:0 4px 12px rgba(0,0,0,0.05); 
+             font-family:Segoe UI, Arial, sans-serif;">
+      <tr><td>
+  `;
+
+      const wrapperBottom = `
+      </td></tr>
+    </table>
+  `;
+
+      switch (incdata.incTypeId) {
+        case 4: // Travel Advisory
+          return `
+        ${wrapperTop}
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="padding:20px; border-bottom:1px solid #eee;">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:28px; color:#ea580c;">🧭</td>
+                    <td style="padding-left:10px;">
+                      <h2 style="font-size:20px; font-weight:600; color:#111; margin:0;">Travel Advisory</h2>
+                      
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px;">
+                <p style="font-size:12px; color:#555; text-transform:uppercase; margin-bottom:4px;">Travel Advisory</p>
+                <p style="font-size:18px; font-weight:500; color:#111;">${
+                  incdata.incTitle
+                }</p>
+
+                <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+                <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Travel Update</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.travelUpdate || ""
+                }</p>
+
+                <div style="margin-top:20px;">
+                  <p style="font-size:12px; text-transform:uppercase; color:#92400e; margin-bottom:4px;">Guidance</p>
+                  <p style="font-size:14px; color:#78350f;">${
+                    incdata.incGuidance || ""
+                  }</p>
+                </div>
+
+                <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+                <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Contact Information</p>
+                <p style="font-size:14px; color:#444;">${
+                  incdata.contactInfo || ""
+                }</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
+                <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
+                  Sent on ${formattedDate} by 
+                  <span style="color:#ea580c; font-weight:500;">${
+                    incdata.incCreatedByName
+                  }</span>
+                </p>
+              </td>
+            </tr>
+          </table>
+        ${wrapperBottom}
+      `;
+
+        case 2: // Safety Alert
+          return `
+        ${wrapperTop}
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="padding:20px; border-bottom:1px solid #eee;">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:28px; color:#dc2626;">⚠️</td>
+                    <td style="padding-left:10px;">
+                      <h2 style="font-size:20px; font-weight:600; color:#111; margin:0;">Safety Alert</h2>
+                      
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px;">
+                <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Title</p>
+                <p style="font-size:14px; font-weight:500; color:#111;">${incdata.incTitle}</p>
+
+                <div style="margin-top:20px;">
+                  <p style="font-size:12px; text-transform:uppercase; color:#991b1b; margin-bottom:4px;">Guidance</p>
+                  <p style="font-size:14px; color:#78350f; font-weight:500;">${incdata.incGuidance}</p>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
+                <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
+                  Sent on ${formattedDate} by 
+                  <span style="color:#dc2626; font-weight:500;">${incdata.incCreatedByName}</span>
+                </p>
+              </td>
+            </tr>
+          </table>
+        ${wrapperBottom}
+      `;
+
+        case 3: // Important Bulletin
+          return `
+        ${wrapperTop}
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="padding:20px; border-bottom:1px solid #eee;">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:28px; color:#4f46e5;">ℹ️</td>
+                    <td style="padding-left:10px;">
+                      <h2 style="font-size:20px; font-weight:600; color:#111; margin:0;">Important Bulletin</h2>
+                      
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px;">
+                <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Title</p>
+                <p style="font-size:18px; font-weight:500; color:#111;">${incdata.incTitle}</p>
+
+                <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+                <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Guidance</p>
+                <p style="font-size:15px; color:#78350f;">${incdata.incGuidance}</p>
+
+                <div style="margin-top:20px;">
+                  <p style="font-size:12px; text-transform:uppercase; color:#312e81; margin-bottom:4px;">Additional Information</p>
+                  <p style="font-size:14px; color:#3730a3;">${incdata.additionalInfo}</p>
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
+                <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
+                  Sent on ${formattedDate} by 
+                  <span style="color:#4f46e5; font-weight:500;">${incdata.incCreatedByName}</span>
+                </p>
+              </td>
+            </tr>
+          </table>
+        ${wrapperBottom}
+      `;
+
+        case 5: // Stakeholder Notice
+          return `
+        ${wrapperTop}
+          <table width="100%" cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="padding:20px; border-bottom:1px solid #eee;">
+                <table cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td style="font-size:28px; color:#0d9488;">📨</td>
+                    <td style="padding-left:10px;">
+                      <h2 style="font-size:20px; font-weight:600; color:#111; margin:0;">Stakeholder Notice</h2>
+                      
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:20px;">
+                <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Title</p>
+                <p style="font-size:18px; font-weight:500; color:#111;">${
+                  incdata.incTitle
+                }</p>
+
+                <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+                <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Situation</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.situation || ""
+                }</p>
+
+                <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
+                <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Additional Information</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.additionalInfo || ""
+                }</p>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
+                <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
+                  Sent on ${formattedDate} by 
+                  <span style="color:#0d9488; font-weight:500;">${
+                    incdata.incCreatedByName
+                  }</span>
+                </p>
+              </td>
+            </tr>
+          </table>
+        ${wrapperBottom}
+      `;
+      }
+    };
+
+    // ✅ Full HTML email body
+    const body = `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="UTF-8"><title>Incident Notification</title></head>
+      <body style="background:#f3f4f6; padding:40px;">
+        <div style="max-width:600px; margin:auto;">
+          ${renderNotification(incdata)}
+        </div>
+      </body>
+      </html>
+    `;
+
+    return body;
+  } catch (errr) {
+    console.log(errr);
+  }
+};
+
+const sendFeedbackEmail = async (incdata, userEmail, user) => {
+  try {
+    const myHeaders = new Headers();
+    myHeaders.append("Content-Type", "application/json");
+    let body = "";
+    if (incdata.incTypeId == 1) {
+      body = getSafetyCheckEmailHtml(
+        incdata.incCreatedByName,
+        incdata.incTitle,
+        incdata.incId,
+        user
+      );
+    } else {
+      body = await withhoutsafteycard(incdata);
+    }
+    const raw = JSON.stringify({
+      projectName: "AYS",
+      emailSubject: `${getIncTypeText(incdata.incTypeId)} - ${
+        incdata.incTitle
+      }`,
+
+      emailBody: body,
+      emailTo: userEmail,
+      emailFrom: "donotreply@safetycheck.in",
+      authkey: "A9fG4dX2pL7qW8mZ",
+    });
+
+    const requestOptions = {
+      method: "POST",
+      headers: myHeaders,
+      body: raw,
+      redirect: "follow",
+    };
+    const response = fetch(
+      "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
+      requestOptions
+    )
+      .then((response) => response)
+      .then((result) => console.log(result))
+      .catch((error) => console.error(error));
+
+    console.log(response);
+    const result = await response;
+    console.log(result);
+
+    if (!response.ok) {
+      console.error("Email send failed:", result);
+    } else {
+      console.log("Feedback email sent successfully!");
+    }
+  } catch (err) {
+    console.error("Error sending feedback email:", err);
+  }
+};
 
 const getTemplateBasedPayload = (
   user,
@@ -2922,7 +3434,7 @@ const sendAcknowledgeViaWhatsapp = async (
   }
 };
 
-const proccessSMSLinkClick = async (userId, eventId, text) => {
+const proccessSMSLinkClick = async (userId, eventId, text, clickfrom) => {
   if (userId && eventId) {
     const incStatusId = await incidentService.getIncStatus(eventId);
     const incData = await incidentService.getInc(eventId, null, userId);
@@ -2966,7 +3478,8 @@ const proccessSMSLinkClick = async (userId, eventId, text) => {
       eventId,
       text == "YES" ? 1 : 2,
       userId,
-      compData.teamId
+      compData.teamId,
+      clickfrom
     );
     if (text != "YES") {
       const approvalCardResponse = {
@@ -3076,7 +3589,7 @@ const proccessWhatsappClick = async (
       text,
       userId,
       compData.teamId,
-      false,
+      "whatsapp",
       runat
     );
     if (text == "2") {
@@ -3752,6 +4265,18 @@ const sendSafetyCheckMessageAsync = async (
             incData
           );
         }
+        if (companyData.SEND_EMAIL) {
+          incData.incCreatedByName = incCreatedByUserObj.name;
+          sendSafetyCheckMsgViaEmail(
+            companyData,
+            allMembersArr,
+            incId,
+            incTitle,
+            createdByUserInfo.user_name,
+            responseOptionData.responseOptions,
+            incData
+          );
+        }
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
@@ -4089,6 +4614,17 @@ const NewsendSafetyCheckMessageAsync = async (
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
             userAadObjIds,
+            incId,
+            incTitle,
+            createdByUserInfo.user_name,
+            responseOptionData.responseOptions,
+            incData
+          );
+        }
+        if (companyData.SEND_EMAIL) {
+          sendSafetyCheckMsgViaEmail(
+            companyData,
+            allMembersArr,
             incId,
             incTitle,
             createdByUserInfo.user_name,
@@ -5289,6 +5825,20 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident"
       );
     }
+    if (companyData.SEND_EMAIL) {
+      let userObjects = subEventObj.eventMembers.map((x) => x);
+      subEventObj.incGuidance = incGuidance;
+      await sendSafetyCheckMsgViaEmail(
+        companyData,
+        userObjects,
+        incId,
+        incTitle,
+        incCreatedByUserObj.name,
+        responseOptionData.responseOptions,
+        subEventObj,
+        "recurringIncident"
+      );
+    }
   });
 };
 
@@ -6178,4 +6728,5 @@ module.exports = {
   sendSafetyCheckMsgViaWhatsapp,
   getUserDetails,
   sendWhatsappMessage,
+  sendSafetyCheckMsgViaEmail,
 };

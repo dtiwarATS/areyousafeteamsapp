@@ -591,7 +591,40 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
-
+  app.post("/areyousafetabhandler/setSendEmail", async (req, res) => {
+    const teamId = req.query.teamId;
+    const setSendEmail = req.query.setSendEmail;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setSendEmail(teamId, setSendEmail);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setSendEmail"
+      );
+    }
+  });
+  app.post("/areyousafetabhandler/SavesmsInfoDisplay", async (req, res) => {
+    const teamId = req.query.teamId;
+    const Smsdisplayoption = req.query.Smsdisplayoption;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.SavesmsInfoDisplay(teamId, Smsdisplayoption);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSendSMS"
+      );
+    }
+  });
   app.post("/areyousafetabhandler/saveFilterChecked", async (req, res) => {
     const teamId = req.query.teamId;
     const filterEnabled = req.query.filterEnabled;
@@ -1006,7 +1039,8 @@ const handlerForSafetyBotTab = (app) => {
       const userAadObjId = req.query.userId;
       const teamId = req.query.teamId;
       let incData = null;
-      let requestAssistanceid = req.query.requestAssistance;
+      var requestAssistanceid = req.query.requestAssistance;
+      var issendemail = req.query.issendemail;
       try {
         incData = await incidentService.getAdminsOrEmergencyContacts(
           userAadObjId,
@@ -1030,7 +1064,7 @@ const handlerForSafetyBotTab = (app) => {
         incData = JSON.parse(req.body.data.adminlist);
       }
       var userlocation = null;
-      if (req.body.data.ulocData != undefined) {
+      if (req.body.data.ulocData != undefined && req.body.data.ulocData != "") {
         userlocation = JSON.parse(req.body.data.ulocData);
       }
       try {
@@ -1039,7 +1073,8 @@ const handlerForSafetyBotTab = (app) => {
           incData,
           userAadObjId,
           userlocation,
-          requestAssistanceid
+          requestAssistanceid,
+          issendemail
         );
         res.send(isProactiveMessageSent);
       } catch (err) {
@@ -1813,7 +1848,7 @@ const handlerForSafetyBotTab = (app) => {
   app.get("/posresp", async (req, res) => {
     try {
       console.log("Inside /posresp:", req.query);
-
+      const isfromemail = req?.query?.isfrom ? true : false;
       const userAgent = req.headers["user-agent"] || "";
       const acceptHeader = req.headers["accept"] || "";
       console.log("User-Agent:", userAgent);
@@ -1856,7 +1891,12 @@ const handlerForSafetyBotTab = (app) => {
 
       console.log("Processing real click for SMS:", { userId, eventId });
 
-      await bot.proccessSMSLinkClick(userId, eventId, "YES");
+      await bot.proccessSMSLinkClick(
+        userId,
+        eventId,
+        "YES",
+        isfromemail ? "Email" : "SMS"
+      );
 
       bot.SaveSmsLog(
         userId,
@@ -1871,7 +1911,7 @@ const handlerForSafetyBotTab = (app) => {
       incidentService.saveAllTypeQuerylogs(
         userId,
         "",
-        "SMS",
+        isfromemail ? "Email" : "SMS",
         "",
         eventId,
         "LINK_CLICKED",
@@ -1883,7 +1923,11 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL}?userId=${userId}&eventId=${eventId}`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -1891,11 +1935,238 @@ const handlerForSafetyBotTab = (app) => {
       return res.status(500).send("Internal Server Error");
     }
   });
+  app.get("/IncDetails", async (req, res) => {
+    try {
+      console.log("Inside /IncDetails:", req.query);
+      let eventid = req.query.eventId;
+
+      const query = `
+      SELECT 
+        I.*,
+        T.team_name
+      FROM MSTeamsIncidents AS I
+      LEFT JOIN MSTeamsInstallationDetails AS T
+        ON I.team_id = T.team_id
+      WHERE I.id = ${eventid}
+    `;
+
+      const result = await db.getDataFromDB(query);
+      const incdata = result[0];
+
+      if (!incdata) {
+        return res.status(404).send("No record found");
+      }
+
+      // ✅ Send the complete HTML (with Tailwind and render script)
+      const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Incident Notifications</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    .notification-card {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      border: 1px solid #f8f9fa;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center min-h-screen py-8 px-4">
+  
+
+  <main class="w-full max-w-lg" id="messageContainer"></main>
+
+  <script>
+    function renderNotification(incdata) {
+      const createdDate = new Date(incdata.created_date);
+      const formattedDate = createdDate.toLocaleString("en-US", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+
+      let cardHTML = "";
+
+      switch (incdata.inc_type_id) {
+        case 4:
+          cardHTML = \`
+            <section class="notification-card bg-white rounded-xl mb-8">
+              <header class="p-5 border-b border-gray-100">
+                <div class="flex items-center space-x-3 mb-2">
+                  <span class="text-3xl text-orange-600">🧭</span>
+                  <h2 class="text-xl font-bold text-gray-800">Travel Advisory</h2>
+                </div>
+                <p class="text-sm text-gray-500">
+                  This message was issued by <span class="text-orange-600 font-semibold">\${incdata.CREATED_BY_NAME }</span>.
+                </p>
+              </header>
+
+              <div class="p-5 space-y-6">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Travel Advisory</p>
+                  <p class="text-lg font-medium text-gray-900">\${incdata.inc_name}</p>
+                </div>
+
+                <div class="pt-5 border-t border-gray-100">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Travel Update</p>
+                  <p class="text-base text-gray-700">\${incdata.travelUpdate || ''}</p>
+                </div>
+
+                <div class="p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded-md">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-yellow-800 mb-1">Guidance</p>
+                  <p class="text-sm text-yellow-700">\${incdata.guidance || ''}</p>
+                </div>
+
+                <div class="pt-5 border-t border-gray-100">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Contact Information</p>
+                  <p class="text-sm text-gray-700">\${incdata.contactInfo || ''}</p>
+                </div>
+              </div>
+
+              <footer class="bg-gray-50 p-3 border-t border-gray-200 text-center">
+                <p class="text-xs text-gray-500 italic">
+                  Sent on \${formattedDate} by <span class="text-orange-600 font-medium">\${incdata.CREATED_BY_NAME }</span>
+                </p>
+              </footer>
+            </section>\`;
+          break;
+
+        case 2:
+          cardHTML = \`
+            <section class="notification-card bg-white rounded-xl mb-8">
+              <header class="p-5 border-b border-gray-100">
+                <div class="flex items-center space-x-3 mb-2">
+                  <span class="text-3xl text-red-600">⚠️</span>
+                  <h2 class="text-xl font-bold text-gray-800">Safety Alert</h2>
+                </div>
+                <p class="text-sm text-gray-500">
+                  This message was issued by <span class="text-red-600 font-semibold">\${incdata.CREATED_BY_NAME }</span>.
+                </p>
+              </header>
+
+              <div class="p-5 space-y-6">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Title</p>
+                  <p class="text-lg font-medium text-gray-900">\${incdata.inc_name}</p>
+                </div>
+
+                <div class="pt-5 border-t border-gray-100 p-3 bg-red-50 border-l-4 border-red-500 rounded-md">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-red-800 mb-1">Guidance</p>
+                  <p class="text-sm text-red-700 font-medium">\${incdata.guidance}</p>
+                </div>
+              </div>
+
+              <footer class="bg-gray-50 p-3 border-t border-gray-200 text-center">
+                <p class="text-xs text-gray-500 italic">
+                  Sent on \${formattedDate} by <span class="text-red-600 font-medium">\${incdata.CREATED_BY_NAME }</span>
+                </p>
+              </footer>
+            </section>\`;
+          break;
+
+        case 3:
+          cardHTML = \`
+            <section class="notification-card bg-white rounded-xl mb-8">
+              <header class="p-5 border-b border-gray-100">
+                <div class="flex items-center space-x-3 mb-2">
+                  <span class="text-3xl text-indigo-600">ℹ️</span>
+                  <h2 class="text-xl font-bold text-gray-800">Important Bulletin</h2>
+                </div>
+                <p class="text-sm text-gray-500">
+                  This message was issued by <span class="text-indigo-600 font-semibold">\${incdata.CREATED_BY_NAME }</span>.
+                </p>
+              </header>
+
+              <div class="p-5 space-y-6">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Title</p>
+                  <p class="text-lg font-medium text-gray-900">\${incdata.inc_name}</p>
+                </div>
+
+                <div class="pt-5 border-t border-gray-100">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Guidance</p>
+                  <p class="text-base text-gray-700">\${incdata.guidance}</p>
+                </div>
+
+                <div class="pt-5 border-t border-gray-100 p-3 bg-indigo-50 border-l-4 border-indigo-500 rounded-md">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-indigo-800 mb-1">Additional Information</p>
+                  <p class="text-sm text-indigo-700">\${incdata.additionalInfo}</p>
+                </div>
+              </div>
+
+              <footer class="bg-gray-50 p-3 border-t border-gray-200 text-center">
+                <p class="text-xs text-gray-500 italic">
+                  Sent on \${formattedDate} by <span class="text-indigo-600 font-medium">\${incdata.CREATED_BY_NAME }</span>
+                </p>
+              </footer>
+            </section>\`;
+          break;
+
+        case 5:
+          cardHTML = \`
+            <section class="notification-card bg-white rounded-xl mb-8">
+              <header class="p-5 border-b border-gray-100">
+                <div class="flex items-center space-x-3 mb-2">
+                  <span class="text-3xl text-teal-600">📨</span>
+                  <h2 class="text-xl font-bold text-gray-800">Stakeholder Notice</h2>
+                </div>
+                <p class="text-sm text-gray-500">
+                  This message was issued by <span class="text-teal-600 font-semibold">\${incdata.CREATED_BY_NAME }</span>.
+                </p>
+              </header>
+
+              <div class="p-5 space-y-6">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Title</p>
+                  <p class="text-lg font-medium text-gray-900">\${incdata.inc_name}</p>
+                </div>
+
+                <div class="pt-5 border-t border-gray-100">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Situation</p>
+                  <p class="text-base text-gray-700">\${incdata.situation || ''}</p>
+                </div>
+
+                <div class="pt-5 border-t border-gray-100">
+                  <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-1">Additional Information</p>
+                  <p class="text-base text-gray-700">\${incdata.additionalInfo || ''}</p>
+                </div>
+              </div>
+
+              <footer class="bg-gray-50 p-3 border-t border-gray-200 text-center">
+                <p class="text-xs text-gray-500 italic">
+                  Sent on \${formattedDate} by <span class="text-teal-600 font-medium">\${incdata.CREATED_BY_NAME }</span>
+                </p>
+              </footer>
+            </section>\`;
+          break;
+      }
+
+      document.getElementById("messageContainer").innerHTML = cardHTML;
+    }
+
+    const incdata = ${JSON.stringify(incdata)};
+    renderNotification(incdata);
+  </script>
+</body>
+</html>
+`;
+
+      res.setHeader("Content-Type", "text/html");
+      res.status(200).send(html);
+    } catch (err) {
+      console.error("Error in /IncDetails:", err);
+      res.status(500).send("Internal Server Error");
+    }
+  });
 
   app.get("/negresp", async (req, res) => {
     try {
       console.log("Inside /negresp:", req.query);
-
+      const isfromemail = req?.query?.isfrom ? true : false;
       const userAgent = req.headers["user-agent"] || "";
       const acceptHeader = req.headers["accept"] || "";
       console.log("User-Agent:", userAgent);
@@ -1938,7 +2209,12 @@ const handlerForSafetyBotTab = (app) => {
 
       console.log("Processing real click for SMS:", { userId, eventId });
 
-      await bot.proccessSMSLinkClick(userId, eventId, "NO");
+      await bot.proccessSMSLinkClick(
+        userId,
+        eventId,
+        "NO",
+        isfromemail ? "Email" : "SMS"
+      );
 
       bot.SaveSmsLog(
         userId,
@@ -1953,7 +2229,7 @@ const handlerForSafetyBotTab = (app) => {
       incidentService.saveAllTypeQuerylogs(
         userId,
         "",
-        "SMS",
+        isfromemail ? "Email" : "SMS",
         "",
         eventId,
         "LINK_CLICKED",
@@ -1965,7 +2241,11 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL}?userId=${userId}&eventId=${eventId}`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -1976,14 +2256,15 @@ const handlerForSafetyBotTab = (app) => {
 
   app.post("/smscomment", async (req, res) => {
     console.log("got reply for sms comment", req.body);
-    let { userId, eventId, comments } = req.body;
+    let { userId, eventId, comments, isfrom } = req.body;
+    const isfromemail = isfrom ? true : false;
     console.log({ userId, eventId, comments });
     await bot.processCommentViaLink(userId, eventId, comments);
 
     incidentService.saveAllTypeQuerylogs(
       userId,
       "",
-      "SMS",
+      isfromemail ? "Email" : "SMS",
       "",
       eventId,
       "SMS_COMMENT",
