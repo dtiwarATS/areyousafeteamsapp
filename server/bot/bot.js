@@ -4492,7 +4492,7 @@ const NewsendSafetyCheckMessageAsync = async (
         responseType: "buttons",
       };
 
-      if (allincMembers > 0 && isFirstBatch == "true") {
+      if (allincMembers?.length > 0 && isFirstBatch == "true") {
         saveallMembersArr = allMembers.filter((tm) =>
           allincMembers.includes(tm.id)
         );
