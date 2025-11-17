@@ -2663,6 +2663,7 @@ const sendWhatsappMessage = async (payload, user, companyData) => {
       "whatsapp msg request sent",
       response.data || response.message || response
     );
+    return { Status: response.status };
   } catch (err) {
     processSafetyBotError(
       err,
@@ -2671,6 +2672,7 @@ const sendWhatsappMessage = async (payload, user, companyData) => {
       null,
       "error in sending message via Whatsapp"
     );
+    return { err: err };
   }
 };
 const sendSafetyCheckMsgViaWhatsapp = async (
@@ -6149,12 +6151,14 @@ const sendNSRespToTeamChannel = async (
         channelData.map(async (data) => {
           const channelId = data.channelId;
           const serviceUrl = data.serviceUrl;
-          await sendProactiveMessaageToSelectedChannel(
-            adaptiveCard,
-            channelId,
-            serviceUrl,
-            userAadObjId
-          );
+          if (serviceUrl) {
+            await sendProactiveMessaageToSelectedChannel(
+              adaptiveCard,
+              channelId,
+              serviceUrl,
+              userAadObjId
+            );
+          }
         })
       );
     }

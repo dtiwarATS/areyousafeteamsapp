@@ -509,7 +509,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     userAadObjId,
     userlocation,
     requestAssistanceid,
-    issendemail
+    sendonetime
   ) => {
     let isMessageSent = false;
     var isVisi = false;
@@ -679,7 +679,10 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               );
             }
 
-            if (admins[i].SOS_NOTIFICATION.includes("SMS")) {
+            if (
+              admins[i].SOS_NOTIFICATION.includes("SMS") &&
+              sendonetime == "true"
+            ) {
               usrPhones.map(async (userpho) => {
                 if (userpho.id == admins[i].user_aadobject_id) {
                   var num =
@@ -693,7 +696,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         admins[i].user_aadobject_id,
                         "",
                         "SOS_SMS",
-                        "",
+                        num.slice(-4).padStart(num.length, "x"),
                         requestAssistanceid,
                         "SENT_TO_TWILIO",
                         "",
@@ -717,7 +720,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                             admins[i].user_aadobject_id,
                             "",
                             "SOS_SMS",
-                            "",
+                            num.slice(-4).padStart(num.length, "x"),
                             requestAssistanceid,
                             "SEND_SUCCESS",
                             "",
@@ -733,7 +736,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         admins[i].user_aadobject_id,
                         "",
                         "SOS_SMS",
-                        "",
+                        num.slice(-4).padStart(num.length, "x"),
                         requestAssistanceid,
                         "SEND_FAILED",
                         "",
@@ -748,7 +751,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       admins[i].user_aadobject_id,
                       "",
                       "SOS_SMS",
-                      "",
+                      num.slice(-4).padStart(num.length, "x"),
                       requestAssistanceid,
                       "PHONE_NUM_NOT_FOUND",
                       "",
@@ -761,7 +764,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 }
               });
             }
-            if (admins[i].SEND_EMAIL && issendemail == "true") {
+            if (admins[i].SEND_EMAIL && sendonetime == "true") {
               try {
                 var useremail = admins[i].email;
                 if (useremail) {
@@ -770,7 +773,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       admins[i].user_aadobject_id,
                       "",
                       "SOS_EMAIL",
-                      "",
+                      useremail,
                       requestAssistanceid,
                       "SENT_TO_EMAIL",
                       "",
@@ -805,7 +808,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         admins[i].user_aadobject_id,
                         "",
                         "SOS_EMAIL",
-                        "",
+                        useremail,
                         requestAssistanceid,
                         "SEND_SUCCESS",
                         "",
@@ -821,7 +824,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       admins[i].user_aadobject_id,
                       "",
                       "SOS_EMAIL",
-                      "",
+                      useremail,
                       requestAssistanceid,
                       "SEND_FAILED",
                       "",
@@ -856,56 +859,128 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 );
               }
             }
-            // if (admins[i].SOS_NOTIFICATION.includes("WhatsApp")) {
-            //   usrPhones.map(async (userpho) => {
-            //     if (userpho.id == admins[i].user_aadobject_id) {
-            //       // var num =
-            //       //   admins[i].PHONE_FIELD == "businessPhones"
-            //       //     ? userpho.businessPhones[0]
-            //       //     : userpho.mobilePhone;
-            //       var num = "+91 8652473863";
-            //       if (num) {
-            //         let payload = {
-            //           messaging_product: "whatsapp",
-            //           recipient_type: "individual",
-            //           to: num,
-            //           type: "template",
-            //           template: {
-            //             name: "safety_check",
-            //             language: {
-            //               code: "en",
-            //             },
-            //             components: [
-            //               {
-            //                 type: "body",
-            //                 parameters: [
-            //                   {
-            //                     parameter_name: "incidenttitle",
-            //                     type: "text",
-            //                     text: "from sos request", // {{2}} - Incident Title
-            //                   },
-            //                 ],
-            //               },
-            //             ],
-            //           },
-            //         };
-            //         try {
-            //           bot
-            //             .sendWhatsappMessage(
-            //               payload,
-            //               admins[i].user_aadobject_id,
-            //               admins[i]
-            //             )
-            //             .then((res) => {
-            //               console.log({ res });
-            //             });
-            //         } catch (err) {
-            //           console.log({ err });
-            //         }
-            //       }
-            //     }
-            //   });
-            // }
+            if (
+              admins[i].SOS_NOTIFICATION.includes("WhatsApp") &&
+              sendonetime == "true"
+            ) {
+              usrPhones.map(async (userpho) => {
+                if (userpho.id == admins[i].user_aadobject_id) {
+                  var num =
+                    admins[i].PHONE_FIELD == "businessPhones"
+                      ? userpho.businessPhones[0]
+                      : userpho.mobilePhone;
+                  //var num = "+918652473863";
+                  if (num) {
+                    try {
+                      incidentService.saveAllTypeQuerylogs(
+                        admins[i].user_aadobject_id,
+                        "",
+                        "SOS_Whatsapp",
+                        num.slice(-4).padStart(num.length, "x"),
+                        requestAssistanceid,
+                        "SENT_TO_WHATSAPP",
+                        "",
+                        "",
+                        "",
+                        "",
+                        ""
+                      );
+                      let payload = {
+                        messaging_product: "whatsapp",
+                        recipient_type: "individual",
+                        to: num,
+                        type: "template",
+                        template: {
+                          name: "safetycheck_sos",
+                          language: {
+                            code: "en",
+                          },
+                          components: [
+                            {
+                              type: "body",
+                              parameters: [
+                                {
+                                  parameter_name: "username",
+                                  type: "text",
+                                  text: `${user.user_name}`, // {{1}} - Company Name
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      };
+                      await bot
+                        .sendWhatsappMessage(
+                          payload,
+                          admins[i].user_aadobject_id,
+                          admins[i]
+                        )
+                        .then((res) => {
+                          console.log(res.Status);
+                          if (res?.Status) {
+                            incidentService.saveAllTypeQuerylogs(
+                              admins[i].user_aadobject_id,
+                              "",
+                              "SOS_Whatsapp",
+                              num.slice(-4).padStart(num.length, "x"),
+                              requestAssistanceid,
+                              "SEND_SUCCESS",
+                              "",
+                              "",
+                              "",
+                              "",
+                              ""
+                            );
+                          } else if (res?.err) {
+                            incidentService.saveAllTypeQuerylogs(
+                              admins[i].user_aadobject_id,
+                              "",
+                              "SOS_Whatsapp",
+                              num.slice(-4).padStart(num.length, "x"),
+                              requestAssistanceid,
+                              "SEND_FAILED",
+                              "",
+                              "",
+                              "",
+                              "",
+                              JSON.stringify(res?.err) || "err"
+                            );
+                          }
+                        });
+                    } catch (err) {
+                      console.log({ err });
+                      incidentService.saveAllTypeQuerylogs(
+                        admins[i].user_aadobject_id,
+                        "",
+                        "SOS_Whatsapp",
+                        num.slice(-4).padStart(num.length, "x"),
+                        requestAssistanceid,
+                        "SEND_FAILED",
+                        "",
+                        "",
+                        "",
+                        "",
+                        JSON.stringify(err.message)
+                      );
+                    }
+                  } else {
+                    incidentService.saveAllTypeQuerylogs(
+                      admins[i].user_aadobject_id,
+                      "",
+                      "SOS_Whatsapp",
+                      "",
+                      requestAssistanceid,
+                      "PHONE_NUM_NOT_FOUND",
+                      "",
+                      "",
+                      "",
+                      "",
+                      ""
+                    );
+                  }
+                }
+              });
+            }
           }
         }
         bot.sendNSRespToTeamChannel(
@@ -1142,9 +1217,9 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                     try {
                       incidentService.saveAllTypeQuerylogs(
                         admins[i].user_aadobject_id,
-                        "",
+                        num.slice(-4).padStart(num.length, "x"),
                         "SOS_SMS",
-                        "",
+                        num.slice(-4).padStart(num.length, "x"),
                         requestAssistanceid,
                         "SENT_TO_TWILIO",
                         "",
@@ -1168,7 +1243,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                             admins[i].user_aadobject_id,
                             "",
                             "SOS_SMS",
-                            "",
+                            num.slice(-4).padStart(num.length, "x"),
                             requestAssistanceid,
                             "SEND_SUCCESS",
                             "",
@@ -1184,7 +1259,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         admins[i].user_aadobject_id,
                         "",
                         "SOS_SMS",
-                        "",
+                        num.slice(-4).padStart(num.length, "x"),
                         requestAssistanceid,
                         "SEND_FAILED",
                         "",
@@ -1212,6 +1287,128 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 }
               });
             }
+            // if (
+            //   admins[i].SOS_NOTIFICATION.includes("WhatsApp") &&
+            //   sendonetime == "true"
+            // ) {
+            //   usrPhones.map(async (userpho) => {
+            //     if (userpho.id == admins[i].user_aadobject_id) {
+            //       var num =
+            //         admins[i].PHONE_FIELD == "businessPhones"
+            //           ? userpho.businessPhones[0]
+            //           : userpho.mobilePhone;
+            //       //var num = "+918652473863";
+            //       if (num) {
+            //         try {
+            //           incidentService.saveAllTypeQuerylogs(
+            //             admins[i].user_aadobject_id,
+            //             "",
+            //             "SOS_Whatsapp",
+            //             num.slice(-4).padStart(num.length, "x"),
+            //             requestAssistanceid,
+            //             "SENT_TO_WHATSAPP",
+            //             "",
+            //             "",
+            //             "",
+            //             "",
+            //             ""
+            //           );
+            //           let payload = {
+            //             messaging_product: "whatsapp",
+            //             recipient_type: "individual",
+            //             to: num,
+            //             type: "template",
+            //             template: {
+            //               name: "safetycheck_sos",
+            //               language: {
+            //                 code: "en",
+            //               },
+            //               components: [
+            //                 {
+            //                   type: "body",
+            //                   parameters: [
+            //                     {
+            //                       parameter_name: "username",
+            //                       type: "text",
+            //                       text: `${user.user_name}`, // {{1}} - Company Name
+            //                     },
+            //                   ],
+            //                 },
+            //               ],
+            //             },
+            //           };
+            //           await bot
+            //             .sendWhatsappMessage(
+            //               payload,
+            //               admins[i].user_aadobject_id,
+            //               admins[i]
+            //             )
+            //             .then((res) => {
+            //               console.log(res.Status);
+            //               if (res?.Status) {
+            //                 incidentService.saveAllTypeQuerylogs(
+            //                   admins[i].user_aadobject_id,
+            //                   "",
+            //                   "SOS_Whatsapp",
+            //                   num.slice(-4).padStart(num.length, "x"),
+            //                   requestAssistanceid,
+            //                   "SEND_SUCCESS",
+            //                   "",
+            //                   "",
+            //                   "",
+            //                   "",
+            //                   ""
+            //                 );
+            //               } else if (res?.err) {
+            //                 incidentService.saveAllTypeQuerylogs(
+            //                   admins[i].user_aadobject_id,
+            //                   "",
+            //                   "SOS_Whatsapp",
+            //                   num.slice(-4).padStart(num.length, "x"),
+            //                   requestAssistanceid,
+            //                   "SEND_FAILED",
+            //                   "",
+            //                   "",
+            //                   "",
+            //                   "",
+            //                   JSON.stringify(res?.err) || "err"
+            //                 );
+            //               }
+            //             });
+            //         } catch (err) {
+            //           console.log({ err });
+            //           incidentService.saveAllTypeQuerylogs(
+            //             admins[i].user_aadobject_id,
+            //             "",
+            //             "SOS_Whatsapp",
+            //             num.slice(-4).padStart(num.length, "x"),
+            //             requestAssistanceid,
+            //             "SEND_FAILED",
+            //             "",
+            //             "",
+            //             "",
+            //             "",
+            //             JSON.stringify(err.message)
+            //           );
+            //         }
+            //       } else {
+            //         incidentService.saveAllTypeQuerylogs(
+            //           admins[i].user_aadobject_id,
+            //           "",
+            //           "SOS_Whatsapp",
+            //           "",
+            //           requestAssistanceid,
+            //           "PHONE_NUM_NOT_FOUND",
+            //           "",
+            //           "",
+            //           "",
+            //           "",
+            //           ""
+            //         );
+            //       }
+            //     }
+            //   });
+            // }
           }
         }
         bot.sendNSRespToTeamChannel(
