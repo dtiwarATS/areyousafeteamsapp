@@ -4495,8 +4495,9 @@ const NewsendSafetyCheckMessageAsync = async (
       };
 
       if (allincMembers?.length > 0 && isFirstBatch == "true") {
+        let AlluserAadObjIds = allincMembers.map((x) => x?.value || x);
         saveallMembersArr = allMembers.filter((tm) =>
-          allincMembers.includes(tm.id)
+          AlluserAadObjIds.includes(tm.id)
         );
       } else {
         saveallMembersArr = allMembers;
