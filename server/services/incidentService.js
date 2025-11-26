@@ -509,7 +509,8 @@ ORDER BY Real_requested_date DESC, u.user_name;
         a.*,
         LTRIM(RTRIM(s.value)) AS team_id_single,
         CASE
-            WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 THEN TRY_CONVERT(datetime2, a.comment_date)
+            WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 
+                THEN TRY_CONVERT(datetime2, a.comment_date)
             ELSE TRY_CONVERT(datetime2, a.requested_date)
         END AS sort_dt
     FROM dbo.MSTeamsAssistance a
@@ -558,7 +559,6 @@ B AS (
                         FROM STRING_SPLIT(A.sent_to_ids, ',', 1) s2
                         LEFT JOIN dbo.MSTeamsTeamsUsers u2
                                ON LTRIM(RTRIM(s2.value)) = u2.user_id
-                              AND u2.team_id = A.team_id_single
                     ) x
                 ) ulist
                 LEFT JOIN dbo.MSTeamsInstallationDetails mid
@@ -573,7 +573,6 @@ B AS (
         A.sort_dt,
         ROW_NUMBER() OVER (PARTITION BY A.id ORDER BY A.sort_dt DESC) AS rn,
 
-        -- 🔹 NEW COLUMN: Collect successful send channels
         ISNULL((
             SELECT STRING_AGG(mal2.ChannelName, ', ')
             FROM (
@@ -585,7 +584,7 @@ B AS (
                         ELSE 'TEAMS'
                     END AS ChannelName
                 FROM MessageActivityLog mal
-                WHERE TRY_CONVERT(int, MAL.IncidentId) = A.id
+                WHERE TRY_CONVERT(int, mal.IncidentId) = A.id
                   AND mal.DeliveryStatus = 'SEND_SUCCESS'
             ) mal2
         ), 'TEAMS') AS send_via
@@ -593,20 +592,16 @@ B AS (
     FROM A
     LEFT JOIN dbo.MSTeamsTeamsUsers u
            ON u.user_id = A.user_id
-          AND u.team_id = A.team_id_single
-    WHERE A.team_id_single IN (
-            SELECT team_id
-            FROM MSTeamsInstallationDetails
-            WHERE user_obj_id = '${userid}'
-               OR super_users LIKE '%${userid}%'
-               AND uninstallation_date IS NULL
-        )
-      AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
+
+    -- ✅ Only return THIS particular user
+    WHERE u.user_aadobject_id = '${userid}'
 )
+
 SELECT *
 FROM B
-WHERE rn = 1   -- ✅ only keep 1 row per Assistance record
-ORDER BY sort_dt DESC, UserName;
+WHERE rn = 1
+ORDER BY sort_dt DESC;
+
 
  
  
