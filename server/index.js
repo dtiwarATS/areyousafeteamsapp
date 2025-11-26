@@ -11,7 +11,6 @@ require("dotenv").config({ path: ENV_FILE });
 const { processSafetyBotError } = require("./models/processError");
 
 const PORT = process.env.PORT || 3978;
-
 const app = express();
 
 //======================= BREE JS START ======================
