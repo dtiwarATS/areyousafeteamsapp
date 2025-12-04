@@ -126,7 +126,10 @@ const handlerForSafetyBotTab = (app) => {
         .then(async (response) => {
           // console.log(response.data);
           if (response.data.scope?.indexOf("User.Read.All") == -1) {
-            res.json({ NoPhonePermission: true });
+            throw {
+              type: "NoPhonePermission",
+              message: "No phone permission granted",
+            };
           } else {
             let accessToken = response.data.access_token;
             // console.log({ arrIds });
@@ -175,7 +178,7 @@ const handlerForSafetyBotTab = (app) => {
                     });
                     processSafetyBotError(
                       error,
-                      teamId,
+                      "",
                       "",
                       "",
                       "error in get users phone number requestDateTime : " +
@@ -186,7 +189,12 @@ const handlerForSafetyBotTab = (app) => {
                       false,
                       ""
                     );
-                    res.json({ error: error });
+                    throw {
+                      type: "GraphApiError",
+                      error: error,
+                      message:
+                        "Error fetching user phone numbers from Graph API",
+                    };
                   });
               } else {
                 return;
@@ -200,45 +208,75 @@ const handlerForSafetyBotTab = (app) => {
             "error at get access token in get users phone number",
             error
           );
-          // console.log(error);
-          if (
-            error.response.data.error == "invalid_grant" &&
-            error.response.data.error_description &&
-            error.response.data.error_description
-              .toString()
-              .indexOf("The refresh token has expired due to inactivity.") >= 0 //&&
-            //  teamId == "19:3684c109f05f44efb4fb54a988d70286@thread.tacv2"
-          ) {
-            res.json({ authFailed: true });
-          } else if (
-            error.response.data.error == "invalid_grant" ||
-            error.response.data.error == "interaction_required" ||
-            error.response.data.error == "insufficient_claims"
-          ) {
-            res.json({ invalid_grant: true });
-          } else {
-            console.log({
-              "error in get access token from microsoft at get users phone number":
-                error,
-            });
-            processSafetyBotError(
-              error,
-              teamId,
-              "",
-              "",
-              "error in get access token from microsoft at get users phone number",
-              "",
-              false,
-              ""
-            );
-            res.json({ error: error });
+          // If it's already a custom error object, rethrow it
+          if (error.type) {
+            throw error;
           }
+          // Handle axios errors
+          if (error.response && error.response.data) {
+            if (
+              error.response.data.error == "invalid_grant" &&
+              error.response.data.error_description &&
+              error.response.data.error_description
+                .toString()
+                .indexOf("The refresh token has expired due to inactivity.") >=
+                0
+            ) {
+              throw {
+                type: "authFailed",
+                message: "Authentication failed: refresh token expired",
+                error: error,
+                errorResponse: error.response.data,
+              };
+            } else if (
+              error.response.data.error == "invalid_grant" ||
+              error.response.data.error == "interaction_required" ||
+              error.response.data.error == "insufficient_claims"
+            ) {
+              throw {
+                type: "invalid_grant",
+                message: "Invalid grant or interaction required",
+                error: error,
+                errorResponse: error.response.data,
+              };
+            }
+          }
+          // Generic error
+          console.log({
+            "error in get access token from microsoft at get users phone number":
+              error,
+          });
+          processSafetyBotError(
+            error,
+            "",
+            "",
+            "",
+            "error in get access token from microsoft at get users phone number",
+            "",
+            false,
+            ""
+          );
+          throw {
+            type: "UnknownError",
+            error: error,
+            message: "Unknown error occurred while fetching phone data",
+            errorResponse: error.response?.data || null,
+          };
         });
       return phone;
     } catch (err) {
-      console.log(err);
+      // If it's already a custom error object, rethrow it
+      if (err.type) {
+        throw err;
+      }
+      // Wrap unexpected errors
+      console.log("Unexpected error in getUserPhone:", err);
+      throw {
+        type: "UnknownError",
+        error: err,
+        message: "Unexpected error in getUserPhone",
+      };
     }
-    return phone;
   };
   app.get("/areyousafetabhandler/getuserphonedata", async (req, res) => {
     const userObjId = req.query.userId;
@@ -252,32 +290,102 @@ const handlerForSafetyBotTab = (app) => {
       if (teamInfo[0]?.length && teamInfo) {
         const phoneDataPromises = teamInfo[0].map(async (team) => {
           if (team.IS_APP_PERMISSION_GRANTED) {
-            let phonedata = await getUserPhone(
-              team.IS_APP_PERMISSION_GRANTED,
-              team.tenant_id,
-              userAadObjIds
-            );
-            return phonedata.map((item) => {
-              const match = teamsMembers.find(
-                (u) => u.user_aadobject_id === item.id
+            try {
+              let phonedata = await getUserPhone(
+                team.IS_APP_PERMISSION_GRANTED,
+                team.tenant_id,
+                userAadObjIds
+              );
+              return phonedata.map((item) => {
+                const match = teamsMembers.find(
+                  (u) => u.user_aadobject_id === item.id
+                );
+                return {
+                  ...item,
+                  user_id: match ? match.user_id : null,
+                };
+              });
+            } catch (phoneError) {
+              // Return error object instead of throwing, so one team's error doesn't break all
+              console.log(
+                "Error fetching phone data for team:",
+                team.tenant_id,
+                phoneError
               );
               return {
-                ...item,
-                user_id: match ? match.user_id : null,
+                error: true,
+                errorType: phoneError.type || "UnknownError",
+                errorMessage:
+                  phoneError.message || "Failed to fetch phone data",
+                tenantId: team.tenant_id,
+                errorDetails: phoneError.error || phoneError,
+                // Include original error response data for access token errors
+                errorResponse:
+                  phoneError.errorResponse ||
+                  phoneError.error?.response?.data ||
+                  phoneError.response?.data ||
+                  null,
               };
-            });
+            }
           } else {
             return []; // no refresh_token, return empty array
           }
         });
 
         const allPhoneData = await Promise.all(phoneDataPromises);
-        // Flatten array of arrays
-        const flattenedData = allPhoneData.flat();
-        console.log({ flattenedData });
-        res.send(flattenedData);
+        // Separate errors from valid data
+        const errors = [];
+        const validData = [];
+        let accessTokenError = null; // Track access token errors
+
+        allPhoneData.forEach((item) => {
+          if (Array.isArray(item)) {
+            validData.push(...item);
+          } else if (item && item.error) {
+            // Check if this is an access token error that should be sent to UI
+            if (
+              item.errorType === "authFailed" ||
+              item.errorType === "invalid_grant" ||
+              item.errorType === "NoPhonePermission"
+            ) {
+              accessTokenError = item;
+            }
+            errors.push(item);
+          }
+        });
+
+        // Flatten array of arrays for valid data
+        const flattenedData = validData;
+
+        // Build response - include access token error flags for UI (matching original format)
+        const response = {
+          data: flattenedData,
+        };
+
+        // Add access token error flags if present (UI expects these specific flags)
+        if (accessTokenError) {
+          if (accessTokenError.errorType === "authFailed") {
+            response.authFailed = true;
+          } else if (accessTokenError.errorType === "invalid_grant") {
+            response.invalid_grant = true;
+          } else if (accessTokenError.errorType === "NoPhonePermission") {
+            response.NoPhonePermission = true;
+          }
+          // Include the error details from access token failure
+          if (accessTokenError.errorResponse) {
+            response.error = accessTokenError.errorResponse;
+          } else if (accessTokenError.errorDetails) {
+            response.error = accessTokenError.errorDetails;
+          }
+        } else if (errors.length > 0) {
+          // If there are other errors (not access token errors), include them
+          response.errors = errors;
+        }
+
+        console.log({ flattenedData, errors, accessTokenError });
+        res.send(response);
       } else {
-        res.send([]);
+        res.send({ data: [], errors: [] });
       }
 
       console.log(teamInfo);
@@ -287,8 +395,21 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userObjId,
-        "error in /areyousafetabhandler/getTemplateList"
+        "error in /areyousafetabhandler/getuserphonedata"
       );
+      // Send error to UI
+      res.status(500).send({
+        data: [],
+        errors: [
+          {
+            error: true,
+            errorType: "ServerError",
+            errorMessage:
+              err.message || "An error occurred while fetching phone data",
+            errorDetails: err,
+          },
+        ],
+      });
     }
   });
   app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
@@ -1816,6 +1937,8 @@ const handlerForSafetyBotTab = (app) => {
           ? "send_whatsapp"
           : field.toLowerCase() == "filter"
           ? "FILTER_ENABLED"
+          : field.toLowerCase() == "null"
+          ? "null"
           : "send_sms";
       let config = {
         method: "post",
@@ -2487,6 +2610,9 @@ const handlerForSafetyBotTab = (app) => {
       );
       res.status(500).json({ error: "Failed to fetch SOS log" });
     }
+  });
+  app.get("/areyousafetabhandler/weatheradvisorywebhook", async (req, res) => {
+    console.log({ weatheradvisorywebhook: req, res });
   });
 };
 

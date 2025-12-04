@@ -2316,8 +2316,18 @@ const saveAppPermission = async (
 ) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set  ${field} = 1 where team_id='${teamId}' ;
-    update MSTeamsInstallationDetails set  IS_APP_PERMISSION_GRANTED = '${IsAppPermissionGranted}' where user_tenant_id='${tenantid}' `;
+    let qry = "";
+
+    // run only if field is not "null" and not empty
+    if (field && field !== "null") {
+      qry += `UPDATE MSTeamsInstallationDetails SET ${field} = 1 WHERE team_id='${teamId}'; `;
+    }
+
+    // always run second update
+    qry += `UPDATE MSTeamsInstallationDetails 
+        SET IS_APP_PERMISSION_GRANTED = '${IsAppPermissionGranted}' 
+        WHERE user_tenant_id='${tenantid}';`;
+
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
