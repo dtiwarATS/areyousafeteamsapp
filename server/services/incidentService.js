@@ -507,19 +507,17 @@ ORDER BY Real_requested_date DESC, u.user_name;
 ;WITH A AS (
     SELECT
         a.*,
-        LTRIM(RTRIM(s.value)) AS team_id_single,
         CASE
             WHEN a.comments IS NOT NULL AND LEN(a.comments) > 0 
                 THEN TRY_CONVERT(datetime2, a.comment_date)
             ELSE TRY_CONVERT(datetime2, a.requested_date)
         END AS sort_dt
     FROM dbo.MSTeamsAssistance a
-    CROSS APPLY STRING_SPLIT(a.team_ids, ',', 1) s
 ),
 B AS (
     SELECT
         A.id,
-        A.user_id,    
+        A.user_id,
         u.CITY,
         u.COUNTRY,
         u.DEPARTMENT,
@@ -536,45 +534,23 @@ B AS (
         ) AS closed_by_user_name,
         A.closed_at,
         A.comment_date AS real_comment_date,
-        CASE
-            WHEN (LEN(A.team_ids) - LEN(REPLACE(A.team_ids, ',', ''))) = 0
-            THEN (
-                SELECT TOP 1 ISNULL(mid.team_name, '') 
-                    + CASE
-                        WHEN mid.team_name IS NOT NULL AND mid.team_name <> '' 
-                        THEN ' - ' ELSE '' END
-                    + REPLACE(UserList, ', and ', ' and ')
-                FROM (
-                    SELECT STRING_AGG(
-                               CASE 
-                                   WHEN x.cnt > 1 AND x.rn = x.cnt THEN 'and ' + x.user_name
-                                   ELSE x.user_name
-                               END, ', ') 
-                               WITHIN GROUP (ORDER BY x.rn) AS UserList
-                    FROM (
-                        SELECT
-                            u2.user_name,
-                            ROW_NUMBER() OVER (ORDER BY s2.ordinal) AS rn,
-                            COUNT(*) OVER() AS cnt
-                        FROM STRING_SPLIT(A.sent_to_ids, ',', 1) s2
-                        LEFT JOIN dbo.MSTeamsTeamsUsers u2
-                               ON LTRIM(RTRIM(s2.value)) = u2.user_id
-                    ) x
-                ) ulist
-                LEFT JOIN dbo.MSTeamsInstallationDetails mid
-                       ON mid.team_id = A.team_id_single
-            )
-            ELSE A.sent_to_names
-        END AS SentToUserNames,
+        -- FIXED SentToUserNames
+        ISNULL(mid.team_name + ' - ', '') +
+        STUFF((
+            SELECT DISTINCT ', ' + u2.user_name
+            FROM STRING_SPLIT(A.sent_to_ids, ',', 1) s2
+            LEFT JOIN MSTeamsTeamsUsers u2
+                ON LTRIM(RTRIM(s2.value)) = u2.user_id
+            FOR XML PATH(''), TYPE
+        ).value('.', 'NVARCHAR(MAX)'), 1, 2, '') AS SentToUserNames,
         A.comments,
         CONVERT(varchar(23), A.sort_dt, 121) AS requested_date,
         A.requested_date AS Real_requested_date,
         A.team_ids,
         A.sort_dt,
         ROW_NUMBER() OVER (PARTITION BY A.id ORDER BY A.sort_dt DESC) AS rn,
-
         ISNULL((
-            SELECT STRING_AGG(mal2.ChannelName, ', ')
+            SELECT STRING_AGG(CAST(mal2.ChannelName AS VARCHAR(MAX)), ', ')
             FROM (
                 SELECT DISTINCT 
                     CASE mal.MessageSentVia
@@ -588,13 +564,23 @@ B AS (
                   AND mal.DeliveryStatus = 'SEND_SUCCESS'
             ) mal2
         ), 'TEAMS') AS send_via
-
     FROM A
     LEFT JOIN dbo.MSTeamsTeamsUsers u
-           ON u.user_id = A.user_id
-
-    -- ✅ Only return THIS particular user
-    WHERE u.user_aadobject_id = '${userid}'
+        ON u.user_id = A.user_id
+    LEFT JOIN dbo.MSTeamsInstallationDetails mid
+        ON CHARINDEX(A.team_ids, mid.team_id) > 0
+    WHERE 
+        u.user_aadobject_id = '${userid}'
+        OR EXISTS (
+            SELECT 1
+            FROM MSTeamsInstallationDetails mid2
+            WHERE mid2.team_id = A.team_ids
+              AND (
+                    mid2.user_obj_id = '${userid}'
+                    OR (',' + mid2.super_users + ',' LIKE '%,' + '${userid}' + ',%')
+              )
+              AND mid2.uninstallation_date IS NULL
+        )
 )
 
 SELECT *
@@ -602,10 +588,6 @@ FROM B
 WHERE rn = 1
 ORDER BY sort_dt DESC;
 
-
- 
- 
- 
 `;
     }
 
