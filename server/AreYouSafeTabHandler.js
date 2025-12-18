@@ -182,9 +182,9 @@ const handlerForSafetyBotTab = (app) => {
                       "",
                       "",
                       "error in get users phone number requestDateTime : " +
-                        requestDate +
-                        " ErrorDateTime: " +
-                        new Date(),
+                      requestDate +
+                      " ErrorDateTime: " +
+                      new Date(),
                       "",
                       false,
                       ""
@@ -220,7 +220,7 @@ const handlerForSafetyBotTab = (app) => {
               error.response.data.error_description
                 .toString()
                 .indexOf("The refresh token has expired due to inactivity.") >=
-                0
+              0
             ) {
               throw {
                 type: "authFailed",
@@ -501,7 +501,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/deleteIncident -> deleteInc then incId=" +
-              req.query.incid
+            req.query.incid
           );
         });
     } catch (err) {
@@ -533,9 +533,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/updateincstatus then -> incId=" +
-              incId +
-              " incStatus=" +
-              incStatus
+            incId +
+            " incStatus=" +
+            incStatus
           );
         });
     } catch (err) {
@@ -545,9 +545,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/updateincstatus -> incId=" +
-          incId +
-          " incStatus=" +
-          incStatus
+        incId +
+        " incStatus=" +
+        incStatus
       );
     }
   });
@@ -817,6 +817,24 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post("/areyousafetabhandler/setLanguagePreference", async (req, res) => {
+    const teamId = req.query.teamId;
+    const tenantid = req.query.tenantid;
+    const language = req.query.language;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setLanguagePreference(language, teamId, tenantid);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setSOSNotification"
+      );
+    }
+  });
   // app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
   //   const teamId = req.query.teamId;
   //   const refresh_token = req.query.refresh_token;
@@ -967,9 +985,8 @@ const handlerForSafetyBotTab = (app) => {
                   minute: "2-digit",
                   hour12: true,
                 }
-              )}** has been marked as closed by **<at>${
-                closedByUser.user_name
-              }</at>**.`,
+              )}** has been marked as closed by **<at>${closedByUser.user_name
+                }</at>**.`,
               wrap: true,
             },
             {
@@ -1077,7 +1094,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-                reqBody.comment
+              reqBody.comment
             );
             res.send(false);
           });
@@ -1089,7 +1106,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-          reqBody.comment
+        reqBody.comment
       );
     }
   });
@@ -1205,9 +1222,9 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userAadObjId,
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
-            userlocation +
-            " req.query.adminlist=" +
-            req.body.data
+          userlocation +
+          " req.query.adminlist=" +
+          req.body.data
         );
       }
     }
@@ -1267,7 +1284,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-                reqBody.comment
+              reqBody.comment
             );
             res.send(false);
           });
@@ -1279,7 +1296,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-          reqBody.comment
+        reqBody.comment
       );
     }
   });
@@ -1302,7 +1319,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         qs.userAadObjId,
         "error in /areyousafetabhandler/checkduplicateInc -> qs.incTitle=" +
-          qs.incTitle
+        qs.incTitle
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -1401,7 +1418,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         req.query.userAadObjId,
         "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-          req.query.incId
+        req.query.incId
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -1449,7 +1466,7 @@ const handlerForSafetyBotTab = (app) => {
           "",
           req.query.userAadObjId,
           "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-            req.query.incId
+          req.query.incId
         );
         res.send({ error: "Error: Please try again" });
       }
@@ -1485,9 +1502,9 @@ const handlerForSafetyBotTab = (app) => {
         userName,
         userId,
         "error in /areyousafetabhandler/contactus -> email=" +
-          email +
-          " msg=" +
-          msg
+        email +
+        " msg=" +
+        msg
       );
       res.send(false);
     }
@@ -1582,9 +1599,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-              incid +
-              " incType=" +
-              incType
+            incid +
+            " incType=" +
+            incType
           );
           res.send(0);
         });
@@ -1595,9 +1612,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-          incid +
-          " incType=" +
-          incType
+        incid +
+        " incType=" +
+        incType
       );
       res.send(0);
     }
@@ -1651,9 +1668,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-              serviceUrl +
-              " teamUserId=" +
-              teamUserId
+            serviceUrl +
+            " teamUserId=" +
+            teamUserId
           );
           res.send(0);
         });
@@ -1664,9 +1681,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-          serviceUrl +
-          " teamUserId=" +
-          teamUserId
+        serviceUrl +
+        " teamUserId=" +
+        teamUserId
       );
       res.send(0);
     }
@@ -1936,10 +1953,10 @@ const handlerForSafetyBotTab = (app) => {
         field.toLowerCase() == "whatsapp"
           ? "send_whatsapp"
           : field.toLowerCase() == "filter"
-          ? "FILTER_ENABLED"
-          : field.toLowerCase() == "null"
-          ? "null"
-          : "send_sms";
+            ? "FILTER_ENABLED"
+            : field.toLowerCase() == "null"
+              ? "null"
+              : "send_sms";
       let config = {
         method: "post",
         maxBodyLength: Infinity,
@@ -1963,7 +1980,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             "Error in Saving AllAdminConsentInfo_IsAppPermissionGranted: " +
-              IsAppPermissionGranted
+            IsAppPermissionGranted
           );
         });
     }
@@ -2046,11 +2063,9 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${
-        process.env.SMS_CONFIRMATION_URL
-      }?userId=${userId}&eventId=${eventId}&isfrom=${
-        isfromemail ? "Email" : "SMS"
-      }`;
+      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
+        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
+        }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -2364,11 +2379,9 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${
-        process.env.SMS_CONFIRMATION_URL
-      }?userId=${userId}&eventId=${eventId}&isfrom=${
-        isfromemail ? "Email" : "SMS"
-      }`;
+      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
+        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
+        }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -2613,6 +2626,182 @@ const handlerForSafetyBotTab = (app) => {
   });
   app.get("/areyousafetabhandler/weatheradvisorywebhook", async (req, res) => {
     console.log({ weatheradvisorywebhook: req, res });
+  });
+
+  app.get("/areyousafetabhandler/getSelectedLanguageData", async (req, res) => {
+    const language = req.query.language;
+    const userAadObjId = req.query.userAadObjId || "";
+
+    try {
+      if (!language) {
+        return res
+          .status(400)
+          .json({ error: "Language parameter is required" });
+      }
+
+      const pool = await poolPromise;
+      const sql = require("mssql");
+
+      // SQL query matching the C# version - using language parameter
+      // Note: The C# version has two SELECT statements, but we'll use the language parameter
+      const query = `
+SELECT 
+    'Language' AS AttributeName, 
+    SL.LANGUAGE AS TranslatedAttribute, 
+    SL.LANGUAGE AS Language,
+    SL.CULTURE_CODE AS CULTURECODE
+FROM 
+    SYS_LANGUAGE SL
+WHERE 
+    SL.LANGUAGE = @language
+UNION ALL
+SELECT 
+    SA.ATTRIBUTE AS AttributeName,
+    SADT.ATTRIBUTE AS TranslatedAttribute,
+    SL.LANGUAGE AS Language,
+    SL.CULTURE_CODE AS CULTURECODE
+FROM 
+    SYS_ATTRIBUTE_DEF SA
+INNER JOIN 
+    SYS_ATTRIBUTE_DEF_TRANS SADT 
+ON 
+    SA.ATTRIBUTE_ID = SADT.ATTRIBUTE_ID
+INNER JOIN 
+    SYS_LANGUAGE SL 
+ON 
+    SADT.LANGUAGE_ID = SL.LANGUAGE_ID
+WHERE 
+    SL.LANGUAGE = @language;`;
+
+      const result = await pool
+        .request()
+        .input("language", sql.NVarChar, language)
+        .query(query);
+
+      // Format the result similar to C# code structure
+      const formattedResult = {};
+
+      // Process the result set (C# code processes DataTable, we process recordset)
+      if (result.recordset && result.recordset.length > 0) {
+        const formattedResult1 = {};
+        let languageName = "";
+
+        result.recordset.forEach((row) => {
+          const key = row.AttributeName;
+          const value = {
+            AttributeName: row.AttributeName,
+            TranslatedAttribute: row.TranslatedAttribute,
+            Language: row.Language,
+            CULTURECODE: row.CULTURECODE,
+          };
+
+          languageName = row.Language;
+          // Add or overwrite the key in the dictionary
+          formattedResult1[key] = value;
+        });
+
+        formattedResult[languageName] = formattedResult1;
+      }
+
+      // Convert to JSON and send response (matching C# JsonConvert.SerializeObject)
+      res.json(formattedResult);
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSelectedLanguageData -> language=" +
+        language
+      );
+      res.status(500).json({ error: "Error fetching language data" });
+    }
+  });
+
+  app.get("/areyousafetabhandler/getSelectedLanguage", async (req, res) => {
+    const teamId = req.query.teamId;
+    const userId = req.query.userId || req.query.userAadObjId;
+    const userAadObjId = userId || "";
+
+    try {
+      if (!userId) {
+        return res.status(400).json({ error: "UserId parameter is required" });
+      }
+
+      const pool = await poolPromise;
+      const sql = require("mssql");
+      let query = "";
+      let request = pool.request();
+
+      // If teamId is null or "null", find all teams user belongs to and get top 1 team's language
+      if (!teamId || teamId === "null" || teamId === "") {
+        query = `
+          SELECT 
+            LANGUAGE,
+            team_id AS teamId,
+            team_name AS teamName
+          FROM MSTeamsInstallationDetails
+          WHERE team_id IN (
+            SELECT TOP 1 team_id
+            FROM MSTeamsTeamsUsers
+            WHERE user_aadobject_id = @userId
+            ORDER BY team_id
+          )
+          AND LANGUAGE IS NOT NULL
+          AND LANGUAGE <> '';
+        `;
+        request.input("userId", sql.NVarChar, userId);
+      } else {
+        // If teamId is not null, fetch language based on teamId
+        query = `
+          SELECT TOP 1
+            LANGUAGE,
+            team_id AS teamId,
+            team_name AS teamName
+          FROM MSTeamsInstallationDetails
+          WHERE team_id = @teamId
+            AND (user_obj_id = @userId OR super_users LIKE @userIdLike)
+            AND uninstallation_date IS NULL
+            AND LANGUAGE IS NOT NULL
+            AND LANGUAGE <> '';
+        `;
+        request.input("teamId", sql.NVarChar, teamId);
+        request.input("userId", sql.NVarChar, userId);
+        request.input("userIdLike", sql.NVarChar, `%${userId}%`);
+      }
+
+      const result = await request.query(query);
+
+      if (result.recordset && result.recordset.length > 0) {
+        const languageData = result.recordset[0];
+        res.json({
+          language: languageData.LANGUAGE,
+          teamId: languageData.teamId,
+          teamName: languageData.teamName,
+        });
+      } else {
+        // If no language found, return null or default
+        res.json({
+          language: null,
+          teamId: teamId || null,
+          teamName: null,
+        });
+      }
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId || "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSelectedLanguage -> teamId=" +
+        teamId +
+        " userId=" +
+        userId
+      );
+      res.status(500).json({ error: "Error fetching selected language" });
+    }
   });
 };
 

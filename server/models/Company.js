@@ -32,6 +32,7 @@ class Company {
     WHATSAPP_PHONE_NUMBER_ID,
     SMS_INFO_DISPLAY,
     SEND_EMAIL,
+    LANGUAGE,
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -65,6 +66,7 @@ class Company {
     this.WHATSAPP_PHONE_NUMBER_ID = WHATSAPP_PHONE_NUMBER_ID;
     this.SMS_INFO_DISPLAY = SMS_INFO_DISPLAY;
     this.SEND_EMAIL = SEND_EMAIL;
+    this.LANGUAGE = LANGUAGE;
   }
 }
 

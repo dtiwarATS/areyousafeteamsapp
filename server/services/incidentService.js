@@ -1084,6 +1084,7 @@ const getCompanyData = async (teamId) => {
       WHATSAPP_TOKEN: result[0].WHATSAPP_TOKEN,
       WHATSAPP_PHONE_NUMBER_ID: result[0].WHATSAPP_PHONE_NUMBER_ID,
       SEND_EMAIL: result[0].SEND_EMAIL,
+      LANGUAGE: result[0].LANGUAGE,
     };
   }
   return companyDataObj;
@@ -1689,6 +1690,7 @@ const getUserTeamInfo = async (userAadObjId) => {
       AVAILABLE_FOR,
       SMS_INFO_DISPLAY,
       SEND_EMAIL,
+      LANGUAGE,
      PHONE_FIELD,
           s.UserLimit,
           s.SubscriptionType
@@ -1733,6 +1735,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
 		  SEND_WHATSAPP,
 		  send_sms,
       SEND_EMAIL,
+      LANGUAGE,
 		 IS_APP_PERMISSION_GRANTED,
           s.UserLimit,
           s.SubscriptionType
@@ -2277,6 +2280,26 @@ const SosNotificationFor = async (SOS_NOTIFICATION_FOR, teamId) => {
   }
   return Promise.resolve(result);
 };
+const setLanguagePreference = async (language, teamId, tenantid) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set LANGUAGE = '${language}' where user_tenant_id='${tenantid}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in setLanguagePreference"
+    );
+  }
+  return Promise.resolve(result);
+};
+
 const saveRefreshToken = async (teamId, refresh_token, field = "send_sms") => {
   let result = null;
   try {
@@ -3574,4 +3597,5 @@ module.exports = {
   saveAllTypelogs,
   saveAllTypeQuerylogs,
   SosNotificationFor,
+  setLanguagePreference,
 };

@@ -1812,6 +1812,26 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     return Promise.resolve(res);
   };
 
+  setLanguagePreference = async (language, teamId, tenantid) => {
+    let res = null;
+    try {
+      res = await incidentService.setLanguagePreference(
+        language,
+
+        teamId,
+        tenantid
+      );
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in SosNotificationFor"
+      );
+    }
+    return Promise.resolve(res);
+  };
   // saveRefreshToken = async (teamId, refresh_token, field) => {
   //   let res = null;
   //   try {
