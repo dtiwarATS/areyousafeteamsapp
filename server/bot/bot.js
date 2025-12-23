@@ -5131,6 +5131,38 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
   }
 };
 
+const handleRespondToAssistance = async (context, action, user) => {
+  try {
+    const { userAadObjId, requestAssistanceid } = action.data;
+
+    // Handle the respond button click
+    // You can add your business logic here
+    console.log("Respond to assistance clicked:", {
+      userAadObjId,
+      requestAssistanceid,
+      clickedBy: user.id,
+    });
+
+    // Send acknowledgment message
+    const responseText = `You have responded to the assistance request.`;
+    await context.sendActivity(responseText);
+
+    // TODO: Add your business logic here, such as:
+    // - Update assistance status in database
+    // - Send notification to the user who requested assistance
+    // - Log the response
+  } catch (error) {
+    console.log("Error in handleRespondToAssistance:", error);
+    processSafetyBotError(
+      error,
+      "",
+      "",
+      user?.id,
+      "error in handleRespondToAssistance"
+    );
+  }
+};
+
 const submitComment = async (context, user, companyData) => {
   try {
     const action = context.activity.value.action;

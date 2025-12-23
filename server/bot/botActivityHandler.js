@@ -59,6 +59,7 @@ const {
 } = require("../models/UpdateCards");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
+const dashboard = require("../models/dashboard");
 const {
   getWelcomeMessageCard,
   getWelcomeMessageCardformpersonal,
@@ -903,6 +904,49 @@ WHEN NOT MATCHED THEN
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+      } else if (uVerb === "respond_to_assistance") {
+        await context.sendActivities([{ type: "typing" }]);
+        const action = context.activity.value.action;
+        const { userAadObjId, requestAssistanceid, tenantId, serviceUrl } =
+          action.data;
+        const user = context.activity.from;
+
+        // Handle the respond button click
+        console.log("Respond to assistance clicked:", {
+          userAadObjId,
+          requestAssistanceid,
+          clickedBy: user.id,
+          activityName: context.activity.name,
+        });
+
+        // Return OK immediately to Teams, then process asynchronously
+        // This prevents Teams from showing "Something went wrong" error
+        this.handleRespondToAssistanceAsync(
+          context,
+          userAadObjId,
+          requestAssistanceid,
+          tenantId,
+          serviceUrl,
+          user
+        ).catch((error) => {
+          console.log("Error in async respond_to_assistance handler:", error);
+          processSafetyBotError(
+            error,
+            "",
+            "",
+            userAadObjId,
+            "error in async respond_to_assistance - requestAssistanceid: " +
+              requestAssistanceid
+          );
+        });
+
+        // Return OK immediately
+        return {
+          status: StatusCodes.OK,
+          body: {
+            statusCode: StatusCodes.OK,
+          },
+        };
       } else if (uVerb === "submit_comment") {
         const action = context.activity.value.action;
         const {
@@ -1143,20 +1187,567 @@ WHEN NOT MATCHED THEN
       }
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
-        const card = await bot.selectResponseCard(context, user);
-        if (adaptiveCard != null) {
-          return bot.invokeResponse(adaptiveCard);
-        } else if (card) {
-          return bot.invokeResponse(card);
+        // Skip selectResponseCard if we've already handled respond_to_assistance
+        if (uVerb !== "respond_to_assistance") {
+          const card = await bot.selectResponseCard(context, user);
+          if (adaptiveCard != null) {
+            return bot.invokeResponse(adaptiveCard);
+          } else if (card) {
+            return bot.invokeResponse(card);
+          } else {
+            return {
+              status: StatusCodes.OK,
+            };
+          }
         } else {
+          // respond_to_assistance was already handled, return OK
           return {
             status: StatusCodes.OK,
+            body: {
+              statusCode: StatusCodes.OK,
+            },
           };
         }
       }
     } catch (err) {
       console.log(err);
       processSafetyBotError(err, "", "", "", "onInvokeActivity");
+    }
+  }
+
+  async handleRespondToAssistanceAsync(
+    context,
+    userAadObjId,
+    requestAssistanceid,
+    tenantId,
+    serviceUrl,
+    user
+  ) {
+    try {
+      // Check if anyone has already responded to this request
+      const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
+      const existingResponse = await db.getDataFromDB(checkQuery, userAadObjId);
+
+      // Get user info for the requester
+      const userInfo = await incidentService.getUserInfoByUserAadObjId(
+        userAadObjId
+      );
+      if (!userInfo || userInfo.length === 0) {
+        // Send error message to admin using proactive messaging
+        const adminMemberArr = [
+          {
+            id: user.id,
+            name: user.name,
+          },
+        ];
+        const errorCard = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: "Error: Could not find user information.",
+              wrap: true,
+            },
+          ],
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+        await sendProactiveMessaageToUser(
+          adminMemberArr,
+          errorCard,
+          null,
+          serviceUrl,
+          tenantId,
+          null,
+          user.aadObjectId
+        );
+        return;
+      }
+
+      const requesterUser = userInfo[0];
+
+      if (!serviceUrl || !tenantId) {
+        // Send error message to admin using proactive messaging
+        const adminMemberArr = [
+          {
+            id: user.id,
+            name: user.name,
+          },
+        ];
+        const errorCard = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: "Error: Missing service URL or tenant ID.",
+              wrap: true,
+            },
+          ],
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+        await sendProactiveMessaageToUser(
+          adminMemberArr,
+          errorCard,
+          null,
+          serviceUrl || "https://smba.trafficmanager.net/amer/",
+          tenantId || user.aadObjectId,
+          null,
+          user.aadObjectId
+        );
+        return;
+      }
+
+      const memberArr = [
+        {
+          id: requesterUser.user_id,
+          name: requesterUser.user_name,
+        },
+      ];
+
+      // Create mention entities
+      let mentionUserEntities = [];
+      dashboard.mentionUser(mentionUserEntities, user.id, user.name);
+
+      if (
+        existingResponse &&
+        existingResponse.length > 0 &&
+        existingResponse[0].FIRST_RESPONDER
+      ) {
+        // Someone has already responded - get the first responder's info
+        const firstResponderUserId = existingResponse[0].FIRST_RESPONDER;
+        const firstResponderQuery = `SELECT user_id, user_name FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${firstResponderUserId}'`;
+        const firstResponderResult = await db.getDataFromDB(
+          firstResponderQuery,
+          userAadObjId
+        );
+
+        let firstResponderName = "Someone";
+        let firstResponderUserId_db = null;
+        if (firstResponderResult && firstResponderResult.length > 0) {
+          firstResponderName = firstResponderResult[0].user_name || "Someone";
+          firstResponderUserId_db = firstResponderResult[0].user_id;
+        }
+
+        // Send acknowledgment to the admin who clicked
+        const adminMemberArr = [
+          {
+            id: user.id,
+            name: user.name,
+          },
+        ];
+
+        if (user.aadObjectId === firstResponderUserId) {
+          const alreadyFirstResponderCard = {
+            $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+            appId: process.env.MicrosoftAppId,
+            body: [
+              {
+                type: "TextBlock",
+                text: "**You are already the first responder for this SOS.**",
+                wrap: true,
+              },
+            ],
+            type: "AdaptiveCard",
+            version: "1.4",
+          };
+
+          await sendProactiveMessaageToUser(
+            adminMemberArr,
+            alreadyFirstResponderCard,
+            null,
+            serviceUrl,
+            tenantId,
+            null,
+            user.aadObjectId
+          );
+        } else {
+          // Create mention entities for the first responder
+          let firstResponderMentionEntities = [];
+          dashboard.mentionUser(
+            firstResponderMentionEntities,
+            firstResponderUserId_db,
+            firstResponderName
+          );
+
+          // Add mention entities for the requester
+          dashboard.mentionUser(
+            firstResponderMentionEntities,
+            requesterUser.user_id,
+            requesterUser.user_name
+          );
+
+          const alreadyHandledCard = {
+            $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+            appId: process.env.MicrosoftAppId,
+            body: [
+              {
+                type: "TextBlock",
+                text: `**<at>${firstResponderName}</at>** is already the responder for sos request from **<at>${requesterUser.user_name}</at>**`,
+                wrap: true,
+              },
+            ],
+            msteams: {
+              entities: firstResponderMentionEntities,
+            },
+            type: "AdaptiveCard",
+            version: "1.4",
+          };
+
+          await sendProactiveMessaageToUser(
+            adminMemberArr,
+            alreadyHandledCard,
+            null,
+            serviceUrl,
+            tenantId,
+            null,
+            user.aadObjectId
+          );
+        }
+      } else {
+        // No one has responded yet - update FIRST_RESPONDER and RESPONDED_AT
+        const updateQuery = `UPDATE MSTeamsAssistance SET FIRST_RESPONDER = '${user.aadObjectId}', FIRST_RESPONDER_RESPONDED_AT = GETDATE() WHERE id = ${requestAssistanceid}`;
+        await db.updateDataIntoDB(updateQuery, userAadObjId);
+
+        // Create message card
+        const messageCard = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: `**<at>${user.name}</at>** is your first responder and is handling your SOS.`,
+              wrap: true,
+            },
+          ],
+          msteams: {
+            entities: mentionUserEntities,
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+
+        // Send message to the user
+        await sendProactiveMessaageToUser(
+          memberArr,
+          messageCard,
+          null,
+          serviceUrl,
+          tenantId,
+          null,
+          user.id
+        );
+
+        // Get all admins from MSTeamsAssistance and send them notification
+        let otherAdminNames = []; // Store other admin names for acknowledgment message
+        try {
+          const assistanceQuery = `SELECT sent_to_ids FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
+          const assistanceData = await db.getDataFromDB(
+            assistanceQuery,
+            userAadObjId
+          );
+
+          if (
+            assistanceData &&
+            assistanceData.length > 0 &&
+            assistanceData[0].sent_to_ids
+          ) {
+            const sendToIds = assistanceData[0].sent_to_ids;
+
+            // Split sent_to_ids (comma-separated) and get admin info
+            const adminUserIds = sendToIds
+              .split(",")
+              .map((id) => id.trim())
+              .filter((id) => id && id !== "");
+
+            if (adminUserIds.length > 0) {
+              // Get admin user info from MSTeamsTeamsUsers
+              const adminIdsStr = adminUserIds.map((id) => `'${id}'`).join(",");
+
+              const adminInfoQuery = `
+;WITH UserCTE AS (
+    SELECT
+        u.user_id,
+        u.user_name,
+        u.user_aadobject_id,
+        u.team_id,
+        d.serviceUrl,
+        d.user_tenant_id,
+        ROW_NUMBER() OVER (
+            PARTITION BY u.user_id
+            ORDER BY d.team_id
+        ) AS rn
+    FROM MSTeamsTeamsUsers u
+    INNER JOIN MSTeamsInstallationDetails d
+        ON u.team_id = d.team_id
+    WHERE u.user_id in (${adminIdsStr})
+    AND d.serviceUrl IS NOT NULL
+    AND d.user_tenant_id IS NOT NULL
+)
+SELECT
+    user_id,
+    user_name,
+    user_aadobject_id,
+    team_id,
+    serviceUrl,
+    user_tenant_id
+FROM UserCTE
+WHERE rn = 1;
+              `;
+
+              const adminInfo = await db.getDataFromDB(
+                adminInfoQuery,
+                userAadObjId
+              );
+
+              if (adminInfo && adminInfo.length > 0) {
+                // Create mention entities for both the first responder and requester
+                let adminMentionEntities = [];
+                dashboard.mentionUser(adminMentionEntities, user.id, user.name);
+                dashboard.mentionUser(
+                  adminMentionEntities,
+                  requesterUser.user_id,
+                  requesterUser.user_name
+                );
+
+                // Create message card for admins
+                const adminMessageCard = {
+                  $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+                  appId: process.env.MicrosoftAppId,
+                  body: [
+                    {
+                      type: "TextBlock",
+                      text: `**<at>${user.name}</at>** is the first responder for sos request from **<at>${requesterUser.user_name}</at>**.`,
+                      wrap: true,
+                    },
+                  ],
+                  msteams: {
+                    entities: adminMentionEntities,
+                  },
+                  type: "AdaptiveCard",
+                  version: "1.4",
+                };
+
+                // Send message to each admin and collect other admin names
+                for (const admin of adminInfo) {
+                  // Skip sending to the admin who clicked (they'll get the acknowledgment)
+                  if (admin.user_id === user.id) {
+                    continue;
+                  }
+
+                  // Collect other admin names for acknowledgment message
+                  otherAdminNames.push({
+                    id: admin.user_id,
+                    name: admin.user_name,
+                  });
+
+                  const adminMemberArr = [
+                    {
+                      id: admin.user_id,
+                      name: admin.user_name,
+                    },
+                  ];
+
+                  await sendProactiveMessaageToUser(
+                    adminMemberArr,
+                    adminMessageCard,
+                    null,
+                    admin.serviceUrl,
+                    admin.user_tenant_id,
+                    null,
+                    user.id
+                  );
+                }
+              }
+            }
+          }
+        } catch (adminError) {
+          console.log("Error sending messages to admins:", adminError);
+          // Don't fail the whole operation if admin notification fails
+        }
+
+        // Send acknowledgment to the admin who clicked
+        // Create mention entities for the requester and other admins
+        let acknowledgmentMentionEntities = [];
+        dashboard.mentionUser(
+          acknowledgmentMentionEntities,
+          requesterUser.user_id,
+          requesterUser.user_name
+        );
+
+        // Add mention entities for other admins
+        for (const otherAdmin of otherAdminNames) {
+          dashboard.mentionUser(
+            acknowledgmentMentionEntities,
+            otherAdmin.id,
+            otherAdmin.name
+          );
+        }
+
+        // Get email addresses for both users
+        let responderEmail = null;
+        let requesterEmail = requesterUser.email || null;
+
+        // Get responder's email from database
+        try {
+          const responderEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${user.aadObjectId}'`;
+          const responderEmailResult = await db.getDataFromDB(
+            responderEmailQuery,
+            userAadObjId
+          );
+          if (responderEmailResult && responderEmailResult.length > 0) {
+            responderEmail = responderEmailResult[0].email;
+          }
+        } catch (emailError) {
+          console.log("Error fetching responder email:", emailError);
+        }
+
+        // Get requester's email if not already available
+        if (!requesterEmail) {
+          try {
+            const requesterEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${requesterUser.user_aadobject_id}'`;
+            const requesterEmailResult = await db.getDataFromDB(
+              requesterEmailQuery,
+              userAadObjId
+            );
+            if (requesterEmailResult && requesterEmailResult.length > 0) {
+              requesterEmail = requesterEmailResult[0].email;
+            }
+          } catch (emailError) {
+            console.log("Error fetching requester email:", emailError);
+          }
+        }
+
+        // Create Teams deep link for group chat using emails
+        let chatUrl = "";
+        if (responderEmail && requesterEmail) {
+          chatUrl = `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(
+            responderEmail
+          )},${encodeURIComponent(requesterEmail)}`;
+        } else {
+          // Fallback to aadObjectId if emails are not available
+          chatUrl = `https://teams.microsoft.com/l/chat/0/0?users=${user.aadObjectId},${requesterUser.user_aadobject_id}`;
+        }
+
+        // Create Teams deep link for call using emails
+        let callUrl = "";
+        if (responderEmail && requesterEmail) {
+          callUrl = `https://teams.microsoft.com/l/call/0/0?users=${encodeURIComponent(
+            responderEmail
+          )},${encodeURIComponent(requesterEmail)}`;
+        } else {
+          // Fallback to aadObjectId if emails are not available
+          callUrl = `https://teams.microsoft.com/l/call/0/0?users=${user.aadObjectId},${requesterUser.user_aadobject_id}`;
+        }
+
+        // Build the acknowledgment text with other admin names
+        let acknowledgmentText = `You are now the first responder. **<at>${requesterUser.user_name}</at>**`;
+        if (otherAdminNames.length > 0) {
+          if (otherAdminNames.length === 1) {
+            acknowledgmentText += ` and **<at>${otherAdminNames[0].name}</at>** have been notified.`;
+          } else {
+            // For multiple admins, list them all
+            const adminMentions = otherAdminNames
+              .map((admin) => `**<at>${admin.name}</at>**`)
+              .join(", ");
+            acknowledgmentText += ` and ${adminMentions} have been notified.`;
+          }
+        } else {
+          acknowledgmentText += ` has been notified.`;
+        }
+
+        const acknowledgmentCard = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: acknowledgmentText,
+              wrap: true,
+            },
+          ],
+          actions: [
+            {
+              type: "Action.OpenUrl",
+              title: `Chat with ${requesterUser.user_name}`,
+              url: chatUrl,
+            },
+            {
+              type: "Action.OpenUrl",
+              title: `Call ${requesterUser.user_name}`,
+              url: callUrl,
+            },
+          ],
+          msteams: {
+            entities: acknowledgmentMentionEntities,
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+
+        // Send acknowledgment to the admin who clicked using proactive messaging
+        const adminAcknowledgmentMemberArr = [
+          {
+            id: user.id,
+            name: user.name,
+          },
+        ];
+
+        await sendProactiveMessaageToUser(
+          adminAcknowledgmentMemberArr,
+          acknowledgmentCard,
+          null,
+          serviceUrl,
+          tenantId,
+          null,
+          user.aadObjectId
+        );
+      }
+    } catch (error) {
+      console.log("Error in handleRespondToAssistanceAsync:", error);
+      // Try to send error message to admin using proactive messaging
+      try {
+        const adminMemberArr = [
+          {
+            id: user.id,
+            name: user.name,
+          },
+        ];
+        const errorCard = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: "An error occurred while processing your response.",
+              wrap: true,
+            },
+          ],
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+        await sendProactiveMessaageToUser(
+          adminMemberArr,
+          errorCard,
+          null,
+          serviceUrl || "https://smba.trafficmanager.net/amer/",
+          tenantId || user.aadObjectId,
+          null,
+          user.aadObjectId
+        );
+      } catch (sendError) {
+        console.log("Error sending error message:", sendError);
+      }
+      processSafetyBotError(
+        error,
+        "",
+        "",
+        userAadObjId,
+        "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
+          requestAssistanceid
+      );
     }
   }
 

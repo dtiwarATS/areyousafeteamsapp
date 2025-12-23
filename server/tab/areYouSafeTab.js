@@ -549,6 +549,26 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               text: `User **<at>${user.user_name}</at>** needs assistance.`,
               wrap: true,
             },
+            ...(sendonetime == "true"
+              ? [
+                  {
+                    type: "ActionSet",
+                    actions: [
+                      {
+                        type: "Action.Execute",
+                        title: "Accept and respond",
+                        verb: "respond_to_assistance",
+                        data: {
+                          userAadObjId: userAadObjId,
+                          requestAssistanceid: requestAssistanceid,
+                          tenantId: data[0][0].user_tenant_id,
+                          serviceUrl: data[0][0].serviceUrl,
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : []),
             // {
             //   type: "Action.Image",
             //   url: `${LocationUrl}`,
