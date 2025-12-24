@@ -1385,7 +1385,7 @@ WHEN NOT MATCHED THEN
             body: [
               {
                 type: "TextBlock",
-                text: `**<at>${firstResponderName}</at>** is already the responder for sos request from **<at>${requesterUser.user_name}</at>**`,
+                text: `**<at>${firstResponderName}</at>** is already the responder for the SOS request from **<at>${requesterUser.user_name}</at>**`,
                 wrap: true,
               },
             ],
@@ -1519,7 +1519,7 @@ WHERE rn = 1;
                   body: [
                     {
                       type: "TextBlock",
-                      text: `**<at>${user.name}</at>** is the first responder for sos request from **<at>${requesterUser.user_name}</at>**.`,
+                      text: `**<at>${user.name}</at>** is the first responder for the SOS request from **<at>${requesterUser.user_name}</at>**.`,
                       wrap: true,
                     },
                   ],
@@ -1643,19 +1643,19 @@ WHERE rn = 1;
         }
 
         // Build the acknowledgment text with other admin names
-        let acknowledgmentText = `You are now the first responder. **<at>${requesterUser.user_name}</at>**`;
+        let acknowledgmentText = `You are now the first responder.\n\n**<at>${requesterUser.user_name}</at>** and the following emergency contacts have been notified:`;
         if (otherAdminNames.length > 0) {
           if (otherAdminNames.length === 1) {
-            acknowledgmentText += ` and **<at>${otherAdminNames[0].name}</at>** have been notified.`;
+            acknowledgmentText += `\n**<at>${otherAdminNames[0].name}</at>**`;
           } else {
             // For multiple admins, list them all
             const adminMentions = otherAdminNames
               .map((admin) => `**<at>${admin.name}</at>**`)
-              .join(", ");
-            acknowledgmentText += ` and ${adminMentions} have been notified.`;
+              .join("\n");
+            acknowledgmentText += `\n${adminMentions}`;
           }
         } else {
-          acknowledgmentText += ` has been notified.`;
+          acknowledgmentText = `You are now the first responder.\n\n**<at>${requesterUser.user_name}</at>** has been notified.`;
         }
 
         const acknowledgmentCard = {

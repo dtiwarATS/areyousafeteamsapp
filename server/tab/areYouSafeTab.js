@@ -546,7 +546,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
           body: [
             {
               type: "TextBlock",
-              text: `User **<at>${user.user_name}</at>** needs assistance.`,
+              text: `**<at>${user.user_name}</at>** needs assistance.`,
               wrap: true,
             },
             ...(sendonetime == "true"
@@ -727,7 +727,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       );
                       var twiliosend = await tClient.messages
                         .create({
-                          body: `SOS Alert - User ${user.user_name} needs assistance.`,
+                          body: `SOS Alert - ${user.user_name} needs assistance.`,
                           from: "+18023277232",
                           shortenUrls: true,
                           messagingServiceSid:
@@ -806,7 +806,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       projectName: "AYS",
                       emailSubject: `Saftey check - SOS`,
 
-                      emailBody: `SOS Alert - User ${user.user_name} needs assistance.`,
+                      emailBody: `SOS Alert - ${user.user_name} needs assistance.`,
                       emailTo: admins[i].email,
                       emailFrom: "donotreply@safetycheck.in",
                       authkey: "A9fG4dX2pL7qW8mZ",
