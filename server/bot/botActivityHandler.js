@@ -221,7 +221,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                  JSON.stringify(context)
+                JSON.stringify(context)
               );
             }
 
@@ -445,7 +445,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 null,
                 null
               );
-            } catch (err) {}
+            } catch (err) { }
           }
         } else if (
           (acvtivityData &&
@@ -574,9 +574,8 @@ USING (VALUES
 (
     team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense
 )
-ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${
-                            cmpData.team_id
-                          }'
+ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${cmpData.team_id
+                            }'
 WHEN MATCHED THEN
     UPDATE SET 
         user_id = source.user_id,
@@ -615,7 +614,7 @@ WHEN NOT MATCHED THEN
                       "",
                       "",
                       "error in onMessage - personal context=" +
-                        JSON.stringify(context)
+                      JSON.stringify(context)
                     );
                   }
 
@@ -936,7 +935,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-              requestAssistanceid
+            requestAssistanceid
           );
         });
 
@@ -1746,7 +1745,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-          requestAssistanceid
+        requestAssistanceid
       );
     }
   }
@@ -1774,9 +1773,9 @@ WHERE rn = 1;
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-          JSON.stringify(context) +
-          " companyData=" +
-          JSON.stringify(companyData)
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData)
       );
     }
   }
@@ -1878,11 +1877,11 @@ WHERE rn = 1;
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-          JSON.stringify(context) +
-          " userEmail=" +
-          userEmail +
-          " companyDataObj=" +
-          JSON.stringify(companyDataObj)
+        JSON.stringify(context) +
+        " userEmail=" +
+        userEmail +
+        " companyDataObj=" +
+        JSON.stringify(companyDataObj)
       );
     }
   }
@@ -1998,7 +1997,7 @@ WHERE rn = 1;
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => {})
+        .then(() => { })
         .catch((err) => {
           console.log(err);
         });
