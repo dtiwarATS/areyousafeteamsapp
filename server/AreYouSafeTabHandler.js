@@ -1557,6 +1557,352 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  // Helper function to send WhatsApp message directly
+  const sendWhatsAppMessage = async (to, body) => {
+    try {
+      const token = process.env.WHATSAPP_TOKEN;
+      const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+      if (!token || !phoneNumberId) {
+        console.log("WhatsApp token or phone number ID not configured");
+        return null;
+      }
+
+      let payload = {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: to,
+        type: "text",
+        text: {
+          body: body,
+        },
+      };
+
+      let response = await axios.post(
+        `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
+        payload,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      console.log(
+        "WhatsApp message sent:",
+        response.data || response.message || response
+      );
+      return response;
+    } catch (error) {
+      console.log(
+        "Error sending WhatsApp message:",
+        error.response?.data || error.message
+      );
+      throw error;
+    }
+  };
+
+  // Web endpoint to accept SOS via WhatsApp button
+  app.get("/whatsappAcceptSOS", async (req, res) => {
+    try {
+      const requestAssistanceid = req.query.id;
+      const adminAadObjId = req.query.adminId;
+      const adminPhone = req.query.phone; // WhatsApp phone number
+
+      if (!requestAssistanceid || !adminAadObjId) {
+        if (adminPhone) {
+          try {
+            await sendWhatsAppMessage(
+              adminPhone,
+              "Error: Missing required parameters. Please try again."
+            );
+          } catch (err) {
+            console.log("Error sending WhatsApp error message:", err);
+          }
+        }
+        return res.status(400).send("Missing required parameters");
+      }
+
+      // Get admin info by aadObjectId
+      const adminQuery = `SELECT u.user_id, u.user_name, u.user_aadobject_id, u.email, 
+        d.serviceUrl, d.user_tenant_id, d.team_id
+        FROM MSTeamsTeamsUsers u
+        LEFT JOIN MSTeamsInstallationDetails d ON u.team_id = d.team_id
+        WHERE u.user_aadobject_id = '${adminAadObjId}' 
+        AND d.serviceUrl IS NOT NULL AND d.user_tenant_id IS NOT NULL
+        AND d.uninstallation_date IS NULL`;
+      const adminResult = await db.getDataFromDB(adminQuery, adminAadObjId);
+      const adminInfo =
+        adminResult && adminResult.length > 0 ? adminResult[0] : null;
+
+      if (!adminInfo) {
+        if (adminPhone) {
+          try {
+            await sendWhatsAppMessage(
+              adminPhone,
+              "Error: Admin not found. Please ensure you're using the correct link."
+            );
+          } catch (err) {
+            console.log("Error sending WhatsApp error message:", err);
+          }
+        }
+        return res.status(404).send("Admin not found");
+      }
+
+      // Get assistance request info
+      const assistanceQuery = `SELECT user_id, sent_to_ids FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
+      const assistanceData = await db.getDataFromDB(
+        assistanceQuery,
+        adminInfo.user_aadobject_id
+      );
+
+      if (!assistanceData || assistanceData.length === 0) {
+        if (adminPhone) {
+          try {
+            await sendWhatsAppMessage(
+              adminPhone,
+              "Error: SOS request not found."
+            );
+          } catch (err) {
+            console.log("Error sending WhatsApp error message:", err);
+          }
+        }
+        return res.status(404).send("SOS request not found");
+      }
+
+      // Check if already responded
+      const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
+      const existingResponse = await db.getDataFromDB(
+        checkQuery,
+        adminInfo.user_aadobject_id
+      );
+
+      if (
+        existingResponse &&
+        existingResponse.length > 0 &&
+        existingResponse[0].FIRST_RESPONDER
+      ) {
+        const firstResponderId = existingResponse[0].FIRST_RESPONDER;
+        if (firstResponderId === adminInfo.user_aadobject_id) {
+          // Send WhatsApp confirmation message
+          if (adminPhone) {
+            try {
+              await sendWhatsAppMessage(
+                adminPhone,
+                "You are already the first responder for this SOS. Thank you for your response."
+              );
+              incidentService.saveAllTypeQuerylogs(
+                adminInfo.user_aadobject_id,
+                "",
+                "SOS_WHATSAPP_ACCEPT",
+                adminPhone.slice(-4).padStart(adminPhone.length, "x"),
+                requestAssistanceid,
+                "ALREADY_RESPONDED",
+                "",
+                "",
+                "",
+                "You are already the first responder for this SOS.",
+                ""
+              );
+            } catch (waErr) {
+              console.log("Error sending WhatsApp confirmation:", waErr);
+            }
+          }
+          return res.status(200).send("OK");
+        } else {
+          // Send WhatsApp message that someone else responded
+          if (adminPhone) {
+            try {
+              await sendWhatsAppMessage(
+                adminPhone,
+                "Someone else has already responded to this SOS. Another responder is handling this request."
+              );
+              incidentService.saveAllTypeQuerylogs(
+                adminInfo.user_aadobject_id,
+                "",
+                "SOS_WHATSAPP_ACCEPT",
+                adminPhone.slice(-4).padStart(adminPhone.length, "x"),
+                requestAssistanceid,
+                "ALREADY_RESPONDED_BY_OTHER",
+                "",
+                "",
+                "",
+                "Someone else has already responded to this SOS.",
+                ""
+              );
+            } catch (waErr) {
+              console.log("Error sending WhatsApp confirmation:", waErr);
+            }
+          }
+          return res.status(200).send("OK");
+        }
+      }
+
+      // Process acceptance - update database
+      // const updateQuery = `UPDATE MSTeamsAssistance SET FIRST_RESPONDER = '${adminInfo.user_aadobject_id}', FIRST_RESPONDER_RESPONDED_AT = GETDATE() WHERE id = ${requestAssistanceid}`;
+      // await db.updateDataIntoDB(updateQuery, adminInfo.user_aadobject_id);
+
+      // Get requester info
+      const requesterQuery = `SELECT user_id, user_name, user_aadobject_id, email FROM MSTeamsTeamsUsers WHERE user_id = '${assistanceData[0].user_id}'`;
+      const requesterInfo = await db.getDataFromDB(
+        requesterQuery,
+        adminInfo.user_aadobject_id
+      );
+      const requester =
+        requesterInfo && requesterInfo.length > 0 ? requesterInfo[0] : null;
+
+      // Get list of other admins/responders who were notified
+      let otherAdminNames = [];
+      if (assistanceData[0].sent_to_ids) {
+        const sendToIds = assistanceData[0].sent_to_ids;
+        const adminUserIds = [
+          ...new Set(
+            sendToIds
+              .split(",")
+              .map((id) => id.trim())
+              .filter((id) => id && id !== "" && id !== adminInfo.user_id)
+          ),
+        ];
+
+        if (adminUserIds.length > 0) {
+          const adminIdsStr = adminUserIds.map((id) => `'${id}'`).join(",");
+          const otherAdminsQuery = `SELECT DISTINCT user_name FROM MSTeamsTeamsUsers WHERE user_id IN (${adminIdsStr})`;
+          const otherAdminsResult = await db.getDataFromDB(
+            otherAdminsQuery,
+            adminInfo.user_aadobject_id
+          );
+          if (otherAdminsResult && otherAdminsResult.length > 0) {
+            otherAdminNames = [
+              ...new Set(
+                otherAdminsResult
+                  .map((admin) => admin.user_name)
+                  .filter((name) => name && name.trim() !== "")
+              ),
+            ];
+          }
+        }
+      }
+
+      // Build notification message
+      let notificationMessage = "You are now the first responder.";
+      if (requester) {
+        if (otherAdminNames.length > 0) {
+          let contactsList = "";
+          if (otherAdminNames.length === 1) {
+            contactsList = otherAdminNames[0];
+          } else if (otherAdminNames.length === 2) {
+            contactsList = `${otherAdminNames[0]} and ${otherAdminNames[1]}`;
+          } else {
+            const lastAdmin = otherAdminNames[otherAdminNames.length - 1];
+            const otherAdmins = otherAdminNames.slice(0, -1).join(", ");
+            contactsList = `${otherAdmins}, and ${lastAdmin}`;
+          }
+          notificationMessage += ` ${requester.user_name} and the following emergency contacts have been notified: ${contactsList}.`;
+        } else {
+          notificationMessage += ` ${requester.user_name} has been notified.`;
+        }
+      } else if (otherAdminNames.length > 0) {
+        if (otherAdminNames.length === 1) {
+          notificationMessage += ` ${otherAdminNames[0]} has been notified.`;
+        } else if (otherAdminNames.length === 2) {
+          notificationMessage += ` ${otherAdminNames[0]} and ${otherAdminNames[1]} have been notified.`;
+        } else {
+          const lastAdmin = otherAdminNames[otherAdminNames.length - 1];
+          const otherAdmins = otherAdminNames.slice(0, -1).join(", ");
+          notificationMessage += ` ${otherAdmins}, and ${lastAdmin} have been notified.`;
+        }
+      }
+
+      // Send WhatsApp confirmation message
+      if (adminPhone) {
+        try {
+          await sendWhatsAppMessage(adminPhone, notificationMessage);
+          incidentService.saveAllTypeQuerylogs(
+            adminInfo.user_aadobject_id,
+            "",
+            "SOS_WHATSAPP_ACCEPT",
+            adminPhone.slice(-4).padStart(adminPhone.length, "x"),
+            requestAssistanceid,
+            "SEND_SUCCESS",
+            "",
+            "",
+            "",
+            notificationMessage,
+            ""
+          );
+        } catch (waErr) {
+          console.log("Error sending WhatsApp confirmation:", waErr);
+          incidentService.saveAllTypeQuerylogs(
+            adminInfo.user_aadobject_id,
+            "",
+            "SOS_WHATSAPP_ACCEPT",
+            "",
+            requestAssistanceid,
+            "SEND_FAILED",
+            "",
+            "",
+            "",
+            notificationMessage,
+            JSON.stringify(waErr.message || waErr)
+          );
+        }
+      }
+
+      // Import botActivityHandler to use the notification logic
+      const { BotActivityHandler } = require("./bot/botActivityHandler");
+      const botHandler = new BotActivityHandler();
+
+      const mockUser = {
+        id: adminInfo.user_id,
+        name: adminInfo.user_name,
+        aadObjectId: adminInfo.user_aadobject_id,
+      };
+
+      // Call the async handler to send notifications
+      botHandler
+        .handleRespondToAssistanceAsync(
+          null,
+          requester ? requester.user_aadobject_id : assistanceData[0].user_id,
+          requestAssistanceid,
+          adminInfo.user_tenant_id,
+          adminInfo.serviceUrl,
+          mockUser
+        )
+        .catch((err) => {
+          console.log("Error in handleRespondToAssistanceAsync:", err);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            adminInfo.user_aadobject_id,
+            "error in /whatsappAcceptSOS - handleRespondToAssistanceAsync"
+          );
+        });
+
+      // Return success response
+      return res.status(200).send("OK");
+    } catch (err) {
+      console.log("Error in /whatsappAcceptSOS:", err);
+      processSafetyBotError(err, "", "", "", "error in /whatsappAcceptSOS");
+
+      // Send error message via WhatsApp if phone number is available
+      const adminPhone = req.query.phone;
+      if (adminPhone) {
+        try {
+          await sendWhatsAppMessage(
+            adminPhone,
+            "An error occurred while processing your response. Please try again or contact support."
+          );
+        } catch (waErr) {
+          console.log("Error sending WhatsApp error message:", waErr);
+        }
+      }
+
+      return res.status(500).send("Internal Server Error");
+    }
+  });
+
   app.get("/areyousafetabhandler/checkduplicateInc", async (req, res) => {
     const qs = req.query;
     try {
@@ -2682,19 +3028,48 @@ const handlerForSafetyBotTab = (app) => {
     if (type === "button") {
       const buttonPayload = message.button.payload;
       console.log(`User ${from} clicked: ${buttonPayload}`);
-      let response = buttonPayload.split("_");
-      if (response.length > 2) {
-        let userId = response[1];
-        let incId = response[2];
-        let resp = response[0];
-        let runat = response[3] || null;
-        await bot.proccessWhatsappClick(
-          userId,
-          incId,
-          resp.toUpperCase(),
-          from,
-          runat
-        );
+
+      // Check if this is an SOS accept button
+      if (buttonPayload && buttonPayload.startsWith("ACCEPT_SOS_")) {
+        const payloadParts = buttonPayload.split("_");
+        if (payloadParts.length >= 4) {
+          const adminId = payloadParts[2];
+          const requestAssistanceid = payloadParts[3];
+          // Redirect to WhatsApp accept SOS endpoint
+          const baseUrl =
+            process.env.BASE_URL ||
+            process.env.serviceUrl?.replace("/api/messages", "") ||
+            "http://localhost:3978";
+          const acceptUrl = `${baseUrl}/whatsappAcceptSOS?id=${requestAssistanceid}&adminId=${adminId}&phone=${from}`;
+          console.log(`Redirecting WhatsApp SOS accept to: ${acceptUrl}`);
+          // Process the acceptance (we'll handle this in the endpoint)
+          // For now, we'll process it directly here or redirect
+          try {
+            // Make internal call to process the acceptance
+            const axios = require("axios");
+            await axios.get(acceptUrl).catch((err) => {
+              console.log("Error calling whatsappAcceptSOS:", err.message);
+            });
+          } catch (err) {
+            console.log("Error processing WhatsApp SOS accept:", err);
+          }
+        }
+      } else {
+        // Handle other button payloads (existing logic)
+        let response = buttonPayload.split("_");
+        if (response.length > 2) {
+          let userId = response[1];
+          let incId = response[2];
+          let resp = response[0];
+          let runat = response[3] || null;
+          await bot.proccessWhatsappClick(
+            userId,
+            incId,
+            resp.toUpperCase(),
+            from,
+            runat
+          );
+        }
       }
     } else if (type == "interactive") {
       const interactiveType = message.interactive.type;
@@ -2739,19 +3114,46 @@ const handlerForSafetyBotTab = (app) => {
         if (type === "button") {
           const buttonPayload = message.button.payload;
           console.log(`User ${from} clicked: ${buttonPayload}`);
-          let response = buttonPayload.split("_");
-          if (response.length > 2) {
-            let userId = response[1];
-            let incId = response[2];
-            let resp = response[0];
-            let runat = response[3] || null;
-            await bot.proccessWhatsappClick(
-              userId,
-              incId,
-              resp.toUpperCase(),
-              from,
-              runat
-            );
+
+          // Check if this is an SOS accept button
+          if (buttonPayload && buttonPayload.startsWith("ACCEPT_SOS_")) {
+            const payloadParts = buttonPayload.split("_");
+            if (payloadParts.length >= 4) {
+              const adminId = payloadParts[2];
+              const requestAssistanceid = payloadParts[3];
+              // Redirect to WhatsApp accept SOS endpoint
+              const baseUrl =
+                process.env.BASE_URL ||
+                process.env.serviceUrl?.replace("/api/messages", "") ||
+                "http://localhost:3978";
+              const acceptUrl = `${baseUrl}/whatsappAcceptSOS?id=${requestAssistanceid}&adminId=${adminId}&phone=${from}`;
+              console.log(`Redirecting WhatsApp SOS accept to: ${acceptUrl}`);
+              // Process the acceptance (we'll handle this in the endpoint)
+              try {
+                // Make internal call to process the acceptance
+                await axios.get(acceptUrl).catch((err) => {
+                  console.log("Error calling whatsappAcceptSOS:", err.message);
+                });
+              } catch (err) {
+                console.log("Error processing WhatsApp SOS accept:", err);
+              }
+            }
+          } else {
+            // Handle other button payloads (existing logic)
+            let response = buttonPayload.split("_");
+            if (response.length > 2) {
+              let userId = response[1];
+              let incId = response[2];
+              let resp = response[0];
+              let runat = response[3] || null;
+              await bot.proccessWhatsappClick(
+                userId,
+                incId,
+                resp.toUpperCase(),
+                from,
+                runat
+              );
+            }
           }
         } else if (type == "interactive") {
           const interactiveType = message.interactive.type;
