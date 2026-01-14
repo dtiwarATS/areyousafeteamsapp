@@ -221,7 +221,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                JSON.stringify(context)
+                  JSON.stringify(context)
               );
             }
 
@@ -445,7 +445,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 null,
                 null
               );
-            } catch (err) { }
+            } catch (err) {}
           }
         } else if (
           (acvtivityData &&
@@ -574,8 +574,9 @@ USING (VALUES
 (
     team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense
 )
-ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${cmpData.team_id
-                            }'
+ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${
+                            cmpData.team_id
+                          }'
 WHEN MATCHED THEN
     UPDATE SET 
         user_id = source.user_id,
@@ -614,7 +615,7 @@ WHEN NOT MATCHED THEN
                       "",
                       "",
                       "error in onMessage - personal context=" +
-                      JSON.stringify(context)
+                        JSON.stringify(context)
                     );
                   }
 
@@ -935,7 +936,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-            requestAssistanceid
+              requestAssistanceid
           );
         });
 
@@ -1441,6 +1442,7 @@ WHEN NOT MATCHED THEN
 
         // Get all admins from MSTeamsAssistance and send them notification
         let otherAdminNames = []; // Store other admin names for acknowledgment message
+        let adminInfo = null; // Declare outside try-catch so it's accessible later
         try {
           const assistanceQuery = `SELECT sent_to_ids FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
           const assistanceData = await db.getDataFromDB(
@@ -1496,10 +1498,7 @@ FROM UserCTE
 WHERE rn = 1;
               `;
 
-              const adminInfo = await db.getDataFromDB(
-                adminInfoQuery,
-                userAadObjId
-              );
+              adminInfo = await db.getDataFromDB(adminInfoQuery, userAadObjId);
 
               if (adminInfo && adminInfo.length > 0) {
                 // Create mention entities for both the first responder and requester
@@ -1703,6 +1702,360 @@ WHERE rn = 1;
           null,
           user.aadObjectId
         );
+
+        // Send SMS/WhatsApp/Email notifications to all parties
+        try {
+          // Get all teams the requester is part of with their notification settings
+          const requesterTeamsQuery = `
+            SELECT DISTINCT
+              t.team_id,
+              t.team_name,
+              t.SOS_NOTIFICATION,
+              t.SEND_EMAIL,
+              t.SEND_WHATSAPP,
+              t.PHONE_FIELD,
+              t.IS_APP_PERMISSION_GRANTED,
+              t.user_tenant_id,
+              s.SubscriptionType,
+              t.sent_sms_count,
+              s.UserLimit
+            FROM MSTeamsTeamsUsers u
+            INNER JOIN MSTeamsInstallationDetails t ON u.team_id = t.team_id
+            LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID
+            WHERE u.user_aadobject_id = '${requesterUser.user_aadobject_id}'
+            AND t.uninstallation_date IS NULL
+            AND t.serviceUrl IS NOT NULL
+            AND t.user_tenant_id IS NOT NULL
+          `;
+          const requesterTeamsResult = await db.getDataFromDB(
+            requesterTeamsQuery,
+            userAadObjId
+          );
+          const requesterTeams =
+            requesterTeamsResult && requesterTeamsResult.length > 0
+              ? requesterTeamsResult
+              : [];
+
+          // // If no teams found, try to get company data from tenantId as fallback
+          // let fallbackCompanyData = null;
+          // if (requesterTeams.length === 0) {
+          //   const companyDataQuery = `SELECT
+          //     team_id,
+          //     team_name,
+          //     SOS_NOTIFICATION,
+          //     SEND_EMAIL,
+          //     SEND_WHATSAPP,
+          //     PHONE_FIELD,
+          //     IS_APP_PERMISSION_GRANTED,
+          //     user_tenant_id,
+          //     SubscriptionType,
+          //     sent_sms_count,
+          //     UserLimit
+          //     FROM MSTeamsInstallationDetails t
+          //     LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID
+          //     WHERE t.user_tenant_id = '${tenantId}' AND t.uninstallation_date IS NULL`;
+          //   const companyDataResult = await db.getDataFromDB(companyDataQuery, userAadObjId);
+          //   fallbackCompanyData = companyDataResult && companyDataResult.length > 0 ? companyDataResult[0] : null;
+          // }
+
+          // Get all users who need notifications: requester, responder, and other admins
+          const usersToNotify = [
+            {
+              user_aadobject_id: requesterUser.user_aadobject_id,
+              user_name: requesterUser.user_name,
+              isRequester: true,
+            },
+            {
+              user_aadobject_id: user.aadObjectId,
+              user_name: user.name,
+              isResponder: true,
+            },
+          ];
+
+          // Add other admins - reuse adminInfo that was already queried
+          if (adminInfo && adminInfo.length > 0) {
+            adminInfo.forEach((admin) => {
+              if (admin.user_id !== user.id) {
+                usersToNotify.push({
+                  user_aadobject_id: admin.user_aadobject_id,
+                  user_name: admin.user_name,
+                  isOtherAdmin: true,
+                });
+              }
+            });
+          }
+
+          // Get phone numbers for users (use first team's tenant and permission settings, or fallback)
+          const firstTeam =
+            requesterTeams.length > 0
+              ? requesterTeams[0]
+              : fallbackCompanyData
+              ? fallbackCompanyData
+              : null;
+          if (firstTeam || fallbackCompanyData) {
+            const companyDataToUse = firstTeam || fallbackCompanyData;
+            const userAadObjIds = usersToNotify.map((u) => u.user_aadobject_id);
+            const usrPhones = await bot.getUserPhone(
+              companyDataToUse.IS_APP_PERMISSION_GRANTED,
+              companyDataToUse.user_tenant_id,
+              userAadObjIds
+            );
+
+            // Check ALL requester teams to see if ANY team has features enabled
+            // If any team has a feature enabled, send to ALL admins
+            let smsEnabled = false;
+            let whatsappEnabled = false;
+            let emailEnabled = false;
+            let smsTeamData = null;
+            let whatsappTeamData = null;
+            let emailTeamData = null;
+
+            // Check all requester teams for enabled features
+            for (const teamData of requesterTeams) {
+              // Check SMS
+              if (
+                !smsEnabled &&
+                teamData.SOS_NOTIFICATION &&
+                teamData.SOS_NOTIFICATION.includes("SMS")
+              ) {
+                const canSendSMS =
+                  teamData.SubscriptionType == 3 ||
+                  (teamData.SubscriptionType == 2 &&
+                    teamData.sent_sms_count < 50);
+                if (canSendSMS) {
+                  smsEnabled = true;
+                  smsTeamData = teamData;
+                }
+              }
+
+              // Check WhatsApp
+              if (
+                !whatsappEnabled &&
+                teamData.SOS_NOTIFICATION &&
+                teamData.SOS_NOTIFICATION.includes("WhatsApp")
+              ) {
+                whatsappEnabled = true;
+                whatsappTeamData = teamData;
+              }
+
+              // Check Email
+              if (!emailEnabled && teamData.SEND_EMAIL) {
+                emailEnabled = true;
+                emailTeamData = teamData;
+              }
+
+              // If all features are found, break early
+              if (smsEnabled && whatsappEnabled && emailEnabled) {
+                break;
+              }
+            }
+
+            // Send notifications to each user based on enabled features
+            for (const userToNotify of usersToNotify) {
+              const userPhone = usrPhones.find(
+                (ph) => ph.id === userToNotify.user_aadobject_id
+              );
+
+              // Determine message based on user role
+              let notificationMessage = "";
+              if (userToNotify.isRequester) {
+                notificationMessage = `${user.name} is your first responder and is handling your SOS.`;
+              } else if (userToNotify.isResponder) {
+                notificationMessage = `You are now the first responder for ${requesterUser.user_name}'s SOS request.`;
+              } else {
+                notificationMessage = `${user.name} is the first responder for ${requesterUser.user_name}'s SOS request.`;
+              }
+
+              // Send SMS if enabled in any team
+              if (smsEnabled && smsTeamData && userPhone) {
+                const num =
+                  smsTeamData.PHONE_FIELD == "businessPhones"
+                    ? userPhone.businessPhones && userPhone.businessPhones[0]
+                    : userPhone.mobilePhone;
+
+                if (num) {
+                  try {
+                    const accountSid = process.env.TWILIO_ACCOUNT_ID;
+                    const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
+                    const tClient = require("twilio")(accountSid, authToken);
+
+                    await tClient.messages.create({
+                      body: notificationMessage,
+                      from: "+18023277232",
+                      shortenUrls: true,
+                      messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
+                      to: num,
+                    });
+
+                    incidentService.saveAllTypeQuerylogs(
+                      userToNotify.user_aadobject_id,
+                      "",
+                      "SOS_RESPONSE_SMS",
+                      num.slice(-4).padStart(num.length, "x"),
+                      requestAssistanceid,
+                      "SEND_SUCCESS",
+                      "",
+                      "",
+                      "",
+                      notificationMessage,
+                      ""
+                    );
+                  } catch (smsErr) {
+                    console.log("Error sending SMS notification:", smsErr);
+                    incidentService.saveAllTypeQuerylogs(
+                      userToNotify.user_aadobject_id,
+                      "",
+                      "SOS_RESPONSE_SMS",
+                      "",
+                      requestAssistanceid,
+                      "SEND_FAILED",
+                      "",
+                      "",
+                      "",
+                      notificationMessage,
+                      JSON.stringify(smsErr.message)
+                    );
+                  }
+                }
+              }
+
+              // Send WhatsApp if enabled in any team
+              if (whatsappEnabled && whatsappTeamData && userPhone) {
+                const num =
+                  whatsappTeamData.PHONE_FIELD == "businessPhones"
+                    ? userPhone.businessPhones && userPhone.businessPhones[0]
+                    : userPhone.mobilePhone;
+
+                if (num) {
+                  try {
+                    let payload = {
+                      messaging_product: "whatsapp",
+                      recipient_type: "individual",
+                      to: num,
+                      type: "text",
+                      text: {
+                        body: notificationMessage,
+                      },
+                    };
+
+                    await bot.sendWhatsappMessage(
+                      payload,
+                      userToNotify.user_aadobject_id,
+                      whatsappTeamData
+                    );
+
+                    incidentService.saveAllTypeQuerylogs(
+                      userToNotify.user_aadobject_id,
+                      "",
+                      "SOS_RESPONSE_WHATSAPP",
+                      num.slice(-4).padStart(num.length, "x"),
+                      requestAssistanceid,
+                      "SEND_SUCCESS",
+                      "",
+                      "",
+                      "",
+                      notificationMessage,
+                      ""
+                    );
+                  } catch (waErr) {
+                    console.log("Error sending WhatsApp notification:", waErr);
+                    incidentService.saveAllTypeQuerylogs(
+                      userToNotify.user_aadobject_id,
+                      "",
+                      "SOS_RESPONSE_WHATSAPP",
+                      "",
+                      requestAssistanceid,
+                      "SEND_FAILED",
+                      "",
+                      "",
+                      "",
+                      notificationMessage,
+                      JSON.stringify(waErr.message)
+                    );
+                  }
+                }
+              }
+
+              // Send Email if enabled in any team
+              if (emailEnabled && emailTeamData) {
+                try {
+                  const userEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${userToNotify.user_aadobject_id}'`;
+                  const userEmailResult = await db.getDataFromDB(
+                    userEmailQuery,
+                    userAadObjId
+                  );
+                  const userEmail =
+                    userEmailResult && userEmailResult.length > 0
+                      ? userEmailResult[0].email
+                      : null;
+
+                  if (userEmail) {
+                    const emailBody = `
+                      <div style="font-family: Arial, sans-serif; padding: 20px;">
+                        
+                        <p>${notificationMessage}</p>
+                        
+                      </div>
+                    `;
+
+                    const emailData = {
+                      projectName: "AYS",
+                      emailSubject: `Safety check - SOS Response`,
+                      emailBody: emailBody,
+                      emailTo: userEmail,
+                      emailFrom: "donotreply@safetycheck.in",
+                      authkey: "A9fG4dX2pL7qW8mZ",
+                    };
+
+                    const axios = require("axios");
+                    const myHeaders = { "Content-Type": "application/json" };
+
+                    await axios.post(
+                      "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
+                      emailData,
+                      { headers: myHeaders }
+                    );
+
+                    incidentService.saveAllTypeQuerylogs(
+                      userToNotify.user_aadobject_id,
+                      "",
+                      "SOS_RESPONSE_EMAIL",
+                      userEmail,
+                      requestAssistanceid,
+                      "SEND_SUCCESS",
+                      "",
+                      "",
+                      "",
+                      notificationMessage,
+                      ""
+                    );
+                  }
+                } catch (emailErr) {
+                  console.log("Error sending Email notification:", emailErr);
+                  incidentService.saveAllTypeQuerylogs(
+                    userToNotify.user_aadobject_id,
+                    "",
+                    "SOS_RESPONSE_EMAIL",
+                    "",
+                    requestAssistanceid,
+                    "SEND_FAILED",
+                    "",
+                    "",
+                    "",
+                    notificationMessage,
+                    JSON.stringify(emailErr.message)
+                  );
+                }
+              }
+            }
+          }
+        } catch (notificationError) {
+          console.log(
+            "Error sending SMS/WhatsApp/Email notifications:",
+            notificationError
+          );
+          // Don't fail the whole operation if notification fails
+        }
       }
     } catch (error) {
       console.log("Error in handleRespondToAssistanceAsync:", error);
@@ -1745,7 +2098,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-        requestAssistanceid
+          requestAssistanceid
       );
     }
   }
@@ -1773,9 +2126,9 @@ WHERE rn = 1;
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-        JSON.stringify(context) +
-        " companyData=" +
-        JSON.stringify(companyData)
+          JSON.stringify(context) +
+          " companyData=" +
+          JSON.stringify(companyData)
       );
     }
   }
@@ -1877,11 +2230,11 @@ WHERE rn = 1;
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-        JSON.stringify(context) +
-        " userEmail=" +
-        userEmail +
-        " companyDataObj=" +
-        JSON.stringify(companyDataObj)
+          JSON.stringify(context) +
+          " userEmail=" +
+          userEmail +
+          " companyDataObj=" +
+          JSON.stringify(companyDataObj)
       );
     }
   }
@@ -1997,7 +2350,7 @@ WHERE rn = 1;
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => { })
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });

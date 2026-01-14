@@ -182,9 +182,9 @@ const handlerForSafetyBotTab = (app) => {
                       "",
                       "",
                       "error in get users phone number requestDateTime : " +
-                      requestDate +
-                      " ErrorDateTime: " +
-                      new Date(),
+                        requestDate +
+                        " ErrorDateTime: " +
+                        new Date(),
                       "",
                       false,
                       ""
@@ -220,7 +220,7 @@ const handlerForSafetyBotTab = (app) => {
               error.response.data.error_description
                 .toString()
                 .indexOf("The refresh token has expired due to inactivity.") >=
-              0
+                0
             ) {
               throw {
                 type: "authFailed",
@@ -501,7 +501,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/deleteIncident -> deleteInc then incId=" +
-            req.query.incid
+              req.query.incid
           );
         });
     } catch (err) {
@@ -533,9 +533,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/updateincstatus then -> incId=" +
-            incId +
-            " incStatus=" +
-            incStatus
+              incId +
+              " incStatus=" +
+              incStatus
           );
         });
     } catch (err) {
@@ -545,9 +545,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/updateincstatus -> incId=" +
-        incId +
-        " incStatus=" +
-        incStatus
+          incId +
+          " incStatus=" +
+          incStatus
       );
     }
   });
@@ -985,8 +985,9 @@ const handlerForSafetyBotTab = (app) => {
                   minute: "2-digit",
                   hour12: true,
                 }
-              )}** has been marked as closed by **<at>${closedByUser.user_name
-                }</at>**.`,
+              )}** has been marked as closed by **<at>${
+                closedByUser.user_name
+              }</at>**.`,
               wrap: true,
             },
             {
@@ -1094,7 +1095,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-              reqBody.comment
+                reqBody.comment
             );
             res.send(false);
           });
@@ -1106,7 +1107,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-        reqBody.comment
+          reqBody.comment
       );
     }
   });
@@ -1222,9 +1223,9 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userAadObjId,
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
-          userlocation +
-          " req.query.adminlist=" +
-          req.body.data
+            userlocation +
+            " req.query.adminlist=" +
+            req.body.data
         );
       }
     }
@@ -1284,7 +1285,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-              reqBody.comment
+                reqBody.comment
             );
             res.send(false);
           });
@@ -1296,8 +1297,263 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-        reqBody.comment
+          reqBody.comment
       );
+    }
+  });
+
+  // Web endpoint to accept SOS via link (for SMS/Email)
+  app.get("/acceptSOS", async (req, res) => {
+    try {
+      const requestAssistanceid = req.query.id;
+      const adminAadObjId = req.query.adminId;
+      const adminPhone = req.query.phone;
+
+      if (!requestAssistanceid) {
+        return res.status(400).send(`
+          <html>
+            <head><title>SOS Response</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2>Error</h2>
+              <p>Missing required parameters.</p>
+            </body>
+          </html>
+        `);
+      }
+
+      // Get admin info by phone or aadObjectId
+      let adminInfo = null;
+      if (adminAadObjId) {
+        const adminQuery = `SELECT u.user_id, u.user_name, u.user_aadobject_id, u.email, 
+          d.serviceUrl, d.user_tenant_id, d.team_id
+          FROM MSTeamsTeamsUsers u
+          LEFT JOIN MSTeamsInstallationDetails d ON u.team_id = d.team_id
+          WHERE u.user_aadobject_id = '${adminAadObjId}' 
+          AND d.serviceUrl IS NOT NULL AND d.user_tenant_id IS NOT NULL
+          AND d.uninstallation_date IS NULL`;
+        const adminResult = await db.getDataFromDB(adminQuery, adminAadObjId);
+        if (adminResult && adminResult.length > 0) {
+          adminInfo = adminResult[0];
+        }
+      } else if (adminPhone) {
+        // Try to find admin by phone number (this would require phone lookup)
+        // For now, we'll need adminAadObjId - but we can enhance this later
+        return res.status(400).send(`
+          <html>
+            <head><title>SOS Response</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2>Error</h2>
+              <p>Please use the admin ID parameter.</p>
+            </body>
+          </html>
+        `);
+      }
+
+      if (!adminInfo) {
+        return res.status(404).send(`
+          <html>
+            <head><title>SOS Response</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2>Error</h2>
+              <p>Admin not found. Please ensure you're using the correct link.</p>
+            </body>
+          </html>
+        `);
+      }
+
+      // Get assistance request info
+      const assistanceQuery = `SELECT user_id, sent_to_ids FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
+      const assistanceData = await db.getDataFromDB(
+        assistanceQuery,
+        adminInfo.user_aadobject_id
+      );
+
+      if (!assistanceData || assistanceData.length === 0) {
+        return res.status(404).send(`
+          <html>
+            <head><title>SOS Response</title></head>
+            <body style="font-family: Arial, sans-serif; padding: 20px;">
+              <h2>Error</h2>
+              <p>SOS request not found.</p>
+            </body>
+          </html>
+        `);
+      }
+
+      // Check if already responded
+      const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
+      const existingResponse = await db.getDataFromDB(
+        checkQuery,
+        adminInfo.user_aadobject_id
+      );
+
+      if (
+        existingResponse &&
+        existingResponse.length > 0 &&
+        existingResponse[0].FIRST_RESPONDER
+      ) {
+        const firstResponderId = existingResponse[0].FIRST_RESPONDER;
+        if (firstResponderId === adminInfo.user_aadobject_id) {
+          return res.send(`
+            <html>
+              <head><title>SOS Response</title></head>
+              <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                <h2 style="color: #28a745;">✓ You are already the first responder for this SOS.</h2>
+                <p>Thank you for your response.</p>
+              </body>
+            </html>
+          `);
+        } else {
+          return res.send(`
+            <html>
+              <head><title>SOS Response</title></head>
+              <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                <h2 style="color: #ffc107;">⚠ Someone else has already responded to this SOS.</h2>
+                <p>Another responder is handling this request.</p>
+              </body>
+            </html>
+          `);
+        }
+      }
+
+      // // Process acceptance - update database
+      // const updateQuery = `UPDATE MSTeamsAssistance SET FIRST_RESPONDER = '${adminInfo.user_aadobject_id}', FIRST_RESPONDER_RESPONDED_AT = GETDATE() WHERE id = ${requestAssistanceid}`;
+      // await db.updateDataIntoDB(updateQuery, adminInfo.user_aadobject_id);
+
+      // Get requester info
+      const requesterQuery = `SELECT user_id, user_name, user_aadobject_id, email FROM MSTeamsTeamsUsers WHERE user_id = '${assistanceData[0].user_id}'`;
+      const requesterInfo = await db.getDataFromDB(
+        requesterQuery,
+        adminInfo.user_aadobject_id
+      );
+      const requester =
+        requesterInfo && requesterInfo.length > 0 ? requesterInfo[0] : null;
+
+      // Get list of other admins/responders who were notified
+      let otherAdminNames = [];
+      if (assistanceData[0].sent_to_ids) {
+        const sendToIds = assistanceData[0].sent_to_ids;
+        // Remove duplicates using Set and filter out current admin
+        const adminUserIds = [
+          ...new Set(
+            sendToIds
+              .split(",")
+              .map((id) => id.trim())
+              .filter((id) => id && id !== "" && id !== adminInfo.user_id)
+          ),
+        ];
+
+        if (adminUserIds.length > 0) {
+          const adminIdsStr = adminUserIds.map((id) => `'${id}'`).join(",");
+          const otherAdminsQuery = `SELECT DISTINCT user_name FROM MSTeamsTeamsUsers WHERE user_id IN (${adminIdsStr})`;
+          const otherAdminsResult = await db.getDataFromDB(
+            otherAdminsQuery,
+            adminInfo.user_aadobject_id
+          );
+          if (otherAdminsResult && otherAdminsResult.length > 0) {
+            // Remove duplicate names using Set
+            otherAdminNames = [
+              ...new Set(
+                otherAdminsResult
+                  .map((admin) => admin.user_name)
+                  .filter((name) => name && name.trim() !== "")
+              ),
+            ];
+          }
+        }
+      }
+
+      // Build notification message
+      let notificationMessage = "You are now the first responder.";
+      if (requester) {
+        if (otherAdminNames.length > 0) {
+          // Format: "requester and the following emergency contacts have been notified: admin1, admin2, and admin3"
+          let contactsList = "";
+          if (otherAdminNames.length === 1) {
+            contactsList = otherAdminNames[0];
+          } else if (otherAdminNames.length === 2) {
+            contactsList = `${otherAdminNames[0]} and ${otherAdminNames[1]}`;
+          } else {
+            const lastAdmin = otherAdminNames[otherAdminNames.length - 1];
+            const otherAdmins = otherAdminNames.slice(0, -1).join(", ");
+            contactsList = `${otherAdmins}, and ${lastAdmin}`;
+          }
+          notificationMessage += ` ${requester.user_name} and the following emergency contacts have been notified: ${contactsList}.`;
+        } else {
+          notificationMessage += ` ${requester.user_name} has been notified.`;
+        }
+      } else if (otherAdminNames.length > 0) {
+        // Fallback if no requester but there are other admins
+        if (otherAdminNames.length === 1) {
+          notificationMessage += ` ${otherAdminNames[0]} has been notified.`;
+        } else if (otherAdminNames.length === 2) {
+          notificationMessage += ` ${otherAdminNames[0]} and ${otherAdminNames[1]} have been notified.`;
+        } else {
+          const lastAdmin = otherAdminNames[otherAdminNames.length - 1];
+          const otherAdmins = otherAdminNames.slice(0, -1).join(", ");
+          notificationMessage += ` ${otherAdmins}, and ${lastAdmin} have been notified.`;
+        }
+      }
+
+      // Import botActivityHandler to use the notification logic
+      const { BotActivityHandler } = require("./bot/botActivityHandler");
+      const botHandler = new BotActivityHandler();
+
+      // Create a mock user object for the handler
+      const mockUser = {
+        id: adminInfo.user_id,
+        name: adminInfo.user_name,
+        aadObjectId: adminInfo.user_aadobject_id,
+      };
+
+      // Call the async handler to send notifications (don't await to return response quickly)
+      botHandler
+        .handleRespondToAssistanceAsync(
+          null, // context (not needed for web)
+          requester ? requester.user_aadobject_id : assistanceData[0].user_id,
+          requestAssistanceid,
+          adminInfo.user_tenant_id,
+          adminInfo.serviceUrl,
+          mockUser
+        )
+        .catch((err) => {
+          console.log("Error in handleRespondToAssistanceAsync:", err);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            adminInfo.user_aadobject_id,
+            "error in /acceptSOS - handleRespondToAssistanceAsync"
+          );
+        });
+
+      // Return success page
+      res.send(`
+        <html>
+          <head>
+            <title>SOS Response Accepted</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="font-family: Arial, sans-serif; padding: 40px; text-align: center; background-color: #f5f5f5;">
+            <div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              <h1 style="color: #28a745; margin-bottom: 20px;">✓ Success!</h1>
+              <h2 style="color: #333; margin-bottom: 20px;">${notificationMessage}</h2>
+            </div>
+          </body>
+        </html>
+      `);
+    } catch (err) {
+      console.log("Error in /acceptSOS:", err);
+      processSafetyBotError(err, "", "", "", "error in /acceptSOS");
+      res.status(500).send(`
+        <html>
+          <head><title>SOS Response Error</title></head>
+          <body style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2 style="color: #dc3545;">Error</h2>
+            <p>An error occurred while processing your response. Please try again or contact support.</p>
+          </body>
+        </html>
+      `);
     }
   });
 
@@ -1319,7 +1575,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         qs.userAadObjId,
         "error in /areyousafetabhandler/checkduplicateInc -> qs.incTitle=" +
-        qs.incTitle
+          qs.incTitle
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -1418,7 +1674,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         req.query.userAadObjId,
         "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-        req.query.incId
+          req.query.incId
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -1466,7 +1722,7 @@ const handlerForSafetyBotTab = (app) => {
           "",
           req.query.userAadObjId,
           "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-          req.query.incId
+            req.query.incId
         );
         res.send({ error: "Error: Please try again" });
       }
@@ -1502,9 +1758,9 @@ const handlerForSafetyBotTab = (app) => {
         userName,
         userId,
         "error in /areyousafetabhandler/contactus -> email=" +
-        email +
-        " msg=" +
-        msg
+          email +
+          " msg=" +
+          msg
       );
       res.send(false);
     }
@@ -1599,9 +1855,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-            incid +
-            " incType=" +
-            incType
+              incid +
+              " incType=" +
+              incType
           );
           res.send(0);
         });
@@ -1612,9 +1868,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-        incid +
-        " incType=" +
-        incType
+          incid +
+          " incType=" +
+          incType
       );
       res.send(0);
     }
@@ -1668,9 +1924,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-            serviceUrl +
-            " teamUserId=" +
-            teamUserId
+              serviceUrl +
+              " teamUserId=" +
+              teamUserId
           );
           res.send(0);
         });
@@ -1681,9 +1937,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-        serviceUrl +
-        " teamUserId=" +
-        teamUserId
+          serviceUrl +
+          " teamUserId=" +
+          teamUserId
       );
       res.send(0);
     }
@@ -1953,10 +2209,10 @@ const handlerForSafetyBotTab = (app) => {
         field.toLowerCase() == "whatsapp"
           ? "send_whatsapp"
           : field.toLowerCase() == "filter"
-            ? "FILTER_ENABLED"
-            : field.toLowerCase() == "null"
-              ? "null"
-              : "send_sms";
+          ? "FILTER_ENABLED"
+          : field.toLowerCase() == "null"
+          ? "null"
+          : "send_sms";
       let config = {
         method: "post",
         maxBodyLength: Infinity,
@@ -1980,7 +2236,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             "Error in Saving AllAdminConsentInfo_IsAppPermissionGranted: " +
-            IsAppPermissionGranted
+              IsAppPermissionGranted
           );
         });
     }
@@ -2063,9 +2319,11 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
-        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
-        }`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -2379,9 +2637,11 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
-        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
-        }`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -2713,7 +2973,7 @@ WHERE
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguageData -> language=" +
-        language
+          language
       );
       res.status(500).json({ error: "Error fetching language data" });
     }
@@ -2796,9 +3056,9 @@ WHERE
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguage -> teamId=" +
-        teamId +
-        " userId=" +
-        userId
+          teamId +
+          " userId=" +
+          userId
       );
       res.status(500).json({ error: "Error fetching selected language" });
     }

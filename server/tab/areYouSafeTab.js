@@ -725,9 +725,16 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         ""
                       );
+                      // Construct accept link - use environment variable or default
+                      const baseUrl =
+                        process.env.BASE_URL ||
+                        process.env.serviceUrl?.replace("/api/messages", "") ||
+                        "http://localhost:3978";
+                      const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
+
                       var twiliosend = await tClient.messages
                         .create({
-                          body: `SOS Alert - ${user.user_name} needs assistance.`,
+                          body: `SOS Alert: ${user.user_name} needs assistance. Accept and respond: ${acceptLink}`,
                           from: "+18023277232",
                           shortenUrls: true,
                           messagingServiceSid:
@@ -802,11 +809,33 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       "",
                       ""
                     );
+                    // Construct accept link for email
+                    const baseUrl =
+                      process.env.BASE_URL ||
+                      process.env.serviceUrl?.replace("/api/messages", "") ||
+                      "http://localhost:3978";
+                    const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
+
+                    const emailBody = `
+                      <div style="font-family: Arial, sans-serif; padding: 20px;">
+                        <h2 style="color: #dc3545;">SOS Alert</h2>
+                        <p><strong>${user.user_name}</strong> needs assistance.</p>
+                        <div style="margin: 30px 0;">
+                          <a href="${acceptLink}" 
+                             style="background-color: #28a745; color: white; padding: 12px 24px; 
+                                    text-decoration: none; border-radius: 4px; display: inline-block; 
+                                    font-weight: bold;">
+                            Accept and respond
+                          </a>
+                        </div>
+                      </div>
+                    `;
+
                     const raw = JSON.stringify({
                       projectName: "AYS",
-                      emailSubject: `Saftey check - SOS`,
+                      emailSubject: `Safety check - SOS`,
 
-                      emailBody: `SOS Alert - ${user.user_name} needs assistance.`,
+                      emailBody: emailBody,
                       emailTo: admins[i].email,
                       emailFrom: "donotreply@safetycheck.in",
                       authkey: "A9fG4dX2pL7qW8mZ",
@@ -905,13 +934,21 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         ""
                       );
-                      let payload = {
+                      // Construct accept link for WhatsApp button
+                      const baseUrl =
+                        process.env.BASE_URL ||
+                        process.env.serviceUrl?.replace("/api/messages", "") ||
+                        "http://localhost:3978";
+                      const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
+
+                      // Send template message first
+                      let templatePayload = {
                         messaging_product: "whatsapp",
                         recipient_type: "individual",
                         to: num,
                         type: "template",
                         template: {
-                          name: "safetycheck_sos",
+                          name: "safetycheck_sos_with_response",
                           language: {
                             code: "en",
                           },
@@ -920,18 +957,31 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                               type: "body",
                               parameters: [
                                 {
-                                  parameter_name: "username",
                                   type: "text",
-                                  text: `${user.user_name}`, // {{1}} - Company Name
+                                  parameter_name: "username",
+                                  text: user.user_name,
+                                },
+                              ],
+                            },
+                            {
+                              type: "button",
+                              sub_type: "quick_reply",
+                              index: "0",
+                              parameters: [
+                                {
+                                  type: "payload",
+                                  payload: `1_SOS`,
                                 },
                               ],
                             },
                           ],
                         },
                       };
+
+                      // Send template message
                       await bot
                         .sendWhatsappMessage(
-                          payload,
+                          templatePayload,
                           admins[i].user_aadobject_id,
                           admins[i]
                         )
