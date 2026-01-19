@@ -201,9 +201,9 @@ class AreYouSafeTab {
         "",
         "",
         "error in sortMembers members=" +
-        JSON.stringify(members) +
-        " incTypeId=" +
-        incTypeId
+          JSON.stringify(members) +
+          " incTypeId=" +
+          incTypeId
       );
     }
     return memberObj;
@@ -298,7 +298,7 @@ class AreYouSafeTab {
                   responsePercentage =
                     Math.round(
                       ((needAssistanceCount + safeCount) * 100) /
-                      inc.members.length
+                        inc.members.length
                     ).toString() + "%";
                 }
               } else {
@@ -390,9 +390,9 @@ class AreYouSafeTab {
         "",
         userObjId,
         "error in getFormatedIncData incData=" +
-        JSON.stringify(incData) +
-        " teamInfo=" +
-        JSON.stringify(teamInfo)
+          JSON.stringify(incData) +
+          " teamInfo=" +
+          JSON.stringify(teamInfo)
       );
     }
     return incFormatedData;
@@ -551,23 +551,23 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             },
             ...(sendonetime == "true"
               ? [
-                {
-                  type: "ActionSet",
-                  actions: [
-                    {
-                      type: "Action.Execute",
-                      title: "Accept and respond",
-                      verb: "respond_to_assistance",
-                      data: {
-                        userAadObjId: userAadObjId,
-                        requestAssistanceid: requestAssistanceid,
-                        tenantId: data[0][0].user_tenant_id,
-                        serviceUrl: data[0][0].serviceUrl,
+                  {
+                    type: "ActionSet",
+                    actions: [
+                      {
+                        type: "Action.Execute",
+                        title: "Accept and respond",
+                        verb: "respond_to_assistance",
+                        data: {
+                          userAadObjId: userAadObjId,
+                          requestAssistanceid: requestAssistanceid,
+                          tenantId: data[0][0].user_tenant_id,
+                          serviceUrl: data[0][0].serviceUrl,
+                        },
                       },
-                    },
-                  ],
-                },
-              ]
+                    ],
+                  },
+                ]
               : []),
             // {
             //   type: "Action.Image",
@@ -948,7 +948,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         to: num,
                         type: "template",
                         template: {
-                          name: "safetycheck_sos_with_response",
+                          name: "safetycheck_sos",
                           language: {
                             code: "en",
                           },
@@ -963,17 +963,17 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                                 },
                               ],
                             },
-                            {
-                              type: "button",
-                              sub_type: "quick_reply",
-                              index: "0",
-                              parameters: [
-                                {
-                                  type: "payload",
-                                  payload: `ACCEPT_SOS_${admins[i].user_aadobject_id}_${requestAssistanceid}`,
-                                },
-                              ],
-                            },
+                            // {
+                            //   type: "button",
+                            //   sub_type: "quick_reply",
+                            //   index: "0",
+                            //   parameters: [
+                            //     {
+                            //       type: "payload",
+                            //       payload: `ACCEPT_SOS_${admins[i].user_aadobject_id}_${requestAssistanceid}`,
+                            //     },
+                            //   ],
+                            // },
                           ],
                         },
                       };
@@ -1114,8 +1114,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 (index == 0
                   ? ""
                   : index == adminsArr.length - 1
-                    ? " and "
-                    : ", ") + usrName;
+                  ? " and "
+                  : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -1133,8 +1133,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                     (currentTeamsAdminsStr === ""
                       ? ""
                       : index == adminsArr.length - 1
-                        ? " and "
-                        : ", ") + usrName;
+                      ? " and "
+                      : ", ") + usrName;
                 }
               });
 
@@ -1658,9 +1658,9 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         createdByUserInfo?.user_name,
         userAadObjId,
         "error in sendSafetyCheckMessage incId=" +
-        incId +
-        " resendSafetyCheck=" +
-        resendSafetyCheck
+          incId +
+          " resendSafetyCheck=" +
+          resendSafetyCheck
       );
       return true;
     } finally {

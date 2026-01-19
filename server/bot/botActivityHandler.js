@@ -131,7 +131,7 @@ class BotActivityHandler extends TeamsActivityHandler {
 
             const userLicenseDetails = await getUserLicenseDetails(
               aadObjectId,
-              companyData.teamId
+              companyData.teamId,
             );
             if (
               userLicenseDetails.userId != null &&
@@ -141,7 +141,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 context,
                 userLicenseDetails,
                 companyData,
-                aadObjectId
+                aadObjectId,
               );
               await next();
               return;
@@ -178,7 +178,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                   const companyDataofSameTenantId =
                     await getCompanyDataByTenantId(
                       companyData.userTenantId,
-                      "and (isUserInfoSaved is null or isUserInfoSaved = 0)"
+                      "and (isUserInfoSaved is null or isUserInfoSaved = 0)",
                     );
                   if (
                     companyDataofSameTenantId != null &&
@@ -189,7 +189,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                         const allTeamMembers =
                           await getAllTeamMembersByConnectorClient(
                             cmpData.team_id,
-                            acvtivityData.serviceUrl
+                            acvtivityData.serviceUrl,
                           );
                         if (
                           allTeamMembers != null &&
@@ -198,18 +198,18 @@ class BotActivityHandler extends TeamsActivityHandler {
                           const isUserInfoSaved = await addTeamMember(
                             cmpData.team_id,
                             allTeamMembers,
-                            false
+                            false,
                           ).isUserInfoSaved;
                           if (isUserInfoSaved) {
                             await updateIsUserInfoSaved(
                               cmpData.id,
                               cmpData.team_id,
                               cmpData.user_tenant_id,
-                              true
+                              true,
                             );
                           }
                         }
-                      })
+                      }),
                     );
                   }
                 }
@@ -221,7 +221,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                  JSON.stringify(context)
+                  JSON.stringify(context),
               );
             }
 
@@ -241,7 +241,7 @@ class BotActivityHandler extends TeamsActivityHandler {
           "",
           "",
           "",
-          "error in onMessageactivity context=" + context
+          "error in onMessageactivity context=" + context,
         );
       }
     });
@@ -317,7 +317,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               context,
               teamId,
               500,
-              continuationToken
+              continuationToken,
             );
             allMembersInfo = allMembersInfo.concat(pagedMembers.members);
             continuationToken = pagedMembers.continuationToken;
@@ -333,14 +333,14 @@ class BotActivityHandler extends TeamsActivityHandler {
             teamMemberCount = allMembersInfo.length;
           }
           const adminUserInfo = allMembersInfo.find(
-            (m) => m.id === acvtivityData.from.id
+            (m) => m.id === acvtivityData.from.id,
           );
           try {
             let selectQuery = `select UserLimit from MSTeamsSubscriptionDetails where ID in (select SubscriptionDetailsId from MSTeamsInstallationDetails where team_id='${teamId}')`;
             let res = await db.getDataFromDB(selectQuery, "");
             var LicenseLimitCard = await this.getLicenseLimitCard(
               allMembersInfo.length,
-              res[0].UserLimit
+              res[0].UserLimit,
             );
             console.log({ res: res });
             var licensecount = res[0].UserLimit;
@@ -358,12 +358,12 @@ class BotActivityHandler extends TeamsActivityHandler {
                     context,
                     adminUserInfo,
                     teamId,
-                    acvtivityData.channelData.team.name
+                    acvtivityData.channelData.team.name,
                   );
                   const companyData = await insertCompanyData(
                     companyDataObj,
                     allMembersInfo,
-                    conversationType
+                    conversationType,
                   );
                   //const newInc = await bot.createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjectId, acvtivityData.from, companyData);
                   await this.sendWelcomeMessage(
@@ -371,7 +371,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                     acvtivityData,
                     adminUserInfo,
                     companyData,
-                    teamMemberCount
+                    teamMemberCount,
                   );
                   if (teamId != null) {
                     incidentService.updateConversationId(teamId);
@@ -382,7 +382,7 @@ class BotActivityHandler extends TeamsActivityHandler {
               }
             } else {
               const teamMember = allMembersInfo.find(
-                (m) => m.id === membersAdded[i].id
+                (m) => m.id === membersAdded[i].id,
               );
               if (teamMember != null) {
                 let teamMembers = [teamMember];
@@ -391,7 +391,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                   context,
                   adminUserInfo,
                   teamId,
-                  acvtivityData.channelData.team.name
+                  acvtivityData.channelData.team.name,
                 );
                 serviceUrl = companyDataObj.serviceUrl;
                 userTenantId = companyDataObj.userTenantId;
@@ -406,20 +406,20 @@ class BotActivityHandler extends TeamsActivityHandler {
                       acvtivityData.from,
                       userEmail,
                       teamId,
-                      companyDataObj
+                      companyDataObj,
                     );
                   }
                 }
                 if (teamMember.aadObjectId != null) {
                   incidentService.updateConversationId(
                     null,
-                    teamMember.aadObjectId
+                    teamMember.aadObjectId,
                   );
                 }
                 if (data.users && data.users.length > 0) {
                   teamMembers = teamMembers.filter((info) => {
                     let usr = data.users.find(
-                      (user) => user.user_id === info.id
+                      (user) => user.user_id === info.id,
                     );
                     return (
                       usr && (!usr.SETUPCOMPLETED || usr.SETUPCOMPLETED == null)
@@ -443,7 +443,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 serviceUrl,
                 userTenantId,
                 null,
-                null
+                null,
               );
             } catch (err) {}
           }
@@ -455,11 +455,11 @@ class BotActivityHandler extends TeamsActivityHandler {
           if (acvtivityData?.channelData?.eventType === "teamDeleted") {
             const isDeleted = await deleteCompanyData(
               teamId,
-              acvtivityData.from.aadObjectId
+              acvtivityData.from.aadObjectId,
             );
             if (isDeleted) {
               await this.sendUninstallationEmail(
-                acvtivityData.from.aadObjectId
+                acvtivityData.from.aadObjectId,
               );
             }
           } else {
@@ -467,11 +467,11 @@ class BotActivityHandler extends TeamsActivityHandler {
             if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
               const isDeleted = await deleteCompanyData(
                 acvtivityData?.channelData?.team.id,
-                acvtivityData.from.aadObjectId
+                acvtivityData.from.aadObjectId,
               );
               if (isDeleted) {
                 await this.sendUninstallationEmail(
-                  acvtivityData.from.aadObjectId
+                  acvtivityData.from.aadObjectId,
                 );
               }
             } else {
@@ -497,14 +497,14 @@ class BotActivityHandler extends TeamsActivityHandler {
                 // retrive user info who installed the app
                 const adminUserInfo = await TeamsInfo.getMember(
                   context,
-                  acvtivityData.from.id
+                  acvtivityData.from.id,
                 );
                 if (adminUserInfo) {
                   const companyDataObj = getCompaniesDataJSON(
                     context,
                     adminUserInfo,
                     "",
-                    ""
+                    "",
                   );
                   // const companyData = await insertCompanyData(
                   //   companyDataObj,
@@ -516,14 +516,14 @@ class BotActivityHandler extends TeamsActivityHandler {
 
                   ({ isInstalledInTeam } =
                     await incidentService.isBotInstalledInTeam(
-                      userAadObjectId
+                      userAadObjectId,
                     ));
 
                   try {
                     const companyDataofSameTenantId =
                       await getCompanyDataByTenantId(
                         acvtivityData.channelData.tenant.id,
-                        `and AVAILABLE_FOR='Tenant'`
+                        `and AVAILABLE_FOR='Tenant'`,
                       );
                     console.log({ isInstalledInTeam: isInstalledInTeam });
                     if (companyDataofSameTenantId.length > 0) {
@@ -594,7 +594,7 @@ WHEN NOT MATCHED THEN
 `;
 
                           await insertData(sql);
-                        })
+                        }),
                       );
                       if (teamname != "") {
                         const welcomeMessageCard =
@@ -602,7 +602,7 @@ WHEN NOT MATCHED THEN
                         await sendDirectMessageCard(
                           context,
                           acvtivityData.from,
-                          welcomeMessageCard
+                          welcomeMessageCard,
                         );
                       }
                     } else {
@@ -615,7 +615,7 @@ WHEN NOT MATCHED THEN
                       "",
                       "",
                       "error in onMessage - personal context=" +
-                        JSON.stringify(context)
+                        JSON.stringify(context),
                     );
                   }
 
@@ -656,7 +656,7 @@ WHEN NOT MATCHED THEN
             teamId,
             "",
             userAadObjectId,
-            "error in onConversationUpdate +" + JSON.stringify(acvtivityData)
+            "error in onConversationUpdate +" + JSON.stringify(acvtivityData),
           );
       }
     });
@@ -735,7 +735,7 @@ WHEN NOT MATCHED THEN
     context,
     userLicenseDetails,
     companyData,
-    userAadObjId
+    userAadObjId,
   ) {
     try {
       const { userName, userId, adminUsrId, adminUsrName, teamName } =
@@ -802,7 +802,7 @@ WHEN NOT MATCHED THEN
         "",
         "",
         userAadObjId,
-        "notifyUserForInvalidLicense"
+        "notifyUserForInvalidLicense",
       );
     }
   }
@@ -823,7 +823,7 @@ WHEN NOT MATCHED THEN
         "",
         "",
         "",
-        "onInstallationUpdateActivity context=" + context
+        "onInstallationUpdateActivity context=" + context,
       );
     }
   }
@@ -858,7 +858,7 @@ WHEN NOT MATCHED THEN
         const user = context.activity.from;
         const isDuplicateInc = await bot.verifyDuplicateInc(
           companyData.teamId,
-          incTitle
+          incTitle,
         );
         if (isDuplicateInc) {
           await bot.showDuplicateIncError(context, user, companyData);
@@ -874,7 +874,7 @@ WHEN NOT MATCHED THEN
         let recurrInc = uVerb === "save_new_recurr_inc" ? "recurring " : "";
         let text = `✔️ New ${recurrInc}incident '${incTitle}' created successfully.`;
         const cards = CardFactory.adaptiveCard(
-          updateCard(incTitle, members, text)
+          updateCard(incTitle, members, text),
         );
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
@@ -894,7 +894,7 @@ WHEN NOT MATCHED THEN
         }
         let text = `Hello! You do not have any incident running at the moment!!!`;
         const cards = CardFactory.adaptiveCard(
-          updateCard(incTitle, members, text)
+          updateCard(incTitle, members, text),
         );
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
@@ -927,7 +927,7 @@ WHEN NOT MATCHED THEN
           requestAssistanceid,
           tenantId,
           serviceUrl,
-          user
+          user,
         ).catch((error) => {
           console.log("Error in async respond_to_assistance handler:", error);
           processSafetyBotError(
@@ -936,7 +936,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-              requestAssistanceid
+              requestAssistanceid,
           );
         });
 
@@ -963,7 +963,7 @@ WHEN NOT MATCHED THEN
           ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
           : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
         const cards = CardFactory.adaptiveCard(
-          updateSubmitCommentCard(responseText, incCreatedBy, incGuidance)
+          updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),
         );
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
@@ -971,7 +971,7 @@ WHEN NOT MATCHED THEN
       } else if (uVerb === "submit_contact_us") {
         let responseText = `✔️ Your feedback has been submitted successfully.`;
         const cards = CardFactory.adaptiveCard(
-          updateContactSubmitCard(responseText)
+          updateContactSubmitCard(responseText),
         );
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
@@ -992,8 +992,8 @@ WHEN NOT MATCHED THEN
               incId,
               companyData,
               inc,
-              incGuidance
-            )
+              incGuidance,
+            ),
           );
           await context.sendActivity({
             attachments: [Qestion2],
@@ -1016,8 +1016,8 @@ WHEN NOT MATCHED THEN
               incId,
               companyData,
               inc,
-              incGuidance
-            )
+              incGuidance,
+            ),
           );
           await context.sendActivity({
             attachments: [Qestion3],
@@ -1041,7 +1041,7 @@ WHEN NOT MATCHED THEN
           ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
           : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`;
         const cards = CardFactory.adaptiveCard(
-          updateSubmitCommentCard(responseText, incCreatedBy, incGuidance)
+          updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),
         );
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
@@ -1052,7 +1052,7 @@ WHEN NOT MATCHED THEN
         const { info: response, inc, companyData } = action.data;
         const { incId, incTitle, incCreatedBy } = inc;
         log.addLog(
-          `After Click On Im_Safte or need assistance start.:${incId} `
+          `After Click On Im_Safte or need assistance start.:${incId} `,
         );
         const incStatusId = await incidentService.getIncStatus(incId);
         if (incStatusId == -1 || incStatusId == 2) {
@@ -1080,10 +1080,10 @@ WHEN NOT MATCHED THEN
           context,
           context.activity.from,
           responseText,
-          entities
+          entities,
         );
         log.addLog(
-          "After Click On Im_Safte or need assistance  Text message Send successfully. "
+          "After Click On Im_Safte or need assistance  Text message Send successfully. ",
         );
         var incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance; //? incGuidance : "No details available";
@@ -1097,18 +1097,18 @@ WHEN NOT MATCHED THEN
             incId,
             companyData,
             inc,
-            incGuidance
-          )
+            incGuidance,
+          ),
         );
         await context.sendActivity({
           attachments: [cards],
         });
         log.addLog(
-          "After Click On Im_Safte or need assistance comment section card Send successfully. "
+          "After Click On Im_Safte or need assistance comment section card Send successfully. ",
         );
         if (companyData.EnableSafetycheckForVisitors == true) {
           log.addLog(
-            "In setting EnableSafetycheckForVisitors is true card sending"
+            "In setting EnableSafetycheckForVisitors is true card sending",
           );
           const Qestion1 = CardFactory.adaptiveCard(
             updateSafeMessageqestion1(
@@ -1120,14 +1120,14 @@ WHEN NOT MATCHED THEN
               incId,
               companyData,
               inc,
-              incGuidance
-            )
+              incGuidance,
+            ),
           );
           await context.sendActivity({
             attachments: [Qestion1],
           });
           log.addLog(
-            "In setting EnableSafetycheckForVisitors is true card sending successsfully"
+            "In setting EnableSafetycheckForVisitors is true card sending successsfully",
           );
         }
         // const message = MessageFactory.attachment(cards);
@@ -1163,8 +1163,8 @@ WHEN NOT MATCHED THEN
             isRecurringInc,
             action.data.safetyCheckMessageText,
             action.data.mentionUserEntities,
-            action.data.guidance
-          )
+            action.data.guidance,
+          ),
         );
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
@@ -1179,7 +1179,7 @@ WHEN NOT MATCHED THEN
         const action = context.activity.value.action;
         const { companyData, teamMemberCount } = action.data;
         const cards = CardFactory.adaptiveCard(
-          getTestIncPreviewCard(teamMemberCount, companyData)
+          getTestIncPreviewCard(teamMemberCount, companyData),
         );
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
@@ -1221,7 +1221,7 @@ WHEN NOT MATCHED THEN
     requestAssistanceid,
     tenantId,
     serviceUrl,
-    user
+    user,
   ) {
     try {
       // Check if anyone has already responded to this request
@@ -1229,9 +1229,8 @@ WHEN NOT MATCHED THEN
       const existingResponse = await db.getDataFromDB(checkQuery, userAadObjId);
 
       // Get user info for the requester
-      const userInfo = await incidentService.getUserInfoByUserAadObjId(
-        userAadObjId
-      );
+      const userInfo =
+        await incidentService.getUserInfoByUserAadObjId(userAadObjId);
       if (!userInfo || userInfo.length === 0) {
         // Send error message to admin using proactive messaging
         const adminMemberArr = [
@@ -1260,7 +1259,7 @@ WHEN NOT MATCHED THEN
           serviceUrl,
           tenantId,
           null,
-          user.aadObjectId
+          user.aadObjectId,
         );
         return;
       }
@@ -1295,7 +1294,7 @@ WHEN NOT MATCHED THEN
           serviceUrl || "https://smba.trafficmanager.net/amer/",
           tenantId || user.aadObjectId,
           null,
-          user.aadObjectId
+          user.aadObjectId,
         );
         return;
       }
@@ -1321,7 +1320,7 @@ WHEN NOT MATCHED THEN
         const firstResponderQuery = `SELECT user_id, user_name FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${firstResponderUserId}'`;
         const firstResponderResult = await db.getDataFromDB(
           firstResponderQuery,
-          userAadObjId
+          userAadObjId,
         );
 
         let firstResponderName = "Someone";
@@ -1361,7 +1360,7 @@ WHEN NOT MATCHED THEN
             serviceUrl,
             tenantId,
             null,
-            user.aadObjectId
+            user.aadObjectId,
           );
         } else {
           // Create mention entities for the first responder
@@ -1369,14 +1368,14 @@ WHEN NOT MATCHED THEN
           dashboard.mentionUser(
             firstResponderMentionEntities,
             firstResponderUserId_db,
-            firstResponderName
+            firstResponderName,
           );
 
           // Add mention entities for the requester
           dashboard.mentionUser(
             firstResponderMentionEntities,
             requesterUser.user_id,
-            requesterUser.user_name
+            requesterUser.user_name,
           );
 
           const alreadyHandledCard = {
@@ -1403,7 +1402,7 @@ WHEN NOT MATCHED THEN
             serviceUrl,
             tenantId,
             null,
-            user.aadObjectId
+            user.aadObjectId,
           );
         }
       } else {
@@ -1437,7 +1436,7 @@ WHEN NOT MATCHED THEN
           serviceUrl,
           tenantId,
           null,
-          user.id
+          user.id,
         );
 
         // Get all admins from MSTeamsAssistance and send them notification
@@ -1447,7 +1446,7 @@ WHEN NOT MATCHED THEN
           const assistanceQuery = `SELECT sent_to_ids FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
           const assistanceData = await db.getDataFromDB(
             assistanceQuery,
-            userAadObjId
+            userAadObjId,
           );
 
           if (
@@ -1507,7 +1506,7 @@ WHERE rn = 1;
                 dashboard.mentionUser(
                   adminMentionEntities,
                   requesterUser.user_id,
-                  requesterUser.user_name
+                  requesterUser.user_name,
                 );
 
                 // Create message card for admins
@@ -1555,7 +1554,7 @@ WHERE rn = 1;
                     admin.serviceUrl,
                     admin.user_tenant_id,
                     null,
-                    user.id
+                    user.id,
                   );
                 }
               }
@@ -1572,7 +1571,7 @@ WHERE rn = 1;
         dashboard.mentionUser(
           acknowledgmentMentionEntities,
           requesterUser.user_id,
-          requesterUser.user_name
+          requesterUser.user_name,
         );
 
         // Add mention entities for other admins
@@ -1580,7 +1579,7 @@ WHERE rn = 1;
           dashboard.mentionUser(
             acknowledgmentMentionEntities,
             otherAdmin.id,
-            otherAdmin.name
+            otherAdmin.name,
           );
         }
 
@@ -1593,7 +1592,7 @@ WHERE rn = 1;
           const responderEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${user.aadObjectId}'`;
           const responderEmailResult = await db.getDataFromDB(
             responderEmailQuery,
-            userAadObjId
+            userAadObjId,
           );
           if (responderEmailResult && responderEmailResult.length > 0) {
             responderEmail = responderEmailResult[0].email;
@@ -1608,7 +1607,7 @@ WHERE rn = 1;
             const requesterEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${requesterUser.user_aadobject_id}'`;
             const requesterEmailResult = await db.getDataFromDB(
               requesterEmailQuery,
-              userAadObjId
+              userAadObjId,
             );
             if (requesterEmailResult && requesterEmailResult.length > 0) {
               requesterEmail = requesterEmailResult[0].email;
@@ -1622,7 +1621,7 @@ WHERE rn = 1;
         let chatUrl = "";
         if (responderEmail && requesterEmail) {
           chatUrl = `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(
-            responderEmail
+            responderEmail,
           )},${encodeURIComponent(requesterEmail)}`;
         } else {
           // Fallback to aadObjectId if emails are not available
@@ -1633,7 +1632,7 @@ WHERE rn = 1;
         let callUrl = "";
         if (responderEmail && requesterEmail) {
           callUrl = `https://teams.microsoft.com/l/call/0/0?users=${encodeURIComponent(
-            responderEmail
+            responderEmail,
           )},${encodeURIComponent(requesterEmail)}`;
         } else {
           // Fallback to aadObjectId if emails are not available
@@ -1700,7 +1699,7 @@ WHERE rn = 1;
           serviceUrl,
           tenantId,
           null,
-          user.aadObjectId
+          user.aadObjectId,
         );
 
         // Send SMS/WhatsApp/Email notifications to all parties
@@ -1729,7 +1728,7 @@ WHERE rn = 1;
           `;
           const requesterTeamsResult = await db.getDataFromDB(
             requesterTeamsQuery,
-            userAadObjId
+            userAadObjId,
           );
           const requesterTeams =
             requesterTeamsResult && requesterTeamsResult.length > 0
@@ -1790,15 +1789,15 @@ WHERE rn = 1;
             requesterTeams.length > 0
               ? requesterTeams[0]
               : fallbackCompanyData
-              ? fallbackCompanyData
-              : null;
+                ? fallbackCompanyData
+                : null;
           if (firstTeam || fallbackCompanyData) {
             const companyDataToUse = firstTeam || fallbackCompanyData;
             const userAadObjIds = usersToNotify.map((u) => u.user_aadobject_id);
             const usrPhones = await bot.getUserPhone(
               companyDataToUse.IS_APP_PERMISSION_GRANTED,
               companyDataToUse.user_tenant_id,
-              userAadObjIds
+              userAadObjIds,
             );
 
             // Check ALL requester teams to see if ANY team has features enabled
@@ -1853,7 +1852,7 @@ WHERE rn = 1;
             // Send notifications to each user based on enabled features
             for (const userToNotify of usersToNotify) {
               const userPhone = usrPhones.find(
-                (ph) => ph.id === userToNotify.user_aadobject_id
+                (ph) => ph.id === userToNotify.user_aadobject_id,
               );
 
               // Determine message based on user role
@@ -1898,7 +1897,7 @@ WHERE rn = 1;
                       "",
                       "",
                       notificationMessage,
-                      ""
+                      "",
                     );
                   } catch (smsErr) {
                     console.log("Error sending SMS notification:", smsErr);
@@ -1913,7 +1912,7 @@ WHERE rn = 1;
                       "",
                       "",
                       notificationMessage,
-                      JSON.stringify(smsErr.message)
+                      JSON.stringify(smsErr.message),
                     );
                   }
                 }
@@ -1941,7 +1940,7 @@ WHERE rn = 1;
                     await bot.sendWhatsappMessage(
                       payload,
                       userToNotify.user_aadobject_id,
-                      whatsappTeamData
+                      whatsappTeamData,
                     );
 
                     incidentService.saveAllTypeQuerylogs(
@@ -1955,7 +1954,7 @@ WHERE rn = 1;
                       "",
                       "",
                       notificationMessage,
-                      ""
+                      "",
                     );
                   } catch (waErr) {
                     console.log("Error sending WhatsApp notification:", waErr);
@@ -1970,7 +1969,7 @@ WHERE rn = 1;
                       "",
                       "",
                       notificationMessage,
-                      JSON.stringify(waErr.message)
+                      JSON.stringify(waErr.message),
                     );
                   }
                 }
@@ -1982,7 +1981,7 @@ WHERE rn = 1;
                   const userEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${userToNotify.user_aadobject_id}'`;
                   const userEmailResult = await db.getDataFromDB(
                     userEmailQuery,
-                    userAadObjId
+                    userAadObjId,
                   );
                   const userEmail =
                     userEmailResult && userEmailResult.length > 0
@@ -2013,7 +2012,7 @@ WHERE rn = 1;
                     await axios.post(
                       "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
                       emailData,
-                      { headers: myHeaders }
+                      { headers: myHeaders },
                     );
 
                     incidentService.saveAllTypeQuerylogs(
@@ -2027,7 +2026,7 @@ WHERE rn = 1;
                       "",
                       "",
                       notificationMessage,
-                      ""
+                      "",
                     );
                   }
                 } catch (emailErr) {
@@ -2043,7 +2042,7 @@ WHERE rn = 1;
                     "",
                     "",
                     notificationMessage,
-                    JSON.stringify(emailErr.message)
+                    JSON.stringify(emailErr.message),
                   );
                 }
               }
@@ -2052,7 +2051,7 @@ WHERE rn = 1;
         } catch (notificationError) {
           console.log(
             "Error sending SMS/WhatsApp/Email notifications:",
-            notificationError
+            notificationError,
           );
           // Don't fail the whole operation if notification fails
         }
@@ -2087,7 +2086,7 @@ WHERE rn = 1;
           serviceUrl || "https://smba.trafficmanager.net/amer/",
           tenantId || user.aadObjectId,
           null,
-          user.aadObjectId
+          user.aadObjectId,
         );
       } catch (sendError) {
         console.log("Error sending error message:", sendError);
@@ -2098,7 +2097,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-          requestAssistanceid
+          requestAssistanceid,
       );
     }
   }
@@ -2128,7 +2127,7 @@ WHERE rn = 1;
         "error in hanldeAdminOrSuperUserMsg context=" +
           JSON.stringify(context) +
           " companyData=" +
-          JSON.stringify(companyData)
+          JSON.stringify(companyData),
       );
     }
   }
@@ -2186,7 +2185,7 @@ WHERE rn = 1;
         JSON.stringify({
           fnName: "hanldeNonAdminUserMsg",
           userLicenseDetails: userLicenseDetails,
-        })
+        }),
       );
     }
   }
@@ -2194,8 +2193,8 @@ WHERE rn = 1;
     try {
       await context.sendActivity(
         MessageFactory.text(
-          `👋 Hello!! I can surely help with this via direct message. Please send me a "Hi" in a direct message.`
-        )
+          `👋 Hello!! I can surely help with this via direct message. Please send me a "Hi" in a direct message.`,
+        ),
       );
     } catch (err) {
       console.log(err);
@@ -2204,7 +2203,7 @@ WHERE rn = 1;
         "",
         "",
         "",
-        "error in hanldeChannelUserMsg context=" + JSON.stringify(context)
+        "error in hanldeChannelUserMsg context=" + JSON.stringify(context),
       );
     }
   }
@@ -2214,13 +2213,13 @@ WHERE rn = 1;
     from,
     teamMemberCount,
     userEmail,
-    companyDataObj
+    companyDataObj,
   ) {
     try {
       const subcriptionSelectionCard = getSubcriptionSelectionCard(
         teamMemberCount,
         userEmail,
-        companyDataObj
+        companyDataObj,
       );
       await sendDirectMessageCard(context, from, subcriptionSelectionCard);
     } catch (err) {
@@ -2234,7 +2233,7 @@ WHERE rn = 1;
           " userEmail=" +
           userEmail +
           " companyDataObj=" +
-          JSON.stringify(companyDataObj)
+          JSON.stringify(companyDataObj),
       );
     }
   }
@@ -2244,13 +2243,13 @@ WHERE rn = 1;
     from,
     userEmail,
     teamId,
-    companyDataObj
+    companyDataObj,
   ) {
     try {
       const teamMemberCount =
         await incidentService.getMembersCountForSubscriptionType1(
           teamId,
-          from.aadObjectId
+          from.aadObjectId,
         );
       console.log({ teamMemberCount });
       if (teamMemberCount > 10) {
@@ -2259,7 +2258,7 @@ WHERE rn = 1;
           from,
           teamMemberCount,
           userEmail,
-          companyDataObj
+          companyDataObj,
         );
       }
     } catch (err) {
@@ -2268,7 +2267,7 @@ WHERE rn = 1;
         "",
         "",
         from.aadObjectId,
-        "onMemberAddedSendSubscriptionSelectionCard"
+        "onMemberAddedSendSubscriptionSelectionCard",
       );
     }
   }
@@ -2276,10 +2275,10 @@ WHERE rn = 1;
   async sendWelcomeMessageToChannel(context, userName, userId) {
     const wecomeMessageCardForChannelCard = getWelcomeMessageCardForChannel(
       userName,
-      userId
+      userId,
     );
     const adaptiveCard = CardFactory.adaptiveCard(
-      wecomeMessageCardForChannelCard
+      wecomeMessageCardForChannelCard,
     );
     await context.sendActivity({
       attachments: [adaptiveCard],
@@ -2291,7 +2290,7 @@ WHERE rn = 1;
     acvtivityData,
     adminUserInfo,
     companyData,
-    teamMemberCount = 0
+    teamMemberCount = 0,
   ) {
     const userAadObjId = acvtivityData.from.aadObjectId;
     try {
@@ -2308,34 +2307,34 @@ WHERE rn = 1;
           await this.sendWelcomeMessageToChannel(
             context,
             companyData.userName,
-            companyData.userId
+            companyData.userId,
           );
         }
         const welcomeMessageCard = getWelcomeMessageCard(
           teamMemberCount,
-          teamName
+          teamName,
         );
         const welcomeMessageCard2 = getWelcomeMessageCard2(
           teamMemberCount,
-          teamName
+          teamName,
         );
         if (teamMemberCount > 0) {
           const testIncPreviewCard = getTestIncPreviewCard(
             teamMemberCount,
-            companyData
+            companyData,
           );
           await sendMultipleDirectMessageCard(
             context,
             acvtivityData.from,
             welcomeMessageCard,
             welcomeMessageCard2,
-            testIncPreviewCard
+            testIncPreviewCard,
           );
         } else {
           await sendDirectMessageCard(
             context,
             acvtivityData.from,
-            welcomeMessageCard
+            welcomeMessageCard,
           );
         }
       } catch (err) {
@@ -2344,7 +2343,7 @@ WHERE rn = 1;
           "",
           acvtivityData.from.name,
           userAadObjId,
-          "error in welcomeMessageCard"
+          "error in welcomeMessageCard",
         );
       }
 
@@ -2361,7 +2360,7 @@ WHERE rn = 1;
           acvtivityData.from,
           teamMemberCount,
           companyData.userEmail,
-          companyData
+          companyData,
         );
       }
 
@@ -2373,7 +2372,7 @@ WHERE rn = 1;
       await bot.sendInstallationEmail(
         adminUserInfo.email,
         adminUserInfo.name,
-        teamName
+        teamName,
       );
       //}
     } catch (err) {
@@ -2382,7 +2381,7 @@ WHERE rn = 1;
         "",
         acvtivityData.from.name,
         userAadObjId,
-        "error in sendWelcomeMessage context=" + JSON.stringify(context)
+        "error in sendWelcomeMessage context=" + JSON.stringify(context),
       );
     }
   }
