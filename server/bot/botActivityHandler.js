@@ -221,7 +221,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                  JSON.stringify(context),
+                JSON.stringify(context),
               );
             }
 
@@ -245,7 +245,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         );
       }
     });
-    const insertData = async (sqlInsertQuery) => {
+    const insertData = async (sqlInsertQuery, userAadObjectId = "", teamId = "", contextInfo = "") => {
       let result = null;
       if (sqlInsertQuery != null) {
         try {
@@ -254,6 +254,14 @@ class BotActivityHandler extends TeamsActivityHandler {
           result = await pool.request().query(sqlInsertQuery);
         } catch (err) {
           console.log(err);
+          processSafetyBotError(
+            err,
+            teamId,
+            "",
+            userAadObjectId,
+            "error in insertData - " + contextInfo + " sqlQuery=" + (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
+          );
+          throw err;
         }
       }
       return result;
@@ -304,10 +312,6 @@ class BotActivityHandler extends TeamsActivityHandler {
           acvtivityData?.channelData?.eventType === "teamMemberAdded"
         ) {
           const { membersAdded } = acvtivityData;
-          // const allMembersInfo = await TeamsInfo.getTeamMembers(
-          //   context,
-          //   teamId
-          // );
           let allMembersInfo = [];
           let continuationToken;
           let serviceUrl = "";
@@ -342,7 +346,6 @@ class BotActivityHandler extends TeamsActivityHandler {
               allMembersInfo.length,
               res[0].UserLimit,
             );
-            console.log({ res: res });
             var licensecount = res[0].UserLimit;
           } catch (err) {
             console.log({ err: err });
@@ -365,20 +368,68 @@ class BotActivityHandler extends TeamsActivityHandler {
                     allMembersInfo,
                     conversationType,
                   );
+
+                  // Verify company data was inserted successfully
+                  if (!companyData) {
+                    const insertError = new Error(
+                      `Company data was not inserted for team ${teamId} in team scope`,
+                    );
+                    processSafetyBotError(
+                      insertError,
+                      teamId,
+                      adminUserInfo.name,
+                      userAadObjectId,
+                      `insertCompanyData returned null in team scope - teamId: ${teamId}, teamName: ${acvtivityData.channelData.team.name}`,
+                    );
+                    throw insertError;
+                  }
+
                   //const newInc = await bot.createTestIncident(context, adminUserInfo.id, adminUserInfo.name, allMembersInfo, teamId, userAadObjectId, acvtivityData.from, companyData);
-                  await this.sendWelcomeMessage(
-                    context,
-                    acvtivityData,
-                    adminUserInfo,
-                    companyData,
-                    teamMemberCount,
-                  );
+                  try {
+                    await this.sendWelcomeMessage(
+                      context,
+                      acvtivityData,
+                      adminUserInfo,
+                      companyData,
+                      teamMemberCount,
+                    );
+                  } catch (welcomeErr) {
+                    processSafetyBotError(
+                      welcomeErr,
+                      teamId,
+                      adminUserInfo.name,
+                      userAadObjectId,
+                      `error sending welcome message in team scope - teamId: ${teamId}`,
+                    );
+                    // Don't throw - continue with other operations
+                  }
+
                   if (teamId != null) {
-                    incidentService.updateConversationId(teamId);
+                    try {
+                      incidentService.updateConversationId(teamId);
+                    } catch (convErr) {
+                      processSafetyBotError(
+                        convErr,
+                        teamId,
+                        adminUserInfo.name,
+                        userAadObjectId,
+                        `error updating conversation ID in team scope - teamId: ${teamId}`,
+                      );
+                      // Don't throw - non-critical operation
+                    }
                   }
                 }
               } catch (err) {
                 console.log(err);
+                processSafetyBotError(
+                  err,
+                  teamId,
+                  adminUserInfo?.name || "",
+                  userAadObjectId,
+                  `error in onConversationUpdate - team scope - teamId: ${teamId}, eventType: teamMemberAdded`,
+                );
+                // Re-throw to ensure error is propagated
+                throw err;
               }
             } else {
               const teamMember = allMembersInfo.find(
@@ -445,7 +496,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 null,
                 null,
               );
-            } catch (err) {}
+            } catch (err) { }
           }
         } else if (
           (acvtivityData &&
@@ -514,25 +565,28 @@ class BotActivityHandler extends TeamsActivityHandler {
                   var teamname = "none";
                   var isInstalledInTeam = true;
 
-                  ({ isInstalledInTeam } =
-                    await incidentService.isBotInstalledInTeam(
-                      userAadObjectId,
-                    ));
-
                   try {
-                    const companyDataofSameTenantId =
-                      await getCompanyDataByTenantId(
+                    // Parallelize independent operations to minimize delay
+                    const [isInstalledResult, companyDataofSameTenantId] = await Promise.all([
+                      incidentService.isBotInstalledInTeam(userAadObjectId),
+                      getCompanyDataByTenantId(
                         acvtivityData.channelData.tenant.id,
                         `and AVAILABLE_FOR='Tenant'`,
-                      );
+                      ),
+                    ]);
+
+                    ({ isInstalledInTeam } = isInstalledResult);
                     console.log({ isInstalledInTeam: isInstalledInTeam });
+
                     if (companyDataofSameTenantId.length > 0) {
+                      // Insert user data for all teams in parallel
                       await Promise.all(
                         companyDataofSameTenantId.map(async (cmpData) => {
-                          console.log({ cmpData });
-                          teamname = cmpData.team_name;
+                          try {
+                            console.log({ cmpData });
+                            teamname = cmpData.team_name;
 
-                          var sql = `
+                            var sql = `
 DECLARE @userLimit INT, @licensedUsed INT;
 
 -- Get license info
@@ -574,9 +628,8 @@ USING (VALUES
 (
     team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense
 )
-ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${
-                            cmpData.team_id
-                          }'
+ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${cmpData.team_id
+                              }'
 WHEN MATCHED THEN
     UPDATE SET 
         user_id = source.user_id,
@@ -593,30 +646,80 @@ WHEN NOT MATCHED THEN
     VALUES (source.team_id, source.user_aadobject_id, source.user_id, source.user_name, source.tenantid, source.userRole, source.conversationId, source.email, source.hasLicense);
 `;
 
-                          await insertData(sql);
+                            await insertData(
+                              sql,
+                              userAadObjectId,
+                              cmpData.team_id,
+                              `personal scope - team_id: ${cmpData.team_id}`,
+                            );
+                          } catch (err) {
+                            processSafetyBotError(
+                              err,
+                              cmpData.team_id,
+                              adminUserInfo.name,
+                              userAadObjectId,
+                              `error inserting user data in personal scope - team_id: ${cmpData.team_id}, team_name: ${cmpData.team_name}`,
+                            );
+                            throw err;
+                          }
                         }),
                       );
-                      if (teamname != "") {
-                        const welcomeMessageCard =
-                          await getWelcomeMessageCardformpersonal(teamname);
-                        await sendDirectMessageCard(
-                          context,
-                          acvtivityData.from,
-                          welcomeMessageCard,
-                        );
+
+                      // Send welcome message asynchronously (fire-and-forget to minimize delay)
+                      if (teamname != "" && teamname !== "none") {
+                        (async () => {
+                          try {
+                            const welcomeMessageCard =
+                              await getWelcomeMessageCardformpersonal(teamname);
+                            await sendDirectMessageCard(
+                              context,
+                              acvtivityData.from,
+                              welcomeMessageCard,
+                            );
+                          } catch (welcomeErr) {
+                            processSafetyBotError(
+                              welcomeErr,
+                              "",
+                              adminUserInfo.name,
+                              userAadObjectId,
+                              `error sending welcome message in personal scope - teamname: ${teamname}`,
+                            );
+                          }
+                        })();
                       }
                     } else {
-                      bot.sendIntroductionMessage(context, acvtivityData.from);
+                      // Send introduction message asynchronously to minimize delay
+                      (async () => {
+                        try {
+                          await bot.sendIntroductionMessage(
+                            context,
+                            acvtivityData.from,
+                          );
+                        } catch (introErr) {
+                          processSafetyBotError(
+                            introErr,
+                            "",
+                            adminUserInfo.name,
+                            userAadObjectId,
+                            "error sending introduction message in personal scope",
+                          );
+                        }
+                      })();
                     }
                   } catch (err) {
                     processSafetyBotError(
                       err,
                       "",
-                      "",
-                      "",
-                      "error in onMessage - personal context=" +
-                        JSON.stringify(context),
+                      adminUserInfo?.name || "",
+                      userAadObjectId,
+                      "error in onConversationUpdate - personal scope context=" +
+                      JSON.stringify({
+                        conversationType: conversationType,
+                        userAadObjectId: userAadObjectId,
+                        tenantId: acvtivityData.channelData?.tenant?.id,
+                      }),
                     );
+                    throw err;
                   }
 
                   // await this.sendWelcomeMessage(
@@ -936,7 +1039,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-              requestAssistanceid,
+            requestAssistanceid,
           );
         });
 
@@ -2097,7 +2200,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-          requestAssistanceid,
+        requestAssistanceid,
       );
     }
   }
@@ -2125,9 +2228,9 @@ WHERE rn = 1;
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-          JSON.stringify(context) +
-          " companyData=" +
-          JSON.stringify(companyData),
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData),
       );
     }
   }
@@ -2229,11 +2332,11 @@ WHERE rn = 1;
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-          JSON.stringify(context) +
-          " userEmail=" +
-          userEmail +
-          " companyDataObj=" +
-          JSON.stringify(companyDataObj),
+        JSON.stringify(context) +
+        " userEmail=" +
+        userEmail +
+        " companyDataObj=" +
+        JSON.stringify(companyDataObj),
       );
     }
   }
@@ -2349,7 +2452,7 @@ WHERE rn = 1;
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => {})
+        .then(() => { })
         .catch((err) => {
           console.log(err);
         });
