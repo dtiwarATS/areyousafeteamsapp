@@ -534,34 +534,149 @@ class BotActivityHandler extends TeamsActivityHandler {
         } else if (teamId == null && acvtivityData) {
           if (acvtivityData.conversation.conversationType === "personal") {
             const userAadObjectId = acvtivityData.from.aadObjectId;
+
+            // Diagnostic email: Entry into personal scope
+            try {
+              processSafetyBotError(
+                new Error("DIAGNOSTIC: Entered personal scope"),
+                "",
+                acvtivityData.from?.name || "",
+                userAadObjectId,
+                JSON.stringify({
+                  step: "personal_scope_entry",
+                  userAadObjectId: userAadObjectId,
+                  conversationType: acvtivityData.conversation.conversationType,
+                  tenantId: acvtivityData.channelData?.tenant?.id,
+                  conversationId: acvtivityData.conversation?.id,
+                  fromId: acvtivityData.from?.id,
+                  fromName: acvtivityData.from?.name,
+                  serviceUrl: acvtivityData.serviceUrl,
+                  activityTimestamp: acvtivityData.timestamp,
+                }),
+              );
+            }
+            catch (err) {
+              console.log({ err: err });
+            }
             let userData = await getUserById(userAadObjectId);
+
+            // Diagnostic email: After getUserById check
+            try {
+              processSafetyBotError(
+                new Error(`DIAGNOSTIC: getUserById check completed - user exists: ${userData != null && userData.length > 0}`),
+                "",
+                acvtivityData.from?.name || "",
+                userAadObjectId,
+                JSON.stringify({
+                  step: "user_existence_check",
+                  userAadObjectId: userAadObjectId,
+                  userExists: userData != null && userData.length > 0,
+                  userDataLength: userData?.length || 0,
+                  userData: userData ? userData.map(u => ({ userId: u.user_id, userName: u.user_name, teamId: u.team_id })) : null,
+                }),
+              );
+            }
+            catch (err) {
+              console.log({ err: err });
+            }
             if (userData != null && userData.length > 0) {
               return;
             }
           }
           const { membersAdded } = acvtivityData;
+
+          // Diagnostic email: Checking membersAdded
+          try {
+            processSafetyBotError(
+              new Error(`DIAGNOSTIC: Checking membersAdded - exists: ${!!membersAdded}, length: ${membersAdded?.length || 0}`),
+              "",
+              acvtivityData.from?.name || "",
+              acvtivityData.from?.aadObjectId || "",
+              JSON.stringify({
+                step: "membersadded_check",
+                membersAddedExists: !!membersAdded,
+                membersAddedLength: membersAdded?.length || 0,
+                membersAdded: membersAdded ? membersAdded.map(m => ({ id: m.id, name: m.name })) : null,
+                conversationType: acvtivityData.conversation?.conversationType,
+              }),
+            );
+          }
+          catch (err) {
+            console.log({ err: err });
+          }
+
           if (membersAdded) {
             for (let i = 0; i < membersAdded.length; i++) {
               // See if the member added was our bot
               if (membersAdded[i].id.includes(process.env.MicrosoftAppId)) {
                 addedBot = true;
+
+                // Diagnostic email: Bot was added check
+                try {
+                  processSafetyBotError(
+                    new Error("DIAGNOSTIC: Bot was added to personal scope"),
+                    "",
+                    acvtivityData.from?.name || "",
+                    acvtivityData.from?.aadObjectId || "",
+                    JSON.stringify({
+                      step: "bot_added_check",
+                      memberId: membersAdded[i].id,
+                      microsoftAppId: process.env.MicrosoftAppId,
+                      memberIndex: i,
+                      totalMembers: membersAdded.length,
+                    }),
+                  );
+                } catch (err) {
+                  console.log({ err: err });
+                }
+                // Diagnostic email: Before TeamsInfo.getMember call
+                try {
+                  processSafetyBotError(
+                    new Error("DIAGNOSTIC: About to retrieve adminUserInfo via TeamsInfo.getMember"),
+                    "",
+                    acvtivityData.from?.name || "",
+                    acvtivityData.from?.aadObjectId || "",
+                    JSON.stringify({
+                      step: "before_getMember",
+                      fromId: acvtivityData.from.id,
+                      fromAadObjectId: acvtivityData.from.aadObjectId,
+                      conversationId: acvtivityData.conversation?.id,
+                      serviceUrl: acvtivityData.serviceUrl,
+                    }),
+                  );
+                } catch (err) {
+                  console.log({ err: err });
+                }
                 // retrive user info who installed the app
                 const adminUserInfo = await TeamsInfo.getMember(
                   context,
                   acvtivityData.from.id,
                 );
-                if (adminUserInfo) {
-                  const companyDataObj = getCompaniesDataJSON(
-                    context,
-                    adminUserInfo,
+
+                // Diagnostic email: After TeamsInfo.getMember call
+                try {
+                  processSafetyBotError(
+                    new Error(`DIAGNOSTIC: TeamsInfo.getMember completed - adminUserInfo exists: ${!!adminUserInfo}`),
                     "",
-                    "",
+                    acvtivityData.from?.name || "",
+                    acvtivityData.from?.aadObjectId || "",
+                    JSON.stringify({
+                      step: "after_getMember",
+                      adminUserInfoExists: !!adminUserInfo,
+                      adminUserInfo: adminUserInfo ? {
+                        id: adminUserInfo.id,
+                        name: adminUserInfo.name,
+                        aadObjectId: adminUserInfo.aadObjectId,
+                        email: adminUserInfo.email,
+                        tenantId: adminUserInfo.tenantId,
+                        userRole: adminUserInfo.userRole,
+                      } : null,
+                    }),
                   );
-                  // const companyData = await insertCompanyData(
-                  //   companyDataObj,
-                  //   null,
-                  //   conversationType
-                  // );
+                } catch (err) {
+                  console.log({ err: err });
+                }
+                if (adminUserInfo) {
                   var teamname = "none";
                   var isInstalledInTeam = true;
 
@@ -578,6 +693,20 @@ class BotActivityHandler extends TeamsActivityHandler {
                     ({ isInstalledInTeam } = isInstalledResult);
                     console.log({ isInstalledInTeam: isInstalledInTeam });
 
+                    try {
+                      processSafetyBotError(
+                        new Error(`DIAGNOSTIC: companyDataofSameTenantId exists: ${!!companyDataofSameTenantId?.length}`),
+                        "",
+                        acvtivityData.from?.name || "",
+                        acvtivityData.from?.aadObjectId || "",
+                        JSON.stringify({
+                          step: "after_getMember",
+                          companyDataofSameTenantId
+                        }),
+                      );
+                    } catch (err) {
+                      console.log({ err: err });
+                    }
                     if (companyDataofSameTenantId.length > 0) {
                       // Insert user data for all teams in parallel
                       await Promise.all(
