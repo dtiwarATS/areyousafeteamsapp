@@ -59,7 +59,7 @@ class AreYouSafeTab {
     try {
       var credentials = new MicrosoftAppCredentials(
         process.env.MicrosoftAppId,
-        process.env.MicrosoftAppPassword
+        process.env.MicrosoftAppPassword,
       );
       var connectorClient = new ConnectorClient(credentials, {
         baseUri: serviceUrl,
@@ -73,7 +73,7 @@ class AreYouSafeTab {
         teamId,
         "",
         "",
-        "error in getAllTeamMembers serviceUrl=" + serviceUrl
+        "error in getAllTeamMembers serviceUrl=" + serviceUrl,
       );
     }
     return Promise.resolve(allTeamMembers);
@@ -95,7 +95,7 @@ class AreYouSafeTab {
         "",
         "",
         "",
-        "error in getStartDate startDate=" + startDate
+        "error in getStartDate startDate=" + startDate,
       );
     }
   };
@@ -126,7 +126,7 @@ class AreYouSafeTab {
         "",
         "",
         "",
-        "error in getDurationInWeek startDate=" + startDate
+        "error in getDurationInWeek startDate=" + startDate,
       );
     }
   };
@@ -203,7 +203,7 @@ class AreYouSafeTab {
         "error in sortMembers members=" +
           JSON.stringify(members) +
           " incTypeId=" +
-          incTypeId
+          incTypeId,
       );
     }
     return memberObj;
@@ -258,7 +258,7 @@ class AreYouSafeTab {
           const status = inc.incStatusId === 2 ? "Closed" : "In progress";
           const startDate = this.getStartDate(inc.incCreatedDate);
           const duration = this.getDurationInWeek(
-            inc.incCreatedDate
+            inc.incCreatedDate,
           ).toString();
 
           let safe = null;
@@ -298,7 +298,7 @@ class AreYouSafeTab {
                   responsePercentage =
                     Math.round(
                       ((needAssistanceCount + safeCount) * 100) /
-                        inc.members.length
+                        inc.members.length,
                     ).toString() + "%";
                 }
               } else {
@@ -392,7 +392,7 @@ class AreYouSafeTab {
         "error in getFormatedIncData incData=" +
           JSON.stringify(incData) +
           " teamInfo=" +
-          JSON.stringify(teamInfo)
+          JSON.stringify(teamInfo),
       );
     }
     return incFormatedData;
@@ -433,7 +433,7 @@ class AreYouSafeTab {
           "value",
           "title",
           userAadObjId,
-          superUsersLeftJoinQuery
+          superUsersLeftJoinQuery,
         );
       } else if (teamId == null || teamId == "null") {
         var memberqery = `SELECT MIN(id) AS id,  -- optional: pick one id per user
@@ -484,7 +484,7 @@ ORDER BY email;
         teamId,
         "",
         userAadObjId,
-        "error in getTeamMembers"
+        "error in getTeamMembers",
       );
     }
     return Promise.resolve(teamsMembers);
@@ -494,7 +494,7 @@ ORDER BY email;
     try {
       var memberqery = `
 select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,STATE as state, CITY as city,COUNTRY as country, DEPARTMENT as department,hasLicense as hasLicense ,email,conversationId,0 AS isAdmin,
-    0 AS isSuperUser from MSTeamsTeamsUsers where tenantid= '${Tenantid}' and hasLicense=0
+    0 AS isSuperUser from MSTeamsTeamsUsers where tenantid= '${Tenantid}' and hasLicense=1
 
 ;
 `;
@@ -509,7 +509,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     userAadObjId,
     userlocation,
     requestAssistanceid,
-    sendonetime
+    sendonetime,
   ) => {
     let isMessageSent = false;
     var isVisi = false;
@@ -520,7 +520,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     let usrPhones = await bot.getUserPhone(
       data[0][0].IS_APP_PERMISSION_GRANTED,
       data[0][0].user_tenant_id,
-      userAadObjIds
+      userAadObjIds,
     );
     console.log({ usrPhones });
     try {
@@ -531,7 +531,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         dashboard.mentionUser(
           mentionUserEntities,
           user.user_id,
-          user.user_name
+          user.user_name,
         );
         // var LocationUrl =
         //   "https://maps.googleapis.com/maps/api/staticmap?center=" +
@@ -658,7 +658,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 "",
                 "",
                 "",
-                ""
+                "",
               );
               const res = await sendProactiveMessaageToUser(
                 memberArr,
@@ -667,7 +667,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 admins[i].serviceUrl,
                 admins[i].user_tenant_id,
                 null,
-                userAadObjId
+                userAadObjId,
               ).then(() => {
                 incidentService.saveAllTypeQuerylogs(
                   admins[i].user_aadobject_id,
@@ -680,7 +680,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   "",
                   "",
                   "",
-                  ""
+                  "",
                 );
               });
             } catch (ex) {
@@ -695,7 +695,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 "",
                 "",
                 "",
-                JSON.stringify(ex)
+                JSON.stringify(ex),
               );
             }
 
@@ -723,7 +723,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         "",
                         "",
-                        ""
+                        "",
                       );
                       // Construct accept link - use environment variable or default
                       const baseUrl =
@@ -754,7 +754,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                             "",
                             "",
                             "",
-                            ""
+                            "",
                           );
                         });
                     } catch (err) {
@@ -770,7 +770,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         "",
                         "",
-                        JSON.stringify(err.message)
+                        JSON.stringify(err.message),
                       );
                     }
                   } else {
@@ -785,7 +785,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       "",
                       "",
                       "",
-                      ""
+                      "",
                     );
                   }
                 }
@@ -807,7 +807,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       "",
                       "",
                       "",
-                      ""
+                      "",
                     );
                     // Construct accept link for email
                     const baseUrl =
@@ -850,7 +850,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                     };
                     const response = fetch(
                       "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
-                      requestOptions
+                      requestOptions,
                     ).then((res) => {
                       console.log({ res });
                       incidentService.saveAllTypeQuerylogs(
@@ -864,7 +864,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         "",
                         "",
-                        ""
+                        "",
                       );
                     });
                   } catch (err) {
@@ -880,7 +880,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       "",
                       "",
                       "",
-                      JSON.stringify(err.message)
+                      JSON.stringify(err.message),
                     );
                   }
                 } else {
@@ -895,7 +895,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                     "",
                     "",
                     "",
-                    ""
+                    "",
                   );
                 }
               } catch (err) {
@@ -904,7 +904,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   companyData.teamId,
                   user.id,
                   null,
-                  "error in sending safety check via EMAIL"
+                  "error in sending safety check via EMAIL",
                 );
               }
             }
@@ -932,7 +932,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         "",
                         "",
-                        ""
+                        "",
                       );
                       // Construct accept link for WhatsApp button
                       const baseUrl =
@@ -983,7 +983,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         .sendWhatsappMessage(
                           templatePayload,
                           admins[i].user_aadobject_id,
-                          admins[i]
+                          admins[i],
                         )
                         .then((res) => {
                           console.log(res.Status);
@@ -999,7 +999,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                               "",
                               "",
                               "",
-                              ""
+                              "",
                             );
                           } else if (res?.err) {
                             incidentService.saveAllTypeQuerylogs(
@@ -1013,7 +1013,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                               "",
                               "",
                               "",
-                              JSON.stringify(res?.err) || "err"
+                              JSON.stringify(res?.err) || "err",
                             );
                           }
                         });
@@ -1030,7 +1030,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         "",
                         "",
-                        JSON.stringify(err.message)
+                        JSON.stringify(err.message),
                       );
                     }
                   } else {
@@ -1045,7 +1045,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       "",
                       "",
                       "",
-                      ""
+                      "",
                     );
                   }
                 }
@@ -1056,7 +1056,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
           approvalCardResponse,
-          userAadObjId
+          userAadObjId,
         );
         isMessageSent = true;
       }
@@ -1067,7 +1067,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         "",
         "",
         userAadObjId,
-        "error in requestAssistance data=" + data
+        "error in requestAssistance data=" + data,
       );
     }
     return isMessageSent;
@@ -1079,7 +1079,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     ts,
     userAadObjId,
     userlocation,
-    UserDataUpdateID
+    UserDataUpdateID,
   ) => {
     let res = null;
     try {
@@ -1114,8 +1114,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 (index == 0
                   ? ""
                   : index == adminsArr.length - 1
-                  ? " and "
-                  : ", ") + usrName;
+                    ? " and "
+                    : ", ") + usrName;
             });
           }
         } else if (userTemasArr.length > 1) {
@@ -1133,8 +1133,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                     (currentTeamsAdminsStr === ""
                       ? ""
                       : index == adminsArr.length - 1
-                      ? " and "
-                      : ", ") + usrName;
+                        ? " and "
+                        : ", ") + usrName;
                 }
               });
 
@@ -1169,7 +1169,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         "",
         "",
         userAadObjId,
-        "error in saveAssistance adminsData=" + JSON.stringify(adminsData)
+        "error in saveAssistance adminsData=" + JSON.stringify(adminsData),
       );
     }
     return res;
@@ -1179,7 +1179,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     data,
     userComment,
     userAadObjId,
-    requestAssistanceid
+    requestAssistanceid,
   ) => {
     try {
       let admins = data[0];
@@ -1189,7 +1189,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         dashboard.mentionUser(
           mentionUserEntities,
           user.user_id,
-          user.user_name
+          user.user_name,
         );
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -1235,7 +1235,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 "",
                 "",
                 userComment,
-                ""
+                "",
               );
               const res = await sendProactiveMessaageToUser(
                 memberArr,
@@ -1244,7 +1244,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 admins[i].serviceUrl,
                 admins[i].user_tenant_id,
                 null,
-                userAadObjId
+                userAadObjId,
               ).then(() => {
                 incidentService.saveAllTypeQuerylogs(
                   admins[i].user_aadobject_id,
@@ -1257,7 +1257,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   "",
                   "",
                   userComment,
-                  ""
+                  "",
                 );
               });
             } catch (ex) {
@@ -1272,7 +1272,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 "",
                 "",
                 userComment,
-                JSON.stringify(ex)
+                JSON.stringify(ex),
               );
             }
             if (admins[i].SOS_NOTIFICATION.includes("SMS")) {
@@ -1296,7 +1296,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         "",
                         userComment,
-                        ""
+                        "",
                       );
                       var twiliosend = await tClient.messages
                         .create({
@@ -1320,7 +1320,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                             "",
                             "",
                             userComment,
-                            ""
+                            "",
                           );
                         });
                     } catch (err) {
@@ -1336,7 +1336,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         "",
                         "",
                         userComment,
-                        JSON.stringify(err.message)
+                        JSON.stringify(err.message),
                       );
                     }
                   } else {
@@ -1351,7 +1351,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       "",
                       "",
                       userComment,
-                      ""
+                      "",
                     );
                   }
                 }
@@ -1484,7 +1484,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
           approvalCardResponse,
-          userAadObjId
+          userAadObjId,
         );
       }
     } catch (err) {
@@ -1493,7 +1493,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         "",
         "",
         userAadObjId,
-        "error in sendUserCommentToAdmin data=" + JSON.stringify(data)
+        "error in sendUserCommentToAdmin data=" + JSON.stringify(data),
       );
     }
   };
@@ -1507,7 +1507,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       if ((teamId != null && teamId != "null") || teamId != "") {
         isDuplicate = await incidentService.verifyDuplicateInc(
           teamId,
-          incTitle
+          incTitle,
         );
       }
     } catch (err) {
@@ -1516,7 +1516,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         userAadObjId,
-        "error in checkDuplicateInc incTitle=" + incTitle
+        "error in checkDuplicateInc incTitle=" + incTitle,
       );
     }
     return Promise.resolve(isDuplicate);
@@ -1537,7 +1537,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
           teamId,
           "",
           aadUserObjId,
-          "error in getBotUserInfo"
+          "error in getBotUserInfo",
         );
       }
     }
@@ -1595,7 +1595,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
           responseSelectedTeams,
           teamIds,
           incId,
-          incObj.tempfileincId
+          incObj.tempfileincId,
         );
       }
     } catch (err) {
@@ -1605,7 +1605,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         "",
         "",
         userAadObjId,
-        "error in createNewIncident incObj=" + incObj
+        "error in createNewIncident incObj=" + incObj,
       );
     }
     return Promise.resolve(newInc);
@@ -1637,7 +1637,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     teamId,
     createdByUserInfo,
     userAadObjId,
-    resendSafetyCheck
+    resendSafetyCheck,
   ) => {
     const log = new AYSLog();
     try {
@@ -1647,7 +1647,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         createdByUserInfo,
         log,
         userAadObjId,
-        resendSafetyCheck
+        resendSafetyCheck,
       );
       return Promise.resolve(safetyCheckSend);
     } catch (err) {
@@ -1660,7 +1660,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         "error in sendSafetyCheckMessage incId=" +
           incId +
           " resendSafetyCheck=" +
-          resendSafetyCheck
+          resendSafetyCheck,
       );
       return true;
     } finally {
@@ -1700,7 +1700,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         "",
         userName,
         userId,
-        "error in submitContactUs email=" + email + " msg=" + msg
+        "error in submitContactUs email=" + email + " msg=" + msg,
       );
     }
   };
@@ -1715,7 +1715,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         null,
-        "error in getSuperUsersByTeamId"
+        "error in getSuperUsersByTeamId",
       );
     }
     return Promise.resolve(superUsers);
@@ -1744,16 +1744,15 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
   getEmergencyContacts = async (teamId) => {
     let emergencyContacts = null;
     try {
-      emergencyContacts = await incidentService.getEmergencyContactsList(
-        teamId
-      );
+      emergencyContacts =
+        await incidentService.getEmergencyContactsList(teamId);
     } catch (err) {
       processSafetyBotError(
         err,
         teamId,
         "",
         null,
-        "error in getEmergencyContacts"
+        "error in getEmergencyContacts",
       );
     }
     return Promise.resolve(emergencyContacts);
@@ -1765,7 +1764,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         city,
         country,
-        department
+        department,
       );
     } catch (err) {
       processSafetyBotError(
@@ -1773,7 +1772,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         null,
-        "error in deleteSOSResponder"
+        "error in deleteSOSResponder",
       );
     }
     return Promise.resolve(res);
@@ -1807,7 +1806,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         null,
-        "error in SavesmsInfoDisplay"
+        "error in SavesmsInfoDisplay",
       );
     }
     return Promise.resolve(res);
@@ -1831,7 +1830,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         null,
-        "error in saveFilterChecked"
+        "error in saveFilterChecked",
       );
     }
     return Promise.resolve(res);
@@ -1842,7 +1841,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       res = await incidentService.setSendWhatsapp(
         teamId,
         sendWhatsapp,
-        phoneField
+        phoneField,
       );
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in setsendWhatsapp");
@@ -1855,7 +1854,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       res = await incidentService.setavailableforapp(
         AVAILABLE_FOR,
         tenantId,
-        teamId
+        teamId,
       );
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in setsendWhatsapp");
@@ -1868,7 +1867,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       res = await incidentService.SosNotificationFor(
         AVAILABLE_FOR,
 
-        teamId
+        teamId,
       );
     } catch (err) {
       processSafetyBotError(
@@ -1876,7 +1875,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         null,
-        "error in SosNotificationFor"
+        "error in SosNotificationFor",
       );
     }
     return Promise.resolve(res);
@@ -1889,7 +1888,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         language,
 
         teamId,
-        tenantid
+        tenantid,
       );
     } catch (err) {
       processSafetyBotError(
@@ -1897,7 +1896,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         null,
-        "error in SosNotificationFor"
+        "error in SosNotificationFor",
       );
     }
     return Promise.resolve(res);
@@ -1920,7 +1919,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     teamId,
     IsAppPermissionGranted,
     tenantid,
-    field
+    field,
   ) => {
     let res = null;
     try {
@@ -1928,7 +1927,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         IsAppPermissionGranted,
         tenantid,
-        field
+        field,
       );
       console.log({ res });
     } catch (err) {
@@ -1937,7 +1936,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         null,
-        "error in saveAppPermission"
+        "error in saveAppPermission",
       );
     }
     return Promise.resolve(res);
@@ -1965,7 +1964,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         SafetycheckForVisitorsQuestion1,
         SafetycheckForVisitorsQuestion2,
         SafetycheckForVisitorsQuestion3,
-        emergencyContactsStr
+        emergencyContactsStr,
       );
     } catch (err) {
       processSafetyBotError(
@@ -1973,7 +1972,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         teamId,
         "",
         userAadObjId,
-        "error in saveUserSetting"
+        "error in saveUserSetting",
       );
     }
     return Promise.resolve(result);
@@ -2000,7 +1999,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         incId,
         selectedUsers,
         teamId,
-        userAadObjId
+        userAadObjId,
       );
 
       if (incDataToCopy != null && incDataToCopy.length > 0) {
@@ -2032,7 +2031,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             await bot.getUserDetails(
               companyData.userTenantId,
               companyData.IS_APP_PERMISSION_GRANTED,
-              userIds
+              userIds,
             );
           }
         }
@@ -2043,7 +2042,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         "",
         "",
         userAadObjId,
-        "error in fetchDataAndUpdateDB data=" + JSON.stringify(data)
+        "error in fetchDataAndUpdateDB data=" + JSON.stringify(data),
       );
     }
   };
