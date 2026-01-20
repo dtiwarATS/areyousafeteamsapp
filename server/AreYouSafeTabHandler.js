@@ -2043,7 +2043,7 @@ const handlerForSafetyBotTab = (app) => {
         const userAadObjectId =
           user.aadObjectId ||
           user.objectId ||
-          user.id ||
+          user.aadUserId ||
           user.user_aadobject_id;
         const userId =
           user.user_id || user.userId || user.id || userAadObjectId;
@@ -2090,11 +2090,6 @@ const handlerForSafetyBotTab = (app) => {
           skippedCount,
         });
       }
-
-      return res.send({
-        success: true,
-        message: "Users saved successfully",
-      });
       // Build INSERT statement with NOT EXISTS check for all users in a single query
       const valuesClause = validUsers
         .map((u) => {
