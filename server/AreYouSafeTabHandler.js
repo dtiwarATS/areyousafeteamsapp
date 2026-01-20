@@ -1993,7 +1993,7 @@ const handlerForSafetyBotTab = (app) => {
   app.post("/areyousafetabhandler/saveInstalledUsersToDB", async (req, res) => {
     try {
       console.log("=== Received request to save installed users to DB ===");
-      const { users, tenantId, serviceUrl, teamId } = req.body;
+      const { users, tenantId, serviceUrl, teamId, botServiceUrl } = req.body;
 
       console.log("=== Received request to save installed users to DB ===");
       console.log("Tenant ID:", tenantId);
@@ -2069,18 +2069,37 @@ const handlerForSafetyBotTab = (app) => {
           skippedCount++;
           continue;
         }
-
-        validUsers.push({
-          team_id: userTeamId,
-          user_aadobject_id: userAadObjectId,
-          user_id: userId,
-          user_name: userName,
-          userPrincipalName: userPrincipalName,
-          email: email,
-          tenantid: tenantId,
-          userRole: userRole,
-          IS_TEAM_MEMBER: isTeamMember ? 1 : 0,
+        const newConversationId = await apimeth.getUsersConversationId(
+          tenantId,
+          [
+            {
+              id: userAadObjectId, // REQUIRED
+              name: userName,
+            },
+          ],
+          botServiceUrl,
+          userAadObjectId,
+        );
+        console.log("Conversation ID fetch result:", {
+          userName,
+          conversationId: newConversationId,
         });
+
+        if (newConversationId != null) {
+          validUsers.push({
+            team_id: userTeamId,
+            user_aadobject_id: userAadObjectId,
+            user_id: userId,
+            user_name: userName,
+            userPrincipalName: userPrincipalName,
+            email: email,
+            tenantid: tenantId,
+            userRole: userRole,
+            IS_TEAM_MEMBER: isTeamMember ? 1 : 0,
+            conversationId: newConversationId,
+            hasLicense: 1,
+          });
+        }
       }
 
       if (validUsers.length === 0) {
@@ -2102,14 +2121,16 @@ const handlerForSafetyBotTab = (app) => {
           ${escapeSqlString(u.email)},
           ${escapeSqlString(u.tenantid)},
           ${escapeSqlString(u.userRole)},
-          ${u.IS_TEAM_MEMBER}
+          ${u.IS_TEAM_MEMBER},
+          ${escapeSqlString(u.conversationId)},
+           ${u.hasLicense}
         )`;
         })
         .join(",\n    ");
 
       const insertQuery = `
         INSERT INTO MSTeamsTeamsUsers
-        (team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER)
+        (team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER,conversationId,hasLicense)
         SELECT 
           source.team_id,
           source.user_aadobject_id,
@@ -2119,12 +2140,14 @@ const handlerForSafetyBotTab = (app) => {
           source.email,
           source.tenantid,
           source.userRole,
-          source.IS_TEAM_MEMBER
+          source.IS_TEAM_MEMBER,
+          source.conversationId,
+          hasLicense
         FROM (VALUES
           ${valuesClause}
         ) AS source
         (
-          team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER
+          team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER,conversationId,hasLicense
         )
         WHERE NOT EXISTS (
           SELECT 1 
