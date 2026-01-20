@@ -221,7 +221,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                JSON.stringify(context),
+                  JSON.stringify(context),
               );
             }
 
@@ -245,7 +245,12 @@ class BotActivityHandler extends TeamsActivityHandler {
         );
       }
     });
-    const insertData = async (sqlInsertQuery, userAadObjectId = "", teamId = "", contextInfo = "") => {
+    const insertData = async (
+      sqlInsertQuery,
+      userAadObjectId = "",
+      teamId = "",
+      contextInfo = "",
+    ) => {
       let result = null;
       if (sqlInsertQuery != null) {
         try {
@@ -259,7 +264,10 @@ class BotActivityHandler extends TeamsActivityHandler {
             teamId,
             "",
             userAadObjectId,
-            "error in insertData - " + contextInfo + " sqlQuery=" + (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
+            "error in insertData - " +
+              contextInfo +
+              " sqlQuery=" +
+              (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
           );
           throw err;
         }
@@ -496,7 +504,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 null,
                 null,
               );
-            } catch (err) { }
+            } catch (err) {}
           }
         } else if (
           (acvtivityData &&
@@ -554,8 +562,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                   activityTimestamp: acvtivityData.timestamp,
                 }),
               );
-            }
-            catch (err) {
+            } catch (err) {
               console.log({ err: err });
             }
             let userData = await getUserById(userAadObjectId);
@@ -563,7 +570,9 @@ class BotActivityHandler extends TeamsActivityHandler {
             // Diagnostic email: After getUserById check
             try {
               processSafetyBotError(
-                new Error(`DIAGNOSTIC: getUserById check completed - user exists: ${userData != null && userData.length > 0}`),
+                new Error(
+                  `DIAGNOSTIC: getUserById check completed - user exists: ${userData != null && userData.length > 0}`,
+                ),
                 "",
                 acvtivityData.from?.name || "",
                 userAadObjectId,
@@ -572,11 +581,16 @@ class BotActivityHandler extends TeamsActivityHandler {
                   userAadObjectId: userAadObjectId,
                   userExists: userData != null && userData.length > 0,
                   userDataLength: userData?.length || 0,
-                  userData: userData ? userData.map(u => ({ userId: u.user_id, userName: u.user_name, teamId: u.team_id })) : null,
+                  userData: userData
+                    ? userData.map((u) => ({
+                        userId: u.user_id,
+                        userName: u.user_name,
+                        teamId: u.team_id,
+                      }))
+                    : null,
                 }),
               );
-            }
-            catch (err) {
+            } catch (err) {
               console.log({ err: err });
             }
             if (userData != null && userData.length > 0) {
@@ -588,7 +602,9 @@ class BotActivityHandler extends TeamsActivityHandler {
           // Diagnostic email: Checking membersAdded
           try {
             processSafetyBotError(
-              new Error(`DIAGNOSTIC: Checking membersAdded - exists: ${!!membersAdded}, length: ${membersAdded?.length || 0}`),
+              new Error(
+                `DIAGNOSTIC: Checking membersAdded - exists: ${!!membersAdded}, length: ${membersAdded?.length || 0}`,
+              ),
               "",
               acvtivityData.from?.name || "",
               acvtivityData.from?.aadObjectId || "",
@@ -596,12 +612,13 @@ class BotActivityHandler extends TeamsActivityHandler {
                 step: "membersadded_check",
                 membersAddedExists: !!membersAdded,
                 membersAddedLength: membersAdded?.length || 0,
-                membersAdded: membersAdded ? membersAdded.map(m => ({ id: m.id, name: m.name })) : null,
+                membersAdded: membersAdded
+                  ? membersAdded.map((m) => ({ id: m.id, name: m.name }))
+                  : null,
                 conversationType: acvtivityData.conversation?.conversationType,
               }),
             );
-          }
-          catch (err) {
+          } catch (err) {
             console.log({ err: err });
           }
 
@@ -632,7 +649,9 @@ class BotActivityHandler extends TeamsActivityHandler {
                 // Diagnostic email: Before TeamsInfo.getMember call
                 try {
                   processSafetyBotError(
-                    new Error("DIAGNOSTIC: About to retrieve adminUserInfo via TeamsInfo.getMember"),
+                    new Error(
+                      "DIAGNOSTIC: About to retrieve adminUserInfo via TeamsInfo.getMember",
+                    ),
                     "",
                     acvtivityData.from?.name || "",
                     acvtivityData.from?.aadObjectId || "",
@@ -656,21 +675,25 @@ class BotActivityHandler extends TeamsActivityHandler {
                 // Diagnostic email: After TeamsInfo.getMember call
                 try {
                   processSafetyBotError(
-                    new Error(`DIAGNOSTIC: TeamsInfo.getMember completed - adminUserInfo exists: ${!!adminUserInfo}`),
+                    new Error(
+                      `DIAGNOSTIC: TeamsInfo.getMember completed - adminUserInfo exists: ${!!adminUserInfo}`,
+                    ),
                     "",
                     acvtivityData.from?.name || "",
                     acvtivityData.from?.aadObjectId || "",
                     JSON.stringify({
                       step: "after_getMember",
                       adminUserInfoExists: !!adminUserInfo,
-                      adminUserInfo: adminUserInfo ? {
-                        id: adminUserInfo.id,
-                        name: adminUserInfo.name,
-                        aadObjectId: adminUserInfo.aadObjectId,
-                        email: adminUserInfo.email,
-                        tenantId: adminUserInfo.tenantId,
-                        userRole: adminUserInfo.userRole,
-                      } : null,
+                      adminUserInfo: adminUserInfo
+                        ? {
+                            id: adminUserInfo.id,
+                            name: adminUserInfo.name,
+                            aadObjectId: adminUserInfo.aadObjectId,
+                            email: adminUserInfo.email,
+                            tenantId: adminUserInfo.tenantId,
+                            userRole: adminUserInfo.userRole,
+                          }
+                        : null,
                     }),
                   );
                 } catch (err) {
@@ -682,26 +705,29 @@ class BotActivityHandler extends TeamsActivityHandler {
 
                   try {
                     // Parallelize independent operations to minimize delay
-                    const [isInstalledResult, companyDataofSameTenantId] = await Promise.all([
-                      incidentService.isBotInstalledInTeam(userAadObjectId),
-                      getCompanyDataByTenantId(
-                        acvtivityData.channelData.tenant.id,
-                        `and AVAILABLE_FOR='Tenant'`,
-                      ),
-                    ]);
+                    const [isInstalledResult, companyDataofSameTenantId] =
+                      await Promise.all([
+                        incidentService.isBotInstalledInTeam(userAadObjectId),
+                        getCompanyDataByTenantId(
+                          acvtivityData.channelData.tenant.id,
+                          `and AVAILABLE_FOR='Tenant'`,
+                        ),
+                      ]);
 
                     ({ isInstalledInTeam } = isInstalledResult);
                     console.log({ isInstalledInTeam: isInstalledInTeam });
 
                     try {
                       processSafetyBotError(
-                        new Error(`DIAGNOSTIC: companyDataofSameTenantId exists: ${!!companyDataofSameTenantId?.length}`),
+                        new Error(
+                          `DIAGNOSTIC: companyDataofSameTenantId exists: ${!!companyDataofSameTenantId?.length}`,
+                        ),
                         "",
                         acvtivityData.from?.name || "",
                         acvtivityData.from?.aadObjectId || "",
                         JSON.stringify({
                           step: "after_getMember",
-                          companyDataofSameTenantId
+                          companyDataofSameTenantId,
                         }),
                       );
                     } catch (err) {
@@ -757,8 +783,9 @@ USING (VALUES
 (
     team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense
 )
-ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${cmpData.team_id
-                              }'
+ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${
+                              cmpData.team_id
+                            }'
 WHEN MATCHED THEN
     UPDATE SET 
         user_id = source.user_id,
@@ -798,13 +825,13 @@ WHEN NOT MATCHED THEN
                       if (teamname != "" && teamname !== "none") {
                         (async () => {
                           try {
-                            const welcomeMessageCard =
-                              await getWelcomeMessageCardformpersonal(teamname);
-                            await sendDirectMessageCard(
-                              context,
-                              acvtivityData.from,
-                              welcomeMessageCard,
-                            );
+                            // const welcomeMessageCard =
+                            //   await getWelcomeMessageCardformpersonal(teamname);
+                            // await sendDirectMessageCard(
+                            //   context,
+                            //   acvtivityData.from,
+                            //   welcomeMessageCard,
+                            // );
                           } catch (welcomeErr) {
                             processSafetyBotError(
                               welcomeErr,
@@ -842,11 +869,11 @@ WHEN NOT MATCHED THEN
                       adminUserInfo?.name || "",
                       userAadObjectId,
                       "error in onConversationUpdate - personal scope context=" +
-                      JSON.stringify({
-                        conversationType: conversationType,
-                        userAadObjectId: userAadObjectId,
-                        tenantId: acvtivityData.channelData?.tenant?.id,
-                      }),
+                        JSON.stringify({
+                          conversationType: conversationType,
+                          userAadObjectId: userAadObjectId,
+                          tenantId: acvtivityData.channelData?.tenant?.id,
+                        }),
                     );
                     throw err;
                   }
@@ -1168,7 +1195,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-            requestAssistanceid,
+              requestAssistanceid,
           );
         });
 
@@ -2329,7 +2356,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-        requestAssistanceid,
+          requestAssistanceid,
       );
     }
   }
@@ -2357,9 +2384,9 @@ WHERE rn = 1;
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-        JSON.stringify(context) +
-        " companyData=" +
-        JSON.stringify(companyData),
+          JSON.stringify(context) +
+          " companyData=" +
+          JSON.stringify(companyData),
       );
     }
   }
@@ -2461,11 +2488,11 @@ WHERE rn = 1;
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-        JSON.stringify(context) +
-        " userEmail=" +
-        userEmail +
-        " companyDataObj=" +
-        JSON.stringify(companyDataObj),
+          JSON.stringify(context) +
+          " userEmail=" +
+          userEmail +
+          " companyDataObj=" +
+          JSON.stringify(companyDataObj),
       );
     }
   }
@@ -2581,7 +2608,7 @@ WHERE rn = 1;
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => { })
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
