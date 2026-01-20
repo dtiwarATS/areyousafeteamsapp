@@ -31,7 +31,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const botUserInfo = await tabObj.getBotUserInfo(
         req.query.teamId,
-        userObjId
+        userObjId,
       );
       dbOperation
         .verifyAdminUserForDashboardTab(req.query.userId, teamId)
@@ -40,7 +40,7 @@ const handlerForSafetyBotTab = (app) => {
           responseObj.isAdmin = isAdmin;
           const userLicenseDetails = await dbOperation.getUserLicenseDetails(
             userObjId,
-            teamId
+            teamId,
           );
           responseObj.hasValidLicense = userLicenseDetails.hasLicense;
           //responseObj.safetyInitiator = safetyInitiatorObj.safetyInitiator;
@@ -69,7 +69,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             userObjId,
-            "Error in /areyousafetabhandler/getUserPermission -> verifyAdminUserForDashboardTab"
+            "Error in /areyousafetabhandler/getUserPermission -> verifyAdminUserForDashboardTab",
           );
         });
     } catch (err) {
@@ -78,7 +78,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userObjId,
-        "Error in /areyousafetabhandler/getUserPermission"
+        "Error in /areyousafetabhandler/getUserPermission",
       );
     }
   });
@@ -100,7 +100,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userObjId,
-        "error in /areyousafetabhandler/getTemplateList"
+        "error in /areyousafetabhandler/getTemplateList",
       );
     }
   });
@@ -182,12 +182,12 @@ const handlerForSafetyBotTab = (app) => {
                       "",
                       "",
                       "error in get users phone number requestDateTime : " +
-                      requestDate +
-                      " ErrorDateTime: " +
-                      new Date(),
+                        requestDate +
+                        " ErrorDateTime: " +
+                        new Date(),
                       "",
                       false,
-                      ""
+                      "",
                     );
                     throw {
                       type: "GraphApiError",
@@ -206,7 +206,7 @@ const handlerForSafetyBotTab = (app) => {
         .catch((error) => {
           console.log(
             "error at get access token in get users phone number",
-            error
+            error,
           );
           // If it's already a custom error object, rethrow it
           if (error.type) {
@@ -220,7 +220,7 @@ const handlerForSafetyBotTab = (app) => {
               error.response.data.error_description
                 .toString()
                 .indexOf("The refresh token has expired due to inactivity.") >=
-              0
+                0
             ) {
               throw {
                 type: "authFailed",
@@ -254,7 +254,7 @@ const handlerForSafetyBotTab = (app) => {
             "error in get access token from microsoft at get users phone number",
             "",
             false,
-            ""
+            "",
           );
           throw {
             type: "UnknownError",
@@ -294,11 +294,11 @@ const handlerForSafetyBotTab = (app) => {
               let phonedata = await getUserPhone(
                 team.IS_APP_PERMISSION_GRANTED,
                 team.tenant_id,
-                userAadObjIds
+                userAadObjIds,
               );
               return phonedata.map((item) => {
                 const match = teamsMembers.find(
-                  (u) => u.user_aadobject_id === item.id
+                  (u) => u.user_aadobject_id === item.id,
                 );
                 return {
                   ...item,
@@ -310,7 +310,7 @@ const handlerForSafetyBotTab = (app) => {
               console.log(
                 "Error fetching phone data for team:",
                 team.tenant_id,
-                phoneError
+                phoneError,
               );
               return {
                 error: true,
@@ -395,7 +395,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userObjId,
-        "error in /areyousafetabhandler/getuserphonedata"
+        "error in /areyousafetabhandler/getuserphonedata",
       );
       // Send error to UI
       res.status(500).send({
@@ -435,7 +435,7 @@ const handlerForSafetyBotTab = (app) => {
             const formatedIncData = tabObj.getFormatedIncData(
               incData,
               teamInfo[0],
-              userObjId
+              userObjId,
             );
             responseObj.respData = formatedIncData;
             res.send(responseObj);
@@ -471,7 +471,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             userObjId,
-            "error in /areyousafetabhandler/getAllIncData -> verifyAdminUserForDashboardTab"
+            "error in /areyousafetabhandler/getAllIncData -> verifyAdminUserForDashboardTab",
           );
         });
     } catch (err) {
@@ -480,7 +480,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userObjId,
-        "error in /areyousafetabhandler/getAllIncData"
+        "error in /areyousafetabhandler/getAllIncData",
       );
     }
   });
@@ -501,7 +501,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/deleteIncident -> deleteInc then incId=" +
-            req.query.incid
+              req.query.incid,
           );
         });
     } catch (err) {
@@ -510,7 +510,8 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/deleteIncident incId=" + req.query.incid
+        "error in /areyousafetabhandler/deleteIncident incId=" +
+          req.query.incid,
       );
     }
   });
@@ -533,9 +534,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/updateincstatus then -> incId=" +
-            incId +
-            " incStatus=" +
-            incStatus
+              incId +
+              " incStatus=" +
+              incStatus,
           );
         });
     } catch (err) {
@@ -545,9 +546,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/updateincstatus -> incId=" +
-        incId +
-        " incStatus=" +
-        incStatus
+          incId +
+          " incStatus=" +
+          incStatus,
       );
     }
   });
@@ -565,7 +566,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getTeamsMembers"
+        "error in /areyousafetabhandler/getTeamsMembers",
       );
     }
   });
@@ -576,7 +577,7 @@ const handlerForSafetyBotTab = (app) => {
       const tabObj = new tab.AreYouSafeTab();
       const teamsMember = await tabObj.GetAllMembersByTenantid(
         Tenantid,
-        userAadObjId
+        userAadObjId,
       );
       res.send(teamsMember);
     } catch (err) {
@@ -585,7 +586,7 @@ const handlerForSafetyBotTab = (app) => {
         Tenantid,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getTeamsMembers"
+        "error in /areyousafetabhandler/getTeamsMembers",
       );
     }
   });
@@ -607,7 +608,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getEnableSafetyCheck"
+        "error in /areyousafetabhandler/getEnableSafetyCheck",
       );
     }
   });
@@ -630,7 +631,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getSendSMS"
+        "error in /areyousafetabhandler/getSendSMS",
       );
     }
   });
@@ -653,7 +654,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getEmergencyContacts"
+        "error in /areyousafetabhandler/getEmergencyContacts",
       );
     }
   });
@@ -672,7 +673,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/deleteSOSResponder"
+        "error in /areyousafetabhandler/deleteSOSResponder",
       );
     }
   });
@@ -689,7 +690,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/saveSOSResponder"
+        "error in /areyousafetabhandler/saveSOSResponder",
       );
     }
   });
@@ -708,7 +709,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getSendSMS"
+        "error in /areyousafetabhandler/getSendSMS",
       );
     }
   });
@@ -725,7 +726,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/setSendEmail"
+        "error in /areyousafetabhandler/setSendEmail",
       );
     }
   });
@@ -742,7 +743,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getSendSMS"
+        "error in /areyousafetabhandler/getSendSMS",
       );
     }
   });
@@ -759,7 +760,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/saveFilterChecked"
+        "error in /areyousafetabhandler/saveFilterChecked",
       );
     }
   });
@@ -777,7 +778,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/setSendWhatsapp"
+        "error in /areyousafetabhandler/setSendWhatsapp",
       );
     }
   });
@@ -795,7 +796,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/setavailableforapp"
+        "error in /areyousafetabhandler/setavailableforapp",
       );
     }
   });
@@ -813,7 +814,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/setSOSNotification"
+        "error in /areyousafetabhandler/setSOSNotification",
       );
     }
   });
@@ -831,7 +832,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/setSOSNotification"
+        "error in /areyousafetabhandler/setSOSNotification",
       );
     }
   });
@@ -873,7 +874,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         IsAppPermissionGranted == "True" ? true : false,
         tenantid,
-        field
+        field,
       );
       tabObj.fetchDataAndUpdateDB(teamId);
       console.log(data);
@@ -889,7 +890,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/setRefreshToken"
+        "error in /areyousafetabhandler/setRefreshToken",
       );
     }
   });
@@ -908,7 +909,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             userAadObjId,
-            "error in /areyousafetabhandler/getAssistanceData -> then"
+            "error in /areyousafetabhandler/getAssistanceData -> then",
           );
         });
     } catch (err) {
@@ -917,7 +918,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getAssistanceData"
+        "error in /areyousafetabhandler/getAssistanceData",
       );
     }
   });
@@ -937,7 +938,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             userAadObjId,
-            "error in /areyousafetabhandler/getAllUserAssistanceData -> then"
+            "error in /areyousafetabhandler/getAllUserAssistanceData -> then",
           );
         });
     } catch (err) {
@@ -946,7 +947,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getAssistanceData"
+        "error in /areyousafetabhandler/getAssistanceData",
       );
     }
   });
@@ -956,7 +957,7 @@ const handlerForSafetyBotTab = (app) => {
     serviceUrl,
     user_tenant_id,
     userAadObjId,
-    comment
+    comment,
   ) => {
     try {
       //requestedUserData should have 2 properties: user_id and user_name
@@ -984,9 +985,10 @@ const handlerForSafetyBotTab = (app) => {
                   hour: "2-digit",
                   minute: "2-digit",
                   hour12: true,
-                }
-              )}** has been marked as closed by **<at>${closedByUser.user_name
-                }</at>**.`,
+                },
+              )}** has been marked as closed by **<at>${
+                closedByUser.user_name
+              }</at>**.`,
               wrap: true,
             },
             {
@@ -1029,7 +1031,7 @@ const handlerForSafetyBotTab = (app) => {
           serviceUrl,
           user_tenant_id,
           null,
-          userAadObjId
+          userAadObjId,
         );
       }
     } catch (err) {
@@ -1038,7 +1040,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in SendSOSClosedCardToRequester data=" + JSON.stringify(data)
+        "error in SendSOSClosedCardToRequester data=" + JSON.stringify(data),
       );
     }
   };
@@ -1082,7 +1084,7 @@ const handlerForSafetyBotTab = (app) => {
               serviceurl,
               tenentid,
               assistanceuseraadobjectid,
-              comment
+              comment,
             );
             res.send(true);
           })
@@ -1094,7 +1096,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-              reqBody.comment
+                reqBody.comment,
             );
             res.send(false);
           });
@@ -1106,7 +1108,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-        reqBody.comment
+          reqBody.comment,
       );
     }
   });
@@ -1125,7 +1127,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       let incData = await incidentService.getAdminsOrEmergencyContacts(
         userAadObjId,
-        TeamId
+        TeamId,
       );
       if (
         incData === null ||
@@ -1150,7 +1152,7 @@ const handlerForSafetyBotTab = (app) => {
           ts,
           userAadObjId,
           userlocation,
-          UserDataUpdateID
+          UserDataUpdateID,
         );
       }
       console.log(assistanceData);
@@ -1166,7 +1168,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/requestAssistance"
+        "error in /areyousafetabhandler/requestAssistance",
       );
     }
   });
@@ -1182,7 +1184,7 @@ const handlerForSafetyBotTab = (app) => {
       try {
         incData = await incidentService.getAdminsOrEmergencyContacts(
           userAadObjId,
-          teamId
+          teamId,
         );
       } catch (err) {
         console.log(err);
@@ -1191,7 +1193,7 @@ const handlerForSafetyBotTab = (app) => {
           teamId,
           "",
           userAadObjId,
-          "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> getEmergencyContacts"
+          "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> getEmergencyContacts",
         );
       }
       if (
@@ -1212,7 +1214,7 @@ const handlerForSafetyBotTab = (app) => {
           userAadObjId,
           userlocation,
           requestAssistanceid,
-          issendemail
+          issendemail,
         );
         res.send(isProactiveMessageSent);
       } catch (err) {
@@ -1222,25 +1224,24 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userAadObjId,
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
-          userlocation +
-          " req.query.adminlist=" +
-          req.body.data
+            userlocation +
+            " req.query.adminlist=" +
+            req.body.data,
         );
       }
-    }
+    },
   );
   app.get(
     "/areyousafetabhandler/DeleteNeedAssistanceData",
     async (req, res) => {
       const AssistanceID = req.query.id;
-      const Deletassistancedata = await tabObj.DeleteNeedAssistanceData(
-        AssistanceID
-      );
+      const Deletassistancedata =
+        await tabObj.DeleteNeedAssistanceData(AssistanceID);
       res.send(Deletassistancedata);
 
       console.log(res);
       console.log({ AssistanceID });
-    }
+    },
   );
   app.put("/areyousafetabhandler/addCommentToAssistance", (req, res) => {
     const data = req.query;
@@ -1259,7 +1260,7 @@ const handlerForSafetyBotTab = (app) => {
           .then(async (respData) => {
             let admins = await incidentService.getAdminsOrEmergencyContacts(
               userAadObjId,
-              TeamId
+              TeamId,
             );
             if (
               admins != null ||
@@ -1271,7 +1272,7 @@ const handlerForSafetyBotTab = (app) => {
                 admins,
                 reqBody.comment,
                 userAadObjId,
-                assistId
+                assistId,
               );
             }
             res.send(true);
@@ -1284,7 +1285,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-              reqBody.comment
+                reqBody.comment,
             );
             res.send(false);
           });
@@ -1296,7 +1297,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-        reqBody.comment
+          reqBody.comment,
       );
     }
   });
@@ -1364,7 +1365,7 @@ const handlerForSafetyBotTab = (app) => {
       const assistanceQuery = `SELECT user_id, sent_to_ids FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
       const assistanceData = await db.getDataFromDB(
         assistanceQuery,
-        adminInfo.user_aadobject_id
+        adminInfo.user_aadobject_id,
       );
 
       if (!assistanceData || assistanceData.length === 0) {
@@ -1383,7 +1384,7 @@ const handlerForSafetyBotTab = (app) => {
       const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
       const existingResponse = await db.getDataFromDB(
         checkQuery,
-        adminInfo.user_aadobject_id
+        adminInfo.user_aadobject_id,
       );
 
       if (
@@ -1423,7 +1424,7 @@ const handlerForSafetyBotTab = (app) => {
       const requesterQuery = `SELECT user_id, user_name, user_aadobject_id, email FROM MSTeamsTeamsUsers WHERE user_id = '${assistanceData[0].user_id}'`;
       const requesterInfo = await db.getDataFromDB(
         requesterQuery,
-        adminInfo.user_aadobject_id
+        adminInfo.user_aadobject_id,
       );
       const requester =
         requesterInfo && requesterInfo.length > 0 ? requesterInfo[0] : null;
@@ -1438,7 +1439,7 @@ const handlerForSafetyBotTab = (app) => {
             sendToIds
               .split(",")
               .map((id) => id.trim())
-              .filter((id) => id && id !== "" && id !== adminInfo.user_id)
+              .filter((id) => id && id !== "" && id !== adminInfo.user_id),
           ),
         ];
 
@@ -1447,7 +1448,7 @@ const handlerForSafetyBotTab = (app) => {
           const otherAdminsQuery = `SELECT DISTINCT user_name FROM MSTeamsTeamsUsers WHERE user_id IN (${adminIdsStr})`;
           const otherAdminsResult = await db.getDataFromDB(
             otherAdminsQuery,
-            adminInfo.user_aadobject_id
+            adminInfo.user_aadobject_id,
           );
           if (otherAdminsResult && otherAdminsResult.length > 0) {
             // Remove duplicate names using Set
@@ -1455,7 +1456,7 @@ const handlerForSafetyBotTab = (app) => {
               ...new Set(
                 otherAdminsResult
                   .map((admin) => admin.user_name)
-                  .filter((name) => name && name.trim() !== "")
+                  .filter((name) => name && name.trim() !== ""),
               ),
             ];
           }
@@ -1513,7 +1514,7 @@ const handlerForSafetyBotTab = (app) => {
           requestAssistanceid,
           adminInfo.user_tenant_id,
           adminInfo.serviceUrl,
-          mockUser
+          mockUser,
         )
         .catch((err) => {
           console.log("Error in handleRespondToAssistanceAsync:", err);
@@ -1522,7 +1523,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             adminInfo.user_aadobject_id,
-            "error in /acceptSOS - handleRespondToAssistanceAsync"
+            "error in /acceptSOS - handleRespondToAssistanceAsync",
           );
         });
 
@@ -1585,18 +1586,18 @@ const handlerForSafetyBotTab = (app) => {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       console.log(
         "WhatsApp message sent:",
-        response.data || response.message || response
+        response.data || response.message || response,
       );
       return response;
     } catch (error) {
       console.log(
         "Error sending WhatsApp message:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
       throw error;
     }
@@ -1614,7 +1615,7 @@ const handlerForSafetyBotTab = (app) => {
           try {
             await sendWhatsAppMessage(
               adminPhone,
-              "Error: Missing required parameters. Please try again."
+              "Error: Missing required parameters. Please try again.",
             );
           } catch (err) {
             console.log("Error sending WhatsApp error message:", err);
@@ -1640,7 +1641,7 @@ const handlerForSafetyBotTab = (app) => {
           try {
             await sendWhatsAppMessage(
               adminPhone,
-              "Error: Admin not found. Please ensure you're using the correct link."
+              "Error: Admin not found. Please ensure you're using the correct link.",
             );
           } catch (err) {
             console.log("Error sending WhatsApp error message:", err);
@@ -1653,7 +1654,7 @@ const handlerForSafetyBotTab = (app) => {
       const assistanceQuery = `SELECT user_id, sent_to_ids FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
       const assistanceData = await db.getDataFromDB(
         assistanceQuery,
-        adminInfo.user_aadobject_id
+        adminInfo.user_aadobject_id,
       );
 
       if (!assistanceData || assistanceData.length === 0) {
@@ -1661,7 +1662,7 @@ const handlerForSafetyBotTab = (app) => {
           try {
             await sendWhatsAppMessage(
               adminPhone,
-              "Error: SOS request not found."
+              "Error: SOS request not found.",
             );
           } catch (err) {
             console.log("Error sending WhatsApp error message:", err);
@@ -1674,7 +1675,7 @@ const handlerForSafetyBotTab = (app) => {
       const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
       const existingResponse = await db.getDataFromDB(
         checkQuery,
-        adminInfo.user_aadobject_id
+        adminInfo.user_aadobject_id,
       );
 
       if (
@@ -1689,7 +1690,7 @@ const handlerForSafetyBotTab = (app) => {
             try {
               await sendWhatsAppMessage(
                 adminPhone,
-                "You are already the first responder for this SOS. Thank you for your response."
+                "You are already the first responder for this SOS. Thank you for your response.",
               );
               incidentService.saveAllTypeQuerylogs(
                 adminInfo.user_aadobject_id,
@@ -1702,7 +1703,7 @@ const handlerForSafetyBotTab = (app) => {
                 "",
                 "",
                 "You are already the first responder for this SOS.",
-                ""
+                "",
               );
             } catch (waErr) {
               console.log("Error sending WhatsApp confirmation:", waErr);
@@ -1715,7 +1716,7 @@ const handlerForSafetyBotTab = (app) => {
             try {
               await sendWhatsAppMessage(
                 adminPhone,
-                "Someone else has already responded to this SOS. Another responder is handling this request."
+                "Someone else has already responded to this SOS. Another responder is handling this request.",
               );
               incidentService.saveAllTypeQuerylogs(
                 adminInfo.user_aadobject_id,
@@ -1728,7 +1729,7 @@ const handlerForSafetyBotTab = (app) => {
                 "",
                 "",
                 "Someone else has already responded to this SOS.",
-                ""
+                "",
               );
             } catch (waErr) {
               console.log("Error sending WhatsApp confirmation:", waErr);
@@ -1746,7 +1747,7 @@ const handlerForSafetyBotTab = (app) => {
       const requesterQuery = `SELECT user_id, user_name, user_aadobject_id, email FROM MSTeamsTeamsUsers WHERE user_id = '${assistanceData[0].user_id}'`;
       const requesterInfo = await db.getDataFromDB(
         requesterQuery,
-        adminInfo.user_aadobject_id
+        adminInfo.user_aadobject_id,
       );
       const requester =
         requesterInfo && requesterInfo.length > 0 ? requesterInfo[0] : null;
@@ -1760,7 +1761,7 @@ const handlerForSafetyBotTab = (app) => {
             sendToIds
               .split(",")
               .map((id) => id.trim())
-              .filter((id) => id && id !== "" && id !== adminInfo.user_id)
+              .filter((id) => id && id !== "" && id !== adminInfo.user_id),
           ),
         ];
 
@@ -1769,14 +1770,14 @@ const handlerForSafetyBotTab = (app) => {
           const otherAdminsQuery = `SELECT DISTINCT user_name FROM MSTeamsTeamsUsers WHERE user_id IN (${adminIdsStr})`;
           const otherAdminsResult = await db.getDataFromDB(
             otherAdminsQuery,
-            adminInfo.user_aadobject_id
+            adminInfo.user_aadobject_id,
           );
           if (otherAdminsResult && otherAdminsResult.length > 0) {
             otherAdminNames = [
               ...new Set(
                 otherAdminsResult
                   .map((admin) => admin.user_name)
-                  .filter((name) => name && name.trim() !== "")
+                  .filter((name) => name && name.trim() !== ""),
               ),
             ];
           }
@@ -1828,7 +1829,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             notificationMessage,
-            ""
+            "",
           );
         } catch (waErr) {
           console.log("Error sending WhatsApp confirmation:", waErr);
@@ -1843,7 +1844,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             notificationMessage,
-            JSON.stringify(waErr.message || waErr)
+            JSON.stringify(waErr.message || waErr),
           );
         }
       }
@@ -1866,7 +1867,7 @@ const handlerForSafetyBotTab = (app) => {
           requestAssistanceid,
           adminInfo.user_tenant_id,
           adminInfo.serviceUrl,
-          mockUser
+          mockUser,
         )
         .catch((err) => {
           console.log("Error in handleRespondToAssistanceAsync:", err);
@@ -1875,7 +1876,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             adminInfo.user_aadobject_id,
-            "error in /whatsappAcceptSOS - handleRespondToAssistanceAsync"
+            "error in /whatsappAcceptSOS - handleRespondToAssistanceAsync",
           );
         });
 
@@ -1891,7 +1892,7 @@ const handlerForSafetyBotTab = (app) => {
         try {
           await sendWhatsAppMessage(
             adminPhone,
-            "An error occurred while processing your response. Please try again or contact support."
+            "An error occurred while processing your response. Please try again or contact support.",
           );
         } catch (waErr) {
           console.log("Error sending WhatsApp error message:", waErr);
@@ -1909,7 +1910,7 @@ const handlerForSafetyBotTab = (app) => {
       const isDuplicate = await tabObj.checkDuplicateInc(
         qs.incTitle,
         qs.teamId,
-        qs.userAadObjId
+        qs.userAadObjId,
       );
       res.send(isDuplicate);
     } catch (err) {
@@ -1920,7 +1921,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         qs.userAadObjId,
         "error in /areyousafetabhandler/checkduplicateInc -> qs.incTitle=" +
-        qs.incTitle
+          qs.incTitle,
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -1941,7 +1942,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         req.query.userAadObjId,
-        "error in /areyousafetabhandler/createnewincident"
+        "error in /areyousafetabhandler/createnewincident",
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -1962,7 +1963,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         req.query.userAadObjId,
-        "error in /areyousafetabhandler/FileSave"
+        "error in /areyousafetabhandler/FileSave",
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -1983,7 +1984,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         req.query.userAadObjId,
-        "error in /areyousafetabhandler/DeleteFile"
+        "error in /areyousafetabhandler/DeleteFile",
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -1991,8 +1992,8 @@ const handlerForSafetyBotTab = (app) => {
 
   app.post("/areyousafetabhandler/saveInstalledUsersToDB", async (req, res) => {
     try {
-      const { users, tenantId, serviceUrl } = req.body;
-      const teamId = req.query.teamId; // Check if team_id is in query params
+      console.log("=== Received request to save installed users to DB ===");
+      const { users, tenantId, serviceUrl, teamId } = req.body;
 
       console.log("=== Received request to save installed users to DB ===");
       console.log("Tenant ID:", tenantId);
@@ -2004,17 +2005,16 @@ const handlerForSafetyBotTab = (app) => {
       if (!users || !Array.isArray(users) || users.length === 0) {
         return res.send({
           success: false,
-          error: "No users provided or users array is empty"
+          error: "No users provided or users array is empty",
         });
       }
 
       if (!tenantId) {
         return res.send({
           success: false,
-          error: "Tenant ID is required"
+          error: "Tenant ID is required",
         });
       }
-
       // Use mssql for parameterized queries
       const sql = require("mssql");
       const pool = await poolPromise;
@@ -2040,13 +2040,29 @@ const handlerForSafetyBotTab = (app) => {
         }
 
         // Extract user properties (supporting multiple property name variations)
-        const userAadObjectId = user.aadObjectId || user.objectId || user.id || user.user_aadobject_id;
-        const userId = user.user_id || user.userId || user.id || userAadObjectId;
-        const userName = user.user_name || user.userName || user.displayName || user.name || "";
-        const userPrincipalName = user.userPrincipalName || user.user_principal_name || user.upn || "";
+        const userAadObjectId =
+          user.aadObjectId ||
+          user.objectId ||
+          user.id ||
+          user.user_aadobject_id;
+        const userId =
+          user.user_id || user.userId || user.id || userAadObjectId;
+        const userName =
+          user.user_name ||
+          user.userName ||
+          user.displayName ||
+          user.name ||
+          "";
+        const userPrincipalName =
+          user.userPrincipalName || user.user_principal_name || user.upn || "";
         const email = user.email || user.mail || "";
         const userRole = user.userRole || user.user_role || user.role || "User";
-        const isTeamMember = user.IS_TEAM_MEMBER !== undefined ? user.IS_TEAM_MEMBER : (user.isTeamMember !== undefined ? user.isTeamMember : 1);
+        const isTeamMember =
+          user.IS_TEAM_MEMBER !== undefined
+            ? user.IS_TEAM_MEMBER
+            : user.isTeamMember !== undefined
+              ? user.isTeamMember
+              : 1;
 
         if (!userAadObjectId) {
           console.warn("Skipping user - no user_aadobject_id found:", user);
@@ -2063,7 +2079,7 @@ const handlerForSafetyBotTab = (app) => {
           email: email,
           tenantid: tenantId,
           userRole: userRole,
-          IS_TEAM_MEMBER: isTeamMember ? 1 : 0
+          IS_TEAM_MEMBER: isTeamMember ? 1 : 0,
         });
       }
 
@@ -2071,13 +2087,18 @@ const handlerForSafetyBotTab = (app) => {
         return res.send({
           success: false,
           error: "No valid users to save after validation",
-          skippedCount
+          skippedCount,
         });
       }
 
+      return res.send({
+        success: true,
+        message: "Users saved successfully",
+      });
       // Build INSERT statement with NOT EXISTS check for all users in a single query
-      const valuesClause = validUsers.map((u) => {
-        return `(
+      const valuesClause = validUsers
+        .map((u) => {
+          return `(
           ${escapeSqlString(u.team_id)},
           ${escapeSqlString(u.user_aadobject_id)},
           ${escapeSqlString(u.user_id)},
@@ -2088,7 +2109,8 @@ const handlerForSafetyBotTab = (app) => {
           ${escapeSqlString(u.userRole)},
           ${u.IS_TEAM_MEMBER}
         )`;
-      }).join(",\n    ");
+        })
+        .join(",\n    ");
 
       const insertQuery = `
         INSERT INTO MSTeamsTeamsUsers
@@ -2120,14 +2142,16 @@ const handlerForSafetyBotTab = (app) => {
       // Execute the single INSERT query
       const result = await pool.request().query(insertQuery);
 
-      console.log(`✅ Successfully saved ${validUsers.length} users in a single query, skipped ${skippedCount}`);
+      console.log(
+        `✅ Successfully saved ${validUsers.length} users in a single query, skipped ${skippedCount}`,
+      );
 
       res.send({
         success: true,
         message: `Processed ${users.length} users`,
         savedCount: validUsers.length,
         skippedCount,
-        totalUsers: users.length
+        totalUsers: users.length,
       });
     } catch (err) {
       console.log("Error in saveInstalledUsersToDB:", err);
@@ -2136,7 +2160,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         "",
-        "error in /areyousafetabhandler/saveInstalledUsersToDB"
+        "error in /areyousafetabhandler/saveInstalledUsersToDB",
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -2159,7 +2183,7 @@ const handlerForSafetyBotTab = (app) => {
           teamId,
           createdByUserInfo,
           userAadObjId,
-          resendSafetyCheck
+          resendSafetyCheck,
         )
         .then((safetyCheckSend) => {
           res.send(safetyCheckSend);
@@ -2172,7 +2196,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         req.query.userAadObjId,
         "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-        req.query.incId
+          req.query.incId,
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -2207,7 +2231,7 @@ const handlerForSafetyBotTab = (app) => {
             members,
             companyData,
             isLastBatch,
-            isFirstBatch
+            isFirstBatch,
           )
           .then((safetyCheckSend) => {
             res.send(safetyCheckSend);
@@ -2220,11 +2244,11 @@ const handlerForSafetyBotTab = (app) => {
           "",
           req.query.userAadObjId,
           "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-          req.query.incId
+            req.query.incId,
         );
         res.send({ error: "Error: Please try again" });
       }
-    }
+    },
   );
   app.get("/areyousafetabhandler/getUserTeamInfo", async (req, res) => {
     const userAadObjId = req.query.userAadObjId;
@@ -2256,9 +2280,9 @@ const handlerForSafetyBotTab = (app) => {
         userName,
         userId,
         "error in /areyousafetabhandler/contactus -> email=" +
-        email +
-        " msg=" +
-        msg
+          email +
+          " msg=" +
+          msg,
       );
       res.send(false);
     }
@@ -2276,7 +2300,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         null,
-        "error in /areyousafetabhandler/getSuperUsersByTeamId"
+        "error in /areyousafetabhandler/getSuperUsersByTeamId",
       );
     }
   });
@@ -2298,7 +2322,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         reqBody.userAadObjId,
-        "error in /areyousafetabhandler/saveUserSetting"
+        "error in /areyousafetabhandler/saveUserSetting",
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -2320,7 +2344,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getIncDataToCopyInc incId=" + incId
+        "error in /areyousafetabhandler/getIncDataToCopyInc incId=" + incId,
       );
     }
   });
@@ -2353,9 +2377,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-            incid +
-            " incType=" +
-            incType
+              incid +
+              " incType=" +
+              incType,
           );
           res.send(0);
         });
@@ -2366,9 +2390,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-        incid +
-        " incType=" +
-        incType
+          incid +
+          " incType=" +
+          incType,
       );
       res.send(0);
     }
@@ -2390,7 +2414,7 @@ const handlerForSafetyBotTab = (app) => {
             teamId,
             "",
             userAadObjId,
-            "error in /areyousafetabhandler/getNAReapSelectedTeams then"
+            "error in /areyousafetabhandler/getNAReapSelectedTeams then",
           );
           res.send(0);
         });
@@ -2400,7 +2424,7 @@ const handlerForSafetyBotTab = (app) => {
         teamId,
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getNAReapSelectedTeams"
+        "error in /areyousafetabhandler/getNAReapSelectedTeams",
       );
       res.send(0);
     }
@@ -2422,9 +2446,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-            serviceUrl +
-            " teamUserId=" +
-            teamUserId
+              serviceUrl +
+              " teamUserId=" +
+              teamUserId,
           );
           res.send(0);
         });
@@ -2435,9 +2459,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-        serviceUrl +
-        " teamUserId=" +
-        teamUserId
+          serviceUrl +
+          " teamUserId=" +
+          teamUserId,
       );
       res.send(0);
     }
@@ -2466,7 +2490,7 @@ const handlerForSafetyBotTab = (app) => {
           userAadObjId,
           resuserid,
           resusername,
-          incType
+          incType,
         )
         .then((data) => {
           if (data) {
@@ -2482,7 +2506,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             userAadObjId,
-            "error in /areyousafetabhandler/updateSafetyCheckStatus"
+            "error in /areyousafetabhandler/updateSafetyCheckStatus",
           );
           res.send("false");
         });
@@ -2492,7 +2516,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/updateSafetyCheckStatus"
+        "error in /areyousafetabhandler/updateSafetyCheckStatus",
       );
       res.send("false");
     }
@@ -2527,7 +2551,7 @@ const handlerForSafetyBotTab = (app) => {
             TeamId,
             "",
             userAadObjId,
-            "error in /areyousafetabhandler/getEmergencyContactUsers"
+            "error in /areyousafetabhandler/getEmergencyContactUsers",
           );
 
           res.send(null);
@@ -2538,7 +2562,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getEmergencyContactUsers"
+        "error in /areyousafetabhandler/getEmergencyContactUsers",
       );
     }
   });
@@ -2574,7 +2598,7 @@ const handlerForSafetyBotTab = (app) => {
             TeamId,
             "",
             userAadObjId,
-            "error in /areyousafetabhandler/getAdminList"
+            "error in /areyousafetabhandler/getAdminList",
           );
 
           res.send(null);
@@ -2585,7 +2609,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "error in /areyousafetabhandler/getAdminList"
+        "error in /areyousafetabhandler/getAdminList",
       );
     }
   });
@@ -2734,7 +2758,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             "Error in Saving AllAdminConsentInfo_IsAppPermissionGranted: " +
-            IsAppPermissionGranted
+              IsAppPermissionGranted,
           );
         });
     }
@@ -2789,7 +2813,7 @@ const handlerForSafetyBotTab = (app) => {
         userId,
         eventId,
         "YES",
-        isfromemail ? "Email" : "SMS"
+        isfromemail ? "Email" : "SMS",
       );
 
       bot.SaveSmsLog(
@@ -2799,7 +2823,7 @@ const handlerForSafetyBotTab = (app) => {
         JSON.stringify({ eventId, userId }),
         null,
         null,
-        eventId
+        eventId,
       );
 
       incidentService.saveAllTypeQuerylogs(
@@ -2813,13 +2837,15 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         "YES",
-        ""
+        "",
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
-        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
-        }`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -3105,7 +3131,7 @@ const handlerForSafetyBotTab = (app) => {
         userId,
         eventId,
         "NO",
-        isfromemail ? "Email" : "SMS"
+        isfromemail ? "Email" : "SMS",
       );
 
       bot.SaveSmsLog(
@@ -3115,7 +3141,7 @@ const handlerForSafetyBotTab = (app) => {
         JSON.stringify({ eventId, userId }),
         null,
         null,
-        eventId
+        eventId,
       );
 
       incidentService.saveAllTypeQuerylogs(
@@ -3129,13 +3155,15 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         "NO",
-        ""
+        "",
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
-        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
-        }`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -3162,7 +3190,7 @@ const handlerForSafetyBotTab = (app) => {
       "",
       "",
       `${comments}`,
-      ""
+      "",
     );
     res.status(200);
   });
@@ -3215,7 +3243,7 @@ const handlerForSafetyBotTab = (app) => {
             incId,
             resp.toUpperCase(),
             from,
-            runat
+            runat,
           );
         }
       }
@@ -3235,7 +3263,7 @@ const handlerForSafetyBotTab = (app) => {
             incId,
             resp.toUpperCase(),
             from,
-            runat
+            runat,
           );
         }
       }
@@ -3299,7 +3327,7 @@ const handlerForSafetyBotTab = (app) => {
                 incId,
                 resp.toUpperCase(),
                 from,
-                runat
+                runat,
               );
             }
           }
@@ -3317,7 +3345,7 @@ const handlerForSafetyBotTab = (app) => {
                 userId,
                 incId,
                 resp.toUpperCase(),
-                from
+                from,
               );
             }
           }
@@ -3355,7 +3383,7 @@ const handlerForSafetyBotTab = (app) => {
         "getMessageActivityLog called with incId:",
         incId,
         "userAadObjId:",
-        userAadObjId
+        userAadObjId,
       );
       const parsedIncId = parseInt(incId);
       if (!parsedIncId || !incId || !userAadObjId) {
@@ -3387,7 +3415,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         req.query.userAadObjId,
-        "Error in /areyousafetabhandler/getMessageActivityLog"
+        "Error in /areyousafetabhandler/getMessageActivityLog",
       );
       res.status(500).json({ error: "Failed to fetch message activity log" });
     }
@@ -3401,7 +3429,7 @@ const handlerForSafetyBotTab = (app) => {
       "getSOSLog called with teamId:",
       teamId,
       "userAadObjId:",
-      userAadObjId
+      userAadObjId,
     );
 
     try {
@@ -3418,7 +3446,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             userAadObjId,
-            "error in /areyousafetabhandler/getSOSLog -> then"
+            "error in /areyousafetabhandler/getSOSLog -> then",
           );
           res.status(500).json({ error: "Failed to fetch SOS log" });
         });
@@ -3429,7 +3457,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         userAadObjId,
-        "Error in /areyousafetabhandler/getSOSLog"
+        "Error in /areyousafetabhandler/getSOSLog",
       );
       res.status(500).json({ error: "Failed to fetch SOS log" });
     }
@@ -3523,7 +3551,7 @@ WHERE
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguageData -> language=" +
-        language
+          language,
       );
       res.status(500).json({ error: "Error fetching language data" });
     }
@@ -3606,9 +3634,9 @@ WHERE
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguage -> teamId=" +
-        teamId +
-        " userId=" +
-        userId
+          teamId +
+          " userId=" +
+          userId,
       );
       res.status(500).json({ error: "Error fetching selected language" });
     }
