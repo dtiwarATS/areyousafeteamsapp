@@ -1989,6 +1989,159 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.post("/areyousafetabhandler/saveInstalledUsersToDB", async (req, res) => {
+    try {
+      const { users, tenantId, serviceUrl } = req.body;
+      const teamId = req.query.teamId; // Check if team_id is in query params
+
+      console.log("=== Received request to save installed users to DB ===");
+      console.log("Tenant ID:", tenantId);
+      console.log("Service URL:", serviceUrl);
+      console.log("Team ID (from query):", teamId);
+      console.log("Number of users:", users ? users.length : 0);
+      console.log("Users data:", JSON.stringify(users, null, 2));
+
+      if (!users || !Array.isArray(users) || users.length === 0) {
+        return res.send({
+          success: false,
+          error: "No users provided or users array is empty"
+        });
+      }
+
+      if (!tenantId) {
+        return res.send({
+          success: false,
+          error: "Tenant ID is required"
+        });
+      }
+
+      // Use mssql for parameterized queries
+      const sql = require("mssql");
+      const pool = await poolPromise;
+
+      // Helper function to escape SQL strings and handle null
+      const escapeSqlString = (str) => {
+        if (str === null || str === undefined) return "''";
+        return `N'${String(str).replace(/'/g, "''")}'`;
+      };
+
+      // Process and validate users, build VALUES for MERGE statement
+      const validUsers = [];
+      let skippedCount = 0;
+
+      for (const user of users) {
+        // Get team_id from user object or query params
+        const userTeamId = user.team_id || user.teamId || teamId;
+
+        if (!userTeamId) {
+          console.warn("Skipping user - no team_id found:", user);
+          skippedCount++;
+          continue;
+        }
+
+        // Extract user properties (supporting multiple property name variations)
+        const userAadObjectId = user.aadObjectId || user.objectId || user.id || user.user_aadobject_id;
+        const userId = user.user_id || user.userId || user.id || userAadObjectId;
+        const userName = user.user_name || user.userName || user.displayName || user.name || "";
+        const userPrincipalName = user.userPrincipalName || user.user_principal_name || user.upn || "";
+        const email = user.email || user.mail || "";
+        const userRole = user.userRole || user.user_role || user.role || "User";
+        const isTeamMember = user.IS_TEAM_MEMBER !== undefined ? user.IS_TEAM_MEMBER : (user.isTeamMember !== undefined ? user.isTeamMember : 1);
+
+        if (!userAadObjectId) {
+          console.warn("Skipping user - no user_aadobject_id found:", user);
+          skippedCount++;
+          continue;
+        }
+
+        validUsers.push({
+          team_id: userTeamId,
+          user_aadobject_id: userAadObjectId,
+          user_id: userId,
+          user_name: userName,
+          userPrincipalName: userPrincipalName,
+          email: email,
+          tenantid: tenantId,
+          userRole: userRole,
+          IS_TEAM_MEMBER: isTeamMember ? 1 : 0
+        });
+      }
+
+      if (validUsers.length === 0) {
+        return res.send({
+          success: false,
+          error: "No valid users to save after validation",
+          skippedCount
+        });
+      }
+
+      // Build INSERT statement with NOT EXISTS check for all users in a single query
+      const valuesClause = validUsers.map((u) => {
+        return `(
+          ${escapeSqlString(u.team_id)},
+          ${escapeSqlString(u.user_aadobject_id)},
+          ${escapeSqlString(u.user_id)},
+          ${escapeSqlString(u.user_name)},
+          ${escapeSqlString(u.userPrincipalName)},
+          ${escapeSqlString(u.email)},
+          ${escapeSqlString(u.tenantid)},
+          ${escapeSqlString(u.userRole)},
+          ${u.IS_TEAM_MEMBER}
+        )`;
+      }).join(",\n    ");
+
+      const insertQuery = `
+        INSERT INTO MSTeamsTeamsUsers
+        (team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER)
+        SELECT 
+          source.team_id,
+          source.user_aadobject_id,
+          source.user_id,
+          source.user_name,
+          source.userPrincipalName,
+          source.email,
+          source.tenantid,
+          source.userRole,
+          source.IS_TEAM_MEMBER
+        FROM (VALUES
+          ${valuesClause}
+        ) AS source
+        (
+          team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER
+        )
+        WHERE NOT EXISTS (
+          SELECT 1 
+          FROM MSTeamsTeamsUsers AS existing
+          WHERE existing.team_id = source.team_id 
+            AND existing.user_aadobject_id = source.user_aadobject_id
+        );
+      `;
+
+      // Execute the single INSERT query
+      const result = await pool.request().query(insertQuery);
+
+      console.log(`✅ Successfully saved ${validUsers.length} users in a single query, skipped ${skippedCount}`);
+
+      res.send({
+        success: true,
+        message: `Processed ${users.length} users`,
+        savedCount: validUsers.length,
+        skippedCount,
+        totalUsers: users.length
+      });
+    } catch (err) {
+      console.log("Error in saveInstalledUsersToDB:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in /areyousafetabhandler/saveInstalledUsersToDB"
+      );
+      res.send({ error: "Error: Please try again" });
+    }
+  });
+
   app.post("/areyousafetabhandler/sendSafetyCheckMessage", async (req, res) => {
     try {
       const qs = req.query;
