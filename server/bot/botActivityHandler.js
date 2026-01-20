@@ -221,7 +221,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                  JSON.stringify(context),
+                JSON.stringify(context),
               );
             }
 
@@ -265,9 +265,9 @@ class BotActivityHandler extends TeamsActivityHandler {
             "",
             userAadObjectId,
             "error in insertData - " +
-              contextInfo +
-              " sqlQuery=" +
-              (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
+            contextInfo +
+            " sqlQuery=" +
+            (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
           );
           throw err;
         }
@@ -504,7 +504,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 null,
                 null,
               );
-            } catch (err) {}
+            } catch (err) { }
           }
         } else if (
           (acvtivityData &&
@@ -583,10 +583,10 @@ class BotActivityHandler extends TeamsActivityHandler {
                   userDataLength: userData?.length || 0,
                   userData: userData
                     ? userData.map((u) => ({
-                        userId: u.user_id,
-                        userName: u.user_name,
-                        teamId: u.team_id,
-                      }))
+                      userId: u.user_id,
+                      userName: u.user_name,
+                      teamId: u.team_id,
+                    }))
                     : null,
                 }),
               );
@@ -686,13 +686,13 @@ class BotActivityHandler extends TeamsActivityHandler {
                       adminUserInfoExists: !!adminUserInfo,
                       adminUserInfo: adminUserInfo
                         ? {
-                            id: adminUserInfo.id,
-                            name: adminUserInfo.name,
-                            aadObjectId: adminUserInfo.aadObjectId,
-                            email: adminUserInfo.email,
-                            tenantId: adminUserInfo.tenantId,
-                            userRole: adminUserInfo.userRole,
-                          }
+                          id: adminUserInfo.id,
+                          name: adminUserInfo.name,
+                          aadObjectId: adminUserInfo.aadObjectId,
+                          email: adminUserInfo.email,
+                          tenantId: adminUserInfo.tenantId,
+                          userRole: adminUserInfo.userRole,
+                        }
                         : null,
                     }),
                   );
@@ -783,9 +783,8 @@ USING (VALUES
 (
     team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense
 )
-ON target.user_aadobject_id = source.user_aadobject_id and source.team_id='${
-                              cmpData.team_id
-                            }'
+ON target.user_aadobject_id = source.user_aadobject_id
+   AND target.team_id = source.team_id
 WHEN MATCHED THEN
     UPDATE SET 
         user_id = source.user_id,
@@ -869,11 +868,11 @@ WHEN NOT MATCHED THEN
                       adminUserInfo?.name || "",
                       userAadObjectId,
                       "error in onConversationUpdate - personal scope context=" +
-                        JSON.stringify({
-                          conversationType: conversationType,
-                          userAadObjectId: userAadObjectId,
-                          tenantId: acvtivityData.channelData?.tenant?.id,
-                        }),
+                      JSON.stringify({
+                        conversationType: conversationType,
+                        userAadObjectId: userAadObjectId,
+                        tenantId: acvtivityData.channelData?.tenant?.id,
+                      }),
                     );
                     throw err;
                   }
@@ -1195,7 +1194,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-              requestAssistanceid,
+            requestAssistanceid,
           );
         });
 
@@ -2356,7 +2355,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-          requestAssistanceid,
+        requestAssistanceid,
       );
     }
   }
@@ -2384,9 +2383,9 @@ WHERE rn = 1;
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-          JSON.stringify(context) +
-          " companyData=" +
-          JSON.stringify(companyData),
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData),
       );
     }
   }
@@ -2488,11 +2487,11 @@ WHERE rn = 1;
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-          JSON.stringify(context) +
-          " userEmail=" +
-          userEmail +
-          " companyDataObj=" +
-          JSON.stringify(companyDataObj),
+        JSON.stringify(context) +
+        " userEmail=" +
+        userEmail +
+        " companyDataObj=" +
+        JSON.stringify(companyDataObj),
       );
     }
   }
@@ -2608,7 +2607,7 @@ WHERE rn = 1;
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => {})
+        .then(() => { })
         .catch((err) => {
           console.log(err);
         });
