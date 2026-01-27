@@ -40,7 +40,7 @@ const parseCompanyData = (result) => {
       "",
       "",
       "",
-      "error in parseCompanyData result=" + JSON.stringify(result)
+      "error in parseCompanyData result=" + JSON.stringify(result),
     );
   }
 
@@ -85,7 +85,7 @@ const isAdminUser = async (userObjId, teamid) => {
       "",
       "",
       userObjId,
-      "error in isAdminUser userObjId=" + userObjId
+      "error in isAdminUser userObjId=" + userObjId,
     );
   }
 };
@@ -101,7 +101,7 @@ const verifyAdminUserForDashboardTab = async (userObjId, teamid = "") => {
       "",
       "",
       userObjId,
-      "error in verifyAdminUserForDashboardTab userObjId=" + userObjId
+      "error in verifyAdminUserForDashboardTab userObjId=" + userObjId,
     );
   }
   return {
@@ -127,14 +127,14 @@ const getInstallationData = async () => {
       "",
       "",
       userObjId,
-      "error in getInstallationData"
+      "error in getInstallationData",
     );
   }
 };
 
 const getCompaniesDataBySuperUserId = async (
   superUserId,
-  filterByTeamId = false
+  filterByTeamId = false,
 ) => {
   try {
     selectQuery = "";
@@ -154,7 +154,7 @@ const getCompaniesDataBySuperUserId = async (
       "",
       "",
       "",
-      "error in getCompaniesDataBySuperUserId superUserId=" + superUserId
+      "error in getCompaniesDataBySuperUserId superUserId=" + superUserId,
     );
   }
 };
@@ -183,7 +183,7 @@ const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
   try {
     const checkUserLicenseQuery = getCheckUserLicenseQuery(
       userAadObjId,
-      teamId
+      teamId,
     );
     const res = await db.getDataFromDB(checkUserLicenseQuery, userAadObjId);
     if (res != null && res.length > 0) {
@@ -203,7 +203,7 @@ const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
       teamId,
       userName,
       userAadObjId,
-      "error in getUserLicenseDetails"
+      "error in getUserLicenseDetails",
     );
   }
   return Promise.resolve({
@@ -223,7 +223,7 @@ const getUserLicenseDetails = async (userAadObjId, teamId = null) => {
 const getCompaniesData = async (
   userObjId,
   teamId = null,
-  filterByTeamID = false
+  filterByTeamID = false,
 ) => {
   try {
     selectQuery = "";
@@ -245,7 +245,7 @@ const getCompaniesData = async (
     if (res == null || res.length == 0) {
       res = await db.getDataFromDB(
         `SELECT *, ${sqlmemberCountCol} FROM MSTeamsInstallationDetails inst where super_users like '%${userObjId}%' and uninstallation_date is null`,
-        userObjId
+        userObjId,
       );
     }
     companyData = await parseCompanyData(res);
@@ -257,7 +257,7 @@ const getCompaniesData = async (
       teamId,
       "",
       userObjId,
-      "error in getCompaniesData"
+      "error in getCompaniesData",
     );
   }
 };
@@ -276,7 +276,7 @@ left join MSTeamsSubscriptionDetails sd on sd.id = ind.SubscriptionDetailsId whe
       teamId,
       "",
       userAadObjId,
-      "error in getCompanyDataByTeamId"
+      "error in getCompanyDataByTeamId",
     );
   }
   return Promise.resolve(companyData);
@@ -295,7 +295,7 @@ const getFilesByIncId = async (IncId, userAadObjId) => {
       "",
       "",
       userAadObjId,
-      "error in getCompanyDataByTeamId IncId=" + IncId
+      "error in getCompanyDataByTeamId IncId=" + IncId,
     );
   }
   return Promise.resolve(filesData);
@@ -324,7 +324,7 @@ const removeAllTeamMember = async (teamId) => {
       teamId,
       "",
       null,
-      "error in removeAllTeamMember"
+      "error in removeAllTeamMember",
     );
   }
 };
@@ -332,24 +332,24 @@ const removeAllTeamMember = async (teamId) => {
 const teamMemberInsertQuery = (teamId, m) => {
   return `
     IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-    m.aadObjectId ?? m.objectId
-  }')
+      m.aadObjectId ?? m.objectId
+    }')
     BEGIN
       INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[hasLicense])
     VALUES('${teamId}', '${m.aadObjectId ?? m.objectId}', '${
-    m.id
-  }', N'${m.name.replace(/'/g, "''")}', '${m.tenantId}', '${m.userRole}',1);
+      m.id
+    }', N'${m.name.replace(/'/g, "''")}', '${m.tenantId}', '${m.userRole}',1);
     END
     ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-    m.aadObjectId ?? m.objectId
-  }' AND userPrincipalName is null)
+      m.aadObjectId ?? m.objectId
+    }' AND userPrincipalName is null)
     BEGIN
       UPDATE MSTeamsTeamsUsers SET tenantid = '${m.tenantId}', userRole = '${
-    m.userRole
-  }'
+        m.userRole
+      }'
       WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-    m.aadObjectId ?? m.objectId
-  }';
+        m.aadObjectId ?? m.objectId
+      }';
     END`;
 };
 
@@ -357,7 +357,7 @@ const addTeamMember = async (
   teamId,
   teamMembers,
   updateLicense = false,
-  removeOldUsers = false
+  removeOldUsers = false,
 ) => {
   let isUserInfoSaved = false;
   let sqlInserUsers = "";
@@ -400,7 +400,7 @@ END`;
       let delSql = "";
       try {
         delSql = `delete from MSTeamsTeamsUsers where team_id = '${teamId}' and user_aadobject_id not in ('${userList.join(
-          "','"
+          "','",
         )}')`;
         await pool.request().query(delSql);
       } catch (err) {
@@ -410,7 +410,7 @@ END`;
           teamId,
           "",
           "",
-          "error in addTeamMember delSql=" + delSql
+          "error in addTeamMember delSql=" + delSql,
         );
       }
     }
@@ -419,7 +419,7 @@ END`;
       //console.log(sqlInserUsers);
       await pool.request().query(sqlInserUsers);
       let users = await db.getDataFromDB(
-        `SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}'`
+        `SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}'`,
       );
       isUserInfoSaved = { users, isUserInfoSaved: true };
     }
@@ -430,7 +430,7 @@ END`;
       teamId,
       "",
       "",
-      "error in addTeamMember" + sqlInserUsers
+      "error in addTeamMember" + sqlInserUsers,
     );
   }
   return isUserInfoSaved;
@@ -467,7 +467,7 @@ const updateUserLicenseStatus = async (teamId, tenantId, userObjId) => {
       teamId,
       "",
       userObjId,
-      "error in updateUserLicenseStatus" + sqlUpdateLicenseStatus
+      "error in updateUserLicenseStatus" + sqlUpdateLicenseStatus,
     );
   }
 };
@@ -529,7 +529,7 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
       companyDataObj.serviceUrl,
       companyDataObj.userTenantId,
       null,
-      null
+      null,
     );
   });
 };
@@ -547,7 +547,7 @@ const addTypeOneSubscriptionDetails = async (
   tenantId,
   userEmailId,
   userAadObjId,
-  teamId
+  teamId,
 ) => {
   let sqlSubscriptionDetails = "";
   try {
@@ -574,7 +574,7 @@ const addTypeOneSubscriptionDetails = async (
       teamId,
       "",
       userAadObjId,
-      "error in addTypeOneSubscriptionDetails" + sqlSubscriptionDetails
+      "error in addTypeOneSubscriptionDetails" + sqlSubscriptionDetails,
     );
   }
 };
@@ -583,7 +583,7 @@ const updateIsUserInfoSaved = async (
   id,
   teamId = null,
   tenantId = null,
-  updateUserLincenseForExistingMembers = false
+  updateUserLincenseForExistingMembers = false,
 ) => {
   let sqlUpdateUserInfo = "";
   try {
@@ -611,7 +611,7 @@ const updateIsUserInfoSaved = async (
       teamId,
       "",
       "",
-      "error in updateIsUserInfoSaved" + sqlUpdateUserInfo
+      "error in updateIsUserInfoSaved" + sqlUpdateUserInfo,
     );
   }
 };
@@ -619,7 +619,7 @@ const updateIsUserInfoSaved = async (
 const insertCompanyData = async (
   companyDataObj,
   allMembersInfo,
-  conversationType
+  conversationType,
 ) => {
   const teamId =
     companyDataObj.teamId == null || companyDataObj.teamId == ""
@@ -657,10 +657,10 @@ const insertCompanyData = async (
           UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null, team_id = '${teamId}',
           team_name = N'${companyDataObj.teamName.replace(
             /'/g,
-            "''"
+            "''",
           )}' WHERE user_id = '${
-      companyDataObj.userId
-    }' and (TEAM_ID is null OR TEAM_ID = '');
+            companyDataObj.userId
+          }' and (TEAM_ID is null OR TEAM_ID = '');
 
           SELECT top 1 * FROM MSTeamsInstallationDetails where user_obj_id = '${
             companyDataObj.userObjId
@@ -672,11 +672,11 @@ const insertCompanyData = async (
         BEGIN
           UPDATE MSTeamsInstallationDetails SET uninstallation_date = null, uninstallation_user_aadObjid = null, 
           channelId = '${companyDataObj.channelId}', channelName = '${
-      companyDataObj.channelName
-    }'
+            companyDataObj.channelName
+          }'
           WHERE team_id = '${teamId}' and user_obj_id = '${
-      companyDataObj.userObjId
-    }';
+            companyDataObj.userObjId
+          }';
           SELECT top 1 * FROM MSTeamsInstallationDetails where user_obj_id = '${
             companyDataObj.userObjId
           }' and team_id = '${teamId}';
@@ -697,13 +697,13 @@ const insertCompanyData = async (
         await updateUserLicenseStatus(
           teamId,
           companyDataObj.userTenantId,
-          companyDataObj.userObjId
+          companyDataObj.userObjId,
         );
         await addTypeOneSubscriptionDetails(
           companyDataObj.userTenantId,
           companyDataObj.email,
           companyDataObj.userObjId,
-          teamId
+          teamId,
         );
 
         if (data.users && data.users.length > 0) {
@@ -732,7 +732,7 @@ const insertCompanyData = async (
       "error in insertCompanyData companyDataObj=" +
         JSON.stringify(companyDataObj) +
         " allMembersInfo=" +
-        JSON.stringify(allMembersInfo)
+        JSON.stringify(allMembersInfo),
     );
   }
 };
@@ -742,7 +742,7 @@ const deleteCompanyDataByuserAadObjId = async (userObjId) => {
     if (userObjId != null) {
       pool = await poolPromise;
       let query = `update msteamsinstallationdetails set super_users = null, uninstallation_date = '${new Date(
-        Date.now()
+        Date.now(),
       ).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where user_obj_id = '${userObjId}' and (team_id is null or team_id = '')`;
       await pool.request().query(query);
     }
@@ -753,7 +753,7 @@ const deleteCompanyDataByuserAadObjId = async (userObjId) => {
       teamId,
       "",
       companyDataObj.userObjId,
-      "error in deleteCompanyDataByuserAadObjId "
+      "error in deleteCompanyDataByuserAadObjId ",
     );
   }
 };
@@ -763,7 +763,7 @@ const deleteCompanyData = async (teamId, userObjId) => {
   try {
     pool = await poolPromise;
     let updateQuery = `update msteamsinstallationdetails set super_users = null, uninstallation_date = '${new Date(
-      Date.now()
+      Date.now(),
     ).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where team_id = '${teamId}'`;
     await pool.request().query(updateQuery);
 
@@ -779,7 +779,7 @@ const deleteCompanyData = async (teamId, userObjId) => {
       teamId,
       "",
       userObjId,
-      "error in deleteCompanyData"
+      "error in deleteCompanyData",
     );
   }
   return isDelete;
@@ -802,7 +802,7 @@ const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
       teamId,
       "",
       userId,
-      "error in updateSuperUserData selectedUserStr=" + selectedUserStr
+      "error in updateSuperUserData selectedUserStr=" + selectedUserStr,
     );
   }
   return Promise.resolve(isUpdated);
@@ -816,11 +816,20 @@ const updateSuperUserDataByUserAadObjId = async (
   SafetycheckForVisitorsQuestion1,
   SafetycheckForVisitorsQuestion2,
   SafetycheckForVisitorsQuestion3,
-  emergencyContactsStr
+  emergencyContactsStr,
 ) => {
   let isUpdated = false;
   try {
     pool = await poolPromise;
+
+    // Get current super_users value before update for audit trail
+    const selectQuery = `SELECT super_users FROM MSTeamsInstallationDetails WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
+    const currentResult = await pool.request().query(selectQuery);
+    const oldSuperUsers =
+      currentResult.recordset.length > 0
+        ? currentResult.recordset[0].super_users || ""
+        : "";
+
     const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',EnableSafetycheckForVisitors=${
       EnableSafetycheckForVisitors ? 1 : 0
     } ,SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' 
@@ -829,6 +838,41 @@ const updateSuperUserDataByUserAadObjId = async (
 
     const result = await pool.request().query(updateQuery);
     isUpdated = true;
+
+    // Log audit trail if super_users value changed
+    if (oldSuperUsers !== selectedUserStr) {
+      const escapedOldValue = (oldSuperUsers || "").replace(/'/g, "''");
+      const escapedNewValue = (selectedUserStr || "").replace(/'/g, "''");
+      const escapedUserId = (userId || "").replace(/'/g, "''");
+      const escapedTeamId = (teamId || "").replace(/'/g, "''");
+
+      const auditQuery = `INSERT INTO AUDIT_TRAIL (
+        UPDATED_IN,
+        ACTION,
+        TEAM_ID,
+        FIELD_NAME,
+        [FROM],
+        [TO],
+        UPDATED_BY,
+        UPDATED_DATETIME
+      ) VALUES (
+        'ADMIN_CONFIG',
+        'UPDATE',
+        '${escapedTeamId}',
+        'Select users who can create incident',
+        '${escapedOldValue}',
+        '${escapedNewValue}',
+        '${escapedUserId}',
+        GETDATE()
+      )`;
+
+      try {
+        await pool.request().query(auditQuery);
+      } catch (auditErr) {
+        console.log("Error inserting audit trail:", auditErr);
+        // Don't fail the main update if audit trail fails
+      }
+    }
     // return Promise.resolve();
   } catch (err) {
     console.log(err);
@@ -838,7 +882,7 @@ const updateSuperUserDataByUserAadObjId = async (
       teamId,
       "",
       userId,
-      "error in updateSuperUserDataByUserAadObjId"
+      "error in updateSuperUserDataByUserAadObjId",
     );
   }
   return Promise.resolve(isUpdated);
@@ -847,7 +891,7 @@ const updateSuperUserDataByUserAadObjId = async (
 const saveNARespSelectedTeams = async (
   cuurteamId,
   selectedTeams,
-  userAadObjId
+  userAadObjId,
 ) => {
   try {
     const selectQuery = `select user_tenant_id from MSTeamsInstallationDetails where team_id = '${cuurteamId}';`;
@@ -871,7 +915,7 @@ const saveNARespSelectedTeams = async (
       teamId,
       "",
       userAadObjId,
-      "error in saveNARespSelectedTeams selectedTeams=" + selectedTeams
+      "error in saveNARespSelectedTeams selectedTeams=" + selectedTeams,
     );
   }
 };
@@ -892,7 +936,7 @@ const updateCompanyData = async (userId, teamId, teamName = "") => {
 const addFeedbackData = async (feedbackDataObj) => {
   try {
     let values = Object.keys(feedbackDataObj).map(
-      (key) => feedbackDataObj[key]
+      (key) => feedbackDataObj[key],
     );
     const res = await db.insertDataIntoDB("MSTeamsFeedback", values);
 
@@ -936,7 +980,7 @@ const getCompanyDataByTenantId = async (tenantId, filter = null) => {
       "error in getCompanyDataByTenantId tenantId=" +
         tenantId +
         " filter=" +
-        filter
+        filter,
     );
   }
   return Promise.resolve(result);
@@ -952,7 +996,7 @@ const getUserById = async (userAadObjId) => {
       teamId,
       "",
       "",
-      "error in renameTeam tenantId=" + tenantId + " teamName=" + teamName
+      "error in renameTeam tenantId=" + tenantId + " teamName=" + teamName,
     );
   }
   return Promise.resolve(result);
@@ -968,7 +1012,7 @@ const renameTeam = async (teamId, teamName, tenantId) => {
       teamId,
       "",
       "",
-      "error in renameTeam tenantId=" + tenantId + " teamName=" + teamName
+      "error in renameTeam tenantId=" + tenantId + " teamName=" + teamName,
     );
   }
   return Promise.resolve(result);
