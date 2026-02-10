@@ -817,6 +817,7 @@ const updateSuperUserDataByUserAadObjId = async (
   SafetycheckForVisitorsQuestion2,
   SafetycheckForVisitorsQuestion3,
   emergencyContactsStr,
+  iscreateIncidentUser,
 ) => {
   let isUpdated = false;
   try {
@@ -830,7 +831,7 @@ const updateSuperUserDataByUserAadObjId = async (
         ? currentResult.recordset[0].super_users || ""
         : "";
 
-    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',EnableSafetycheckForVisitors=${
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',WHO_CAN_CREATE_INCIDENT='${iscreateIncidentUser}',EnableSafetycheckForVisitors=${
       EnableSafetycheckForVisitors ? 1 : 0
     } ,SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' 
 ,EMERGENCY_CONTACTS='${emergencyContactsStr}'
