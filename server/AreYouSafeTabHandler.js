@@ -430,6 +430,7 @@ const handlerForSafetyBotTab = (app) => {
           const responseObj = {
             respData: "no permission",
             isAdmin,
+            isWhoCanCreateIncident: safetyInitiatorObj.isWhoCanCreateInc,
           };
           const sendRespData = (incData) => {
             const formatedIncData = tabObj.getFormatedIncData(
@@ -440,7 +441,10 @@ const handlerForSafetyBotTab = (app) => {
             responseObj.respData = formatedIncData;
             res.send(responseObj);
           };
-          if (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) {
+          if (
+            (safetyInitiatorObj != null && safetyInitiatorObj.isAdmin) ||
+            safetyInitiatorObj.isWhoCanCreateInc
+          ) {
             if (req.query.teamId != null && req.query.teamId != "null") {
               incidentService
                 .getAllIncByTeamId(req.query.teamId, "desc", userObjId)

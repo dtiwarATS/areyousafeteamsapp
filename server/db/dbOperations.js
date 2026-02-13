@@ -90,10 +90,47 @@ const isAdminUser = async (userObjId, teamid) => {
   }
 };
 
+const isWhoCanCreateIncident = async (userObjId, teamid) => {
+  try {
+    selectQuery = "";
+    let isWhoCanCreateIncident = false;
+
+    let superUserQuery = `SELECT * FROM [dbo].[MSTeamsInstallationDetails] 
+                            WHERE WHO_CAN_CREATE_INCIDENT LIKE '%${userObjId}%' 
+                            AND uninstallation_date IS NULL`;
+
+    if (teamid && teamid != null && teamid != "null" && teamid != "NULL") {
+      superUserQuery += ` AND team_id = '${teamid}'`;
+    }
+
+    res = await db.getDataFromDB(superUserQuery, userObjId);
+
+    // check if the user is super user or not
+    if (res.length == 0) {
+      isWhoCanCreateIncident = false;
+    } else {
+      isWhoCanCreateIncident = true;
+    }
+    return Promise.resolve(isWhoCanCreateIncident);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in isWhoCanCreateIncident userObjId=" + userObjId,
+    );
+  }
+};
 const verifyAdminUserForDashboardTab = async (userObjId, teamid = "") => {
   let isAdmin = false;
+  let isWhoCanCreateInc = false;
   try {
     isAdmin = await isAdminUser(userObjId, teamid);
+    if (!isAdmin) {
+      isWhoCanCreateInc = await isWhoCanCreateIncident(userObjId, teamid);
+    }
   } catch (err) {
     console.log(err);
     processSafetyBotError(
@@ -106,6 +143,7 @@ const verifyAdminUserForDashboardTab = async (userObjId, teamid = "") => {
   }
   return {
     isAdmin,
+    isWhoCanCreateInc,
   };
 };
 
@@ -1027,6 +1065,7 @@ module.exports = {
   updateSuperUserData,
   updateCompanyData,
   isAdminUser,
+  isWhoCanCreateIncident,
   getCompaniesDataBySuperUserId,
   getInstallationData,
   addTeamMember,

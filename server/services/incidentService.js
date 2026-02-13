@@ -1733,7 +1733,7 @@ const getUserTeamInfo = async (userAadObjId) => {
         FROM MSTeamsInstallationDetails t
         LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
         WHERE (user_obj_id = '${userAadObjId}' 
-                  OR super_users like '%${userAadObjId}%') 
+                  OR super_users like '%${userAadObjId}%' or WHO_CAN_CREATE_INCIDENT like '%${userAadObjId}%') 
           AND uninstallation_date IS NULL 
           AND team_id IS NOT NULL 
           AND team_id <> '';
@@ -1778,7 +1778,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
         FROM MSTeamsInstallationDetails t
         LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
         WHERE (user_obj_id = '${userAadObjId}' 
-                  OR super_users like '%${userAadObjId}%') 
+                  OR super_users like '%${userAadObjId}%' or WHO_CAN_CREATE_INCIDENT like '%${userAadObjId}%' ) 
           AND uninstallation_date IS NULL 
           AND team_id IS NOT NULL 
           AND team_id <> ''
