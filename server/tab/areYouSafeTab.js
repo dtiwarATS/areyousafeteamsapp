@@ -2054,18 +2054,20 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
   fetchDataAndUpdateDB = async (teamId) => {
     try {
       const companyData = await getCompanyDataByTeamId(teamId);
-      incidentService.getUserInfoByTeamId(teamId).then(async (userInfo) => {
-        if (userInfo && userInfo.length > 0) {
-          let userIds = userInfo.map((user) => user.user_aadobject_id);
-          if (companyData.IS_APP_PERMISSION_GRANTED) {
-            await bot.getUserDetails(
-              companyData.userTenantId,
-              companyData.IS_APP_PERMISSION_GRANTED,
-              userIds,
-            );
+      await incidentService
+        .getUserInfoByTeamId(teamId)
+        .then(async (userInfo) => {
+          if (userInfo && userInfo.length > 0) {
+            let userIds = userInfo.map((user) => user.user_aadobject_id);
+            if (companyData.IS_APP_PERMISSION_GRANTED) {
+              await bot.getUserDetails(
+                companyData.userTenantId,
+                companyData.IS_APP_PERMISSION_GRANTED,
+                userIds,
+              );
+            }
           }
-        }
-      });
+        });
     } catch (err) {
       processSafetyBotError(
         err,
