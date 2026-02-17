@@ -3484,6 +3484,149 @@ const handlerForSafetyBotTab = (app) => {
     console.log({ weatheradvisorywebhook: req, res });
   });
 
+  const travelSelectedDb = require("./travelServices/travel-advisory-selected-db");
+  const travelAdvisory = require("./travelServices/travel-advisory-feed");
+  app.get("/areyousafetabhandler/getCountries", async (req, res) => {
+    try {
+      const countries = await travelSelectedDb.getAllCountriesFromDb();
+      res.json({ success: true, data: countries });
+    } catch (err) {
+      //  processSafetyBotError(err, "", "", "", "getCountries");
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.get(
+    "/areyousafetabhandler/getTravelAdvisoryByTeam/",
+    async (req, res) => {
+      try {
+        const teamId = req.query.teamId || (req.body && req.body.teamId) || "";
+
+        const data = await travelSelectedDb.getTravelAdvisoryByTeamData(teamId);
+
+        res.json({ success: true, data });
+      } catch (err) {
+        console.error(
+          "Error in /areyousafetabhandler/getTravelAdvisoryByTeam:",
+          err,
+        );
+        res
+          .status(500)
+          .json({ success: false, error: err.message, data: null });
+      }
+    },
+  );
+
+  app.post(
+    "/areyousafetabhandler/saveTravelAdvisorySelection/",
+    async (req, res) => {
+      try {
+        const body = req.body || {};
+        const tenantId = body.tenantId || req.query.tenantId || "";
+        const teamId = body.teamId || req.query.teamId || "";
+        const userId = body.userId || req.query.userId || "";
+        const countryCodes = Array.isArray(body.countryCodes)
+          ? body.countryCodes
+          : [];
+        if (!tenantId || !teamId) {
+          return res.status(400).json({
+            success: false,
+            error: "tenantId and teamId are required",
+          });
+        }
+        const result = await travelSelectedDb.saveTravelAdvisorySelections(
+          tenantId,
+          teamId,
+          userId,
+          countryCodes,
+        );
+
+        let detailSavedCount = 0;
+        let advisoriesList = [];
+        const requestedCodesSet = new Set(
+          (countryCodes || [])
+            .map((c) => String(c).trim().toUpperCase())
+            .filter(Boolean),
+        );
+        if (requestedCodesSet.size > 0) {
+          const selections =
+            await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
+              tenantId,
+              teamId,
+            );
+          const filtered = selections.filter((row) =>
+            requestedCodesSet.has((row.CountryCode || "").toUpperCase()),
+          );
+          if (filtered.length > 0) {
+            const advisories = await travelAdvisory.getProcessedAdvisories();
+            const advisoryByCode = {};
+            for (const adv of advisories) {
+              const code = (adv.countryCode || "").toUpperCase();
+              if (code) advisoryByCode[code] = adv;
+            }
+            const now = new Date();
+            for (const row of filtered) {
+              const selectedId = row.TravelAdvisorySelectedCountriesId;
+              const countryId = row.CountryId;
+              const countryCode = (row.CountryCode || "").toUpperCase();
+              const advisory = advisoryByCode[countryCode];
+              if (advisory) {
+                await travelSelectedDb.upsertSavedAdvisory(
+                  selectedId,
+                  countryId,
+                  advisory,
+                  now,
+                );
+                detailSavedCount++;
+              }
+            }
+            advisoriesList = filtered
+              .map((row) => advisoryByCode[(row.CountryCode || "").toUpperCase()])
+              .filter(Boolean)
+              .map((adv) => ({
+                country: adv.country,
+                countryCode: adv.countryCode,
+                level: adv.level,
+                levelNumber: adv.levelNumber ?? 0,
+                title: adv.title,
+                summary: adv.summary || "No summary available",
+                restrictions: Array.isArray(adv.restrictions)
+                  ? adv.restrictions
+                  : [],
+                recommendations: Array.isArray(adv.recommendations)
+                  ? adv.recommendations
+                  : [],
+                link: adv.link,
+                pubDate: adv.pubDate,
+                lastUpdated: adv.lastUpdated
+                  ? new Date(adv.lastUpdated)
+                  : null,
+              }));
+          }
+        }
+
+        res.json({
+          success: true,
+          savedCount: result.savedCount,
+          skipped: result.skipped,
+          deletedCount:
+            result.deletedCount != null && result.deletedCount > 0
+              ? result.deletedCount
+              : undefined,
+          detailSavedCount: detailSavedCount > 0 ? detailSavedCount : undefined,
+          advisories: advisoriesList,
+          invalidCodes:
+            result.invalidCodes && result.invalidCodes.length
+              ? result.invalidCodes
+              : undefined,
+        });
+      } catch (err) {
+        //  processSafetyBotError(err, "", "", "", "saveTravelAdvisorySelection");
+        res.status(500).json({ success: false, error: err.message });
+      }
+    },
+  );
+
   app.get("/areyousafetabhandler/getSelectedLanguageData", async (req, res) => {
     const language = req.query.language;
     const userAadObjId = req.query.userAadObjId || "";
