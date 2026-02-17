@@ -427,13 +427,41 @@ class AreYouSafeTab {
               ") t ) tblAadObjId on tblAadObjId.useAadObjId = u.user_aadobject_id ";
           }
         }
-
+        let CreateIncidentUsersLeftJoinQuery = null;
+        const CreateIncidentUsers =
+          await incidentService.getCreateIncidentUsersByTeamId(teamId);
+        if (
+          CreateIncidentUsers.length > 0 &&
+          CreateIncidentUsers[0]["WHO_CAN_CREATE_INCIDENT"] != null &&
+          CreateIncidentUsers[0]["WHO_CAN_CREATE_INCIDENT"] != ""
+        ) {
+          const createIncidentUsersArr = CreateIncidentUsers[0][
+            "WHO_CAN_CREATE_INCIDENT"
+          ]
+            .split(",")
+            .map((useAadObjId, index) => {
+              if (useAadObjId) {
+                if (index == 0) {
+                  return ` select '${useAadObjId}' useAadObjId `;
+                } else {
+                  return ` union all select '${useAadObjId}' useAadObjId `;
+                }
+              }
+            });
+          if (createIncidentUsersArr.length > 0) {
+            CreateIncidentUsersLeftJoinQuery =
+              `left join (Select * from (` +
+              createIncidentUsersArr.join(" ") +
+              ") t1 ) tblAadObjId1 on tblAadObjId1.useAadObjId = u.user_aadobject_id ";
+          }
+        }
         teamsMembers = await incidentService.getAllTeamMembersByTeamId(
           teamId,
           "value",
           "title",
           userAadObjId,
           superUsersLeftJoinQuery,
+          CreateIncidentUsersLeftJoinQuery,
         );
       } else if (teamId == null || teamId == "null") {
         var memberqery = `SELECT MIN(id) AS id,  -- optional: pick one id per user
@@ -1952,6 +1980,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     SafetycheckForVisitorsQuestion2,
     SafetycheckForVisitorsQuestion3,
     emergencyContactsStr,
+    iscreateIncidentUser,
   }) => {
     let result = null;
     try {
@@ -1965,6 +1994,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         SafetycheckForVisitorsQuestion2,
         SafetycheckForVisitorsQuestion3,
         emergencyContactsStr,
+        iscreateIncidentUser,
       );
     } catch (err) {
       processSafetyBotError(

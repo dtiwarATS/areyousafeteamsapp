@@ -1486,17 +1486,25 @@ const getTeamMemeberSqlQuery = (
   superUsersLeftJoinQuery = null,
   incidentId = -1,
   resendSafetyCheck = false,
+  CreateIncidentUsersLeftJoinQuery = null,
 ) => {
   return (
     ` SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, ` +
     (superUsersLeftJoinQuery != null
       ? " CASE when tblAadObjId.useAadObjId is not null then 1 else 0 end isSuperUser "
       : " 0 isSuperUser ") +
-    ` , u.conversationId,
+    ` ,` +
+    (CreateIncidentUsersLeftJoinQuery != null
+      ? " CASE when tblAadObjId1.useAadObjId is not null then 1 else 0 end iscreateIncidentUser "
+      : " 0 iscreateIncidentUser ") +
+    `, u.conversationId,
   case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department,u.email,u.hasLicense
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
+    (CreateIncidentUsersLeftJoinQuery != null
+      ? CreateIncidentUsersLeftJoinQuery
+      : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
     ${
       resendSafetyCheck == "true"
@@ -1515,6 +1523,7 @@ const getAllTeamMembersQuery = (
   superUsersLeftJoinQuery = null,
   incidentId = -1,
   resendSafetyCheck = false,
+  CreateIncidentUsersLeftJoinQuery = null,
 ) => {
   let whereSql = "";
   if (teamId != null) {
@@ -1530,6 +1539,7 @@ const getAllTeamMembersQuery = (
     superUsersLeftJoinQuery,
     incidentId,
     resendSafetyCheck,
+    CreateIncidentUsersLeftJoinQuery,
   );
 };
 
@@ -1539,6 +1549,7 @@ const getAllTeamMembersByTeamId = async (
   userNameAlias = "title",
   userAadObjId,
   superUsersLeftJoinQuery = null,
+  CreateIncidentUsersLeftJoinQuery = null,
 ) => {
   try {
     const sqlTeamMembers = getAllTeamMembersQuery(
@@ -1547,6 +1558,9 @@ const getAllTeamMembersByTeamId = async (
       userIdAlias,
       userNameAlias,
       superUsersLeftJoinQuery,
+      -1,
+      false,
+      CreateIncidentUsersLeftJoinQuery,
     );
     const result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
     return Promise.resolve(result);
@@ -1719,7 +1733,7 @@ const getUserTeamInfo = async (userAadObjId) => {
         FROM MSTeamsInstallationDetails t
         LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
         WHERE (user_obj_id = '${userAadObjId}' 
-                  OR super_users like '%${userAadObjId}%') 
+                  OR super_users like '%${userAadObjId}%' or WHO_CAN_CREATE_INCIDENT like '%${userAadObjId}%') 
           AND uninstallation_date IS NULL 
           AND team_id IS NOT NULL 
           AND team_id <> '';
@@ -1764,7 +1778,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
         FROM MSTeamsInstallationDetails t
         LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
         WHERE (user_obj_id = '${userAadObjId}' 
-                  OR super_users like '%${userAadObjId}%') 
+                  OR super_users like '%${userAadObjId}%' or WHO_CAN_CREATE_INCIDENT like '%${userAadObjId}%' ) 
           AND uninstallation_date IS NULL 
           AND team_id IS NOT NULL 
           AND team_id <> ''
@@ -1818,7 +1832,23 @@ const getSuperUsersByTeamId = async (teamId) => {
   }
   return Promise.resolve(result);
 };
-
+const getCreateIncidentUsersByTeamId = async (teamId) => {
+  let result = null;
+  try {
+    const sqlSuperUsers = `select top 1 WHO_CAN_CREATE_INCIDENT from MSTeamsInstallationDetails where team_id = '${teamId}' and WHO_CAN_CREATE_INCIDENT <> '' and WHO_CAN_CREATE_INCIDENT is not null`;
+    result = await db.getDataFromDB(sqlSuperUsers);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      null,
+      "error in getCreateIncidentUsersByTeamId",
+    );
+  }
+  return Promise.resolve(result);
+};
 const getenablecheck = async (teamId) => {
   let result = null;
   try {
@@ -3567,6 +3597,7 @@ module.exports = {
   getUserTeamInfoData,
   getFilterData,
   getSuperUsersByTeamId,
+  getCreateIncidentUsersByTeamId,
   isWelcomeMessageSend,
   getUserInfoByUserAadObjId,
   getIncResponseMembers,
