@@ -221,7 +221,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                JSON.stringify(context),
+                  JSON.stringify(context),
               );
             }
 
@@ -265,9 +265,9 @@ class BotActivityHandler extends TeamsActivityHandler {
             "",
             userAadObjectId,
             "error in insertData - " +
-            contextInfo +
-            " sqlQuery=" +
-            (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
+              contextInfo +
+              " sqlQuery=" +
+              (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
           );
           throw err;
         }
@@ -504,7 +504,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 null,
                 null,
               );
-            } catch (err) { }
+            } catch (err) {}
           }
         } else if (
           (acvtivityData &&
@@ -545,23 +545,23 @@ class BotActivityHandler extends TeamsActivityHandler {
 
             // Diagnostic email: Entry into personal scope
             try {
-              processSafetyBotError(
-                new Error("DIAGNOSTIC: Entered personal scope"),
-                "",
-                acvtivityData.from?.name || "",
-                userAadObjectId,
-                JSON.stringify({
-                  step: "personal_scope_entry",
-                  userAadObjectId: userAadObjectId,
-                  conversationType: acvtivityData.conversation.conversationType,
-                  tenantId: acvtivityData.channelData?.tenant?.id,
-                  conversationId: acvtivityData.conversation?.id,
-                  fromId: acvtivityData.from?.id,
-                  fromName: acvtivityData.from?.name,
-                  serviceUrl: acvtivityData.serviceUrl,
-                  activityTimestamp: acvtivityData.timestamp,
-                }),
-              );
+              // processSafetyBotError(
+              //   new Error("DIAGNOSTIC: Entered personal scope"),
+              //   "",
+              //   acvtivityData.from?.name || "",
+              //   userAadObjectId,
+              //   JSON.stringify({
+              //     step: "personal_scope_entry",
+              //     userAadObjectId: userAadObjectId,
+              //     conversationType: acvtivityData.conversation.conversationType,
+              //     tenantId: acvtivityData.channelData?.tenant?.id,
+              //     conversationId: acvtivityData.conversation?.id,
+              //     fromId: acvtivityData.from?.id,
+              //     fromName: acvtivityData.from?.name,
+              //     serviceUrl: acvtivityData.serviceUrl,
+              //     activityTimestamp: acvtivityData.timestamp,
+              //   }),
+              // );
             } catch (err) {
               console.log({ err: err });
             }
@@ -569,27 +569,27 @@ class BotActivityHandler extends TeamsActivityHandler {
 
             // Diagnostic email: After getUserById check
             try {
-              processSafetyBotError(
-                new Error(
-                  `DIAGNOSTIC: getUserById check completed - user exists: ${userData != null && userData.length > 0}`,
-                ),
-                "",
-                acvtivityData.from?.name || "",
-                userAadObjectId,
-                JSON.stringify({
-                  step: "user_existence_check",
-                  userAadObjectId: userAadObjectId,
-                  userExists: userData != null && userData.length > 0,
-                  userDataLength: userData?.length || 0,
-                  userData: userData
-                    ? userData.map((u) => ({
-                      userId: u.user_id,
-                      userName: u.user_name,
-                      teamId: u.team_id,
-                    }))
-                    : null,
-                }),
-              );
+              // processSafetyBotError(
+              //   new Error(
+              //     `DIAGNOSTIC: getUserById check completed - user exists: ${userData != null && userData.length > 0}`,
+              //   ),
+              //   "",
+              //   acvtivityData.from?.name || "",
+              //   userAadObjectId,
+              //   JSON.stringify({
+              //     step: "user_existence_check",
+              //     userAadObjectId: userAadObjectId,
+              //     userExists: userData != null && userData.length > 0,
+              //     userDataLength: userData?.length || 0,
+              //     userData: userData
+              //       ? userData.map((u) => ({
+              //         userId: u.user_id,
+              //         userName: u.user_name,
+              //         teamId: u.team_id,
+              //       }))
+              //       : null,
+              //   }),
+              // );
             } catch (err) {
               console.log({ err: err });
             }
@@ -601,23 +601,23 @@ class BotActivityHandler extends TeamsActivityHandler {
 
           // Diagnostic email: Checking membersAdded
           try {
-            processSafetyBotError(
-              new Error(
-                `DIAGNOSTIC: Checking membersAdded - exists: ${!!membersAdded}, length: ${membersAdded?.length || 0}`,
-              ),
-              "",
-              acvtivityData.from?.name || "",
-              acvtivityData.from?.aadObjectId || "",
-              JSON.stringify({
-                step: "membersadded_check",
-                membersAddedExists: !!membersAdded,
-                membersAddedLength: membersAdded?.length || 0,
-                membersAdded: membersAdded
-                  ? membersAdded.map((m) => ({ id: m.id, name: m.name }))
-                  : null,
-                conversationType: acvtivityData.conversation?.conversationType,
-              }),
-            );
+            // processSafetyBotError(
+            //   new Error(
+            //     `DIAGNOSTIC: Checking membersAdded - exists: ${!!membersAdded}, length: ${membersAdded?.length || 0}`,
+            //   ),
+            //   "",
+            //   acvtivityData.from?.name || "",
+            //   acvtivityData.from?.aadObjectId || "",
+            //   JSON.stringify({
+            //     step: "membersadded_check",
+            //     membersAddedExists: !!membersAdded,
+            //     membersAddedLength: membersAdded?.length || 0,
+            //     membersAdded: membersAdded
+            //       ? membersAdded.map((m) => ({ id: m.id, name: m.name }))
+            //       : null,
+            //     conversationType: acvtivityData.conversation?.conversationType,
+            //   }),
+            // );
           } catch (err) {
             console.log({ err: err });
           }
@@ -630,39 +630,39 @@ class BotActivityHandler extends TeamsActivityHandler {
 
                 // Diagnostic email: Bot was added check
                 try {
-                  processSafetyBotError(
-                    new Error("DIAGNOSTIC: Bot was added to personal scope"),
-                    "",
-                    acvtivityData.from?.name || "",
-                    acvtivityData.from?.aadObjectId || "",
-                    JSON.stringify({
-                      step: "bot_added_check",
-                      memberId: membersAdded[i].id,
-                      microsoftAppId: process.env.MicrosoftAppId,
-                      memberIndex: i,
-                      totalMembers: membersAdded.length,
-                    }),
-                  );
+                  // processSafetyBotError(
+                  //   new Error("DIAGNOSTIC: Bot was added to personal scope"),
+                  //   "",
+                  //   acvtivityData.from?.name || "",
+                  //   acvtivityData.from?.aadObjectId || "",
+                  //   JSON.stringify({
+                  //     step: "bot_added_check",
+                  //     memberId: membersAdded[i].id,
+                  //     microsoftAppId: process.env.MicrosoftAppId,
+                  //     memberIndex: i,
+                  //     totalMembers: membersAdded.length,
+                  //   }),
+                  // );
                 } catch (err) {
                   console.log({ err: err });
                 }
                 // Diagnostic email: Before TeamsInfo.getMember call
                 try {
-                  processSafetyBotError(
-                    new Error(
-                      "DIAGNOSTIC: About to retrieve adminUserInfo via TeamsInfo.getMember",
-                    ),
-                    "",
-                    acvtivityData.from?.name || "",
-                    acvtivityData.from?.aadObjectId || "",
-                    JSON.stringify({
-                      step: "before_getMember",
-                      fromId: acvtivityData.from.id,
-                      fromAadObjectId: acvtivityData.from.aadObjectId,
-                      conversationId: acvtivityData.conversation?.id,
-                      serviceUrl: acvtivityData.serviceUrl,
-                    }),
-                  );
+                  // processSafetyBotError(
+                  //   new Error(
+                  //     "DIAGNOSTIC: About to retrieve adminUserInfo via TeamsInfo.getMember",
+                  //   ),
+                  //   "",
+                  //   acvtivityData.from?.name || "",
+                  //   acvtivityData.from?.aadObjectId || "",
+                  //   JSON.stringify({
+                  //     step: "before_getMember",
+                  //     fromId: acvtivityData.from.id,
+                  //     fromAadObjectId: acvtivityData.from.aadObjectId,
+                  //     conversationId: acvtivityData.conversation?.id,
+                  //     serviceUrl: acvtivityData.serviceUrl,
+                  //   }),
+                  // );
                 } catch (err) {
                   console.log({ err: err });
                 }
@@ -674,28 +674,28 @@ class BotActivityHandler extends TeamsActivityHandler {
 
                 // Diagnostic email: After TeamsInfo.getMember call
                 try {
-                  processSafetyBotError(
-                    new Error(
-                      `DIAGNOSTIC: TeamsInfo.getMember completed - adminUserInfo exists: ${!!adminUserInfo}`,
-                    ),
-                    "",
-                    acvtivityData.from?.name || "",
-                    acvtivityData.from?.aadObjectId || "",
-                    JSON.stringify({
-                      step: "after_getMember",
-                      adminUserInfoExists: !!adminUserInfo,
-                      adminUserInfo: adminUserInfo
-                        ? {
-                          id: adminUserInfo.id,
-                          name: adminUserInfo.name,
-                          aadObjectId: adminUserInfo.aadObjectId,
-                          email: adminUserInfo.email,
-                          tenantId: adminUserInfo.tenantId,
-                          userRole: adminUserInfo.userRole,
-                        }
-                        : null,
-                    }),
-                  );
+                  // processSafetyBotError(
+                  //   new Error(
+                  //     `DIAGNOSTIC: TeamsInfo.getMember completed - adminUserInfo exists: ${!!adminUserInfo}`,
+                  //   ),
+                  //   "",
+                  //   acvtivityData.from?.name || "",
+                  //   acvtivityData.from?.aadObjectId || "",
+                  //   JSON.stringify({
+                  //     step: "after_getMember",
+                  //     adminUserInfoExists: !!adminUserInfo,
+                  //     adminUserInfo: adminUserInfo
+                  //       ? {
+                  //         id: adminUserInfo.id,
+                  //         name: adminUserInfo.name,
+                  //         aadObjectId: adminUserInfo.aadObjectId,
+                  //         email: adminUserInfo.email,
+                  //         tenantId: adminUserInfo.tenantId,
+                  //         userRole: adminUserInfo.userRole,
+                  //       }
+                  //       : null,
+                  //   }),
+                  // );
                 } catch (err) {
                   console.log({ err: err });
                 }
@@ -718,18 +718,18 @@ class BotActivityHandler extends TeamsActivityHandler {
                     console.log({ isInstalledInTeam: isInstalledInTeam });
 
                     try {
-                      processSafetyBotError(
-                        new Error(
-                          `DIAGNOSTIC: companyDataofSameTenantId exists: ${!!companyDataofSameTenantId?.length}`,
-                        ),
-                        "",
-                        acvtivityData.from?.name || "",
-                        acvtivityData.from?.aadObjectId || "",
-                        JSON.stringify({
-                          step: "after_getMember",
-                          companyDataofSameTenantId,
-                        }),
-                      );
+                      // processSafetyBotError(
+                      //   new Error(
+                      //     `DIAGNOSTIC: companyDataofSameTenantId exists: ${!!companyDataofSameTenantId?.length}`,
+                      //   ),
+                      //   "",
+                      //   acvtivityData.from?.name || "",
+                      //   acvtivityData.from?.aadObjectId || "",
+                      //   JSON.stringify({
+                      //     step: "after_getMember",
+                      //     companyDataofSameTenantId,
+                      //   }),
+                      // );
                     } catch (err) {
                       console.log({ err: err });
                     }
@@ -868,11 +868,11 @@ WHEN NOT MATCHED THEN
                       adminUserInfo?.name || "",
                       userAadObjectId,
                       "error in onConversationUpdate - personal scope context=" +
-                      JSON.stringify({
-                        conversationType: conversationType,
-                        userAadObjectId: userAadObjectId,
-                        tenantId: acvtivityData.channelData?.tenant?.id,
-                      }),
+                        JSON.stringify({
+                          conversationType: conversationType,
+                          userAadObjectId: userAadObjectId,
+                          tenantId: acvtivityData.channelData?.tenant?.id,
+                        }),
                     );
                     throw err;
                   }
@@ -1194,7 +1194,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-            requestAssistanceid,
+              requestAssistanceid,
           );
         });
 
@@ -2355,7 +2355,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-        requestAssistanceid,
+          requestAssistanceid,
       );
     }
   }
@@ -2383,9 +2383,9 @@ WHERE rn = 1;
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-        JSON.stringify(context) +
-        " companyData=" +
-        JSON.stringify(companyData),
+          JSON.stringify(context) +
+          " companyData=" +
+          JSON.stringify(companyData),
       );
     }
   }
@@ -2487,11 +2487,11 @@ WHERE rn = 1;
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-        JSON.stringify(context) +
-        " userEmail=" +
-        userEmail +
-        " companyDataObj=" +
-        JSON.stringify(companyDataObj),
+          JSON.stringify(context) +
+          " userEmail=" +
+          userEmail +
+          " companyDataObj=" +
+          JSON.stringify(companyDataObj),
       );
     }
   }
@@ -2607,7 +2607,7 @@ WHERE rn = 1;
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId)
-        .then(() => { })
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
