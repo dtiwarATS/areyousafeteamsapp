@@ -6,6 +6,7 @@ const {
 } = require("botbuilder");
 
 const incidentService = require("../services/incidentService");
+const socketService = require("../socket/socketService");
 
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const path = require("path");
@@ -631,6 +632,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         }
 
         const adminArr = [];
+        const emittedTenants = new Set();
         for (let i = 0; i < admins.length; i++) {
           if (adminArr.includes(admins[i].user_id)) {
             continue;
@@ -683,6 +685,15 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   "",
                 );
               });
+              if (!emittedTenants.has(admins[i].user_tenant_id)) {
+                emittedTenants.add(admins[i].user_tenant_id);
+                socketService.emitNewSosTeams(admins[i].user_tenant_id, {
+                  requestAssistanceid,
+                  userAadObjId,
+                  user: { user_name: user.user_name, user_id: user.user_id },
+                  userlocation,
+                });
+              }
             } catch (ex) {
               incidentService.saveAllTypeQuerylogs(
                 admins[i].user_aadobject_id,
