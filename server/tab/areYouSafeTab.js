@@ -1929,6 +1929,15 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
+  setDynamicLocation = async (userid, location) => {
+    let res = null;
+    try {
+      res = await incidentService.setDynamicLocation(userid, location);
+    } catch (err) {
+      processSafetyBotError(err, "", "", userid, "error in setDynamicLocation");
+    }
+    return Promise.resolve(res);
+  };
   // saveRefreshToken = async (teamId, refresh_token, field) => {
   //   let res = null;
   //   try {

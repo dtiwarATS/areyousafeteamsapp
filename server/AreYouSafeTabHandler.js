@@ -3841,6 +3841,24 @@ WHERE
 
     res.send(false);
   });
+
+  app.get("/areyousafetabhandler/SaveDynamicLocation", async (req, res) => {
+    const userid = req.query.userid;
+    const location = req.query.location;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setDynamicLocation(userid, location);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setSOSNotification",
+      );
+    }
+  });
 };
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;

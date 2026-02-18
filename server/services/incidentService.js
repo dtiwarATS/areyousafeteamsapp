@@ -1984,7 +1984,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
     if (TeamID != "null") {
       userSql = `select * from MSTeamsInstallationDetails where team_id='${TeamID}'; 
       select * from MSTeamsSOSResponder where team_id='${TeamID}';
-      select team_id, country, city, department from MSTeamsTeamsUsers where team_id = '${TeamID}' and user_aadobject_id = '${aadObjuserId}';`;
+      select team_id, country, city, department,DYNAMIC_LOCATION as dynamicLocation from MSTeamsTeamsUsers where team_id = '${TeamID}' and user_aadobject_id = '${aadObjuserId}';`;
     } else {
       userSql = `select user_obj_id, super_users, EMERGENCY_CONTACTS, team_id, team_name from msteamsinstallationdetails where team_id in
       (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name;
@@ -1997,9 +1997,12 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
     const responderDetails = dataResult ? dataResult[1] : null;
     const userDetails = dataResult ? dataResult[2] : null;
     const teamsIds = [];
+    let userdynamicLocation;
     if (userResult != null && userResult.length > 0) {
       userResult.map((usr) => {
         let contactsArr = [];
+        let usercity;
+        let usercountry;
         const userTeamId = usr.team_id;
         let userDetail = null,
           respDetailsForCurTeam = null;
@@ -2011,13 +2014,20 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
             (r) => r.TEAM_ID === userTeamId,
           );
         }
-
+        if (userDetail && userDetail.dynamicLocation) {
+          userdynamicLocation = userDetail.dynamicLocation.split(", ");
+          usercity = userdynamicLocation[0].trim();
+          usercountry = userdynamicLocation[1].trim();
+        } else {
+          usercity = userDetail.city ?? userDetail.city.trim();
+          usercountry = userDetail.country ?? userDetail.country.trim();
+        }
         // Prefer emergency contacts if present, else use super_users
         let fieldToUse = null;
         let responders = null;
         if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
           let respDetails = respDetailsForCurTeam.filter((r) => {
-            return userDetail?.city?.trim() && userDetail.city == r.CITY;
+            return usercity?.trim() && usercity == r.CITY;
           });
           if (respDetails && respDetails.length > 0) {
             responders = respDetails[0].RESPONDER
@@ -2025,9 +2035,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
               : null;
           } else {
             respDetails = respDetailsForCurTeam.filter((r) => {
-              return (
-                userDetail?.country?.trim() && userDetail.country == r.COUNTRY
-              );
+              return usercountry?.trim() && usercountry == r.COUNTRY;
             });
             if (respDetails && respDetails.length > 0) {
               responders = respDetails[0].RESPONDER
@@ -2352,7 +2360,19 @@ const setLanguagePreference = async (language, teamId, tenantid) => {
   }
   return Promise.resolve(result);
 };
-
+const setDynamicLocation = async (userid, location) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsTeamsUsers set DYNAMIC_LOCATION = '${location}' where user_aadobject_id='${userid}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userid, "error in setDynamicLocation");
+  }
+  return Promise.resolve(result);
+};
 const saveRefreshToken = async (teamId, refresh_token, field = "send_sms") => {
   let result = null;
   try {
@@ -3652,4 +3672,5 @@ module.exports = {
   saveAllTypeQuerylogs,
   SosNotificationFor,
   setLanguagePreference,
+  setDynamicLocation,
 };
