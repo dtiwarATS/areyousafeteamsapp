@@ -464,22 +464,35 @@ class AreYouSafeTab {
           CreateIncidentUsersLeftJoinQuery,
         );
       } else if (teamId == null || teamId == "null") {
-        var memberqery = `SELECT MIN(id) AS id,  -- optional: pick one id per user
-       MIN(team_id) AS team_id,  -- pick any team_id
-       user_aadobject_id,
-       MIN(user_id) AS value,
-       MIN(user_name) AS title,
-       MIN(email) AS email
-FROM MSTeamsTeamsUsers
-WHERE team_id IN (
+        var memberqery = `SELECT 
+    MIN(tu.id) AS id,
+    MIN(tu.team_id) AS team_id,
+    tu.user_aadobject_id,
+    MIN(tu.user_id) AS value,
+    MIN(tu.user_name) AS title,
+    MIN(tu.email) AS email,
+    CASE 
+        WHEN tu.user_aadobject_id = '${userAadObjId}'
+             AND EXISTS (
+                 SELECT 1
+                 FROM MSTeamsInstallationDetails mid
+                 WHERE mid.WHO_CAN_CREATE_INCIDENT IS NOT NULL
+                   AND mid.WHO_CAN_CREATE_INCIDENT <> ''
+                   AND mid.WHO_CAN_CREATE_INCIDENT LIKE '%${userAadObjId}%'
+             )
+        THEN CAST(1 AS BIT)
+        ELSE CAST(0 AS BIT)
+    END AS iscreateIncidentUser
+FROM MSTeamsTeamsUsers tu
+WHERE tu.team_id IN (
     SELECT team_id
     FROM MSTeamsTeamsUsers
     WHERE user_aadobject_id = '${userAadObjId}'
 )
-GROUP BY user_aadobject_id
+GROUP BY tu.user_aadobject_id
 ORDER BY email;
-;
 `;
+
         teamsMembers = await db.getDataFromDB(memberqery, userAadObjId);
       }
       // else if (userAadObjId != null && userAadObjId != "null") {

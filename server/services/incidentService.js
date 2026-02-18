@@ -195,7 +195,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   }
 
   if (aadObjuserId != null) {
-    whereSql = ` where  inc.team_id  in (select team_id from MSTeamsInstallationDetails where (user_obj_id = '${aadObjuserId}' OR super_users like '%${aadObjuserId}%') AND uninstallation_date is null and team_id is not null and team_id <> '') `;
+    whereSql = ` where  inc.team_id  in (select team_id from MSTeamsInstallationDetails where (user_obj_id = '${aadObjuserId}' OR super_users like '%${aadObjuserId}%' OR WHO_CAN_CREATE_INCIDENT like '%${aadObjuserId}%' ) AND uninstallation_date is null and team_id is not null and team_id <> '') `;
     //userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id `;
   }
 
