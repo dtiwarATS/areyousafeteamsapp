@@ -2027,7 +2027,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
         let responders = null;
         if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
           let respDetails = respDetailsForCurTeam.filter((r) => {
-            return userDetail?.city?.trim() && userDetail.city == r.CITY;
+            return usercity?.trim() && usercity == r.CITY;
           });
           if (respDetails && respDetails.length > 0) {
             responders = respDetails[0].RESPONDER
@@ -2035,9 +2035,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
               : null;
           } else {
             respDetails = respDetailsForCurTeam.filter((r) => {
-              return (
-                userDetail?.country?.trim() && userDetail.country == r.COUNTRY
-              );
+              return usercountry?.trim() && usercountry == r.COUNTRY;
             });
             if (respDetails && respDetails.length > 0) {
               responders = respDetails[0].RESPONDER
