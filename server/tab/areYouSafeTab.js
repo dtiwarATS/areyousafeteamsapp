@@ -580,14 +580,18 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         //   "," +
         //   userlocation.lon +
         //   "&zoom=14&size=400x400&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
-
+        var Ulocation;
+        if (user?.DYNAMIC_LOCATION != null) {
+          Ulocation = `📍${user?.DYNAMIC_LOCATION}`;
+        }
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
           body: [
             {
               type: "TextBlock",
-              text: `**<at>${user.user_name}</at>** needs assistance.`,
+              text: `**<at>${user.user_name}</at>** needs assistance.\n
+              ${Ulocation}`,
               wrap: true,
             },
             ...(sendonetime == "true"
