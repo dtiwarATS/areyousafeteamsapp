@@ -3906,7 +3906,7 @@ WHERE
       const pool = await poolPromise;
       const sql = require("mssql");
 
-      const query = `
+      let combinedQuery = `
         SELECT COUNTRY, CITY, STATE, DEPARTMENT
         FROM MSTeamsTeamsUsers
         WHERE 
@@ -3915,9 +3915,40 @@ WHERE
         AND STATE IS NOT NULL AND LTRIM(RTRIM(STATE)) <> ''
         AND DEPARTMENT IS NOT NULL AND LTRIM(RTRIM(DEPARTMENT)) <> '';`;
 
-      const result = await pool.request().query(query);
+      if (userAadObjId) {
+        combinedQuery += `
+        SELECT 
+            CASE 
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM MSTeamsInstallationDetails mid
+                    JOIN MSTeamsTeamsUsers tu
+                        ON tu.TEAM_ID = mid.TEAM_ID
+                    WHERE mid.FILTER_ENABLED = 1
+                      AND tu.user_aadobject_id = @userAadObjId
+                )
+                THEN 1 ELSE 0
+            END AS FILTER_ENABLED;`;
+      }
 
-      res.json(result.recordset);
+      const request = pool.request();
+      if (userAadObjId) {
+        request.input("userAadObjId", sql.NVarChar, userAadObjId);
+      }
+
+      const result = await request.query(combinedQuery);
+
+      const response = {
+        locationData: result.recordsets[0] || [],
+        filterEnabled:
+          userAadObjId &&
+          result.recordsets[1] &&
+          result.recordsets[1].length > 0
+            ? result.recordsets[1][0].FILTER_ENABLED
+            : null,
+      };
+
+      res.json(response);
     } catch (err) {
       console.log(err);
       processSafetyBotError(
