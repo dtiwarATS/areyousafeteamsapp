@@ -3505,13 +3505,48 @@ const handlerForSafetyBotTab = (app) => {
     async (req, res) => {
       try {
         const teamId = req.query.teamId || (req.body && req.body.teamId) || "";
-
-        const data = await travelSelectedDb.getTravelAdvisoryByTeamData(teamId);
+        const tenantId =
+          req.query.tenantId || (req.body && req.body.tenantId) || "";
+        const data = await travelSelectedDb.getTravelAdvisoryByTeamData(
+          tenantId ? "" : teamId,
+          tenantId || undefined,
+        );
 
         res.json({ success: true, data });
       } catch (err) {
         console.error(
           "Error in /areyousafetabhandler/getTravelAdvisoryByTeam:",
+          err,
+        );
+        res
+          .status(500)
+          .json({ success: false, error: err.message, data: null });
+      }
+    },
+  );
+
+  app.get(
+    "/areyousafetabhandler/getTravelAdvisorySelection/",
+    async (req, res) => {
+      try {
+        const tenantId =
+          req.query.tenantId || (req.body && req.body.tenantId) || "";
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: "tenantId is required",
+          });
+        }
+        const rows =
+          await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
+            tenantId,
+            "",
+          );
+        const countryCodes = (rows || []).map((r) => r.CountryCode || "");
+        res.json({ success: true, data: { countryCodes } });
+      } catch (err) {
+        console.error(
+          "Error in /areyousafetabhandler/getTravelAdvisorySelection:",
           err,
         );
         res
@@ -3527,20 +3562,25 @@ const handlerForSafetyBotTab = (app) => {
       try {
         const body = req.body || {};
         const tenantId = body.tenantId || req.query.tenantId || "";
-        const teamId = body.teamId || req.query.teamId || "";
         const userId = body.userId || req.query.userId || "";
         const countryCodes = Array.isArray(body.countryCodes)
           ? body.countryCodes
           : [];
-        if (!tenantId || !teamId) {
+        if (!tenantId) {
           return res.status(400).json({
             success: false,
-            error: "tenantId and teamId are required",
+            error: "tenantId is required",
+          });
+        }
+        if (!userId) {
+          return res.status(400).json({
+            success: false,
+            error: "userId is required",
           });
         }
         const result = await travelSelectedDb.saveTravelAdvisorySelections(
           tenantId,
-          teamId,
+          "",
           userId,
           countryCodes,
         );
@@ -3556,7 +3596,7 @@ const handlerForSafetyBotTab = (app) => {
           const selections =
             await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
               tenantId,
-              teamId,
+              "",
             );
           const filtered = selections.filter((row) =>
             requestedCodesSet.has((row.CountryCode || "").toUpperCase()),
@@ -3585,7 +3625,9 @@ const handlerForSafetyBotTab = (app) => {
               }
             }
             advisoriesList = filtered
-              .map((row) => advisoryByCode[(row.CountryCode || "").toUpperCase()])
+              .map(
+                (row) => advisoryByCode[(row.CountryCode || "").toUpperCase()],
+              )
               .filter(Boolean)
               .map((adv) => ({
                 country: adv.country,
@@ -3602,9 +3644,7 @@ const handlerForSafetyBotTab = (app) => {
                   : [],
                 link: adv.link,
                 pubDate: adv.pubDate,
-                lastUpdated: adv.lastUpdated
-                  ? new Date(adv.lastUpdated)
-                  : null,
+                lastUpdated: adv.lastUpdated ? new Date(adv.lastUpdated) : null,
               }));
           }
         }

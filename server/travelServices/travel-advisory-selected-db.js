@@ -238,12 +238,11 @@ async function saveTravelAdvisorySelections(
     }
   }
 
-  const { deletedCount } =
-    await deleteSelectionsForTenantTeamNotInCountryIds(
-      tenantId,
-      teamId,
-      validCountryIds,
-    );
+  const { deletedCount } = await deleteSelectionsForTenantTeamNotInCountryIds(
+    tenantId,
+    teamId,
+    validCountryIds,
+  );
 
   let savedCount = 0;
   let skipped = 0;
@@ -544,9 +543,9 @@ async function insertSelectedCountryLog(
 
 /**
  * Get travel advisory data for a team in one call: selected country codes, countries list, and advisories from DB.
- * Uses TravelAdvisorySelection and TravelAdvisoryDetail. When tenantId is provided, filters by both; otherwise by teamId only.
- * @param {string} teamId
- * @param {string} [tenantId] - optional; if provided, selections are filtered by tenantId and teamId
+ * Uses TravelAdvisorySelection and TravelAdvisoryDetail. When tenantId is provided, filters by TenantId and TeamId = ''; otherwise by teamId only.
+ * @param {string} teamId - when tenantId is not provided, required; when tenantId is provided, use '' (sentinel)
+ * @param {string} [tenantId] - optional; if provided, selections are filtered by tenantId and TeamId = ''
  * @returns {Promise<{  advisories: Array<Object> }>}
  */
 async function getTravelAdvisoryByTeamData(teamId, tenantId) {
@@ -554,23 +553,39 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId) {
 
   const tId =
     teamId != null && String(teamId).trim() !== "" ? String(teamId).trim() : "";
-  if (!tId) {
-    return { advisories: [] };
-  }
+  const tenantIdTrimmed =
+    tenantId != null && String(tenantId).trim() !== ""
+      ? String(tenantId).trim()
+      : "";
 
-  // Advisories from TravelAdvisoryDetail for this team's selections
-  const advRequest = pool.request().input("TeamId", sql.NVarChar(256), tId);
-  const advWhere = "s.TeamId = @TeamId AND s.IsActive = 1";
-  const advResult = await advRequest.query(`
+  let advResult;
+  if (tenantIdTrimmed) {
+    const advRequest = pool
+      .request()
+      .input("TenantId", sql.NVarChar(256), tenantIdTrimmed);
+    advResult = await advRequest.query(`
     SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,
            d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc,
            c.name AS CountryName, c.code AS CountryCode
     FROM [dbo].[TravelAdvisoryDetail] d
     INNER JOIN [dbo].[TravelAdvisorySelection] s ON s.Id = d.TravelAdvisorySelectionId
     INNER JOIN [dbo].[Countries] c ON c.id = d.CountryId
-    WHERE ${advWhere}
+    WHERE s.TenantId = @TenantId  AND s.IsActive = 1
     ORDER BY c.name
   `);
+  } else {
+    const advRequest = pool.request().input("TeamId", sql.NVarChar(256), tId);
+    advResult = await advRequest.query(`
+    SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,
+           d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc,
+           c.name AS CountryName, c.code AS CountryCode
+    FROM [dbo].[TravelAdvisoryDetail] d
+    INNER JOIN [dbo].[TravelAdvisorySelection] s ON s.Id = d.TravelAdvisorySelectionId
+    INNER JOIN [dbo].[Countries] c ON c.id = d.CountryId
+    WHERE s.TeamId = @TeamId AND s.IsActive = 1
+    ORDER BY c.name
+  `);
+  }
   const rows = advResult.recordset || [];
   const advisories = rows.map((r) => {
     const restrictions =
