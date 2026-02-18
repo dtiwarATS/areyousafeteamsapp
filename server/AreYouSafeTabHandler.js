@@ -3899,6 +3899,37 @@ WHERE
       );
     }
   });
+  app.get("/areyousafetabhandler/GetUserLocationData", async (req, res) => {
+    const userAadObjId = req.query.userAadObjId || "";
+    const teamId = req.query.teamId || "";
+    try {
+      const pool = await poolPromise;
+      const sql = require("mssql");
+
+      const query = `
+        SELECT COUNTRY, CITY, STATE, DEPARTMENT
+        FROM MSTeamsTeamsUsers
+        WHERE 
+            COUNTRY IS NOT NULL AND LTRIM(RTRIM(COUNTRY)) <> ''
+        AND CITY IS NOT NULL AND LTRIM(RTRIM(CITY)) <> ''
+        AND STATE IS NOT NULL AND LTRIM(RTRIM(STATE)) <> ''
+        AND DEPARTMENT IS NOT NULL AND LTRIM(RTRIM(DEPARTMENT)) <> '';`;
+
+      const result = await pool.request().query(query);
+
+      res.json(result.recordset);
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/GetUserLocationData",
+      );
+      res.status(500).json({ error: "Error fetching user location data" });
+    }
+  });
 };
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;
