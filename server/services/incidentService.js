@@ -1989,7 +1989,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
       userSql = `select user_obj_id, super_users, EMERGENCY_CONTACTS, team_id, team_name from msteamsinstallationdetails where team_id in
       (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name;
       select * from MSTeamsSOSResponder where team_id in (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');
-      select team_id, country, city, department from MSTeamsTeamsUsers where team_id in (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and user_aadobject_id = '${aadObjuserId}';`;
+      select team_id, country, city, department,DYNAMIC_LOCATION as dynamicLocation from MSTeamsTeamsUsers where team_id in (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and user_aadobject_id = '${aadObjuserId}';`;
     }
 
     const dataResult = await db.getDataFromDB(userSql, aadObjuserId, false);
