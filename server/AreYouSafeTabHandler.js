@@ -768,6 +768,32 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post("/areyousafetabhandler/manageColumns", async (req, res) => {
+    const teamId = req.body.teamId;
+    const settingName = req.body.settingName;
+    const value = req.body.selectedColumns;
+    const userId = req.body.userId;
+    try {
+      if (!teamId || !settingName || !userId) {
+        res.status(400).send({
+          error: "Missing required parameters: teamId, settingName, userId",
+        });
+        return;
+      }
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.manageColumns(teamId, settingName, value || "", userId);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userId,
+        "error in /areyousafetabhandler/manageColumns",
+      );
+      res.status(500).send({ error: "Error: Please try again" });
+    }
+  });
   app.post("/areyousafetabhandler/setSendWhatsapp", async (req, res) => {
     const teamId = req.query.teamId;
     const sendWhatsapp = req.query.sendWhatsapp;

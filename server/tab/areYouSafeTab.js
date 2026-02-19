@@ -1880,6 +1880,26 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
+  manageColumns = async (teamId, settingName, value, userId) => {
+    let res = null;
+    try {
+      res = await incidentService.manageColumns(
+        teamId,
+        settingName,
+        value,
+        userId,
+      );
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userId,
+        "error in manageColumns",
+      );
+    }
+    return Promise.resolve(res);
+  };
   setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     let res = null;
     try {
