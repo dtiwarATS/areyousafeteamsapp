@@ -1661,8 +1661,26 @@ const getTeamIdByUserAadObjId = async (userAadObjId) => {
 const getUserInfo = async (teamId, useraadObjId) => {
   let result = null;
   try {
-    const sqlUserInfo = `select top 1 tu.*, inst.user_name adminName,  inst.team_name teamName from MSTeamsTeamsUsers tu
-                        left join msteamsinstallationdetails inst on inst.team_id = tu.team_id where tu.team_id = '${teamId}' and tu.user_aadobject_id = '${useraadObjId}'`;
+    const sqlUserInfo = `SELECT TOP 1 
+    tu.*, 
+    inst.user_name AS adminName,  
+    inst.team_name AS teamName,
+    s.SETTING_NAME,
+    s.SETTING_VALUE,
+    s.DATETIME
+FROM MSTeamsTeamsUsers tu
+LEFT JOIN msteamsinstallationdetails inst 
+    ON inst.team_id = tu.team_id
+
+OUTER APPLY (
+    SELECT TOP 1 *
+    FROM [SETTINGS] s
+    WHERE 
+       s.USR_AAD_OBJ_ID = tu.user_aadobject_id
+    ORDER BY s.DATETIME DESC
+) s
+
+where tu.team_id = '${teamId}' and tu.user_aadobject_id = '${useraadObjId}'`;
     result = await db.getDataFromDB(sqlUserInfo, useraadObjId);
   } catch (err) {
     console.log(err);
@@ -2289,6 +2307,32 @@ const saveFilterChecked = async (teamId, filterEnabled) => {
   }
   return Promise.resolve(result);
 };
+
+const manageColumns = async (teamId, settingName, value, userId) => {
+  let result = null;
+  try {
+    const safeTeamId = teamId;
+    const safeSettingName = settingName;
+    const safeValue = value;
+    const safeUserId = userId;
+    const query = `IF EXISTS (SELECT * FROM SETTINGS WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}')
+      BEGIN
+      UPDATE SETTINGS SET SETTING_VALUE = N'${safeValue}' WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}';
+      END
+      ELSE
+      BEGIN
+      INSERT INTO SETTINGS (TEAM_ID, USR_AAD_OBJ_ID, SETTING_NAME, SETTING_VALUE) VALUES
+      ('${safeTeamId}', '${safeUserId}', '${safeSettingName}', N'${safeValue}')
+      END`;
+    await db.getDataFromDB(query, userId);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    //processSafetyBotError(err, teamId, "", userId, "error in manageColumns");
+  }
+  return Promise.resolve(result);
+};
+
 const setSendEmail = async (teamId, sendemail) => {
   let result = null;
   try {
@@ -3650,6 +3694,7 @@ module.exports = {
   deleteSOSResponder,
   saveSOSResponder,
   saveFilterChecked,
+  manageColumns,
   setSendWhatsapp,
   setSendEmail,
   setavailableforapp,
