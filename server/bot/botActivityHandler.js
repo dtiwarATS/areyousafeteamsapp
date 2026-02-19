@@ -305,6 +305,7 @@ class BotActivityHandler extends TeamsActivityHandler {
         serviceUrl: context.activity.serviceUrl,
         channelId,
         channelName,
+        emergencyContacts: adminUserInfo?.aadObjectId,
       };
     };
 

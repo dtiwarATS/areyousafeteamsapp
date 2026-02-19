@@ -21,6 +21,7 @@ const getColumns = (tableName) => {
         "serviceUrl",
         "channelId",
         "channelName",
+        "EMERGENCY_CONTACTS",
       ];
       break;
 
@@ -123,7 +124,7 @@ const processValues = (values) => {
 const getDataFromDB = async (
   sqlQuery,
   userObjId = "",
-  isSingleQuery = true
+  isSingleQuery = true,
 ) => {
   try {
     pool = await poolPromise;
@@ -170,7 +171,7 @@ const insertDataIntoDB = async (tableName, values) => {
       "",
       "",
       "",
-      "error in insertDataIntoDB query=" + query
+      "error in insertDataIntoDB query=" + query,
     );
     return null;
   }
@@ -181,7 +182,7 @@ const getUpdateDataIntoDBQuery = (
   incidentValues,
   pkColumn,
   pkColumnValue,
-  userObjId
+  userObjId,
 ) => {
   try {
     if (pkColumn && incidentValues && tableName && pkColumnValue > 0) {
@@ -208,7 +209,7 @@ const getUpdateDataIntoDBQuery = (
         " pkColumn=" +
         pkColumn +
         " pkColumnValue=" +
-        pkColumnValue
+        pkColumnValue,
     );
   }
   return null;
@@ -227,7 +228,7 @@ const updateDataIntoDB = async (query, userObjId) => {
       "",
       "",
       userObjId,
-      "error in updateDataIntoDB query= " + query
+      "error in updateDataIntoDB query= " + query,
     );
     return null;
   }
@@ -262,7 +263,7 @@ const updateDataIntoDBAsync = async (query, pool, userObjId) => {
               "",
               "",
               userObjId,
-              "error in updateDataIntoDBAsync then query= " + query
+              "error in updateDataIntoDBAsync then query= " + query,
             );
             reject(err);
           });
@@ -273,7 +274,7 @@ const updateDataIntoDBAsync = async (query, pool, userObjId) => {
           "",
           "",
           userObjId,
-          "error in updateDataIntoDBAsync query= " + query
+          "error in updateDataIntoDBAsync query= " + query,
         );
         reject(err);
       }
@@ -285,7 +286,7 @@ const updateDataIntoDBAsync = async (query, pool, userObjId) => {
       "",
       "",
       userObjId,
-      "error in updateDataIntoDBAsync query=" + query
+      "error in updateDataIntoDBAsync query=" + query,
     );
   }
   return false;
@@ -305,7 +306,7 @@ const insertData = async (sqlInsertQuery, userObjId) => {
         "",
         "",
         userObjId,
-        "error in insertData=" + sqlInsertQuery
+        "error in insertData=" + sqlInsertQuery,
       );
     }
   }
