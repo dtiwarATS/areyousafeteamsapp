@@ -2019,15 +2019,18 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
           usercity = userdynamicLocation[0].trim();
           usercountry = userdynamicLocation[1].trim();
         } else {
-          usercity = userDetail.city ?? userDetail.city.trim();
-          usercountry = userDetail.country ?? userDetail.country.trim();
+          // usercity = userDetail?.city ?? userDetail?.city?.trim();
+          // usercountry = userDetail?.country ?? userDetail?.country?.trim();
+          usercity = userDetail?.city?.trim() || null;
+
+          usercountry = userDetail?.country?.trim() || null;
         }
         // Prefer emergency contacts if present, else use super_users
         let fieldToUse = null;
         let responders = null;
         if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
           let respDetails = respDetailsForCurTeam.filter((r) => {
-            return usercity?.trim() && usercity == r.CITY;
+            return usercity == r.CITY;
           });
           if (respDetails && respDetails.length > 0) {
             responders = respDetails[0].RESPONDER
@@ -2035,7 +2038,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
               : null;
           } else {
             respDetails = respDetailsForCurTeam.filter((r) => {
-              return usercountry?.trim() && usercountry == r.COUNTRY;
+              return usercountry == r.COUNTRY;
             });
             if (respDetails && respDetails.length > 0) {
               responders = respDetails[0].RESPONDER
