@@ -653,7 +653,23 @@ const updateIsUserInfoSaved = async (
     );
   }
 };
+const InsertSOSContacts = async (teamId = null, userObjId = null) => {
+  let sqlUpdateUserInfo = "";
+  try {
+    pool = await poolPromise;
+    sqlUpdateUserInfo = `Insert into MSTeamsSOSResponder (TEAM_ID,COUNTRY,CITY, RESPONDER) VALUES ('${teamId}','All','All', '["${userObjId}"]')`;
 
+    await pool.request().query(sqlUpdateUserInfo);
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in InsertSOSContacts" + sqlUpdateUserInfo,
+    );
+  }
+};
 const insertCompanyData = async (
   companyDataObj,
   allMembersInfo,
@@ -726,6 +742,7 @@ const insertCompanyData = async (
         END
     END`;
     res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
+    await InsertSOSContacts(teamId, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
       const data = await addTeamMember(teamId, allMembersInfo, false, true);
