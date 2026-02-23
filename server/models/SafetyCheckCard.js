@@ -8,7 +8,7 @@ const getSafetyCheckMessageText = async (
   mentionUserEntities,
   incRespSelectedUsers = null,
   incTypeId = 1,
-  incGuidance
+  incGuidance,
 ) => {
   let onBehalfOf = "",
     responseUsers = "";
@@ -33,13 +33,13 @@ const getSafetyCheckMessageText = async (
   let msg = "";
   if (incTypeId == 1) {
     if (incGuidance) {
-      let escaped = escapeRegex('<IncidentCreator>');
-      let regex = new RegExp(escaped, 'g');
+      let escaped = escapeRegex("<IncidentCreator>");
+      let regex = new RegExp(escaped, "g");
 
       msg = incGuidance.replace(regex, `<at>${createdByName}</at>`);
 
-      escaped = escapeRegex('<IncidentTitle>');
-      regex = new RegExp(escaped, 'g');
+      escaped = escapeRegex("<IncidentTitle>");
+      regex = new RegExp(escaped, "g");
       msg = msg.replace(regex, `**${incTitle}**`);
     } else {
       //Safety Check
@@ -51,8 +51,8 @@ const getSafetyCheckMessageText = async (
   return msg;
 };
 const escapeRegex = (text) => {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+};
 const getSafetyCheckTypeCard = async (
   incTitle,
   incObj,
@@ -74,7 +74,7 @@ const getSafetyCheckTypeCard = async (
       mentionUserEntities,
       incResponseSelectedUsersList,
       incTypeId,
-      incGuidance
+      incGuidance,
     );
   }
   if (!incCreatedById) {
@@ -83,8 +83,17 @@ const getSafetyCheckTypeCard = async (
   if (!incCreatedByName) {
     incCreatedByName = incObj.incCreatedBy.name;
   }
-  if (!(incTypeId == 1 && safetyCheckMessageText.indexOf(incObj.incCreatedBy.name) == -1)) {
-    dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
+  if (
+    !(
+      incTypeId == 1 &&
+      safetyCheckMessageText.indexOf(incObj.incCreatedBy.name) == -1
+    )
+  ) {
+    dashboard.mentionUser(
+      mentionUserEntities,
+      incCreatedById,
+      incCreatedByName,
+    );
   }
 
   const cardBody = [
@@ -101,7 +110,7 @@ const getSafetyCheckTypeCard = async (
       text: safetyCheckMessageText,
     },
   ];
-  if (incTypeId == 1) {
+  if (incTypeId == 1 || incTypeId == 2) {
     let btnSafe = {
       type: "Action.Execute",
       title: "I am safe",
@@ -115,7 +124,7 @@ const getSafetyCheckTypeCard = async (
       const responseOptionData = incObj.responseOptionData;
       if (responseOptionData.responseType.toLowerCase() == "buttons") {
         responseOptionData.responseOptions.map((option, index) => {
-          if (option.option != '') {
+          if (option.option != "") {
             let btn = {
               ...btnSafe,
               title: option.option,
@@ -128,7 +137,7 @@ const getSafetyCheckTypeCard = async (
             };
             actions.push(btn);
           }
-        })
+        });
       } else {
         let dropdown = {
           type: "Input.ChoiceSet",
@@ -140,8 +149,11 @@ const getSafetyCheckTypeCard = async (
           choices: [],
         };
         responseOptionData.responseOptions.map((option, index) => {
-          if (option.option != '') {
-            dropdown.choices.push({ title: option.option, value: option.id.toString() });
+          if (option.option != "") {
+            dropdown.choices.push({
+              title: option.option,
+              value: option.id.toString(),
+            });
           }
         });
         cardBody.push(dropdown);
@@ -193,12 +205,21 @@ const getSafetyCheckTypeCard = async (
       text: `**Guidance:**\n\n` + incGuidance,
     });
   }
+  if (incTypeId == 2) {
+    cardBody.push({
+      type: "TextBlock",
+      separator: true,
+      wrap: true,
+      isVisible: incGuidance ? true : false,
+      text: `**Guidance:**\n\n` + incGuidance,
+    });
+  }
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
     body: cardBody,
     msteams: {
-      width: 'full',
+      width: "full",
       entities: mentionUserEntities,
     },
     type: "AdaptiveCard",
@@ -211,7 +232,9 @@ const getImpBulletineTypeCard = async (
   incGuidance,
   additionalInfo,
   incCreatedById,
-  incCreatedByName
+  incCreatedByName,
+  incObj,
+  companyData,
 ) => {
   const cardBody = [
     {
@@ -246,6 +269,61 @@ const getImpBulletineTypeCard = async (
       text: `**Additional Information:**\n\n` + additionalInfo,
     },
   ];
+  let actions = [];
+  const responseOptionData = incObj.responseOptionData;
+  if (responseOptionData?.responseType.toLowerCase() == "buttons") {
+    responseOptionData?.responseOptions.map((option, index) => {
+      if (option.option != "") {
+        let btn = {
+          type: "Action.Execute",
+          title: option.option,
+          verb: "send_response",
+          data: {
+            info: option.id,
+            inc: incObj,
+            companyData: companyData,
+          },
+        };
+        actions.push(btn);
+      }
+    });
+  } else {
+    let dropdown = {
+      type: "Input.ChoiceSet",
+      id: "dropdownSelection",
+      style: "compact", // Use "expanded" for always visible options
+      isRequired: true,
+      placeholder: "Select response",
+      errorMessage: "Please select a response.",
+      choices: [],
+    };
+    responseOptionData.responseOptions.map((option, index) => {
+      if (option.option != "") {
+        dropdown.choices.push({
+          title: option.option,
+          value: option.id.toString(),
+        });
+      }
+    });
+    cardBody.push(dropdown);
+    let btnSafe = {
+      type: "Action.Execute",
+      title: "Confirm",
+      verb: "send_response",
+      associatedInputs: "auto",
+      data: {
+        info: "dropdown_selection",
+        inc: incObj,
+        companyData: companyData,
+      },
+    };
+    actions.push(btnSafe);
+  }
+  cardBody.push({
+    type: "ActionSet",
+    actions: actions,
+  });
+
   const mentionUserEntities = [];
   dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
   return {
@@ -266,7 +344,9 @@ const getTravelAdvisoryTypeCard = async (
   travelUpdate,
   contactInfo,
   incCreatedById,
-  incCreatedByName
+  incCreatedByName,
+  incObj,
+  companyData,
 ) => {
   const cardBody = [
     {
@@ -307,6 +387,60 @@ const getTravelAdvisoryTypeCard = async (
       text: `**Contact Information:**\n\n` + contactInfo,
     },
   ];
+  let actions = [];
+  const responseOptionData = incObj.responseOptionData;
+  if (responseOptionData.responseType.toLowerCase() == "buttons") {
+    responseOptionData.responseOptions.map((option, index) => {
+      if (option.option != "") {
+        let btn = {
+          type: "Action.Execute",
+          title: option.option,
+          verb: "send_response",
+          data: {
+            info: option.id,
+            inc: incObj,
+            companyData: companyData,
+          },
+        };
+        actions.push(btn);
+      }
+    });
+  } else {
+    let dropdown = {
+      type: "Input.ChoiceSet",
+      id: "dropdownSelection",
+      style: "compact", // Use "expanded" for always visible options
+      isRequired: true,
+      placeholder: "Select response",
+      errorMessage: "Please select a response.",
+      choices: [],
+    };
+    responseOptionData.responseOptions.map((option, index) => {
+      if (option.option != "") {
+        dropdown.choices.push({
+          title: option.option,
+          value: option.id.toString(),
+        });
+      }
+    });
+    cardBody.push(dropdown);
+    let btnSafe = {
+      type: "Action.Execute",
+      title: "Confirm",
+      verb: "send_response",
+      associatedInputs: "auto",
+      data: {
+        info: "dropdown_selection",
+        inc: incObj,
+        companyData: companyData,
+      },
+    };
+    actions.push(btnSafe);
+  }
+  cardBody.push({
+    type: "ActionSet",
+    actions: actions,
+  });
 
   const mentionUserEntities = [];
   dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
@@ -327,7 +461,9 @@ const getStakeholderNoticeTypeCard = async (
   situation,
   additionalInfo,
   incCreatedById,
-  incCreatedByName
+  incCreatedByName,
+  incObj,
+  companyData,
 ) => {
   const cardBody = [
     {
@@ -362,6 +498,60 @@ const getStakeholderNoticeTypeCard = async (
       text: `**Additional Information:**\n\n` + additionalInfo,
     },
   ];
+  let actions = [];
+  const responseOptionData = incObj.responseOptionData;
+  if (responseOptionData.responseType.toLowerCase() == "buttons") {
+    responseOptionData.responseOptions.map((option, index) => {
+      if (option.option != "") {
+        let btn = {
+          type: "Action.Execute",
+          title: option.option,
+          verb: "send_response",
+          data: {
+            info: option.id,
+            inc: incObj,
+            companyData: companyData,
+          },
+        };
+        actions.push(btn);
+      }
+    });
+  } else {
+    let dropdown = {
+      type: "Input.ChoiceSet",
+      id: "dropdownSelection",
+      style: "compact", // Use "expanded" for always visible options
+      isRequired: true,
+      placeholder: "Select response",
+      errorMessage: "Please select a response.",
+      choices: [],
+    };
+    responseOptionData.responseOptions.map((option, index) => {
+      if (option.option != "") {
+        dropdown.choices.push({
+          title: option.option,
+          value: option.id.toString(),
+        });
+      }
+    });
+    cardBody.push(dropdown);
+    let btnSafe = {
+      type: "Action.Execute",
+      title: "Confirm",
+      verb: "send_response",
+      associatedInputs: "auto",
+      data: {
+        info: "dropdown_selection",
+        inc: incObj,
+        companyData: companyData,
+      },
+    };
+    actions.push(btnSafe);
+  }
+  cardBody.push({
+    type: "ActionSet",
+    actions: actions,
+  });
 
   const mentionUserEntities = [];
   dashboard.mentionUser(mentionUserEntities, incCreatedById, incCreatedByName);
@@ -387,7 +577,7 @@ const SafetyCheckCard = async (
   additionalInfo,
   travelUpdate,
   contactInfo,
-  situation
+  situation,
 ) => {
   let card = null;
   switch (incTypeId) {
@@ -398,7 +588,11 @@ const SafetyCheckCard = async (
         companyData,
         incGuidance,
         incResponseSelectedUsersList,
-        incTypeId, null, null, null, false
+        incTypeId,
+        null,
+        null,
+        null,
+        false,
       );
       break;
     case 2: //Safety Alert
@@ -408,7 +602,7 @@ const SafetyCheckCard = async (
         companyData,
         incGuidance,
         null,
-        incTypeId
+        incTypeId,
       );
       break;
     case 3: //Important Bulletin
@@ -417,7 +611,9 @@ const SafetyCheckCard = async (
         incGuidance,
         additionalInfo,
         incObj.incCreatedBy.id,
-        incObj.incCreatedBy.name
+        incObj.incCreatedBy.name,
+        incObj,
+        companyData,
       );
       break;
     case 4: //Travel Advisory
@@ -427,7 +623,9 @@ const SafetyCheckCard = async (
         travelUpdate,
         contactInfo,
         incObj.incCreatedBy.id,
-        incObj.incCreatedBy.name
+        incObj.incCreatedBy.name,
+        incObj,
+        companyData,
       );
       break;
     case 5: //Stakeholder Notice
@@ -436,7 +634,9 @@ const SafetyCheckCard = async (
         situation,
         additionalInfo,
         incObj.incCreatedBy.id,
-        incObj.incCreatedBy.name
+        incObj.incCreatedBy.name,
+        incObj,
+        companyData,
       );
       break;
   }
