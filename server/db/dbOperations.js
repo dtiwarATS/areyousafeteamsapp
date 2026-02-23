@@ -742,7 +742,7 @@ const insertCompanyData = async (
         END
     END`;
     res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
-    await InsertSOSContacts(teamId, companyDataObj.userObjId);
+    // await InsertSOSContacts(teamId, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
       const data = await addTeamMember(teamId, allMembersInfo, false, true);

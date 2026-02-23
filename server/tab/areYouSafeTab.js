@@ -580,7 +580,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         //   "," +
         //   userlocation.lon +
         //   "&zoom=14&size=400x400&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
-        var Ulocation;
+        var Ulocation = "";
         if (user?.DYNAMIC_LOCATION != null) {
           Ulocation = `📍${user?.DYNAMIC_LOCATION}`;
         }
@@ -1890,13 +1890,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         userId,
       );
     } catch (err) {
-      processSafetyBotError(
-        err,
-        teamId,
-        "",
-        userId,
-        "error in manageColumns",
-      );
+      processSafetyBotError(err, teamId, "", userId, "error in manageColumns");
     }
     return Promise.resolve(res);
   };
