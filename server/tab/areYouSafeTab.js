@@ -310,12 +310,7 @@ class AreYouSafeTab {
                 deliveredCount = memberObj.delivered.length;
               }
             }
-            if (
-              incTypeId &&
-              incTypeId == 1 &&
-              respOptions &&
-              respOptions.length > 0
-            ) {
+            if (incTypeId && respOptions && respOptions.length > 0) {
               respOptions.forEach((resp) => {
                 const dashResp = {};
                 let usersWithResponse = inc.members.filter((m) => {
