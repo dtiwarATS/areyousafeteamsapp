@@ -3589,6 +3589,7 @@ const handlerForSafetyBotTab = (app) => {
         const body = req.body || {};
         const tenantId = body.tenantId || req.query.tenantId || "";
         const userId = body.userId || req.query.userId || "";
+        const advisoryType = body.type || req.query.type || "";
         const countryCodes = Array.isArray(body.countryCodes)
           ? body.countryCodes
           : [];
@@ -3609,6 +3610,7 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userId,
           countryCodes,
+          advisoryType,
         );
 
         let detailSavedCount = 0;

@@ -152,6 +152,7 @@ async function ensureAllTravelAdvisoryTables() {
 async function deleteAdvisoryForTenantNotInCountryCodes(
   tenantId,
   countryCodes,
+  advisoryType,
 ) {
   const pool = await poolPromise;
   const codes = Array.isArray(countryCodes)
@@ -161,9 +162,10 @@ async function deleteAdvisoryForTenantNotInCountryCodes(
   const result = await pool
     .request()
     .input("TenantId", sql.NVarChar(256), tenantId || "")
+    .input("AdvisoryType", sql.NVarChar(50), advisoryType)
     .input("countryCodesJson", sql.NVarChar(sql.MAX), countryCodesJson).query(`
       DELETE FROM [dbo].[Advisory]
-      WHERE TenantId = @TenantId
+      WHERE TenantId = @TenantId  AND AdvisoryType = @AdvisoryType
       AND UPPER(LTRIM(RTRIM(CountryCode))) NOT IN (
         SELECT UPPER(LTRIM(RTRIM(value))) FROM OPENJSON(@countryCodesJson)
       )
@@ -182,7 +184,7 @@ async function deleteAdvisoryForTenantNotInCountryCodes(
  * @param {string} teamId - kept for API backward compatibility, ignored
  * @param {string} userId - CreatedByUserId
  * @param {string[]} countryCodes
- * @param {string} [advisoryType='Travel']
+ * @param {string} [advisoryType]
  * @returns {Promise<{ savedCount: number, skipped: number, invalidCodes: string[], deletedCount: number }>}
  */
 async function saveTravelAdvisorySelections(
@@ -190,7 +192,7 @@ async function saveTravelAdvisorySelections(
   teamId,
   userId,
   countryCodes,
-  advisoryType = "Travel",
+  advisoryType,
 ) {
   await ensureAdvisoryTable();
   const pool = await poolPromise;
@@ -210,6 +212,7 @@ async function saveTravelAdvisorySelections(
   const { deletedCount } = await deleteAdvisoryForTenantNotInCountryCodes(
     tenantId,
     validCodes,
+    advisoryType,
   );
 
   let savedCount = 0;
@@ -223,22 +226,32 @@ async function saveTravelAdvisorySelections(
     .input("CreatedByUserId", sql.NVarChar(256), userId || "");
 
   const result = await req.query(`
-  MERGE [dbo].[Advisory] AS t
-  USING (
-    SELECT @TenantId AS TenantId, @AdvisoryType AS AdvisoryType
-  ) AS s
-  ON t.TenantId = s.TenantId AND t.AdvisoryType = s.AdvisoryType
-  WHEN MATCHED THEN
-    UPDATE SET 
-      CountryCode = @CountryCode,
-      IsActive = 1, 
-      UpdatedByUserId = @CreatedByUserId, 
-      UpdatedAtUtc = GETUTCDATE()
-  WHEN NOT MATCHED THEN
-    INSERT (TenantId, CountryCode, AdvisoryType, IsActive, CreatedByUserId)
-    VALUES (@TenantId, @CountryCode, @AdvisoryType, 1, @CreatedByUserId);
-`);
+IF EXISTS (
+    SELECT 1 
+    FROM dbo.Advisory
+    WHERE TenantId = @TenantId
+      AND AdvisoryType = @AdvisoryType
+)
 
+BEGIN
+    UPDATE dbo.Advisory
+    SET 
+        CountryCode = @CountryCode,
+        IsActive = 1,
+        UpdatedByUserId = @CreatedByUserId,
+        UpdatedAtUtc = GETUTCDATE()
+    WHERE TenantId = @TenantId
+      AND AdvisoryType = @AdvisoryType;
+END
+ELSE
+BEGIN
+    INSERT INTO dbo.Advisory
+    (TenantId, CountryCode, AdvisoryType, IsActive, CreatedByUserId)
+    VALUES
+    (@TenantId, @CountryCode, @AdvisoryType, 1, @CreatedByUserId);
+END
+`);
+  console.log(result);
   return { savedCount, skipped, invalidCodes, deletedCount };
 }
 
