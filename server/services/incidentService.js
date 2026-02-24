@@ -2048,20 +2048,31 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
         let responders = null;
         if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
           let respDetails = respDetailsForCurTeam.filter((r) => {
-            return usercity == r.CITY;
+            return usercity == r.CITY && usercountry == r.COUNTRY;
           });
           if (respDetails && respDetails.length > 0) {
             responders = respDetails[0].RESPONDER
               ? respDetails[0].RESPONDER
               : null;
           } else {
-            respDetails = respDetailsForCurTeam.filter((r) => {
-              return usercountry == r.COUNTRY;
+            let respDetails = respDetailsForCurTeam.filter((r) => {
+              return usercity == r.CITY;
             });
             if (respDetails && respDetails.length > 0) {
               responders = respDetails[0].RESPONDER
                 ? respDetails[0].RESPONDER
                 : null;
+            } else {
+              respDetails = respDetailsForCurTeam.filter((r) => {
+                return (
+                  usercountry == r.COUNTRY && (r.CITY == "" || r.CITY == null)
+                );
+              });
+              if (respDetails && respDetails.length > 0) {
+                responders = respDetails[0].RESPONDER
+                  ? respDetails[0].RESPONDER
+                  : null;
+              }
             }
           }
         }
