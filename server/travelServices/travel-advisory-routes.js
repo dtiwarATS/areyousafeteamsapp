@@ -18,7 +18,7 @@
  *   POST /api/travel/sync (manual trigger: sync selected countries from RSS)
  *   GET  /api/travel/health
  *
- * Requires 3-table schema: TravelAdvisorySelection, TravelAdvisoryDetail, TravelAdvisoryChangeLog.
+ * Requires 3-table schema: Advisory, AdvisoryDetail, AdvisoryChangeLog.
  */
 
 const express = require("express");
@@ -308,11 +308,11 @@ router.post("/selected", async (req, res, next) => {
       advisoryType,
       createdByUserId,
     } = req.body || {};
-    if (!tenantId || !teamId) {
+    if (!tenantId) {
       return res.status(400).json({
         success: false,
         error: "Validation failed",
-        details: [{ msg: "tenantId, teamId are required" }],
+        details: [{ msg: "tenantId is required" }],
         timestamp: new Date().toISOString(),
         requestId: getRequestId(req),
       });
@@ -357,7 +357,7 @@ router.post("/selected", async (req, res, next) => {
     ) {
       return res.status(409).json({
         success: false,
-        error: "Duplicate selection for this tenant/team/country/type",
+        error: "Duplicate selection for this tenant/country/type",
         timestamp: new Date().toISOString(),
         requestId: getRequestId(req),
       });

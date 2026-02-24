@@ -3624,9 +3624,13 @@ const handlerForSafetyBotTab = (app) => {
               tenantId,
               "",
             );
-          const filtered = selections.filter((row) =>
-            requestedCodesSet.has((row.CountryCode || "").toUpperCase()),
-          );
+          const filtered = selections.filter((row) => {
+            const countryCodes = (row.CountryCode || "")
+              .split(",")
+              .map((c) => c.trim().toUpperCase());
+
+            return countryCodes.some((code) => requestedCodesSet.has(code));
+          });
           if (filtered.length > 0) {
             const advisories = await travelAdvisory.getProcessedAdvisories();
             const advisoryByCode = {};
@@ -3637,41 +3641,23 @@ const handlerForSafetyBotTab = (app) => {
             const now = new Date();
             for (const row of filtered) {
               const selectedId = row.TravelAdvisorySelectedCountriesId;
-              const countryId = row.CountryId;
-              const countryCode = (row.CountryCode || "").toUpperCase();
-              const advisory = advisoryByCode[countryCode];
-              if (advisory) {
-                await travelSelectedDb.upsertSavedAdvisory(
-                  selectedId,
-                  countryId,
-                  advisory,
-                  now,
-                );
-                detailSavedCount++;
+              const countryCodes = (row.CountryCode || "")
+                .split(",")
+                .map((c) => c.trim().toUpperCase());
+
+              for (const code of countryCodes) {
+                const advisory = advisoryByCode[code];
+                if (advisory) {
+                  await travelSelectedDb.upsertSavedAdvisory(
+                    selectedId,
+                    code,
+                    advisory,
+                    now,
+                  );
+                  detailSavedCount++;
+                }
               }
             }
-            advisoriesList = filtered
-              .map(
-                (row) => advisoryByCode[(row.CountryCode || "").toUpperCase()],
-              )
-              .filter(Boolean)
-              .map((adv) => ({
-                country: adv.country,
-                countryCode: adv.countryCode,
-                level: adv.level,
-                levelNumber: adv.levelNumber ?? 0,
-                title: adv.title,
-                summary: adv.summary || "No summary available",
-                restrictions: Array.isArray(adv.restrictions)
-                  ? adv.restrictions
-                  : [],
-                recommendations: Array.isArray(adv.recommendations)
-                  ? adv.recommendations
-                  : [],
-                link: adv.link,
-                pubDate: adv.pubDate,
-                lastUpdated: adv.lastUpdated ? new Date(adv.lastUpdated) : null,
-              }));
           }
         }
 
@@ -3684,7 +3670,7 @@ const handlerForSafetyBotTab = (app) => {
               ? result.deletedCount
               : undefined,
           detailSavedCount: detailSavedCount > 0 ? detailSavedCount : undefined,
-          advisories: advisoriesList,
+
           invalidCodes:
             result.invalidCodes && result.invalidCodes.length
               ? result.invalidCodes

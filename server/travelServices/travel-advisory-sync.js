@@ -1,9 +1,9 @@
 /**
  * Sync travel advisories for selected countries only (no global cache).
  * Fetches RSS feed, then for each active selected country: upserts one row in
- * TravelAdvisoryDetail and logs to TravelAdvisoryChangeLog.
+ * AdvisoryDetail and logs to AdvisoryChangeLog.
  * Used by travelAdvisorySelectedCountries-job (cron) and POST /api/travel/sync.
- * Requires 3-table schema: TravelAdvisorySelection, TravelAdvisoryDetail, TravelAdvisoryChangeLog.
+ * Requires 3-table schema: Advisory, AdvisoryDetail, AdvisoryChangeLog.
  */
 
 const travelAdvisory = require("./travel-advisory-feed");
@@ -19,7 +19,7 @@ const { processSafetyBotError } = require("../models/processError");
 
 /**
  * Sync advisories from RSS for selected countries only.
- * Inserts/updates TravelAdvisoryDetail and logs to TravelAdvisoryChangeLog.
+ * Inserts/updates AdvisoryDetail and logs to AdvisoryChangeLog.
  * @returns {{ success: boolean, count: number, insertCount: number, updateCount: number, jobRunAt: Date, error?: string }}
  */
 async function runSync() {
@@ -55,9 +55,6 @@ async function runSync() {
     for (const row of selected) {
       const {
         TravelAdvisorySelectedCountriesId: selectedId,
-        TenantId: tenantId,
-        TeamId: teamId,
-        CountryId: countryId,
         CountryCode: countryCode,
       } = row;
 
@@ -77,12 +74,12 @@ async function runSync() {
         : null;
 
       if (!saved) {
-        await upsertSavedAdvisory(selectedId, countryId, advisory, jobRunAt);
+        await upsertSavedAdvisory(selectedId, countryCode, advisory, jobRunAt);
         insertCount++;
       } else if (!snapshotsEqual(oldSnapshot, newSnapshot)) {
-        const advisoryId = await upsertSavedAdvisory(
+        const advisoryDetailId = await upsertSavedAdvisory(
           selectedId,
-          countryId,
+          countryCode,
           advisory,
           jobRunAt,
         );
@@ -90,8 +87,8 @@ async function runSync() {
           await insertSelectedCountryLog(
             selectedId,
             "LevelNumber",
-            countryId,
-            advisoryId,
+            countryCode,
+            advisoryDetailId,
             oldSnapshot,
             newSnapshot,
             jobRunAt,

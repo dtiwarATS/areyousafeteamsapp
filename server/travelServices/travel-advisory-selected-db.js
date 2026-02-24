@@ -1,13 +1,3 @@
-/**
- * DB helpers for travel advisory selected countries (3-table schema):
- * - Table 1: TravelAdvisorySelection (UI selected countries)
- * - Table 2: TravelAdvisoryDetail (saved advisory per selection)
- * - Table 3: TravelAdvisoryChangeLog (change tracking)
- *
- * This module keeps the JS API shape stable (e.g. TravelAdvisorySelectedCountriesId)
- * while targeting the new table/column names in SQL.
- */
-
 const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 
@@ -36,55 +26,41 @@ async function getAllCountriesFromDb() {
 }
 
 /**
- * Get CountryId from Countries by code (for resolving countryCode to countryId).
+ * Get CountryId from Countries by code (for validation only; no longer used for storage).
  * @param {string} code - Country code (e.g. 'US')
  * @returns {Promise<number|null>}
  */
-async function getCountryIdByCode(code) {
-  if (!code || !String(code).trim()) return null;
-  const pool = await poolPromise;
-  const result = await pool
-    .request()
-    .input("code", sql.VarChar(10), String(code).toUpperCase().trim())
-    .query(
-      "SELECT id FROM Countries WHERE UPPER(LTRIM(RTRIM(code))) = UPPER(LTRIM(RTRIM(@code)))",
-    );
-  const rows = result.recordset || [];
-  return rows.length ? rows[0].id : null;
-}
 
-const ENSURE_TRAVEL_ADVISORY_SELECTION_TABLE_SQL = `
-IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TravelAdvisorySelection')
+const ENSURE_ADVISORY_TABLE_SQL = `
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'Advisory')
 BEGIN
-    CREATE TABLE [dbo].[TravelAdvisorySelection] (
+    CREATE TABLE [dbo].[Advisory] (
         [Id] INT IDENTITY(1,1) NOT NULL,
         [TenantId] NVARCHAR(256) NOT NULL,
-        [TeamId] NVARCHAR(256) NOT NULL,
-        [CountryId] INT NOT NULL,
+        [CountryCode] NVARCHAR(MAX) NOT NULL,
         [AdvisoryType] NVARCHAR(50) NOT NULL,
         [IsActive] BIT NOT NULL DEFAULT 1,
         [CreatedByUserId] NVARCHAR(256) NOT NULL,
         [CreatedAtUtc] DATETIME NOT NULL DEFAULT GETUTCDATE(),
         [UpdatedByUserId] NVARCHAR(256) NULL,
         [UpdatedAtUtc] DATETIME NULL,
-        CONSTRAINT [PK_TravelAdvisorySelection] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [FK_TravelAdvisorySelection_Country] FOREIGN KEY ([CountryId]) REFERENCES [dbo].[Countries] ([Id])
+        CONSTRAINT [PK_Advisory] PRIMARY KEY CLUSTERED ([Id])
     );
-    CREATE UNIQUE NONCLUSTERED INDEX [UX_TravelAdvisorySelection_Tenant_Team_Country_Type]
-        ON [dbo].[TravelAdvisorySelection] ([TenantId], [TeamId], [CountryId], [AdvisoryType]);
-    CREATE NONCLUSTERED INDEX [IX_TravelAdvisorySelection_Tenant_Team_IsActive]
-        ON [dbo].[TravelAdvisorySelection] ([TenantId], [TeamId], [IsActive]);
+    CREATE UNIQUE NONCLUSTERED INDEX [UX_Advisory_Tenant_CountryCode_Type]
+        ON [dbo].[Advisory] ([TenantId], [CountryCode], [AdvisoryType]);
+    CREATE NONCLUSTERED INDEX [IX_Advisory_Tenant_Type] ON [dbo].[Advisory] ([TenantId], [AdvisoryType]);
+    CREATE NONCLUSTERED INDEX [IX_Advisory_Tenant_IsActive] ON [dbo].[Advisory] ([TenantId], [IsActive]);
 END
 `;
 
-const ENSURE_TRAVEL_ADVISORY_DETAIL_TABLE_SQL = `
-IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TravelAdvisoryDetail')
+const ENSURE_ADVISORY_DETAIL_TABLE_SQL = `
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AdvisoryDetail')
 BEGIN
-    CREATE TABLE [dbo].[TravelAdvisoryDetail] (
+    CREATE TABLE [dbo].[AdvisoryDetail] (
         [Id] INT IDENTITY(1,1) NOT NULL,
-        [TravelAdvisorySelectionId] INT NOT NULL,
+        [AdvisoryId] INT NOT NULL,
         [FeedId] NVARCHAR(50) NULL,
-        [CountryId] INT NULL,
+        [CountryCode] NVARCHAR(MAX) NULL,
         [Title] NVARCHAR(500) NULL,
         [Level] NVARCHAR(100) NULL,
         [LevelNumber] INT NULL,
@@ -96,103 +72,101 @@ BEGIN
         [Recommendations] NVARCHAR(MAX) NULL,
         [LastUpdatedAtUtc] DATETIME NULL,
         [SyncedAtUtc] DATETIME NOT NULL DEFAULT GETUTCDATE(),
-        CONSTRAINT [PK_TravelAdvisoryDetail] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [FK_TravelAdvisoryDetail_TravelAdvisorySelection] FOREIGN KEY ([TravelAdvisorySelectionId])
-            REFERENCES [dbo].[TravelAdvisorySelection] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_TravelAdvisoryDetail_Country] FOREIGN KEY ([CountryId]) REFERENCES [dbo].[Countries] ([Id])
+        CONSTRAINT [PK_AdvisoryDetail] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_AdvisoryDetail_Advisory] FOREIGN KEY ([AdvisoryId])
+            REFERENCES [dbo].[Advisory] ([Id]) ON DELETE CASCADE
     );
-    CREATE UNIQUE NONCLUSTERED INDEX [UX_TravelAdvisoryDetail_Selection]
-        ON [dbo].[TravelAdvisoryDetail] ([TravelAdvisorySelectionId]);
+    CREATE UNIQUE NONCLUSTERED INDEX [UX_AdvisoryDetail_Advisory]
+        ON [dbo].[AdvisoryDetail] ([AdvisoryId]);
 END
 `;
 
-const ENSURE_TRAVEL_ADVISORY_CHANGELOG_TABLE_SQL = `
-IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'TravelAdvisoryChangeLog')
+const ENSURE_ADVISORY_CHANGELOG_TABLE_SQL = `
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AdvisoryChangeLog')
 BEGIN
-    CREATE TABLE [dbo].[TravelAdvisoryChangeLog] (
+    CREATE TABLE [dbo].[AdvisoryChangeLog] (
         [Id] INT IDENTITY(1,1) NOT NULL,
-        [TravelAdvisorySelectionId] INT NOT NULL,
-        [TravelAdvisoryDetailId] INT NULL,
-        [CountryId] INT NULL,
+        [AdvisoryId] INT NOT NULL,
+        [AdvisoryDetailId] INT NULL,
+        [CountryCode] NVARCHAR(MAX) NULL,
         [FieldName] NVARCHAR(100) NULL,
         [OldValue] NVARCHAR(MAX) NULL,
         [NewValue] NVARCHAR(MAX) NULL,
         [JobRunAtUtc] DATETIME NOT NULL,
-        CONSTRAINT [PK_TravelAdvisoryChangeLog] PRIMARY KEY CLUSTERED ([Id]),
-        CONSTRAINT [FK_TravelAdvisoryChangeLog_TravelAdvisorySelection] FOREIGN KEY ([TravelAdvisorySelectionId])
-            REFERENCES [dbo].[TravelAdvisorySelection] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_TravelAdvisoryChangeLog_TravelAdvisoryDetail] FOREIGN KEY ([TravelAdvisoryDetailId])
-            REFERENCES [dbo].[TravelAdvisoryDetail] ([Id]),
-        CONSTRAINT [FK_TravelAdvisoryChangeLog_Country] FOREIGN KEY ([CountryId]) REFERENCES [dbo].[Countries] ([Id])
+        CONSTRAINT [PK_AdvisoryChangeLog] PRIMARY KEY CLUSTERED ([Id]),
+        CONSTRAINT [FK_AdvisoryChangeLog_Advisory] FOREIGN KEY ([AdvisoryId])
+            REFERENCES [dbo].[Advisory] ([Id]) ON DELETE CASCADE,
+        CONSTRAINT [FK_AdvisoryChangeLog_AdvisoryDetail] FOREIGN KEY ([AdvisoryDetailId])
+            REFERENCES [dbo].[AdvisoryDetail] ([Id])
     );
-    CREATE NONCLUSTERED INDEX [IX_TravelAdvisoryChangeLog_Selection_JobRunAtUtc]
-        ON [dbo].[TravelAdvisoryChangeLog] ([TravelAdvisorySelectionId], [JobRunAtUtc]);
+    CREATE NONCLUSTERED INDEX [IX_AdvisoryChangeLog_Advisory_JobRunAtUtc]
+        ON [dbo].[AdvisoryChangeLog] ([AdvisoryId], [JobRunAtUtc]);
 END
 `;
 
 /**
- * Ensure TravelAdvisorySelection table exists (create if not).
+ * Ensure Advisory table exists (create if not).
  * @returns {Promise<void>}
  */
-async function ensureTravelAdvisorySelectionTable() {
+async function ensureAdvisoryTable() {
   const pool = await poolPromise;
-  await pool.request().query(ENSURE_TRAVEL_ADVISORY_SELECTION_TABLE_SQL);
+  await pool.request().query(ENSURE_ADVISORY_TABLE_SQL);
 }
 
 /**
- * Ensure TravelAdvisoryDetail table exists (create if not).
+ * Ensure AdvisoryDetail table exists (create if not).
  * @returns {Promise<void>}
  */
-async function ensureTravelAdvisoryDetailTable() {
+async function ensureAdvisoryDetailTable() {
   const pool = await poolPromise;
-  await pool.request().query(ENSURE_TRAVEL_ADVISORY_DETAIL_TABLE_SQL);
+  await pool.request().query(ENSURE_ADVISORY_DETAIL_TABLE_SQL);
 }
 
 /**
- * Ensure TravelAdvisoryChangeLog table exists (create if not).
+ * Ensure AdvisoryChangeLog table exists (create if not).
  * @returns {Promise<void>}
  */
-async function ensureTravelAdvisoryChangeLogTable() {
+async function ensureAdvisoryChangeLogTable() {
   const pool = await poolPromise;
-  await pool.request().query(ENSURE_TRAVEL_ADVISORY_CHANGELOG_TABLE_SQL);
+  await pool.request().query(ENSURE_ADVISORY_CHANGELOG_TABLE_SQL);
 }
 
 /**
- * Ensure all three travel advisory tables exist (Selection, Detail, ChangeLog).
- * Call before sync so app works even if only Selection was created manually.
+ * Ensure all three travel advisory tables exist (Advisory, AdvisoryDetail, AdvisoryChangeLog).
+ * Call before sync so app works even if only Advisory was created manually.
  * @returns {Promise<void>}
  */
 async function ensureAllTravelAdvisoryTables() {
-  await ensureTravelAdvisorySelectionTable();
-  await ensureTravelAdvisoryDetailTable();
-  await ensureTravelAdvisoryChangeLogTable();
+  await ensureAdvisoryTable();
+  await ensureAdvisoryDetailTable();
+  await ensureAdvisoryChangeLogTable();
 }
 
 /**
- * Delete TravelAdvisorySelection rows for a tenant/team where CountryId is not in the given list.
- * Detail and ChangeLog rows are removed by CASCADE. When countryIds is empty, all selections for that tenant/team are deleted.
+ * Delete Advisory rows for a tenant where CountryCode is not in the given list.
+ * Detail and ChangeLog rows are removed by CASCADE. When countryCodes is empty, all selections for that tenant are deleted.
  * @param {string} tenantId
- * @param {string} teamId
- * @param {number[]} countryIds - resolved country IDs to keep
+ * @param {string[]} countryCodes - country codes to keep (uppercase)
  * @returns {Promise<{ deletedCount: number }>}
  */
-async function deleteSelectionsForTenantTeamNotInCountryIds(
+async function deleteAdvisoryForTenantNotInCountryCodes(
   tenantId,
-  teamId,
-  countryIds,
+  countryCodes,
 ) {
   const pool = await poolPromise;
-  const countryIdsJson = JSON.stringify(
-    Array.isArray(countryIds) ? countryIds : [],
-  );
+  const codes = Array.isArray(countryCodes)
+    ? countryCodes.map((c) => String(c).trim().toUpperCase()).filter(Boolean)
+    : [];
+  const countryCodesJson = JSON.stringify(codes);
   const result = await pool
     .request()
     .input("TenantId", sql.NVarChar(256), tenantId || "")
-    .input("TeamId", sql.NVarChar(256), teamId || "")
-    .input("countryIdsJson", sql.NVarChar(sql.MAX), countryIdsJson).query(`
-      DELETE FROM [dbo].[TravelAdvisorySelection]
-      WHERE TenantId = @TenantId AND TeamId = @TeamId
-      AND CountryId NOT IN (SELECT CONVERT(INT, value) FROM OPENJSON(@countryIdsJson))
+    .input("countryCodesJson", sql.NVarChar(sql.MAX), countryCodesJson).query(`
+      DELETE FROM [dbo].[Advisory]
+      WHERE TenantId = @TenantId
+      AND UPPER(LTRIM(RTRIM(CountryCode))) NOT IN (
+        SELECT UPPER(LTRIM(RTRIM(value))) FROM OPENJSON(@countryCodesJson)
+      )
     `);
   const deletedCount =
     result.rowsAffected && result.rowsAffected[0] != null
@@ -202,10 +176,10 @@ async function deleteSelectionsForTenantTeamNotInCountryIds(
 }
 
 /**
- * Save travel advisory selections for a tenant/team: delete selections not in list, then resolve countryCodes to CountryId and insert into TravelAdvisorySelection.
- * Skips duplicate (TenantId, TeamId, CountryId, AdvisoryType) and invalid codes.
+ * Save travel advisory selections for a tenant: delete selections not in list, then MERGE (update/insert) into Advisory.
+ * One record per (TenantId, CountryCode, AdvisoryType). Uses CountryCode directly (no resolution to CountryId).
  * @param {string} tenantId
- * @param {string} teamId
+ * @param {string} teamId - kept for API backward compatibility, ignored
  * @param {string} userId - CreatedByUserId
  * @param {string[]} countryCodes
  * @param {string} [advisoryType='Travel']
@@ -218,7 +192,7 @@ async function saveTravelAdvisorySelections(
   countryCodes,
   advisoryType = "Travel",
 ) {
-  await ensureTravelAdvisorySelectionTable();
+  await ensureAdvisoryTable();
   const pool = await poolPromise;
   const codes = Array.isArray(countryCodes)
     ? countryCodes.filter((c) => c != null && String(c).trim() !== "")
@@ -227,59 +201,57 @@ async function saveTravelAdvisorySelections(
     ...new Set(codes.map((c) => String(c).trim().toUpperCase())),
   ];
 
-  const validCountryIds = [];
+  const validCodes = [];
   const invalidCodes = [];
   for (const code of uniqueCodes) {
-    const countryId = await getCountryIdByCode(code);
-    if (countryId == null) {
-      invalidCodes.push(code);
-    } else {
-      validCountryIds.push(countryId);
-    }
+    validCodes.push(String(code).trim().toUpperCase());
   }
 
-  const { deletedCount } = await deleteSelectionsForTenantTeamNotInCountryIds(
+  const { deletedCount } = await deleteAdvisoryForTenantNotInCountryCodes(
     tenantId,
-    teamId,
-    validCountryIds,
+    validCodes,
   );
 
   let savedCount = 0;
   let skipped = 0;
-  for (const countryId of validCountryIds) {
-    const req = pool
-      .request()
-      .input("TenantId", sql.NVarChar(256), tenantId || "")
-      .input("TeamId", sql.NVarChar(256), teamId || "")
-      .input("CountryId", sql.Int, countryId)
-      .input("AdvisoryType", sql.NVarChar(50), advisoryType)
-      .input("CreatedByUserId", sql.NVarChar(256), userId || "");
-    const result = await req.query(`
-      INSERT INTO [dbo].[TravelAdvisorySelection] (TenantId, TeamId, CountryId, AdvisoryType, IsActive, CreatedByUserId)
-      SELECT @TenantId, @TeamId, @CountryId, @AdvisoryType, 1, @CreatedByUserId
-      WHERE NOT EXISTS (
-        SELECT 1 FROM [dbo].[TravelAdvisorySelection]
-        WHERE TenantId = @TenantId AND TeamId = @TeamId AND CountryId = @CountryId AND AdvisoryType = @AdvisoryType
-      )
-    `);
-    if (result.rowsAffected && result.rowsAffected[0] > 0) savedCount++;
-    else skipped++;
-  }
+  const allCountryCodes = validCodes.join(",");
+  const req = pool
+    .request()
+    .input("TenantId", sql.NVarChar(256), tenantId || "")
+    .input("CountryCode", sql.NVarChar(sql.MAX), allCountryCodes)
+    .input("AdvisoryType", sql.NVarChar(50), advisoryType)
+    .input("CreatedByUserId", sql.NVarChar(256), userId || "");
+
+  const result = await req.query(`
+  MERGE [dbo].[Advisory] AS t
+  USING (
+    SELECT @TenantId AS TenantId, @AdvisoryType AS AdvisoryType
+  ) AS s
+  ON t.TenantId = s.TenantId AND t.AdvisoryType = s.AdvisoryType
+  WHEN MATCHED THEN
+    UPDATE SET 
+      CountryCode = @CountryCode,
+      IsActive = 1, 
+      UpdatedByUserId = @CreatedByUserId, 
+      UpdatedAtUtc = GETUTCDATE()
+  WHEN NOT MATCHED THEN
+    INSERT (TenantId, CountryCode, AdvisoryType, IsActive, CreatedByUserId)
+    VALUES (@TenantId, @CountryCode, @AdvisoryType, 1, @CreatedByUserId);
+`);
 
   return { savedCount, skipped, invalidCodes, deletedCount };
 }
 
 /**
- * Get all active selected countries (IsActive = 1) with CountryCode from Countries.
- * Returns rows in the stable API shape: TravelAdvisorySelectedCountriesId, TenantId, TeamId, CountryId, CountryCode.
- * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, TeamId: string, CountryId: number, CountryCode: string }>>}
+ * Get all active selected countries (IsActive = 1).
+ * Returns rows in the stable API shape: TravelAdvisorySelectedCountriesId, TenantId, CountryCode.
+ * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string }>>}
  */
 async function getActiveSelectedCountries() {
   const pool = await poolPromise;
   const result = await pool.request().query(`
-    SELECT s.Id AS TravelAdvisorySelectedCountriesId, s.TenantId, s.TeamId, s.CountryId, c.code AS CountryCode
-    FROM [dbo].[TravelAdvisorySelection] s
-    INNER JOIN [dbo].[Countries] c ON c.id = s.CountryId
+    SELECT s.Id AS TravelAdvisorySelectedCountriesId, s.TenantId, s.CountryCode
+    FROM [dbo].[Advisory] s
     WHERE s.IsActive = 1
     ORDER BY s.Id
   `);
@@ -287,30 +259,28 @@ async function getActiveSelectedCountries() {
 }
 
 /**
- * Get active selected countries for a specific tenant/team (IsActive = 1).
- * Same shape as getActiveSelectedCountries: TravelAdvisorySelectedCountriesId, TenantId, TeamId, CountryId, CountryCode.
+ * Get active selected countries for a specific tenant (IsActive = 1).
+ * Same shape as getActiveSelectedCountries: TravelAdvisorySelectedCountriesId, TenantId, CountryCode.
  * @param {string} tenantId
- * @param {string} teamId
- * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, TeamId: string, CountryId: number, CountryCode: string }>>}
+ * @param {string} teamId - kept for API backward compatibility, ignored
+ * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string }>>}
  */
 async function getActiveSelectedCountriesForTenantTeam(tenantId, teamId) {
   const pool = await poolPromise;
   const result = await pool
     .request()
-    .input("TenantId", sql.NVarChar(256), tenantId || "")
-    .input("TeamId", sql.NVarChar(256), teamId || "").query(`
-    SELECT s.Id AS TravelAdvisorySelectedCountriesId, s.TenantId, s.TeamId, s.CountryId, c.code AS CountryCode
-    FROM [dbo].[TravelAdvisorySelection] s
-    INNER JOIN [dbo].[Countries] c ON c.id = s.CountryId
-    WHERE s.TenantId = @TenantId AND s.TeamId = @TeamId AND s.IsActive = 1
+    .input("TenantId", sql.NVarChar(256), tenantId || "").query(`
+    SELECT s.Id AS TravelAdvisorySelectedCountriesId, s.TenantId, s.CountryCode
+    FROM [dbo].[Advisory] s
+    WHERE s.TenantId = @TenantId AND s.IsActive = 1
     ORDER BY s.Id
   `);
   return result.recordset || [];
 }
 
 /**
- * Get saved advisory for a selection id from TravelAdvisoryDetail.
- * @param {number} selectedId - TravelAdvisorySelection.Id (API: TravelAdvisorySelectedCountriesId)
+ * Get saved advisory for a selection id from AdvisoryDetail.
+ * @param {number} selectedId - Advisory.Id (API: TravelAdvisorySelectedCountriesId)
  * @returns {Promise<{ Level, LevelNumber, Summary, Link, LastUpdated }|null>}
  */
 async function getSavedAdvisoryForSelectedId(selectedId) {
@@ -319,8 +289,8 @@ async function getSavedAdvisoryForSelectedId(selectedId) {
   const result = await pool.request().input("selectedId", sql.Int, selectedId)
     .query(`
       SELECT Level, LevelNumber, Summary, Link, LastUpdatedAtUtc
-      FROM [dbo].[TravelAdvisoryDetail]
-      WHERE TravelAdvisorySelectionId = @selectedId
+      FROM [dbo].[AdvisoryDetail]
+      WHERE AdvisoryId = @selectedId
     `);
   const rows = result.recordset || [];
   if (rows.length === 0) return null;
@@ -396,17 +366,23 @@ function snapshotsEqual(a, b) {
 }
 
 /**
- * Upsert a row in TravelAdvisoryDetail for the given selection and advisory.
+ * Upsert a row in AdvisoryDetail for the given selection and advisory.
  * Ensures Detail and ChangeLog tables exist. Returns the Detail row Id.
- * @param {number} selectedId - TravelAdvisorySelection.Id
- * @param {number} countryId - Country.Id
+ * @param {number} selectedId - Advisory.Id
+ * @param {string} countryCode - Country code (e.g. 'US')
  * @param {Object} advisory - Feed shape: id, title, level, levelNumber, link, pubDate, summary, description, restrictions, recommendations, lastUpdated
  * @param {Date} jobRunAt
- * @returns {Promise<number>} TravelAdvisoryDetail.Id
+ * @returns {Promise<number>} AdvisoryDetail.Id
  */
-async function upsertSavedAdvisory(selectedId, countryId, advisory, jobRunAt) {
+async function upsertSavedAdvisory(
+  selectedId,
+  countryCode,
+  advisory,
+  jobRunAt,
+) {
   await ensureAllTravelAdvisoryTables();
   const pool = await poolPromise;
+  const code = countryCode != null ? String(countryCode).trim() : "";
   const feedId =
     advisory && advisory.id != null ? String(advisory.id).slice(0, 50) : null;
   const title =
@@ -459,7 +435,7 @@ async function upsertSavedAdvisory(selectedId, countryId, advisory, jobRunAt) {
     .request()
     .input("TravelAdvisorySelectionId", sql.Int, selectedId)
     .input("FeedId", sql.NVarChar(50), feedId)
-    .input("CountryId", sql.Int, countryId)
+    .input("CountryCode", sql.NVarChar(sql.MAX), code)
     .input("Title", sql.NVarChar(500), title)
     .input("Level", sql.NVarChar(100), level)
     .input("LevelNumber", sql.Int, levelNumber)
@@ -473,16 +449,16 @@ async function upsertSavedAdvisory(selectedId, countryId, advisory, jobRunAt) {
     .input("SyncedAtUtc", sql.DateTime, syncedAtUtc);
 
   const result = await req.query(`
-    MERGE [dbo].[TravelAdvisoryDetail] AS t
-    USING (SELECT @TravelAdvisorySelectionId AS TravelAdvisorySelectionId) AS s
-    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId
+    MERGE [dbo].[AdvisoryDetail] AS t
+    USING (SELECT @TravelAdvisorySelectionId AS TravelAdvisorySelectionId ,  @CountryCode AS CountryCode) AS s
+    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId AND t.CountryCode = s.CountryCode 
     WHEN MATCHED THEN
-      UPDATE SET FeedId = @FeedId, CountryId = @CountryId, Title = @Title, Level = @Level, LevelNumber = @LevelNumber,
+      UPDATE SET FeedId = @FeedId, CountryCode = @CountryCode, Title = @Title, Level = @Level, LevelNumber = @LevelNumber,
         Link = @Link, PublishedDate = @PublishedDate, Description = @Description, Summary = @Summary,
         Restrictions = @Restrictions, Recommendations = @Recommendations, LastUpdatedAtUtc = @LastUpdatedAtUtc, SyncedAtUtc = @SyncedAtUtc
     WHEN NOT MATCHED THEN
-      INSERT (TravelAdvisorySelectionId, FeedId, CountryId, Title, Level, LevelNumber, Link, PublishedDate, Description, Summary, Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
-      VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryId, @Title, @Level, @LevelNumber, @Link, @PublishedDate, @Description, @Summary, @Restrictions, @Recommendations, @LastUpdatedAtUtc, @SyncedAtUtc)
+      INSERT (TravelAdvisorySelectionId, FeedId, CountryCode, Title, Level, LevelNumber, Link, PublishedDate, Description, Summary, Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
+      VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryCode, @Title, @Level, @LevelNumber, @Link, @PublishedDate, @Description, @Summary, @Restrictions, @Recommendations, @LastUpdatedAtUtc, @SyncedAtUtc)
     OUTPUT INSERTED.Id;
   `);
   const rows = result.recordset || [];
@@ -491,10 +467,10 @@ async function upsertSavedAdvisory(selectedId, countryId, advisory, jobRunAt) {
 
 /**
  * Insert a change log row when an advisory field changes.
- * @param {number} selectedId - TravelAdvisorySelection.Id
+ * @param {number} selectedId - Advisory.Id
  * @param {string} fieldName - e.g. "LevelNumber"
- * @param {number} countryId - Country.Id
- * @param {number} advisoryId - TravelAdvisoryDetail.Id
+ * @param {string} countryCode - Country code
+ * @param {number} advisoryDetailId - AdvisoryDetail.Id
  * @param {Object} oldSnapshot - Snapshot from advisoryToSnapshot
  * @param {Object} newSnapshot - Snapshot from advisoryToSnapshot
  * @param {Date} jobRunAt
@@ -503,8 +479,8 @@ async function upsertSavedAdvisory(selectedId, countryId, advisory, jobRunAt) {
 async function insertSelectedCountryLog(
   selectedId,
   fieldName,
-  countryId,
-  advisoryId,
+  countryCode,
+  advisoryDetailId,
   oldSnapshot,
   newSnapshot,
   jobRunAt,
@@ -525,9 +501,13 @@ async function insertSelectedCountryLog(
         : "";
   await pool
     .request()
-    .input("TravelAdvisorySelectionId", sql.Int, selectedId)
-    .input("TravelAdvisoryDetailId", sql.Int, advisoryId)
-    .input("CountryId", sql.Int, countryId)
+    .input("AdvisoryId", sql.Int, selectedId)
+    .input("AdvisoryDetailId", sql.Int, advisoryDetailId)
+    .input(
+      "CountryCode",
+      sql.NVarChar(sql.MAX),
+      countryCode != null ? String(countryCode) : "",
+    )
     .input("FieldName", sql.NVarChar(100), fieldName)
     .input("OldValue", sql.NVarChar(sql.MAX), oldVal)
     .input("NewValue", sql.NVarChar(sql.MAX), newVal)
@@ -536,56 +516,42 @@ async function insertSelectedCountryLog(
       sql.DateTime,
       jobRunAt instanceof Date ? jobRunAt : new Date(jobRunAt),
     ).query(`
-      INSERT INTO [dbo].[TravelAdvisoryChangeLog] (TravelAdvisorySelectionId, TravelAdvisoryDetailId, CountryId, FieldName, OldValue, NewValue, JobRunAtUtc)
-      VALUES (@TravelAdvisorySelectionId, @TravelAdvisoryDetailId, @CountryId, @FieldName, @OldValue, @NewValue, @JobRunAtUtc)
+      INSERT INTO [dbo].[AdvisoryChangeLog] (AdvisoryId, AdvisoryDetailId, CountryCode, FieldName, OldValue, NewValue, JobRunAtUtc)
+      VALUES (@AdvisoryId, @AdvisoryDetailId, @CountryCode, @FieldName, @OldValue, @NewValue, @JobRunAtUtc)
     `);
 }
 
 /**
- * Get travel advisory data for a team in one call: selected country codes, countries list, and advisories from DB.
- * Uses TravelAdvisorySelection and TravelAdvisoryDetail. When tenantId is provided, filters by TenantId and TeamId = ''; otherwise by teamId only.
- * @param {string} teamId - when tenantId is not provided, required; when tenantId is provided, use '' (sentinel)
- * @param {string} [tenantId] - optional; if provided, selections are filtered by tenantId and TeamId = ''
- * @returns {Promise<{  advisories: Array<Object> }>}
+ * Get travel advisory data for a tenant in one call: advisories from DB.
+ * Uses Advisory and AdvisoryDetail. Filters by TenantId only (TeamId removed).
+ * @param {string} teamId - when tenantId is provided, use '' (sentinel); when tenantId not provided, cannot filter (returns empty)
+ * @param {string} [tenantId] - if provided, selections are filtered by tenantId
+ * @returns {Promise<{ advisories: Array<Object> }>}
  */
 async function getTravelAdvisoryByTeamData(teamId, tenantId) {
   const pool = await poolPromise;
 
-  const tId =
-    teamId != null && String(teamId).trim() !== "" ? String(teamId).trim() : "";
   const tenantIdTrimmed =
     tenantId != null && String(tenantId).trim() !== ""
       ? String(tenantId).trim()
       : "";
 
-  let advResult;
-  if (tenantIdTrimmed) {
-    const advRequest = pool
-      .request()
-      .input("TenantId", sql.NVarChar(256), tenantIdTrimmed);
-    advResult = await advRequest.query(`
-    SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,
-           d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc,
-           c.name AS CountryName, c.code AS CountryCode
-    FROM [dbo].[TravelAdvisoryDetail] d
-    INNER JOIN [dbo].[TravelAdvisorySelection] s ON s.Id = d.TravelAdvisorySelectionId
-    INNER JOIN [dbo].[Countries] c ON c.id = d.CountryId
-    WHERE s.TenantId = @TenantId  AND s.IsActive = 1
-    ORDER BY c.name
-  `);
-  } else {
-    const advRequest = pool.request().input("TeamId", sql.NVarChar(256), tId);
-    advResult = await advRequest.query(`
-    SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,
-           d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc,
-           c.name AS CountryName, c.code AS CountryCode
-    FROM [dbo].[TravelAdvisoryDetail] d
-    INNER JOIN [dbo].[TravelAdvisorySelection] s ON s.Id = d.TravelAdvisorySelectionId
-    INNER JOIN [dbo].[Countries] c ON c.id = d.CountryId
-    WHERE s.TeamId = @TeamId AND s.IsActive = 1
-    ORDER BY c.name
-  `);
+  if (!tenantIdTrimmed) {
+    return { advisories: [] };
   }
+
+  const advResult = await pool
+    .request()
+    .input("TenantId", sql.NVarChar(256), tenantIdTrimmed).query(`
+    SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,
+           d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc,
+           ISNULL(c.name, d.CountryCode) AS CountryName, d.CountryCode
+    FROM [dbo].[AdvisoryDetail] d
+    INNER JOIN [dbo].[Advisory] s ON s.Id = d.TravelAdvisorySelectionId
+    LEFT JOIN [dbo].[Countries] c ON UPPER(LTRIM(RTRIM(c.code))) = UPPER(LTRIM(RTRIM(d.CountryCode)))
+    WHERE s.TenantId = @TenantId AND s.IsActive = 1
+    ORDER BY ISNULL(c.name, d.CountryCode)
+  `);
   const rows = advResult.recordset || [];
   const advisories = rows.map((r) => {
     const restrictions =
@@ -623,6 +589,160 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId) {
 }
 
 /**
+ * Get country code from Countries by id.
+ * @param {number} id - Country id
+ * @returns {Promise<string|null>}
+ */
+async function getCountryCodeById(id) {
+  if (id == null) return null;
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("id", sql.Int, id)
+    .query("SELECT code FROM Countries WHERE id = @id");
+  const rows = result.recordset || [];
+  return rows.length ? (rows[0].code || "").trim() : null;
+}
+
+/**
+ * Get selected countries for tenant/team with optional advisory data.
+ * @param {string} tenantId
+ * @param {string} teamId - kept for API compatibility, ignored
+ * @param {boolean} [includeAdvisory=true]
+ * @returns {Promise<Array<{ id: number, tenantId: string, countryCode: string, advisory?: Object }>>}
+ */
+async function getSelectedCountriesForTenantTeam(
+  tenantId,
+  teamId,
+  includeAdvisory = true,
+) {
+  const rows = await getActiveSelectedCountriesForTenantTeam(tenantId, teamId);
+  if (!includeAdvisory) {
+    return rows.map((r) => ({
+      id: r.TravelAdvisorySelectedCountriesId,
+      tenantId: r.TenantId,
+      countryCode: r.CountryCode || "",
+    }));
+  }
+  const list = [];
+  for (const r of rows) {
+    const item = {
+      id: r.TravelAdvisorySelectedCountriesId,
+      tenantId: r.TenantId,
+      countryCode: r.CountryCode || "",
+    };
+    const saved = await getSavedAdvisoryForSelectedId(
+      r.TravelAdvisorySelectedCountriesId,
+    );
+    if (saved) {
+      item.advisory = {
+        level: saved.Level,
+        levelNumber: saved.LevelNumber,
+        summary: saved.Summary,
+        link: saved.Link,
+        lastUpdated: saved.LastUpdated,
+      };
+    }
+    list.push(item);
+  }
+  return list;
+}
+
+/**
+ * Add a single selected country. Resolves countryId to countryCode if needed.
+ * @param {Object} opts
+ * @param {string} opts.tenantId
+ * @param {string} opts.teamId - kept for API compatibility, ignored
+ * @param {number} [opts.countryId]
+ * @param {string} [opts.countryCode]
+ * @param {string} [opts.advisoryType]
+ * @param {string} opts.createdByUserId
+ * @returns {Promise<Object>}
+ */
+async function addSelectedCountry(opts) {
+  const {
+    tenantId,
+    teamId,
+    countryId,
+    countryCode,
+    advisoryType,
+    createdByUserId,
+  } = opts || {};
+  let code = countryCode ? String(countryCode).trim() : null;
+  if (!code && countryId != null) {
+    code = await getCountryCodeById(countryId);
+  }
+  if (!code) {
+    const err = new Error("Country not found");
+    err.code = "MISSING_COUNTRY";
+    throw err;
+  }
+  const result = await saveTravelAdvisorySelections(
+    tenantId,
+    teamId || "",
+    createdByUserId || "",
+    [code],
+    advisoryType || "Travel",
+  );
+  return result;
+}
+
+/**
+ * Get change logs for a selected country (Advisory.Id).
+ * @param {number} id - Advisory.Id
+ * @param {number} [limit=50]
+ * @returns {Promise<Array<Object>>}
+ */
+async function getLogsForSelectedCountry(id, limit = 50) {
+  if (id == null) return [];
+  const pool = await poolPromise;
+  const lim = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+  const result = await pool
+    .request()
+    .input("id", sql.Int, id)
+    .input("limit", sql.Int, lim).query(`
+      SELECT TOP (@limit) Id, AdvisoryId, AdvisoryDetailId, CountryCode, FieldName, OldValue, NewValue, JobRunAtUtc
+      FROM [dbo].[AdvisoryChangeLog]
+      WHERE AdvisoryId = @id
+      ORDER BY JobRunAtUtc DESC
+    `);
+  return result.recordset || [];
+}
+
+/**
+ * Deactivate a selected country (set IsActive = 0).
+ * @param {number} id - Advisory.Id
+ * @param {string} lastUpdatedByUserId
+ * @returns {Promise<void>}
+ */
+async function deactivateSelectedCountry(id, lastUpdatedByUserId) {
+  if (id == null) return;
+  const pool = await poolPromise;
+  await pool
+    .request()
+    .input("id", sql.Int, id)
+    .input("lastUpdatedByUserId", sql.NVarChar(256), lastUpdatedByUserId || "")
+    .query(`
+      UPDATE [dbo].[Advisory]
+      SET IsActive = 0, UpdatedByUserId = @lastUpdatedByUserId, UpdatedAtUtc = GETUTCDATE()
+      WHERE Id = @id
+    `);
+}
+
+/**
+ * Delete a selected country (Advisory row; CASCADE removes Detail and ChangeLog).
+ * @param {number} id - Advisory.Id
+ * @returns {Promise<void>}
+ */
+async function deleteSelectedCountry(id) {
+  if (id == null) return;
+  const pool = await poolPromise;
+  await pool.request().input("id", sql.Int, id).query(`
+    DELETE FROM [dbo].[Advisory] WHERE Id = @id
+  `);
+}
+
+/**
  * Get countries list in shape { name, code, level } for getTravelAdvisoryByTeam response.
  * Uses Countries table; level column may not exist in all schemas.
  */
@@ -654,14 +774,22 @@ async function getCountriesForByTeamResponse() {
 module.exports = {
   getCountriesFromDb,
   getAllCountriesFromDb,
-  getCountryIdByCode,
-  ensureTravelAdvisorySelectionTable,
-  ensureTravelAdvisoryDetailTable,
-  ensureTravelAdvisoryChangeLogTable,
+  getCountryCodeById,
+  ensureAdvisoryTable,
+  ensureAdvisoryDetailTable,
+  ensureAdvisoryChangeLogTable,
+  ensureTravelAdvisorySelectionTable: ensureAdvisoryTable,
+  ensureTravelAdvisoryDetailTable: ensureAdvisoryDetailTable,
+  ensureTravelAdvisoryChangeLogTable: ensureAdvisoryChangeLogTable,
   ensureAllTravelAdvisoryTables,
   saveTravelAdvisorySelections,
   getActiveSelectedCountries,
   getActiveSelectedCountriesForTenantTeam,
+  getSelectedCountriesForTenantTeam,
+  addSelectedCountry,
+  getLogsForSelectedCountry,
+  deactivateSelectedCountry,
+  deleteSelectedCountry,
   getSavedAdvisoryForSelectedId,
   advisoryToSnapshot,
   snapshotsEqual,
