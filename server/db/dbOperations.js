@@ -90,10 +90,47 @@ const isAdminUser = async (userObjId, teamid) => {
   }
 };
 
+const isWhoCanCreateIncident = async (userObjId, teamid) => {
+  try {
+    selectQuery = "";
+    let isWhoCanCreateIncident = false;
+
+    let superUserQuery = `SELECT * FROM [dbo].[MSTeamsInstallationDetails] 
+                            WHERE WHO_CAN_CREATE_INCIDENT LIKE '%${userObjId}%' 
+                            AND uninstallation_date IS NULL`;
+
+    if (teamid && teamid != null && teamid != "null" && teamid != "NULL") {
+      superUserQuery += ` AND team_id = '${teamid}'`;
+    }
+
+    res = await db.getDataFromDB(superUserQuery, userObjId);
+
+    // check if the user is super user or not
+    if (res.length == 0) {
+      isWhoCanCreateIncident = false;
+    } else {
+      isWhoCanCreateIncident = true;
+    }
+    return Promise.resolve(isWhoCanCreateIncident);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userObjId,
+      "error in isWhoCanCreateIncident userObjId=" + userObjId,
+    );
+  }
+};
 const verifyAdminUserForDashboardTab = async (userObjId, teamid = "") => {
   let isAdmin = false;
+  let isWhoCanCreateInc = false;
   try {
     isAdmin = await isAdminUser(userObjId, teamid);
+    if (!isAdmin) {
+      isWhoCanCreateInc = await isWhoCanCreateIncident(userObjId, teamid);
+    }
   } catch (err) {
     console.log(err);
     processSafetyBotError(
@@ -106,6 +143,7 @@ const verifyAdminUserForDashboardTab = async (userObjId, teamid = "") => {
   }
   return {
     isAdmin,
+    isWhoCanCreateInc,
   };
 };
 
@@ -615,7 +653,23 @@ const updateIsUserInfoSaved = async (
     );
   }
 };
+const InsertSOSContacts = async (teamId = null, userObjId = null) => {
+  let sqlUpdateUserInfo = "";
+  try {
+    pool = await poolPromise;
+    sqlUpdateUserInfo = `Insert into MSTeamsSOSResponder (TEAM_ID,COUNTRY,CITY, RESPONDER) VALUES ('${teamId}','All','All', '["${userObjId}"]')`;
 
+    await pool.request().query(sqlUpdateUserInfo);
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in InsertSOSContacts" + sqlUpdateUserInfo,
+    );
+  }
+};
 const insertCompanyData = async (
   companyDataObj,
   allMembersInfo,
@@ -688,6 +742,7 @@ const insertCompanyData = async (
         END
     END`;
     res = await db.getDataFromDB(sqlAddCompanyData, companyDataObj.userObjId);
+    // await InsertSOSContacts(teamId, companyDataObj.userObjId);
 
     if (res != null && res.length > 0 && teamId != null && teamId != "") {
       const data = await addTeamMember(teamId, allMembersInfo, false, true);
@@ -817,6 +872,7 @@ const updateSuperUserDataByUserAadObjId = async (
   SafetycheckForVisitorsQuestion2,
   SafetycheckForVisitorsQuestion3,
   emergencyContactsStr,
+  iscreateIncidentUser,
 ) => {
   let isUpdated = false;
   try {
@@ -830,7 +886,7 @@ const updateSuperUserDataByUserAadObjId = async (
         ? currentResult.recordset[0].super_users || ""
         : "";
 
-    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',EnableSafetycheckForVisitors=${
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',WHO_CAN_CREATE_INCIDENT='${iscreateIncidentUser}',EnableSafetycheckForVisitors=${
       EnableSafetycheckForVisitors ? 1 : 0
     } ,SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' 
 ,EMERGENCY_CONTACTS='${emergencyContactsStr}'
@@ -1026,6 +1082,7 @@ module.exports = {
   updateSuperUserData,
   updateCompanyData,
   isAdminUser,
+  isWhoCanCreateIncident,
   getCompaniesDataBySuperUserId,
   getInstallationData,
   addTeamMember,

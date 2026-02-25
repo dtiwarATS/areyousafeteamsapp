@@ -235,7 +235,7 @@ const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
   try {
     const userEmail = action?.data?.userEmail;
     const card = CardFactory.adaptiveCard(
-      getAfterUsrSubscribedTypeOneCard(userEmail, companyData)
+      getAfterUsrSubscribedTypeOneCard(userEmail, companyData),
     );
 
     const message = MessageFactory.attachment(card);
@@ -248,9 +248,9 @@ const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
       "",
       "",
       "error in processnewUsrSubscriptionType1 companyData=" +
-      JSON.stringify(companyData) +
-      " userEmail=" +
-      action?.data?.userEmail
+        JSON.stringify(companyData) +
+        " userEmail=" +
+        action?.data?.userEmail,
     );
   }
 };
@@ -261,8 +261,8 @@ const processnewUsrSubscriptionType2 = async (context, action) => {
     const card = CardFactory.adaptiveCard(
       getAfterUsrSubscribedTypeTwoCard(
         context?.activity?.from?.name,
-        companyData
-      )
+        companyData,
+      ),
     );
     const message = MessageFactory.attachment(card);
     message.id = context.activity.replyToId;
@@ -277,7 +277,7 @@ const processnewUsrSubscriptionType2 = async (context, action) => {
       "",
       "",
       "error in processnewUsrSubscriptionType2 companyData=" +
-      JSON.stringify(action?.data?.companyData)
+        JSON.stringify(action?.data?.companyData),
     );
   }
 };
@@ -297,7 +297,7 @@ const updateUserInfo = async (context, teams, tenantId) => {
       if (installationids != null && installationids.length > 0) {
         await incidentService.updateUserInfoFlag(
           installationids.join(","),
-          tenantId
+          tenantId,
         );
       }
     }
@@ -615,7 +615,7 @@ const getNewIncCardNew = async (
   companyData,
   errorMessage = "",
   isCopy = false,
-  incId = -1
+  incId = -1,
 ) => {
   const allMembers = await getAllTeamMembers(context, companyData.teamId);
   let incData = null;
@@ -635,7 +635,7 @@ const getNewIncCardNew = async (
     allMembers,
     errorMessage,
     incData,
-    isCopy
+    isCopy,
   );
 };
 
@@ -650,7 +650,7 @@ const updateIncStatus = async (context, action) => {
     const incTitle = action.data.incTitle ? action.data.incTitle : "";
     const isUpdated = await incidentService.updateIncStatus(
       incId,
-      statusToUpdate
+      statusToUpdate,
     );
     let adaptiveCard = null;
     if (dashboardData.ts != null && isUpdated) {
@@ -688,7 +688,7 @@ const showIncDeleteConfirmationCard = async (context, action) => {
       incId,
       dashboardData,
       companyData,
-      incTitle
+      incTitle,
     );
     const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
@@ -706,7 +706,7 @@ const showIncDeleteConfirmationCard = async (context, action) => {
 const showIncStatusConfirmationCard = async (
   context,
   action,
-  statusToUpdate
+  statusToUpdate,
 ) => {
   try {
     const companyData = action.data.companyData ? action.data.companyData : {};
@@ -722,7 +722,7 @@ const showIncStatusConfirmationCard = async (
       dashboardData,
       companyData,
       statusToUpdate,
-      incTitle
+      incTitle,
     );
     const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
@@ -747,7 +747,7 @@ const copyInc = async (context, user, action) => {
       companyData,
       "",
       true,
-      incId
+      incId,
     );
     const adaptiveCard = CardFactory.adaptiveCard(card);
     await context.sendActivity({
@@ -805,7 +805,7 @@ const getIncConfirmationCard = async (
   sentApprovalTo,
   action,
   incType,
-  guidance
+  guidance,
 ) => {
   let mentionUserEntities = [];
   const safetyCheckMessageText = await getSafetyCheckMessageText(
@@ -814,12 +814,12 @@ const getIncConfirmationCard = async (
     incTitle,
     mentionUserEntities,
     null,
-    1
+    1,
   );
   dashboard.mentionUser(
     mentionUserEntities,
     inc_created_by.id,
-    inc_created_by.name
+    inc_created_by.name,
   );
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -935,7 +935,7 @@ const saveInc = async (context, action, companyData, user) => {
     action.data,
     companyData,
     memberChoises,
-    serviceUrl
+    serviceUrl,
   );
 
   let sentApprovalTo = "";
@@ -956,7 +956,7 @@ const saveInc = async (context, action, companyData, user) => {
     sentApprovalTo,
     action,
     "onetime",
-    guidance
+    guidance,
   );
 
   await context.sendActivity({
@@ -990,7 +990,7 @@ const saveRecurrInc = async (context, action, companyData) => {
     action.data,
     companyData,
     memberChoises,
-    serviceUrl
+    serviceUrl,
   );
 
   let sentApprovalTo = "";
@@ -1005,9 +1005,9 @@ const saveRecurrInc = async (context, action, companyData) => {
   const startDate = new Date(action.data.startDate);
   preTextMsg += `starting from ${formatedDate(
     "MM/dd/yyyy",
-    startDate
+    startDate,
   )} ${convertToAMPM(
-    action.data.startTime
+    action.data.startTime,
   )} according to the recurrence pattern selected?`;
   var guidance = action.data.guidance ? action.data.guidance : "";
 
@@ -1020,7 +1020,7 @@ const saveRecurrInc = async (context, action, companyData) => {
     sentApprovalTo,
     action,
     "recurringIncident",
-    guidance
+    guidance,
   );
 
   await context.sendActivity({
@@ -1106,7 +1106,7 @@ const updateDashboardCard = async (context, dashboardData, companyData) => {
   const dashboardCard = await dashboard.getIncidentTileDashboardCard(
     dashboardData,
     companyData,
-    allTeamMembers
+    allTeamMembers,
   );
   const dsCard = CardFactory.adaptiveCard(dashboardCard);
   const dsMessage = MessageFactory.attachment(dsCard);
@@ -1162,7 +1162,7 @@ const viewAllInc = async (context, companyData) => {
     const dashboardCard = await dashboard.getIncidentTileDashboardCard(
       null,
       companyData,
-      allTeamMembers
+      allTeamMembers,
     );
     if (dashboardCard != null) {
       await context.sendActivity({
@@ -1177,7 +1177,7 @@ const viewAllInc = async (context, companyData) => {
 const getOneTimeDashboardCard = async (
   incidentId,
   runAt = null,
-  userObjId = null
+  userObjId = null,
 ) => {
   let card = null;
   try {
@@ -1321,7 +1321,7 @@ const getOneTimeDashboardCard = async (
       "",
       "",
       userObjId,
-      "error in incidentId=" + incidentId
+      "error in incidentId=" + incidentId,
     );
   }
   return card;
@@ -1330,13 +1330,13 @@ const getOneTimeDashboardCard = async (
 const getOneTimeDashboardCardAsync = async (
   incidentId,
   runAt = null,
-  userAadObjId = null
+  userAadObjId = null,
 ) => {
   return new Promise(async (resolve, reject) => {
     const dashboardCard = await getOneTimeDashboardCard(
       incidentId,
       runAt,
-      userAadObjId
+      userAadObjId,
     );
     if (dashboardCard != null) {
       resolve(dashboardCard);
@@ -1353,12 +1353,12 @@ const viewIncResult = async (
   incData,
   runAt = null,
   dashboardCard = null,
-  serviceUrl = null
+  serviceUrl = null,
 ) => {
   console.log("viewIncResult called", incidentId);
   if (incidentId === undefined) {
     await context.sendActivity(
-      MessageFactory.text(`👋 Hello!! Please select an Incident.`)
+      MessageFactory.text(`👋 Hello!! Please select an Incident.`),
     );
     return Promise.resolve(true);
   }
@@ -1397,7 +1397,7 @@ const getSaftyCheckCard = async (
   incObj,
   companyData,
   incGuidance,
-  incResponseSelectedUsersList
+  incResponseSelectedUsersList,
 ) => {
   let mentionUserEntities = [];
   const safetyCheckMessageText = await getSafetyCheckMessageText(
@@ -1406,12 +1406,12 @@ const getSaftyCheckCard = async (
     incTitle,
     mentionUserEntities,
     incResponseSelectedUsersList,
-    1
+    1,
   );
   dashboard.mentionUser(
     mentionUserEntities,
     incObj.incCreatedBy.id,
-    incObj.incCreatedBy.name
+    incObj.incCreatedBy.name,
   );
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -1494,7 +1494,7 @@ const sendCardToIndividualUser = async (context, userId, approvalCard) => {
 const sendCommentToSelectedMembers = async (
   incId,
   context,
-  approvalCardResponse
+  approvalCardResponse,
 ) => {
   try {
     const serviceUrl = context?.activity?.serviceUrl;
@@ -1514,7 +1514,7 @@ const sendCommentToSelectedMembers = async (
           approvalCardResponse,
           null,
           serviceUrl,
-          tenantId
+          tenantId,
         );
       }
     }
@@ -1526,7 +1526,7 @@ const sendCommentToSelectedMembers = async (
 const sendApprovalResponseToSelectedMembers = async (
   incId,
   context,
-  approvalCardResponse
+  approvalCardResponse,
 ) => {
   //If user click on Need assistance, then send message to selected users
   try {
@@ -1547,7 +1547,7 @@ const sendApprovalResponseToSelectedMembers = async (
           approvalCardResponse,
           null,
           serviceUrl,
-          tenantId
+          tenantId,
         );
       }
     }
@@ -1560,7 +1560,7 @@ const sendApprovalResponseToSelectedTeams = async (
   incId,
   serviceUrl,
   approvalCardResponse,
-  userAadObjId
+  userAadObjId,
 ) => {
   //If user click on Need assistance, then send message to selected users
   try {
@@ -1576,7 +1576,7 @@ const sendApprovalResponseToSelectedTeams = async (
             channelId,
             serviceUrl,
             userAadObjId,
-            incId
+            incId,
           );
         }
       }
@@ -1587,7 +1587,7 @@ const sendApprovalResponseToSelectedTeams = async (
       "",
       "",
       userAadObjId,
-      "sendApprovalResponseToSelectedTeams"
+      "sendApprovalResponseToSelectedTeams",
     );
   }
 };
@@ -1596,12 +1596,12 @@ const updateIncResponseOfSelectedMembers = async (
   incId,
   runAt,
   dashboardCard,
-  serviceUrl
+  serviceUrl,
 ) => {
   try {
     const incResponseUserTSData = await incidentService.getIncResponseUserTS(
       incId,
-      runAt
+      runAt,
     );
     if (incResponseUserTSData != null && incResponseUserTSData.length > 0) {
       for (let i = 0; i < incResponseUserTSData.length; i++) {
@@ -1628,7 +1628,7 @@ const sendIncResponseToSelectedMembers = async (
   contextServiceUrl,
   userTenantId,
   log,
-  userAadObjId
+  userAadObjId,
 ) => {
   if (log == null) {
     log = new AYSLog();
@@ -1641,7 +1641,7 @@ const sendIncResponseToSelectedMembers = async (
     const incRespSelectedUsers =
       await incidentService.getIncResponseSelectedUsersList(
         incId,
-        userAadObjId
+        userAadObjId,
       );
     let serviceUrl = null;
     let tenantId = null;
@@ -1656,7 +1656,7 @@ const sendIncResponseToSelectedMembers = async (
     } else {
       const userTenantDetails = await incidentService.getUserTenantDetails(
         incId,
-        userAadObjId
+        userAadObjId,
       );
 
       if (userTenantDetails != null) {
@@ -1667,7 +1667,7 @@ const sendIncResponseToSelectedMembers = async (
 
     log.addLog(` serviceUrl : ${serviceUrl}`);
     log.addLog(
-      `incRespSelectedUsers data : ${JSON.stringify(incRespSelectedUsers)}`
+      `incRespSelectedUsers data : ${JSON.stringify(incRespSelectedUsers)}`,
     );
 
     if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
@@ -1686,13 +1686,13 @@ const sendIncResponseToSelectedMembers = async (
             serviceUrl,
             tenantId,
             log,
-            userAadObjId
+            userAadObjId,
           );
           log.addLog(` activityId :  ${result.activityId} `);
           if (result.activityId != null) {
             sql += `INSERT INTO MSTeamsIncResponseUserTS(incResponseSelectedUserId, runAt, conversationId, activityId) VALUES(${u.id}, '${runAt}', '${result.conversationId}', '${result.activityId}');`;
           }
-        })
+        }),
       );
     }
     if (sql != "") {
@@ -1719,7 +1719,7 @@ const sendtestmessage = async () => {
     };
 
     const companyData = await getCompanyDataByTeamId(
-      "19:Aou6-jqp9KF8FL_Yum5AG_Pg7NP2FweAAsm9CaVSoGQ1@thread.tacv2"
+      "19:Aou6-jqp9KF8FL_Yum5AG_Pg7NP2FweAAsm9CaVSoGQ1@thread.tacv2",
     );
     const { serviceUrl, userTenantId } = companyData;
     const incData = await incidentService.getInc(100662);
@@ -1739,7 +1739,7 @@ const sendtestmessage = async () => {
       incTitle,
       incObj,
       companyData,
-      incGuidance
+      incGuidance,
     );
     let member = [
       {
@@ -1753,7 +1753,7 @@ const sendtestmessage = async () => {
       null,
       serviceUrl,
       userTenantId,
-      incCreatedByUserObj.id
+      incCreatedByUserObj.id,
     );
     console.log(response);
   } catch (err) {
@@ -1785,7 +1785,7 @@ const sendProactiveMessageAsync = async (
   incCreaterConversationId = "",
   resendSafetyCheck = "false",
   isLastBatch = "true",
-  allincMembers = []
+  allincMembers = [],
 ) => {
   try {
     if (log == null) {
@@ -1814,7 +1814,7 @@ const sendProactiveMessageAsync = async (
       titalmessage = `Stakeholder Notice - ${incTitle}`;
     }
     log.addLog(
-      `Start Saftey Check card Sending:IncId-${incObj.incId},TeamId-${incData.teamId}, SelectedMember-${incData.selectedMembers},CreatedByUSerId-${companyData.userId}`
+      `Start Saftey Check card Sending:IncId-${incObj.incId},TeamId-${incData.teamId}, SelectedMember-${incData.selectedMembers},CreatedByUSerId-${companyData.userId}`,
     );
     log.addLog(`${JSON.stringify(incData)}`);
     const approvalCard = await SafetyCheckCard(
@@ -1827,10 +1827,10 @@ const sendProactiveMessageAsync = async (
       additionalInfo,
       travelUpdate,
       contactInfo,
-      situation
+      situation,
     );
     const activity = MessageFactory.attachment(
-      CardFactory.adaptiveCard(approvalCard)
+      CardFactory.adaptiveCard(approvalCard),
     );
     log.addLog(`Card Create Successfully `);
     if (incFilesData != null && incFilesData.length > 0) {
@@ -1878,7 +1878,9 @@ const sendProactiveMessageAsync = async (
       };
       activity.attachments.push(CardFactory.adaptiveCard(card));
     }
+    // 👇 This sets the preview text in Teams
 
+    activity.summary = titalmessage;
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
 
@@ -1901,7 +1903,7 @@ const sendProactiveMessageAsync = async (
         sqlUpdateMsgDeliveryStatus = "";
         const promise = db
           .updateDataIntoDBAsync(sql, dbPool, userAadObjId)
-          .then((resp) => { })
+          .then((resp) => {})
           .catch((err) => {
             sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(
@@ -1909,7 +1911,7 @@ const sendProactiveMessageAsync = async (
               "",
               "",
               userAadObjId,
-              "error in updateMsgDeliveryStatus -> then - > sql=" + sql
+              "error in updateMsgDeliveryStatus -> then - > sql=" + sql,
             );
           });
 
@@ -1949,7 +1951,7 @@ const sendProactiveMessageAsync = async (
           "",
           "",
           userAadObjId,
-          "error in respTimeInterval"
+          "error in respTimeInterval",
         );
       }
     }, 50000);
@@ -1977,7 +1979,7 @@ const sendProactiveMessageAsync = async (
           : 0;
         msgNotSentArr = [];
         allMembersArr = Array.from(
-          new Map(allMembersArr.map((item) => [item.id, item])).values()
+          new Map(allMembersArr.map((item) => [item.id, item])).values(),
         );
         sendProactiveMessage(allMembersArr);
       } catch (err) {
@@ -1987,7 +1989,7 @@ const sendProactiveMessageAsync = async (
           "",
           "",
           userAadObjId,
-          "error in reSendMessage"
+          "error in reSendMessage",
         );
       }
     };
@@ -2041,16 +2043,21 @@ const sendProactiveMessageAsync = async (
             ) {
               log.addLog(`For isRecurringInc Incident`);
               sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT)
-              values(${respMemberObj.memberResponsesId
-                }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId
-                }', '${msgResp?.activityId}', ${status}, '${error}', ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
-                }); `;
+              values(${
+                respMemberObj.memberResponsesId
+              }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${
+                msgResp?.conversationId
+              }', '${msgResp?.activityId}', ${status}, '${error}', ${
+                isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+              }); `;
             }
           } else {
             log.addLog(`For OneTime Incident`);
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
-              } where inc_id = ${incObj.incId} and user_id = '${msgResp.userId
-              }'; `;
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${
+              isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+            } where inc_id = ${incObj.incId} and user_id = '${
+              msgResp.userId
+            }'; `;
           }
         }
 
@@ -2121,7 +2128,7 @@ const sendProactiveMessageAsync = async (
                   "",
                   "",
                   userAadObjId,
-                  "error in clear respTimeInterval"
+                  "error in clear respTimeInterval",
                 );
               }
             }
@@ -2140,7 +2147,7 @@ const sendProactiveMessageAsync = async (
           "",
           "",
           userAadObjId,
-          "error in callbackFn msgResp=" + msgResp + " index=" + index
+          "error in callbackFn msgResp=" + msgResp + " index=" + index,
         );
       }
     };
@@ -2176,7 +2183,7 @@ const sendProactiveMessageAsync = async (
             "",
             incTitle,
             "",
-            ""
+            "",
           );
         }
 
@@ -2221,7 +2228,7 @@ const sendProactiveMessageAsync = async (
               "",
               incTitle,
               "",
-              ""
+              "",
             );
             console.log({
               insidesendProactiveMessaageToUserAsync: member.userAadObjId,
@@ -2243,7 +2250,7 @@ const sendProactiveMessageAsync = async (
               member,
               msgNotSentArr,
               sendErrorEmail,
-              retryCounter
+              retryCounter,
             );
             setTimeout(async () => {
               console.log({
@@ -2265,7 +2272,7 @@ const sendProactiveMessageAsync = async (
                 member,
                 msgNotSentArr,
                 sendErrorEmail,
-                retryCounter
+                retryCounter,
               );
             }, 1000);
             console.log({ i });
@@ -2278,9 +2285,9 @@ const sendProactiveMessageAsync = async (
             "",
             userAadObjId,
             " error in fnRecursiveCall startIndex=" +
-            startIndex +
-            " endIndex=" +
-            endIndex
+              startIndex +
+              " endIndex=" +
+              endIndex,
           );
         }
       };
@@ -2298,7 +2305,7 @@ const sendProactiveMessageAsync = async (
           ? allincMembers.length
           : allMembersArr.length,
         companyData.teamName,
-        companyData.channelName
+        companyData.channelName,
       );
     }
   } catch (err) {
@@ -2310,9 +2317,9 @@ const sendProactiveMessageAsync = async (
       "",
       userAadObjId,
       "error in sendProactiveMessageAsync incData=" +
-      JSON.stringify(incData) +
-      " companyData=" +
-      JSON.stringify(companyData)
+        JSON.stringify(incData) +
+        " companyData=" +
+        JSON.stringify(companyData),
     );
     rejectFn(err);
   } finally {
@@ -2323,7 +2330,7 @@ const sendProactiveMessageAsync = async (
 const getAcknowledgeMsgToCreatorAdaptiveCard = (
   numberOfUsers,
   teamName,
-  channelName
+  channelName,
 ) => {
   let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
 Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
@@ -2338,7 +2345,7 @@ const sendAcknowledgeMsgToCreator = (
   conversationId,
   numberOfUsers,
   teamName,
-  channelName
+  channelName,
 ) => {
   if (connectorClient == null) {
     const appId = process.env.MicrosoftAppId;
@@ -2362,19 +2369,19 @@ const sendSafetyCheckMsgViaSMS = async (
   incId,
   incTitle,
   incData,
-  isfrominctype = "onetime"
+  isfrominctype = "onetime",
 ) => {
   let tenantId = companyData.userTenantId;
   let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
   let usrPhones = await getUserPhone(
     IS_APP_PERMISSION_GRANTED,
     tenantId,
-    users
+    users,
   );
   let counter = Number(
     companyData.sent_sms_count && companyData.sent_sms_count != ""
       ? companyData.sent_sms_count
-      : "0"
+      : "0",
   );
   let body = "";
   let incTypeId = 1;
@@ -2417,20 +2424,23 @@ const sendSafetyCheckMsgViaSMS = async (
 
       case 3: // Important Bulletin
         incTypeName = "Important bulletin";
-        data = `Guidance:\n${incData.incGuidance || ""
-          }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
+        data = `Guidance:\n${
+          incData.incGuidance || ""
+        }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
         break;
 
       case 4: // Travel Advisory
         incTypeName = "Travel advisory";
-        data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${incData.incGuidance || ""
-          }\n\nContact Information:\n${incData.contactInfo || ""}`;
+        data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${
+          incData.incGuidance || ""
+        }\n\nContact Information:\n${incData.contactInfo || ""}`;
         break;
 
       case 5: // Stakeholder Notice
         incTypeName = "Stakeholder notice";
-        data = `Situation:\n${incData.situation || ""
-          }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
+        data = `Situation:\n${
+          incData.situation || ""
+        }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
         break;
     }
 
@@ -2449,7 +2459,13 @@ const sendSafetyCheckMsgViaSMS = async (
       // ✅ Case 2: Display full message directly
       body += `\n\n${data}`;
     }
-
+    let safeUrl =
+      process.env.serviceUrl +
+      "/posresp?userId=" +
+      encodeURIComponent(user.id) +
+      "&eventId=" +
+      encodeURIComponent(incId);
+    body += `\n\nClick here to acknowledge ${safeUrl}`;
     console.log("Final SMS body:", body);
   }
   for (let user of usrPhones) {
@@ -2474,7 +2490,7 @@ const sendSafetyCheckMsgViaSMS = async (
             JSON.stringify({ eventId: incId, userId: user.id }),
             null,
             null,
-            incId
+            incId,
           );
           incidentService.saveAllTypeQuerylogs(
             user.id,
@@ -2487,7 +2503,7 @@ const sendSafetyCheckMsgViaSMS = async (
             "",
             incTitle,
             "",
-            ""
+            "",
           );
 
           continue;
@@ -2526,7 +2542,7 @@ const sendSafetyCheckMsgViaSMS = async (
             JSON.stringify({ eventId: incId, userId: user.id }),
             null,
             null,
-            incId
+            incId,
           );
           incidentService.saveAllTypeQuerylogs(
             user.id,
@@ -2539,7 +2555,7 @@ const sendSafetyCheckMsgViaSMS = async (
             "",
             JSON.stringify(body),
             "",
-            ""
+            "",
           );
 
           var twiliosend = await tClient.messages.create({
@@ -2558,7 +2574,7 @@ const sendSafetyCheckMsgViaSMS = async (
             JSON.stringify({ eventId: incId, userId: user.id }),
             null,
             err.message,
-            incId
+            incId,
           );
           incidentService.saveAllTypeQuerylogs(
             user.id,
@@ -2571,7 +2587,7 @@ const sendSafetyCheckMsgViaSMS = async (
             "",
             JSON.stringify(body),
             "",
-            JSON.stringify(err.message)
+            JSON.stringify(err.message),
           );
 
           continue;
@@ -2581,7 +2597,7 @@ const sendSafetyCheckMsgViaSMS = async (
           "SMS sent successfully",
           twiliosend.errorCode,
           twiliosend.sid,
-          twiliosend.errorMessage
+          twiliosend.errorMessage,
         );
         // Save SMS log
         counter++;
@@ -2592,7 +2608,7 @@ const sendSafetyCheckMsgViaSMS = async (
           JSON.stringify({ eventId: incId, userId: user.id }),
           twiliosend.sid,
           null,
-          incId
+          incId,
         );
         incidentService.saveAllTypeQuerylogs(
           user.id,
@@ -2605,7 +2621,7 @@ const sendSafetyCheckMsgViaSMS = async (
           "",
           JSON.stringify(body),
           "",
-          ""
+          "",
         );
 
         if (companyData.SubscriptionType == 2) {
@@ -2618,7 +2634,7 @@ const sendSafetyCheckMsgViaSMS = async (
         companyData.teamId,
         user.id,
         null,
-        "error in sending safety check via SMS"
+        "error in sending safety check via SMS",
       );
     }
   }
@@ -2637,7 +2653,7 @@ const sendWhatsappMessage = async (payload, user, companyData) => {
         companyData.teamId || "",
         user.id || user.user_aadobject_id || "",
         null,
-        "NO WHATSAPP_TOKEN or WHATSAPP_PHONE_NUMBER_ID found in environment variables or company data"
+        "NO WHATSAPP_TOKEN or WHATSAPP_PHONE_NUMBER_ID found in environment variables or company data",
       );
       return;
     }
@@ -2649,11 +2665,11 @@ const sendWhatsappMessage = async (payload, user, companyData) => {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     console.log(
       "whatsapp msg request sent",
-      response.data || response.message || response
+      response.data || response.message || response,
     );
     return { Status: response.status };
   } catch (err) {
@@ -2662,7 +2678,7 @@ const sendWhatsappMessage = async (payload, user, companyData) => {
       companyData.teamId || "",
       user.id || user.user_aadobject_id || "",
       null,
-      "error in sending message via Whatsapp"
+      "error in sending message via Whatsapp",
     );
     return { err: err };
   }
@@ -2675,7 +2691,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
   incCreatorName,
   responseOptions,
   incObj,
-  isfrominctype = "onetime"
+  isfrominctype = "onetime",
 ) => {
   let tenantId = companyData.userTenantId;
   let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
@@ -2683,7 +2699,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
     let usrPhones = await getUserPhone(
       IS_APP_PERMISSION_GRANTED,
       tenantId,
-      users
+      users,
     );
     for (let user of usrPhones) {
       try {
@@ -2706,7 +2722,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
             "",
             incTitle,
             "",
-            ""
+            "",
           );
 
           continue;
@@ -2719,7 +2735,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
             incTitle,
             companyData.teamName,
             responseOptions.length == 2 ? 1 : 2,
-            incObj
+            incObj,
           );
           incidentService.saveAllTypeQuerylogs(
             user.id,
@@ -2732,7 +2748,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
             "",
             incTitle,
             "",
-            ""
+            "",
           );
           try {
             await sendWhatsappMessage(payload, user, companyData).then(
@@ -2748,9 +2764,9 @@ const sendSafetyCheckMsgViaWhatsapp = async (
                   "",
                   incTitle,
                   "",
-                  ""
+                  "",
                 );
-              }
+              },
             );
           } catch (err) {
             incidentService.saveAllTypeQuerylogs(
@@ -2764,7 +2780,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
               "",
               incTitle,
               "",
-              JSON.stringify(err.message)
+              JSON.stringify(err.message),
             );
           }
         }
@@ -2774,7 +2790,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
           companyData.teamId,
           user.id,
           null,
-          "error in sending safety check via Whatsapp"
+          "error in sending safety check via Whatsapp",
         );
       }
     }
@@ -2788,7 +2804,7 @@ const sendSafetyCheckMsgViaEmail = async (
   incCreatorName,
   responseOptions,
   incObj,
-  isfrominctype = "onetime"
+  isfrominctype = "onetime",
 ) => {
   if (users?.length || users) {
     for (let user of users) {
@@ -2797,10 +2813,10 @@ const sendSafetyCheckMsgViaEmail = async (
           isfrominctype == "Follow-up" ||
           isfrominctype == "recurringIncident"
         ) {
-          (incObj.incCreatedByName =
+          ((incObj.incCreatedByName =
             incObj?.CREATED_BY_NAME || incObj?.createdByName),
             (incObj.incTitle = incObj?.inc_name || incObj?.incTitle),
-            (incObj.incId = incObj?.inc_id || incObj?.INC_ID);
+            (incObj.incId = incObj?.inc_id || incObj?.INC_ID));
           incObj.incCreatedDate = incObj?.created_date;
           incObj.incGuidance = incObj?.GUIDANCE || incObj?.incGuidance;
           incObj.incTypeId = incObj?.inc_type_id || incObj?.incTypeId;
@@ -2819,7 +2835,7 @@ const sendSafetyCheckMsgViaEmail = async (
             "",
             incTitle,
             "",
-            ""
+            "",
           );
 
           continue;
@@ -2836,7 +2852,7 @@ const sendSafetyCheckMsgViaEmail = async (
             "",
             incTitle,
             "",
-            ""
+            "",
           );
           try {
             await sendFeedbackEmail(incObj, useremail, user).then((res) => {
@@ -2851,7 +2867,7 @@ const sendSafetyCheckMsgViaEmail = async (
                 "",
                 incTitle,
                 "",
-                ""
+                "",
               );
             });
           } catch (err) {
@@ -2866,7 +2882,7 @@ const sendSafetyCheckMsgViaEmail = async (
               "",
               incTitle,
               "",
-              JSON.stringify(err.message)
+              JSON.stringify(err.message),
             );
           }
         }
@@ -2876,7 +2892,7 @@ const sendSafetyCheckMsgViaEmail = async (
           companyData.teamId,
           user.id,
           null,
-          "error in sending safety check via EMAIL"
+          "error in sending safety check via EMAIL",
         );
       }
     }
@@ -2937,8 +2953,15 @@ const incTypeObj = {
 const getIncTypeText = (incTypeId) => {
   return incTypeObj[incTypeId] || null;
 };
-const withhoutsafteycard = async (incdata) => {
+const withhoutsafteycard = async (incdata, user) => {
   try {
+    let safeUrl =
+      process.env.serviceUrl +
+      "/posresp?userId=" +
+      encodeURIComponent(user.userAadObjId) +
+      "&eventId=" +
+      encodeURIComponent(incdata.incId) +
+      "&isfrom=Email";
     const myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
 
@@ -2985,36 +3008,47 @@ const withhoutsafteycard = async (incdata) => {
             <tr>
               <td style="padding:20px;">
                 <p style="font-size:12px; color:#555; text-transform:uppercase; margin-bottom:4px;">Travel Advisory</p>
-                <p style="font-size:18px; font-weight:500; color:#111;">${incdata.incTitle
-            }</p>
+                <p style="font-size:18px; font-weight:500; color:#111;">${
+                  incdata.incTitle
+                }</p>
 
                 <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Travel Update</p>
-                <p style="font-size:15px; color:#444;">${incdata.travelUpdate || ""
-            }</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.travelUpdate || ""
+                }</p>
 
                 <div style="margin-top:20px;">
                   <p style="font-size:12px; text-transform:uppercase; color:#92400e; margin-bottom:4px;">Guidance</p>
-                  <p style="font-size:14px; color:#78350f;">${incdata.incGuidance || ""
-            }</p>
+                  <p style="font-size:14px; color:#78350f;">${
+                    incdata.incGuidance || ""
+                  }</p>
                 </div>
 
                 <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Contact Information</p>
-                <p style="font-size:14px; color:#444;">${incdata.contactInfo || ""
-            }</p>
+                <p style="font-size:14px; color:#444;">${
+                  incdata.contactInfo || ""
+                }</p>
               </td>
             </tr>
-
+ <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+            <td align="center" style="border:1px solid #707070; border-radius:4px; padding:8px 16px;">
+                 <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">Acknowledge</a>
+                </td></tr>
+  </table>
             <tr>
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
                   Sent on ${formattedDate} by 
-                  <span style="color:#ea580c; font-weight:500;">${incdata.incCreatedByName
-            }</span>
+                  <span style="color:#ea580c; font-weight:500;">${
+                    incdata.incCreatedByName
+                  }</span>
                 </p>
               </td>
             </tr>
+            
           </table>
         ${wrapperBottom}
       `;
@@ -3048,7 +3082,12 @@ const withhoutsafteycard = async (incdata) => {
                 </div>
               </td>
             </tr>
-
+ <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+            <td align="center" style="border:1px solid #707070; border-radius:4px; padding:8px 16px;">
+                 <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">Acknowledge</a>
+                </td></tr>
+  </table>
             <tr>
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
@@ -3057,6 +3096,7 @@ const withhoutsafteycard = async (incdata) => {
                 </p>
               </td>
             </tr>
+            
           </table>
         ${wrapperBottom}
       `;
@@ -3094,7 +3134,12 @@ const withhoutsafteycard = async (incdata) => {
                 </div>
               </td>
             </tr>
-
+ <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+            <td align="center" style="border:1px solid #707070; border-radius:4px; padding:8px 16px;">
+                 <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">Acknowledge</a>
+                </td></tr>
+  </table>
             <tr>
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
@@ -3103,6 +3148,7 @@ const withhoutsafteycard = async (incdata) => {
                 </p>
               </td>
             </tr>
+            
           </table>
         ${wrapperBottom}
       `;
@@ -3128,30 +3174,40 @@ const withhoutsafteycard = async (incdata) => {
             <tr>
               <td style="padding:20px;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Title</p>
-                <p style="font-size:18px; font-weight:500; color:#111;">${incdata.incTitle
-            }</p>
+                <p style="font-size:18px; font-weight:500; color:#111;">${
+                  incdata.incTitle
+                }</p>
 
                 <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Situation</p>
-                <p style="font-size:15px; color:#444;">${incdata.situation || ""
-            }</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.situation || ""
+                }</p>
 
                 <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Additional Information</p>
-                <p style="font-size:15px; color:#444;">${incdata.additionalInfo || ""
-            }</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.additionalInfo || ""
+                }</p>
               </td>
             </tr>
-
+ <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+            <td align="center" style="border:1px solid #707070; border-radius:4px; padding:8px 16px;">
+                 <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">Acknowledge</a>
+                </td></tr>
+  </table>
             <tr>
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
                   Sent on ${formattedDate} by 
-                  <span style="color:#0d9488; font-weight:500;">${incdata.incCreatedByName
-            }</span>
+                  <span style="color:#0d9488; font-weight:500;">${
+                    incdata.incCreatedByName
+                  }</span>
                 </p>
               </td>
             </tr>
+            
           </table>
         ${wrapperBottom}
       `;
@@ -3187,15 +3243,16 @@ const sendFeedbackEmail = async (incdata, userEmail, user) => {
         incdata.incCreatedByName,
         incdata.incTitle,
         incdata.incId,
-        user
+        user,
       );
     } else {
-      body = await withhoutsafteycard(incdata);
+      body = await withhoutsafteycard(incdata, user);
     }
     const raw = JSON.stringify({
       projectName: "AYS",
-      emailSubject: `${getIncTypeText(incdata.incTypeId)} - ${incdata.incTitle
-        }`,
+      emailSubject: `${getIncTypeText(incdata.incTypeId)} - ${
+        incdata.incTitle
+      }`,
 
       emailBody: body,
       emailTo: userEmail,
@@ -3211,7 +3268,7 @@ const sendFeedbackEmail = async (incdata, userEmail, user) => {
     };
     const response = fetch(
       "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
-      requestOptions
+      requestOptions,
     )
       .then((response) => response)
       .then((result) => console.log(result))
@@ -3238,7 +3295,7 @@ const getTemplateBasedPayload = (
   incTitle,
   incCreatorName,
   template = 1,
-  incObj = null
+  incObj = null,
 ) => {
   let payload = {
     messaging_product: "whatsapp",
@@ -3377,7 +3434,7 @@ const sendAcknowledgeViaWhatsapp = async (
   to,
   replyText,
   companyName,
-  body = ""
+  body = "",
 ) => {
   try {
     if (body == null || body == "") {
@@ -3402,7 +3459,7 @@ const sendAcknowledgeViaWhatsapp = async (
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
     // .then(response => {
     //   console.log('Template message sent:', response.data);
@@ -3411,7 +3468,7 @@ const sendAcknowledgeViaWhatsapp = async (
     // });
     console.log(
       "whatsapp msg request sent",
-      response.data || response.message || response
+      response.data || response.message || response,
     );
   } catch (err) {
     console.log("error", err);
@@ -3440,7 +3497,7 @@ const proccessSMSLinkClick = async (userId, eventId, text, clickfrom) => {
         // );
       } catch (err) {
         console.log(
-          "Error while sending acknowledgement in SMS for closed or deleted incident"
+          "Error while sending acknowledgement in SMS for closed or deleted incident",
         );
       }
       return {
@@ -3463,7 +3520,7 @@ const proccessSMSLinkClick = async (userId, eventId, text, clickfrom) => {
       text == "YES" ? 1 : 2,
       userId,
       compData.teamId,
-      clickfrom
+      clickfrom,
     );
     if (text != "YES") {
       const approvalCardResponse = {
@@ -3497,13 +3554,13 @@ const proccessSMSLinkClick = async (userId, eventId, text, clickfrom) => {
       await sendApprovalResponseToSelectedMembers(
         eventId,
         context,
-        approvalCardResponse
+        approvalCardResponse,
       );
       await sendApprovalResponseToSelectedTeams(
         eventId,
         serviceUrl,
         approvalCardResponse,
-        userId
+        userId,
       );
     }
     acknowledgeSMSReplyInTeams(
@@ -3511,7 +3568,7 @@ const proccessSMSLinkClick = async (userId, eventId, text, clickfrom) => {
       compData,
       incData.incCreatedBy,
       incData.incCreatedByName,
-      user
+      user,
     );
   }
 };
@@ -3521,7 +3578,7 @@ const proccessWhatsappClick = async (
   eventId,
   text,
   fromPhnNumber,
-  runat
+  runat,
 ) => {
   if (userId && eventId) {
     const incData = await incidentService.getInc(eventId, runat, userId);
@@ -3537,11 +3594,11 @@ const proccessWhatsappClick = async (
           compData.teamName,
           incStatusId == 2
             ? `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`
-            : `This incident is no longer available.`
+            : `This incident is no longer available.`,
         );
       } catch (err) {
         console.log(
-          "Error while sending acknowledgement in whatsapp for closed or deleted incident"
+          "Error while sending acknowledgement in whatsapp for closed or deleted incident",
         );
       }
       return {
@@ -3555,7 +3612,7 @@ const proccessWhatsappClick = async (
         user.user_aadobject_id,
         fromPhnNumber,
         incData,
-        runat
+        runat,
       );
       await sendWhatsappMessage(payload, user, compData);
       return;
@@ -3574,7 +3631,7 @@ const proccessWhatsappClick = async (
       userId,
       compData.teamId,
       "whatsapp",
-      runat
+      runat,
     );
     if (text == "2") {
       const approvalCardResponse = {
@@ -3608,13 +3665,13 @@ const proccessWhatsappClick = async (
       await sendApprovalResponseToSelectedMembers(
         eventId,
         context,
-        approvalCardResponse
+        approvalCardResponse,
       );
       await sendApprovalResponseToSelectedTeams(
         eventId,
         serviceUrl,
         approvalCardResponse,
-        userId
+        userId,
       );
     }
     acknowledgeSMSReplyInTeams(
@@ -3622,14 +3679,14 @@ const proccessWhatsappClick = async (
       compData,
       incData.incCreatedBy,
       incData.incCreatedByName,
-      user
+      user,
     );
     let respOptions = JSON.parse(incData.responseOptions);
     let response = respOptions.find((resp) => resp.id == text);
     await sendAcknowledgeViaWhatsapp(
       fromPhnNumber,
       response.option,
-      compData.teamName
+      compData.teamName,
     );
     incidentService.saveAllTypeQuerylogs(
       userId,
@@ -3642,7 +3699,7 @@ const proccessWhatsappClick = async (
       "",
       "",
       response.option,
-      ""
+      "",
     );
   }
 };
@@ -3652,7 +3709,7 @@ const acknowledgeSMSReplyInTeams = async (
   companyData,
   incCreatedById,
   incCreatedByName,
-  user
+  user,
 ) => {
   try {
     let responseText = "";
@@ -3696,7 +3753,7 @@ const acknowledgeSMSReplyInTeams = async (
       serviceUrl,
       userTenantId,
       null,
-      user.user_aadobject_id
+      user.user_aadobject_id,
     );
     console.log(response);
   } catch (err) {
@@ -3711,7 +3768,7 @@ const SaveSmsLog = async (
   RAW_DATA,
   sid = null,
   errormessage = null,
-  eventid = ""
+  eventid = "",
 ) => {
   let superUsers = null;
   try {
@@ -3722,7 +3779,7 @@ const SaveSmsLog = async (
       RAW_DATA,
       sid,
       errormessage,
-      eventid
+      eventid,
     );
   } catch (err) {
     processSafetyBotError(err, "", "", null, "error in saveSMSLog");
@@ -3740,7 +3797,7 @@ const saveAllTypelogs = async (
   ACTION_TYPE,
   MESSAGE_CONTENT,
   INTERACTION_VALUE,
-  ERROR_MESSAGE
+  ERROR_MESSAGE,
 ) => {
   let superUsers = null;
   try {
@@ -3755,7 +3812,7 @@ const saveAllTypelogs = async (
       ACTION_TYPE,
       MESSAGE_CONTENT,
       INTERACTION_VALUE,
-      ERROR_MESSAGE
+      ERROR_MESSAGE,
     );
   } catch (err) {
     processSafetyBotError(err, "", "", null, "error in saveAllTypelogs");
@@ -3815,7 +3872,7 @@ const processCommentViaLink = async (userId, incId, comment) => {
         incId,
         serviceUrl,
         approvalCardResponse,
-        user.aadObjectId
+        user.aadObjectId,
       );
     }
   } catch (err) {
@@ -3899,12 +3956,12 @@ const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
                     "",
                     "",
                     "error in get users phone number requestDateTime : " +
-                    requestDate +
-                    " ErrorDateTime: " +
-                    new Date(),
+                      requestDate +
+                      " ErrorDateTime: " +
+                      new Date(),
                     "",
                     false,
-                    ""
+                    "",
                   );
                   res.json({ error: error });
                 });
@@ -3918,7 +3975,7 @@ const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
       .catch((error) => {
         console.log(
           "error at get access token in get users phone number",
-          error
+          error,
         );
         // console.log(error);
         if (
@@ -3949,7 +4006,7 @@ const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
             "error in get access token from microsoft at get users phone number",
             "",
             false,
-            ""
+            "",
           );
           res.json({ error: error });
         }
@@ -4049,8 +4106,8 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                         } catch (dbError) {
                           console.log({
                             "error in batch update": dbError,
-                            "batchIndex": i,
-                            "batchSize": batch.length
+                            batchIndex: i,
+                            batchSize: batch.length,
                           });
                           processSafetyBotError(
                             dbError,
@@ -4060,7 +4117,7 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                             `error in batch update users (batch ${i}-${i + batch.length - 1})`,
                             "",
                             false,
-                            ""
+                            "",
                           );
                         }
                       }
@@ -4077,12 +4134,12 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                     "",
                     "",
                     "error in get users phone number requestDateTime : " +
-                    requestDate +
-                    " ErrorDateTime: " +
-                    new Date(),
+                      requestDate +
+                      " ErrorDateTime: " +
+                      new Date(),
                     "",
                     false,
-                    ""
+                    "",
                   );
                   res.json({ error: error });
                 });
@@ -4096,7 +4153,7 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
       .catch((error) => {
         console.log(
           "error at get access token in get users phone number",
-          error
+          error,
         );
         // console.log(error);
         if (
@@ -4127,7 +4184,7 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
             "error in get access token from microsoft at get users phone number",
             "",
             false,
-            ""
+            "",
           );
           res.json({ error: error });
         }
@@ -4145,7 +4202,7 @@ const sendSafetyCheckMessageAsync = async (
   createdByUserInfo,
   log,
   userAadObjId,
-  resendSafetyCheck = false
+  resendSafetyCheck = false,
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -4162,7 +4219,7 @@ const sendSafetyCheckMessageAsync = async (
         userAadObjId,
         "id",
         "name",
-        resendSafetyCheck
+        resendSafetyCheck,
       );
       const { incTitle, selectedMembers, incCreatedBy, incType, incTypeId } =
         incData;
@@ -4196,7 +4253,7 @@ const sendSafetyCheckMessageAsync = async (
       let allMembersArr = [];
       if (selectedMembersArr && selectedMembersArr?.length > 0) {
         allMembersArr = allMembers.filter((tm) =>
-          selectedMembersArr.includes(tm.id)
+          selectedMembersArr.includes(tm.id),
         );
       } else {
         allMembersArr = allMembers;
@@ -4206,7 +4263,7 @@ const sendSafetyCheckMessageAsync = async (
           incId,
           allMembersArr,
           incCreatedBy,
-          userAadObjId
+          userAadObjId,
         );
       }
       // logTimeInSeconds(startTime, `addMembersIntoIncData end`);
@@ -4219,7 +4276,7 @@ const sendSafetyCheckMessageAsync = async (
           await incidentService.saveRecurrSubEventInc(
             actionData,
             companyData,
-            userTimeZone
+            userTimeZone,
           );
         }
         resolve(true);
@@ -4254,7 +4311,7 @@ const sendSafetyCheckMessageAsync = async (
           null,
           incFilesData,
           createdByUserInfo.conversationId,
-          resendSafetyCheck
+          resendSafetyCheck,
         );
         let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
@@ -4268,7 +4325,7 @@ const sendSafetyCheckMessageAsync = async (
             userAadObjIds,
             incId,
             incTitle,
-            incData
+            incData,
           );
         }
         if (incData.incTypeId == 1 && companyData.send_whatsapp) {
@@ -4279,7 +4336,7 @@ const sendSafetyCheckMessageAsync = async (
             incTitle,
             createdByUserInfo.user_name,
             responseOptionData.responseOptions,
-            incData
+            incData,
           );
         }
         if (companyData.SEND_EMAIL) {
@@ -4291,7 +4348,7 @@ const sendSafetyCheckMessageAsync = async (
             incTitle,
             createdByUserInfo.user_name,
             responseOptionData.responseOptions,
-            incData
+            incData,
           );
         }
         /*const incCreatedByUserArr = [];
@@ -4452,11 +4509,11 @@ const sendSafetyCheckMessageAsync = async (
         "",
         userAadObjId,
         "error in sendSafetyCheckMessageAsync incId=" +
-        incId +
-        " createdByUserInfo=" +
-        JSON.stringify(createdByUserInfo) +
-        " resendSafetyCheck=" +
-        resendSafetyCheck
+          incId +
+          " createdByUserInfo=" +
+          JSON.stringify(createdByUserInfo) +
+          " resendSafetyCheck=" +
+          resendSafetyCheck,
       );
       resolve(false);
     }
@@ -4473,7 +4530,7 @@ const NewsendSafetyCheckMessageAsync = async (
   allincMembers,
   companyData,
   isLastBatch,
-  isFirstBatch
+  isFirstBatch,
 ) => {
   return new Promise(async (resolve, reject) => {
     try {
@@ -4486,7 +4543,7 @@ const NewsendSafetyCheckMessageAsync = async (
           userAadObjId,
           "id",
           "name",
-          resendSafetyCheck
+          resendSafetyCheck,
         );
         allMembers = resData.allMembers;
         incFilesData = resData.incFilesData;
@@ -4512,7 +4569,7 @@ const NewsendSafetyCheckMessageAsync = async (
       if (allincMembers?.length > 0 && isFirstBatch == "true") {
         let AlluserAadObjIds = allincMembers.map((x) => x?.value || x);
         saveallMembersArr = allMembers.filter((tm) =>
-          AlluserAadObjIds.includes(tm.id)
+          AlluserAadObjIds.includes(tm.id),
         );
       } else {
         saveallMembersArr = allMembers;
@@ -4525,7 +4582,7 @@ const NewsendSafetyCheckMessageAsync = async (
           incId,
           saveallMembersArr,
           incCreatedBy,
-          userAadObjId
+          userAadObjId,
         );
       }
       if (incData.responseOptions && incData.responseType) {
@@ -4551,7 +4608,7 @@ const NewsendSafetyCheckMessageAsync = async (
       let allMembersArr = [];
       if (selectedMembersArr && selectedMembersArr?.length > 0) {
         allMembersArr = allMembers.filter((tm) =>
-          selectedMembersArr.includes(tm.id)
+          selectedMembersArr.includes(tm.id),
         );
       } else {
         allMembersArr = allMembers;
@@ -4574,7 +4631,7 @@ const NewsendSafetyCheckMessageAsync = async (
           await incidentService.saveRecurrSubEventInc(
             actionData,
             companyData,
-            userTimeZone
+            userTimeZone,
           );
         }
         resolve(true);
@@ -4611,7 +4668,7 @@ const NewsendSafetyCheckMessageAsync = async (
           createdByUserInfo.conversationId,
           resendSafetyCheck,
           isLastBatch,
-          allincMembers
+          allincMembers,
         );
         let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
@@ -4625,7 +4682,7 @@ const NewsendSafetyCheckMessageAsync = async (
             userAadObjIds,
             incId,
             incTitle,
-            incData
+            incData,
           );
         }
         if (incData.incTypeId == 1 && companyData.send_whatsapp) {
@@ -4636,7 +4693,7 @@ const NewsendSafetyCheckMessageAsync = async (
             incTitle,
             createdByUserInfo.user_name,
             responseOptionData.responseOptions,
-            incData
+            incData,
           );
         }
         if (companyData.SEND_EMAIL) {
@@ -4647,7 +4704,7 @@ const NewsendSafetyCheckMessageAsync = async (
             incTitle,
             createdByUserInfo.user_name,
             responseOptionData.responseOptions,
-            incData
+            incData,
           );
         }
       }
@@ -4659,11 +4716,11 @@ const NewsendSafetyCheckMessageAsync = async (
         "",
         userAadObjId,
         "error in sendSafetyCheckMessageAsync incId=" +
-        incId +
-        " createdByUserInfo=" +
-        JSON.stringify(createdByUserInfo) +
-        " resendSafetyCheck=" +
-        resendSafetyCheck
+          incId +
+          " createdByUserInfo=" +
+          JSON.stringify(createdByUserInfo) +
+          " resendSafetyCheck=" +
+          resendSafetyCheck,
       );
       resolve(false);
     }
@@ -4674,7 +4731,7 @@ const sendSafetyCheckMessage = async (
   teamId,
   createdByUserInfo,
   log,
-  userAadObjId
+  userAadObjId,
 ) => {
   let safetyCheckSend = false;
   log.addLog("sendSafetyCheckMessage start");
@@ -4686,24 +4743,24 @@ const sendSafetyCheckMessage = async (
       teamId,
       "id",
       "name",
-      userAadObjId
+      userAadObjId,
     );
     const { incTitle, selectedMembers, incCreatedBy, incType } = incData;
     const { serviceUrl, userTenantId } = companyData;
 
     let allMembersArr = allMembers.map(
       (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      })
+        (tm = {
+          ...tm,
+          messageDelivered: "na",
+          response: "na",
+          responseValue: "na",
+        }),
     );
 
     if (selectedMembers != null && selectedMembers?.split(",").length > 0) {
       allMembersArr = allMembersArr.filter((m) =>
-        selectedMembers?.split(",").includes(m.id)
+        selectedMembers?.split(",").includes(m.id),
       );
     }
 
@@ -4713,7 +4770,7 @@ const sendSafetyCheckMessage = async (
       incId,
       allMembersArr,
       incCreatedBy,
-      userAadObjId
+      userAadObjId,
     );
     log.addLog(`incType: ${incType} `);
     if (incType == "onetime") {
@@ -4745,7 +4802,7 @@ const sendSafetyCheckMessage = async (
         incTitle,
         incObj,
         companyData,
-        incGuidance
+        incGuidance,
       );
       for (let i = 0; i < allMembersArr.length; i++) {
         let member = [
@@ -4761,7 +4818,7 @@ const sendSafetyCheckMessage = async (
           serviceUrl,
           userTenantId,
           log,
-          userAadObjId
+          userAadObjId,
         );
         let isMessageDelivered = 1;
         if (
@@ -4779,7 +4836,7 @@ const sendSafetyCheckMessage = async (
           incId,
           allMembersArr[i].id,
           isMessageDelivered,
-          msgResp
+          msgResp,
         );
       }
       log.addLog("Send Safety Check End");
@@ -4791,7 +4848,7 @@ const sendSafetyCheckMessage = async (
       await incidentService.saveRecurrSubEventInc(
         actionData,
         companyData,
-        userTimeZone
+        userTimeZone,
       );
       log.addLog(`recurringIncident end`);
     }
@@ -4805,9 +4862,9 @@ const sendSafetyCheckMessage = async (
       "",
       userAadObjId,
       "error in sendSafetyCheckMessageAsync incId=" +
-      incId +
-      " createdByUserInfo=" +
-      JSON.stringify(createdByUserInfo)
+        incId +
+        " createdByUserInfo=" +
+        JSON.stringify(createdByUserInfo),
     );
   }
   log.addLog(`sendSafetyCheckMessage end`);
@@ -4831,24 +4888,24 @@ const sendApproval = async (context) => {
 
   let allMembersArr = allMembers.map(
     (tm) =>
-    (tm = {
-      ...tm,
-      messageDelivered: "na",
-      response: "na",
-      responseValue: "na",
-    })
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      }),
   );
 
   if (selectedMembers.length > 0) {
     allMembersArr = allMembersArr.filter((m) =>
-      selectedMembers?.includes(m.id)
+      selectedMembers?.includes(m.id),
     );
   }
 
   const incWithAddedMembers = await incidentService.addMembersIntoIncData(
     incId,
     allMembersArr,
-    incCreatedBy
+    incCreatedBy,
   );
   const incGuidance = await incidentService.getIncGuidance(incId);
   if (action.data.incType == "onetime") {
@@ -4861,7 +4918,7 @@ const sendApproval = async (context) => {
       incident,
       null,
       dashboardCard,
-      serviceUrl
+      serviceUrl,
     );
     const conversationId = context.activity.conversation.id;
 
@@ -4879,7 +4936,7 @@ const sendApproval = async (context) => {
         incTitle,
         incObj,
         companyData,
-        guidance
+        guidance,
       );
 
       await sendCardToIndividualUser(context, teamMember, approvalCard);
@@ -4890,7 +4947,7 @@ const sendApproval = async (context) => {
     await incidentService.saveRecurrSubEventInc(
       action.data,
       companyData,
-      userTimeZone
+      userTimeZone,
     );
   }
 };
@@ -4927,7 +4984,7 @@ const sendIncStatusValidation = async (context, incStatusId) => {
       dashboard.mentionUser(
         mentionedCreatedBy,
         incCreatedBy.id,
-        incCreatedBy.name
+        incCreatedBy.name,
       );
       const approvalCardResponse = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -4965,7 +5022,7 @@ const sendApprovalResponse = async (user, context) => {
       context.activity.rawLocalTimestamp.toString().split("+").length > 0
     ) {
       respDate = new Date(
-        context.activity.rawLocalTimestamp.toString().split("+")[0]
+        context.activity.rawLocalTimestamp.toString().split("+")[0],
       );
     }
     const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", respDate);
@@ -4981,7 +5038,7 @@ const sendApprovalResponse = async (user, context) => {
       user.id,
       Number(respToBeUpdated) ?? 0,
       inc,
-      respTimestamp
+      respTimestamp,
     );
     // if (response === "i_am_safe") {
     //   incidentService.updateIncResponseData(
@@ -5001,7 +5058,7 @@ const sendApprovalResponse = async (user, context) => {
     //   );
     // }
     let responseText = responseOptionData.responseOptions.filter(
-      (option) => option.id == respToBeUpdated
+      (option) => option.id == respToBeUpdated,
     )[0].option;
     //if (response == "need_assistance" || response == "i_am_safe") {
     const approvalCardResponse = {
@@ -5010,8 +5067,9 @@ const sendApprovalResponse = async (user, context) => {
       body: [
         {
           type: "TextBlock",
-          text: `User <at>${user.name
-            }</at> responded **${responseText.trim()}** for Incident: **${incTitle}** `,
+          text: `User <at>${
+            user.name
+          }</at> responded **${responseText.trim()}** for Incident: **${incTitle}** `,
           wrap: true,
         },
       ],
@@ -5036,16 +5094,16 @@ const sendApprovalResponse = async (user, context) => {
     await sendApprovalResponseToSelectedMembers(
       incId,
       context,
-      approvalCardResponse
+      approvalCardResponse,
     );
     await sendApprovalResponseToSelectedTeams(
       incId,
       serviceUrl,
       approvalCardResponse,
-      user.aadObjectId
+      user.aadObjectId,
     );
     let responsetextdata = inc.responseOptionData.responseOptions.find(
-      (resp) => resp.id == response
+      (resp) => resp.id == response,
     );
     if (
       companyData.send_sms &&
@@ -5057,7 +5115,7 @@ const sendApprovalResponse = async (user, context) => {
       sendAcknowledmentinSMS(
         companyData,
         [user.aadObjectId],
-        responsetextdata.option
+        responsetextdata.option,
       );
     }
     incidentService.saveAllTypeQuerylogs(
@@ -5071,7 +5129,7 @@ const sendApprovalResponse = async (user, context) => {
       "",
       incTitle,
       responsetextdata.option,
-      ""
+      "",
     );
     //}
 
@@ -5086,7 +5144,7 @@ const sendApprovalResponse = async (user, context) => {
       "",
       "",
       user.aadObjectId,
-      "sendApprovalResponse"
+      "sendApprovalResponse",
     );
   }
 };
@@ -5098,7 +5156,7 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
     let usrPhones = await getUserPhone(
       IS_APP_PERMISSION_GRANTED,
       tenantId,
-      users
+      users,
     );
     let counter = 0;
     for (let user of usrPhones) {
@@ -5138,7 +5196,7 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
           companyData.teamId,
           user.id,
           null,
-          "error in sending acknowledgement via SMS"
+          "error in sending acknowledgement via SMS",
         );
       }
     }
@@ -5172,7 +5230,7 @@ const handleRespondToAssistance = async (context, action, user) => {
       "",
       "",
       user?.id,
-      "error in handleRespondToAssistance"
+      "error in handleRespondToAssistance",
     );
   }
 };
@@ -5224,13 +5282,13 @@ const submitComment = async (context, user, companyData) => {
         incId,
         userId,
         commentVal,
-        inc
+        inc,
       );
       await sendApprovalResponseToSelectedTeams(
         incId,
         serviceUrl,
         approvalCardResponse,
-        user.aadObjectId
+        user.aadObjectId,
       );
       incidentService.saveAllTypeQuerylogs(
         user.aadObjectId,
@@ -5243,7 +5301,7 @@ const submitComment = async (context, user, companyData) => {
         "",
         "",
         `${commentVal}`,
-        ""
+        "",
       );
     }
   } catch (error) {
@@ -5254,9 +5312,9 @@ const submitComment = async (context, user, companyData) => {
       user.name,
       user.aadObjectId,
       "error in submitComment context=" +
-      JSON.stringify(context) +
-      " companyData=" +
-      JSON.stringify(companyData)
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData),
     );
   }
 };
@@ -5265,7 +5323,7 @@ const Question1safetyVisitor = async (
   context,
   user,
 
-  questionNumber
+  questionNumber,
 ) => {
   try {
     const action = context.activity.value.action;
@@ -5326,13 +5384,13 @@ const Question1safetyVisitor = async (
         await sendCommentToSelectedMembers(
           incId,
           context,
-          approvalCardResponse
+          approvalCardResponse,
         );
         await sendApprovalResponseToSelectedTeams(
           incId,
           serviceUrl,
           approvalCardResponse,
-          user.aadObjectId
+          user.aadObjectId,
         );
       }
     }
@@ -5347,7 +5405,7 @@ const Question1safetyVisitor = async (
       commentVal,
       inc,
       questionNumber,
-      dataToBeUpdated
+      dataToBeUpdated,
     );
 
     if (questionNumber === 3 && commentVal) {
@@ -5385,14 +5443,14 @@ const Question1safetyVisitor = async (
         incId,
         userId,
         commentVal,
-        inc
+        inc,
       );
 
       await sendApprovalResponseToSelectedTeams(
         incId,
         serviceUrl,
         approvalCardResponse,
-        user.aadObjectId
+        user.aadObjectId,
       );
     }
   } catch (error) {
@@ -5403,11 +5461,11 @@ const Question1safetyVisitor = async (
       user.name,
       user.aadObjectId,
       "error in Question1safetyVisitor loggerName=" +
-      loggerName +
-      " context=" +
-      JSON.stringify(context) +
-      " questionNumber=" +
-      questionNumber
+        loggerName +
+        " context=" +
+        JSON.stringify(context) +
+        " questionNumber=" +
+        questionNumber,
     );
   }
 };
@@ -5491,7 +5549,7 @@ const sendNewContactEmail = async (
   emailVal,
   feedbackVal,
   companyData,
-  userName = ""
+  userName = "",
 ) => {
   try {
     const feedbackDataObj = {
@@ -5507,7 +5565,8 @@ const sendNewContactEmail = async (
       "Hi,<br/> <br />" +
       "Below user has provided feedback for Safety Check app installed in Microsoft Teams : " +
       "<br />" +
-      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
+      `${
+        userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
       } ` +
       "<b>Email: </b>" +
       emailVal +
@@ -5526,7 +5585,7 @@ const sendNewContactEmail = async (
       "help@safetycheck.in",
       process.env.ADMIN_EMAIL,
       emailBody,
-      subject
+      subject,
     );
   } catch (err) {
     console.log(err);
@@ -5535,7 +5594,7 @@ const sendNewContactEmail = async (
       "",
       userName,
       "",
-      "error in sendNewContactEmail emailVal=" + emailVal
+      "error in sendNewContactEmail emailVal=" + emailVal,
     );
   }
 };
@@ -5643,7 +5702,7 @@ const submitSettings = async (context, companyData) => {
   await updateSuperUserData(
     companyData.userId,
     companyData.teamId,
-    selected_superusers
+    selected_superusers,
   );
 };
 
@@ -5678,7 +5737,7 @@ const sendProactiveMessaageToUserTest = async () => {
       activityId: null,
     };
     let companyData = await incidentService.getCompanyData(
-      "19:GbxQTzrKLXdE1rQ2G_IP7TuyLhKe0SdRKWTsDh5A1R81@thread.tacv2"
+      "19:GbxQTzrKLXdE1rQ2G_IP7TuyLhKe0SdRKWTsDh5A1R81@thread.tacv2",
     );
     var incGuidance = await incidentService.getIncGuidance(incObj.incId);
     incGuidance = incGuidance ? incGuidance : "";
@@ -5686,7 +5745,7 @@ const sendProactiveMessaageToUserTest = async () => {
       incObj.incTitle,
       incObj,
       companyData,
-      incGuidance
+      incGuidance,
     );
 
     const conversationParameters = {
@@ -5706,7 +5765,7 @@ const sendProactiveMessaageToUserTest = async () => {
     let activity = null;
     if (msgAttachment != null) {
       activity = MessageFactory.attachment(
-        CardFactory.adaptiveCard(msgAttachment)
+        CardFactory.adaptiveCard(msgAttachment),
       );
     }
 
@@ -5718,11 +5777,11 @@ const sendProactiveMessaageToUserTest = async () => {
 
       let conversationResp =
         await connectorClient.conversations.createConversation(
-          conversationParameters
+          conversationParameters,
         );
       let activityResp = await connectorClient.conversations.sendToConversation(
         conversationResp.id,
-        activity
+        activity,
       );
     }
   } catch (err) {
@@ -5756,7 +5815,7 @@ const sendProactiveMessaageToChannel = async () => {
     let activity = null;
     if (msgAttachment != null) {
       activity = MessageFactory.attachment(
-        CardFactory.adaptiveCard(msgAttachment)
+        CardFactory.adaptiveCard(msgAttachment),
       );
     }
     const conversationParameters = {
@@ -5785,7 +5844,7 @@ const sendProactiveMessaageToChannel = async () => {
 
       let conversationResp =
         await connectorClient.conversations.createConversation(
-          conversationParameters
+          conversationParameters,
         );
       //let activityResp = await connectorClient.conversations.sendToConversation(conversationResp.id, activity);
     }
@@ -5802,7 +5861,7 @@ const sendRecurrEventMsgAsync = async (
   subEventObj,
   incId,
   incTitle,
-  log
+  log,
 ) => {
   let incGuidance = await incidentService.getIncGuidance(incId);
   incGuidance = incGuidance ? incGuidance : "";
@@ -5844,7 +5903,7 @@ const sendRecurrEventMsgAsync = async (
       resolve,
       reject,
       subEventObj.runAt,
-      subEventObj.filesData
+      subEventObj.filesData,
     );
     let userAadObjIds = subEventObj.eventMembers.map((x) => x.userAadObjId);
     if (
@@ -5858,7 +5917,7 @@ const sendRecurrEventMsgAsync = async (
         incId,
         incTitle,
         subEventObj,
-        "recurringIncident"
+        "recurringIncident",
       );
     }
     if (subEventObj.incTypeId == 1 && companyData.send_whatsapp) {
@@ -5870,7 +5929,7 @@ const sendRecurrEventMsgAsync = async (
         incCreatedByUserObj.name,
         responseOptionData.responseOptions,
         incObj,
-        "recurringIncident"
+        "recurringIncident",
       );
     }
     if (companyData.SEND_EMAIL) {
@@ -5884,7 +5943,7 @@ const sendRecurrEventMsgAsync = async (
         incCreatedByUserObj.name,
         responseOptionData.responseOptions,
         subEventObj,
-        "recurringIncident"
+        "recurringIncident",
       );
     }
   });
@@ -5912,7 +5971,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
         subEventObj,
         incId,
         incTitle,
-        log
+        log,
       );
       const recurrCompletedCard = {
         type: "AdaptiveCard",
@@ -5940,7 +5999,7 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
         serviceUrl,
         userTenantId,
         log,
-        subEventObj.createdById
+        subEventObj.createdById,
       );
       /*
       const incCreatedByUserArr = [];
@@ -6018,13 +6077,13 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
       "",
       "",
       "error in sendRecurrEventMsg subEventObj=" +
-      JSON.stringify(subEventObj) +
-      " incId=" +
-      incId +
-      " incTitle=" +
-      incTitle +
-      " log=" +
-      log
+        JSON.stringify(subEventObj) +
+        " incId=" +
+        incId +
+        " incTitle=" +
+        incTitle +
+        " log=" +
+        log,
     );
   }
   // return successflag;
@@ -6074,7 +6133,7 @@ const navigateDashboardList = async (context, action, verb) => {
     const dashboardCard = await dashboard.getIncidentTileDashboardCard(
       dashboardData,
       companyData,
-      allTeamMembers
+      allTeamMembers,
     );
 
     const cards = CardFactory.adaptiveCard(dashboardCard);
@@ -6109,7 +6168,7 @@ const addUserInfoByTeamId = async (context) => {
       "",
       "",
       "",
-      "error in addUserInfoByTeamId context=" + JSON.stringify(context)
+      "error in addUserInfoByTeamId context=" + JSON.stringify(context),
     );
   }
 };
@@ -6129,12 +6188,12 @@ const addteamsusers = async (context) => {
 
             const allTeamMembers = await getAllTeamMembersByConnectorClient(
               teamid,
-              serviceUrl
+              serviceUrl,
             );
             if (allTeamMembers != null && allTeamMembers.length > 0) {
               const isUserInfoSaved = await addTeamMember(
                 teamid,
-                allTeamMembers
+                allTeamMembers,
               ).isUserInfoSaved;
               if (isUserInfoSaved) {
                 sqlUpdateIsUserInfoSavedFlag += ` update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id = ${id}; `;
@@ -6144,8 +6203,8 @@ const addteamsusers = async (context) => {
           } catch (err) {
             log.addLog(
               `addteamsusers Error inside loop error details: ${JSON.stringify(
-                err
-              )} `
+                err,
+              )} `,
             );
             processSafetyBotError(
               err,
@@ -6153,12 +6212,12 @@ const addteamsusers = async (context) => {
               "",
               "",
               "error in addteamsusers ->  getAllTeamMembersByConnectorClient -> cmpData=" +
-              JSON.stringify(cmpData)
+                JSON.stringify(cmpData),
             );
           } finally {
             log.addLog(`Inside loop start teamid: ${JSON.stringify(teamid)} `);
           }
-        })
+        }),
       );
       if (sqlUpdateIsUserInfoSavedFlag != "") {
         await incidentService.updateDataIntoDB(sqlUpdateIsUserInfoSavedFlag);
@@ -6172,7 +6231,7 @@ const addteamsusers = async (context) => {
       "",
       "",
       "",
-      "error in addteamsusers context=" + JSON.stringify(context)
+      "error in addteamsusers context=" + JSON.stringify(context),
     );
   } finally {
     log.addLog(`addteamsusers End`);
@@ -6183,14 +6242,14 @@ const addteamsusers = async (context) => {
 const sendNSRespToTeamChannel = async (
   userTeamId,
   adaptiveCard,
-  userAadObjId
+  userAadObjId,
 ) => {
   try {
     const sqlWhere = ` where a.tenantId = '${userTeamId}' `;
     const channelData = await incidentService.getNAReapSelectedTeams(
       "",
       userAadObjId,
-      sqlWhere
+      sqlWhere,
     );
     if (channelData && channelData.length > 0) {
       await Promise.all(
@@ -6202,10 +6261,10 @@ const sendNSRespToTeamChannel = async (
               adaptiveCard,
               channelId,
               serviceUrl,
-              userAadObjId
+              userAadObjId,
             );
           }
-        })
+        }),
       );
     }
   } catch (err) {
@@ -6216,7 +6275,7 @@ const sendNSRespToTeamChannel = async (
       "",
       userAadObjId,
       "error in sendNSRespToTeamChannel adaptiveCard=" +
-      JSON.stringify(adaptiveCard)
+        JSON.stringify(adaptiveCard),
     );
   }
 };
@@ -6229,7 +6288,7 @@ const createTestIncident = async (
   teamId,
   userAadObjId,
   from,
-  companyData
+  companyData,
 ) => {
   const memberChoises = [];
   let selectedMembers = "";
@@ -6274,7 +6333,7 @@ const createTestIncident = async (
       memberChoises,
       userAadObjId,
       null,
-      null
+      null,
     );
     return newInc;
     // if (newInc && newInc.incId) {
@@ -6320,7 +6379,8 @@ const createTestIncident = async (
       teamId,
       "",
       userAadObjId,
-      "error in createTestIncident teamsMembers=" + JSON.stringify(teamsMembers)
+      "error in createTestIncident teamsMembers=" +
+        JSON.stringify(teamsMembers),
     );
   }
 };
@@ -6338,7 +6398,7 @@ const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
       return [];
     }
     const adminUserInfo = allMembersInfo.find(
-      (m) => m.id === context.activity.from.id
+      (m) => m.id === context.activity.from.id,
     );
     if (!adminUserInfo) {
       return;
@@ -6351,7 +6411,7 @@ const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
       teamId,
       userAadObjId,
       context.activity.from,
-      companyData
+      companyData,
     );
     if (incData) {
       const log = new AYSLog();
@@ -6366,7 +6426,7 @@ const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
         teamId,
         createdByUserInfo,
         log,
-        userAadObjId
+        userAadObjId,
       );
 
       const msg = `Thanks! The sample safety check message has been sent to all your team members. You can view their responses in the **Dashboard tab** and access all other features as  well.`;
@@ -6379,7 +6439,7 @@ const triggerTestSafetyCheckMessage = async (context, action, userAadObjId) => {
       "",
       "",
       userAadObjId,
-      "triggerTestSafetyCheckMessage"
+      "triggerTestSafetyCheckMessage",
     );
   }
 };
@@ -6412,7 +6472,7 @@ const onInvokeActivity = async (context) => {
       const user = context.activity.from;
       const isDuplicateInc = await verifyDuplicateInc(
         companyData.teamId,
-        incTitle
+        incTitle,
       );
       if (isDuplicateInc) {
         await showDuplicateIncError(context, user, companyData);
@@ -6429,7 +6489,7 @@ const onInvokeActivity = async (context) => {
       let recurrInc = uVerb === "save_new_recurr_inc" ? "recurring " : "";
       let text = `✔️ New ${recurrInc}incident '${incTitle}' created successfully.`;
       const cards = CardFactory.adaptiveCard(
-        updateCard(incTitle, members, text)
+        updateCard(incTitle, members, text),
       );
 
       const message = MessageFactory.attachment(cards);
@@ -6450,7 +6510,7 @@ const onInvokeActivity = async (context) => {
       }
       let text = `Hello! You do not have any incident running at the moment!!!`;
       const cards = CardFactory.adaptiveCard(
-        updateCard(incTitle, members, text)
+        updateCard(incTitle, members, text),
       );
 
       const message = MessageFactory.attachment(cards);
@@ -6479,7 +6539,7 @@ const onInvokeActivity = async (context) => {
         : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
 
       const cards = CardFactory.adaptiveCard(
-        updateSubmitCommentCard(responseText, incCreatedBy, incGuidance)
+        updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),
       );
 
       const message = MessageFactory.attachment(cards);
@@ -6488,7 +6548,7 @@ const onInvokeActivity = async (context) => {
     } else if (uVerb === "submit_contact_us") {
       let responseText = `✔️ Your feedback has been submitted successfully.`;
       const cards = CardFactory.adaptiveCard(
-        updateContactSubmitCard(responseText)
+        updateContactSubmitCard(responseText),
       );
 
       const message = MessageFactory.attachment(cards);
@@ -6511,8 +6571,8 @@ const onInvokeActivity = async (context) => {
             incId,
             companyData,
             inc,
-            incGuidance
-          )
+            incGuidance,
+          ),
         );
 
         await context.sendActivity({
@@ -6536,8 +6596,8 @@ const onInvokeActivity = async (context) => {
             incId,
             companyData,
             inc,
-            incGuidance
-          )
+            incGuidance,
+          ),
         );
 
         await context.sendActivity({
@@ -6563,7 +6623,7 @@ const onInvokeActivity = async (context) => {
         : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`;
 
       const cards = CardFactory.adaptiveCard(
-        updateSubmitCommentCard(responseText, incCreatedBy, incGuidance)
+        updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),
       );
 
       const message = MessageFactory.attachment(cards);
@@ -6605,10 +6665,10 @@ const onInvokeActivity = async (context) => {
         context,
         context.activity.from,
         responseText,
-        entities
+        entities,
       );
       log.addLog(
-        "After Click On Im_Safte or need assistance  Text message Send successfully. "
+        "After Click On Im_Safte or need assistance  Text message Send successfully. ",
       );
       var incGuidance = await incidentService.getIncGuidance(incId);
       incGuidance = incGuidance; //? incGuidance : "";
@@ -6623,19 +6683,19 @@ const onInvokeActivity = async (context) => {
           incId,
           companyData,
           inc,
-          incGuidance
-        )
+          incGuidance,
+        ),
       );
 
       await context.sendActivity({
         attachments: [cards],
       });
       log.addLog(
-        "After Click On Im_Safte or need assistance comment section card Send successfully. "
+        "After Click On Im_Safte or need assistance comment section card Send successfully. ",
       );
       if (companyData.EnableSafetycheckForVisitors == true) {
         log.addLog(
-          "In setting EnableSafetycheckForVisitors is true card sending"
+          "In setting EnableSafetycheckForVisitors is true card sending",
         );
         const Qestion1 = CardFactory.adaptiveCard(
           updateSafeMessageqestion1(
@@ -6647,14 +6707,14 @@ const onInvokeActivity = async (context) => {
             incId,
             companyData,
             inc,
-            incGuidance
-          )
+            incGuidance,
+          ),
         );
         await context.sendActivity({
           attachments: [Qestion1],
         });
         log.addLog(
-          "In setting EnableSafetycheckForVisitors is true card sending successsfully"
+          "In setting EnableSafetycheckForVisitors is true card sending successsfully",
         );
       }
 
@@ -6688,8 +6748,8 @@ const onInvokeActivity = async (context) => {
           isRecurringInc,
           action.data.safetyCheckMessageText,
           action.data.mentionUserEntities,
-          action.data.guidance
-        )
+          action.data.guidance,
+        ),
       );
       const message = MessageFactory.attachment(cards);
       message.id = context.activity.replyToId;
@@ -6705,7 +6765,7 @@ const onInvokeActivity = async (context) => {
       const action = context.activity.value.action;
       const { companyData, teamMemberCount } = action.data;
       const cards = CardFactory.adaptiveCard(
-        getTestIncPreviewCard(teamMemberCount, companyData)
+        getTestIncPreviewCard(teamMemberCount, companyData),
       );
 
       const message = MessageFactory.attachment(cards);
@@ -6734,7 +6794,7 @@ const onInvokeActivity = async (context) => {
       "",
       "",
       "",
-      "error in onInvokeActivity context=" + JSON.stringify(context)
+      "error in onInvokeActivity context=" + JSON.stringify(context),
     );
   }
 };

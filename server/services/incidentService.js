@@ -195,7 +195,7 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   }
 
   if (aadObjuserId != null) {
-    whereSql = ` where  inc.team_id  in (select team_id from MSTeamsInstallationDetails where (user_obj_id = '${aadObjuserId}' OR super_users like '%${aadObjuserId}%') AND uninstallation_date is null and team_id is not null and team_id <> '') `;
+    whereSql = ` where  inc.team_id  in (select team_id from MSTeamsInstallationDetails where (user_obj_id = '${aadObjuserId}' OR super_users like '%${aadObjuserId}%' OR WHO_CAN_CREATE_INCIDENT like '%${aadObjuserId}%' ) AND uninstallation_date is null and team_id is not null and team_id <> '') `;
     //userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id `;
   }
 
@@ -1486,17 +1486,25 @@ const getTeamMemeberSqlQuery = (
   superUsersLeftJoinQuery = null,
   incidentId = -1,
   resendSafetyCheck = false,
+  CreateIncidentUsersLeftJoinQuery = null,
 ) => {
   return (
     ` SELECT distinct u.[USER_ID] [${userIdAlias}] , u.[USER_NAME] [${userNameAlias}], u.user_aadobject_id userAadObjId, ` +
     (superUsersLeftJoinQuery != null
       ? " CASE when tblAadObjId.useAadObjId is not null then 1 else 0 end isSuperUser "
       : " 0 isSuperUser ") +
-    ` , u.conversationId,
+    ` ,` +
+    (CreateIncidentUsersLeftJoinQuery != null
+      ? " CASE when tblAadObjId1.useAadObjId is not null then 1 else 0 end iscreateIncidentUser "
+      : " 0 iscreateIncidentUser ") +
+    `, u.conversationId,
   case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department,u.email,u.hasLicense
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
     (superUsersLeftJoinQuery != null ? superUsersLeftJoinQuery : "") +
+    (CreateIncidentUsersLeftJoinQuery != null
+      ? CreateIncidentUsersLeftJoinQuery
+      : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
     ${
       resendSafetyCheck == "true"
@@ -1515,6 +1523,7 @@ const getAllTeamMembersQuery = (
   superUsersLeftJoinQuery = null,
   incidentId = -1,
   resendSafetyCheck = false,
+  CreateIncidentUsersLeftJoinQuery = null,
 ) => {
   let whereSql = "";
   if (teamId != null) {
@@ -1530,6 +1539,7 @@ const getAllTeamMembersQuery = (
     superUsersLeftJoinQuery,
     incidentId,
     resendSafetyCheck,
+    CreateIncidentUsersLeftJoinQuery,
   );
 };
 
@@ -1539,6 +1549,7 @@ const getAllTeamMembersByTeamId = async (
   userNameAlias = "title",
   userAadObjId,
   superUsersLeftJoinQuery = null,
+  CreateIncidentUsersLeftJoinQuery = null,
 ) => {
   try {
     const sqlTeamMembers = getAllTeamMembersQuery(
@@ -1547,6 +1558,9 @@ const getAllTeamMembersByTeamId = async (
       userIdAlias,
       userNameAlias,
       superUsersLeftJoinQuery,
+      -1,
+      false,
+      CreateIncidentUsersLeftJoinQuery,
     );
     const result = await db.getDataFromDB(sqlTeamMembers, userAadObjId);
     return Promise.resolve(result);
@@ -1647,8 +1661,26 @@ const getTeamIdByUserAadObjId = async (userAadObjId) => {
 const getUserInfo = async (teamId, useraadObjId) => {
   let result = null;
   try {
-    const sqlUserInfo = `select top 1 tu.*, inst.user_name adminName,  inst.team_name teamName from MSTeamsTeamsUsers tu
-                        left join msteamsinstallationdetails inst on inst.team_id = tu.team_id where tu.team_id = '${teamId}' and tu.user_aadobject_id = '${useraadObjId}'`;
+    const sqlUserInfo = `SELECT TOP 1 
+    tu.*, 
+    inst.user_name AS adminName,  
+    inst.team_name AS teamName,
+    s.SETTING_NAME,
+    s.SETTING_VALUE,
+    s.DATETIME
+FROM MSTeamsTeamsUsers tu
+LEFT JOIN msteamsinstallationdetails inst 
+    ON inst.team_id = tu.team_id
+
+OUTER APPLY (
+    SELECT TOP 1 *
+    FROM [SETTINGS] s
+    WHERE 
+       s.USR_AAD_OBJ_ID = tu.user_aadobject_id
+    ORDER BY s.DATETIME DESC
+) s
+
+where tu.team_id = '${teamId}' and tu.user_aadobject_id = '${useraadObjId}'`;
     result = await db.getDataFromDB(sqlUserInfo, useraadObjId);
   } catch (err) {
     console.log(err);
@@ -1719,12 +1751,19 @@ const getUserTeamInfo = async (userAadObjId) => {
         FROM MSTeamsInstallationDetails t
         LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
         WHERE (user_obj_id = '${userAadObjId}' 
-                  OR super_users like '%${userAadObjId}%') 
+                  OR super_users like '%${userAadObjId}%' or WHO_CAN_CREATE_INCIDENT like '%${userAadObjId}%') 
           AND uninstallation_date IS NULL 
           AND team_id IS NOT NULL 
           AND team_id <> '';
 
-        SELECT * FROM #CTE ORDER BY teamName;
+         SELECT *
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY teamId ORDER BY teamName) AS rn
+    FROM #CTE
+) x
+WHERE rn = 1
+ORDER BY teamName;
 
         SELECT * FROM MSTeamsSOSResponder WHERE team_id IN (SELECT teamId FROM #CTE);
 
@@ -1764,7 +1803,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
         FROM MSTeamsInstallationDetails t
         LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
         WHERE (user_obj_id = '${userAadObjId}' 
-                  OR super_users like '%${userAadObjId}%') 
+                  OR super_users like '%${userAadObjId}%' or WHO_CAN_CREATE_INCIDENT like '%${userAadObjId}%' ) 
           AND uninstallation_date IS NULL 
           AND team_id IS NOT NULL 
           AND team_id <> ''
@@ -1818,7 +1857,23 @@ const getSuperUsersByTeamId = async (teamId) => {
   }
   return Promise.resolve(result);
 };
-
+const getCreateIncidentUsersByTeamId = async (teamId) => {
+  let result = null;
+  try {
+    const sqlSuperUsers = `select top 1 WHO_CAN_CREATE_INCIDENT from MSTeamsInstallationDetails where team_id = '${teamId}' and WHO_CAN_CREATE_INCIDENT <> '' and WHO_CAN_CREATE_INCIDENT is not null`;
+    result = await db.getDataFromDB(sqlSuperUsers);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      null,
+      "error in getCreateIncidentUsersByTeamId",
+    );
+  }
+  return Promise.resolve(result);
+};
 const getenablecheck = async (teamId) => {
   let result = null;
   try {
@@ -1954,12 +2009,12 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
     if (TeamID != "null") {
       userSql = `select * from MSTeamsInstallationDetails where team_id='${TeamID}'; 
       select * from MSTeamsSOSResponder where team_id='${TeamID}';
-      select team_id, country, city, department from MSTeamsTeamsUsers where team_id = '${TeamID}' and user_aadobject_id = '${aadObjuserId}';`;
+      select team_id, country, city, department,DYNAMIC_LOCATION as dynamicLocation from MSTeamsTeamsUsers where team_id = '${TeamID}' and user_aadobject_id = '${aadObjuserId}';`;
     } else {
       userSql = `select user_obj_id, super_users, EMERGENCY_CONTACTS, team_id, team_name from msteamsinstallationdetails where team_id in
       (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null order by team_name;
       select * from MSTeamsSOSResponder where team_id in (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}');
-      select team_id, country, city, department from MSTeamsTeamsUsers where team_id in (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and user_aadobject_id = '${aadObjuserId}';`;
+      select team_id, country, city, department,DYNAMIC_LOCATION as dynamicLocation from MSTeamsTeamsUsers where team_id in (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and user_aadobject_id = '${aadObjuserId}';`;
     }
 
     const dataResult = await db.getDataFromDB(userSql, aadObjuserId, false);
@@ -1967,9 +2022,12 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
     const responderDetails = dataResult ? dataResult[1] : null;
     const userDetails = dataResult ? dataResult[2] : null;
     const teamsIds = [];
+    let userdynamicLocation;
     if (userResult != null && userResult.length > 0) {
       userResult.map((usr) => {
         let contactsArr = [];
+        let usercity;
+        let usercountry;
         const userTeamId = usr.team_id;
         let userDetail = null,
           respDetailsForCurTeam = null;
@@ -1981,34 +2039,69 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
             (r) => r.TEAM_ID === userTeamId,
           );
         }
+        if (userDetail && userDetail.dynamicLocation) {
+          userdynamicLocation = userDetail.dynamicLocation.split(", ");
+          usercity = userdynamicLocation[0].trim();
+          usercountry = userdynamicLocation[1].trim();
+        } else {
+          // usercity = userDetail?.city ?? userDetail?.city?.trim();
+          // usercountry = userDetail?.country ?? userDetail?.country?.trim();
+          usercity = userDetail?.city?.trim() || null;
 
+          usercountry = userDetail?.country?.trim() || null;
+        }
         // Prefer emergency contacts if present, else use super_users
         let fieldToUse = null;
         let responders = null;
         if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
           let respDetails = respDetailsForCurTeam.filter((r) => {
-            return userDetail?.city?.trim() && userDetail.city == r.CITY;
+            return usercity == r.CITY && usercountry == r.COUNTRY;
           });
           if (respDetails && respDetails.length > 0) {
             responders = respDetails[0].RESPONDER
               ? respDetails[0].RESPONDER
               : null;
           } else {
-            respDetails = respDetailsForCurTeam.filter((r) => {
-              return (
-                userDetail?.country?.trim() && userDetail.country == r.COUNTRY
-              );
+            let respDetails = respDetailsForCurTeam.filter((r) => {
+              return usercity == r.CITY;
             });
             if (respDetails && respDetails.length > 0) {
               responders = respDetails[0].RESPONDER
                 ? respDetails[0].RESPONDER
                 : null;
+            } else {
+              respDetails = respDetailsForCurTeam.filter((r) => {
+                return (
+                  usercountry == r.COUNTRY && (r.CITY == "" || r.CITY == null)
+                );
+              });
+              if (respDetails && respDetails.length > 0) {
+                responders = respDetails[0].RESPONDER
+                  ? respDetails[0].RESPONDER
+                  : null;
+              }
             }
           }
         }
         if (responders && responders.trim() !== "") {
           let responderArr = JSON.parse(responders);
           fieldToUse = responderArr.map((r) => r).join(",");
+        } else if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
+          let allRespDetails = responderDetails.filter(
+            (r) =>
+              r.TEAM_ID === userTeamId &&
+              r.CITY === "All" &&
+              r.COUNTRY === "All",
+          );
+          if (allRespDetails && allRespDetails.length > 0) {
+            responders = allRespDetails[0].RESPONDER
+              ? allRespDetails[0].RESPONDER
+              : null;
+          }
+          if (responders && responders.trim() !== "") {
+            let responderArr = JSON.parse(responders);
+            fieldToUse = responderArr.map((r) => r).join(",");
+          }
         } else if (
           usr.EMERGENCY_CONTACTS &&
           usr.EMERGENCY_CONTACTS.trim() !== ""
@@ -2251,6 +2344,32 @@ const saveFilterChecked = async (teamId, filterEnabled) => {
   }
   return Promise.resolve(result);
 };
+
+const manageColumns = async (teamId, settingName, value, userId) => {
+  let result = null;
+  try {
+    const safeTeamId = teamId;
+    const safeSettingName = settingName;
+    const safeValue = value;
+    const safeUserId = userId;
+    const query = `IF EXISTS (SELECT * FROM SETTINGS WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}')
+      BEGIN
+      UPDATE SETTINGS SET SETTING_VALUE = N'${safeValue}' WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}';
+      END
+      ELSE
+      BEGIN
+      INSERT INTO SETTINGS (TEAM_ID, USR_AAD_OBJ_ID, SETTING_NAME, SETTING_VALUE) VALUES
+      ('${safeTeamId}', '${safeUserId}', '${safeSettingName}', N'${safeValue}')
+      END`;
+    await db.getDataFromDB(query, userId);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    //processSafetyBotError(err, teamId, "", userId, "error in manageColumns");
+  }
+  return Promise.resolve(result);
+};
+
 const setSendEmail = async (teamId, sendemail) => {
   let result = null;
   try {
@@ -2322,7 +2441,19 @@ const setLanguagePreference = async (language, teamId, tenantid) => {
   }
   return Promise.resolve(result);
 };
-
+const setDynamicLocation = async (userid, location) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsTeamsUsers set DYNAMIC_LOCATION = '${location}' where user_aadobject_id='${userid}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userid, "error in setDynamicLocation");
+  }
+  return Promise.resolve(result);
+};
 const saveRefreshToken = async (teamId, refresh_token, field = "send_sms") => {
   let result = null;
   try {
@@ -2356,6 +2487,33 @@ const saveAppPermission = async (
         SET IS_APP_PERMISSION_GRANTED = '${IsAppPermissionGranted}' 
         WHERE user_tenant_id='${tenantid}';`;
 
+    qry += `IF NOT EXISTS (
+    SELECT 1
+    FROM MSTeamsSOSResponder
+    WHERE TEAM_ID = '${teamId}'
+      AND COUNTRY = 'All'
+      AND CITY = 'All'
+)
+BEGIN
+    INSERT INTO MSTeamsSOSResponder (TEAM_ID, COUNTRY, CITY, RESPONDER)
+    SELECT
+        '${teamId}',
+        'All',
+        'All',
+        '[' + STRING_AGG('"' + value + '"', ',') + ']'
+    FROM (
+        SELECT DISTINCT LTRIM(RTRIM(s.value)) AS value
+        FROM MSTeamsInstallationDetails m
+        CROSS APPLY STRING_SPLIT(m.super_users, ',') s
+        WHERE m.team_id = '${teamId}'
+
+        UNION
+
+        SELECT DISTINCT user_obj_id
+        FROM MSTeamsInstallationDetails
+        WHERE team_id = '${teamId}'
+    ) t;
+END`;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
@@ -3567,6 +3725,7 @@ module.exports = {
   getUserTeamInfoData,
   getFilterData,
   getSuperUsersByTeamId,
+  getCreateIncidentUsersByTeamId,
   isWelcomeMessageSend,
   getUserInfoByUserAadObjId,
   getIncResponseMembers,
@@ -3599,6 +3758,7 @@ module.exports = {
   deleteSOSResponder,
   saveSOSResponder,
   saveFilterChecked,
+  manageColumns,
   setSendWhatsapp,
   setSendEmail,
   setavailableforapp,
@@ -3621,4 +3781,5 @@ module.exports = {
   saveAllTypeQuerylogs,
   SosNotificationFor,
   setLanguagePreference,
+  setDynamicLocation,
 };

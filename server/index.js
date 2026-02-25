@@ -56,6 +56,15 @@ function initJob() {
         path: path.join(__dirname, "jobs", "updateUserDetails-job.js"),
         cron: "0 */1 * * *",
       },
+      {
+        name: "travelAdvisorySelectedCountries-job",
+        path: path.join(
+          __dirname,
+          "jobs",
+          "travelAdvisorySelectedCountries-job.js",
+        ),
+        cron: "0 */6 * * *",
+      },
       // {
       //   name: "GetAllUser-job",
       //   path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
@@ -88,7 +97,7 @@ app.use(cors());
 app.use(
   express.urlencoded({
     extended: true,
-  })
+  }),
 );
 
 var bodyParser = require("body-parser");
@@ -102,7 +111,7 @@ areYouSafeTabHandler.handlerForSafetyBotTab(app);
 app.get("/", (req, res) => {
   res.send(
     `<h2>The Safety Check app is running</h2>
-    <p>Follow the instructions in the README to configure the Microsoft Teams App and your environment variables.</p>`
+    <p>Follow the instructions in the README to configure the Microsoft Teams App and your environment variables.</p>`,
   );
 });
 

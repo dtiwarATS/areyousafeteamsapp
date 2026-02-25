@@ -185,11 +185,11 @@ class AreYouSafeTab {
           delivered: [],
         };
         members.forEach((m) => {
-          const { isMessageDelivered, msgStatus } = m;
+          const { isMessageDelivered, msgStatus, response } = m;
 
           if (!msgStatus || msgStatus?.toString()?.trim() == "") {
             memberObj.deliveryInProgress.push(m);
-          } else if (isMessageDelivered === true) {
+          } else if (isMessageDelivered === true && !response) {
             memberObj.delivered.push(m);
           } else if (isMessageDelivered === false) {
             memberObj.notDelivered.push(m);
@@ -312,12 +312,7 @@ class AreYouSafeTab {
                 deliveredCount = memberObj.delivered.length;
               }
             }
-            if (
-              incTypeId &&
-              incTypeId == 1 &&
-              respOptions &&
-              respOptions.length > 0
-            ) {
+            if (incTypeId && respOptions && respOptions.length > 0) {
               respOptions.forEach((resp) => {
                 const dashResp = {};
                 let usersWithResponse = inc.members.filter((m) => {
@@ -429,31 +424,72 @@ class AreYouSafeTab {
               ") t ) tblAadObjId on tblAadObjId.useAadObjId = u.user_aadobject_id ";
           }
         }
-
+        let CreateIncidentUsersLeftJoinQuery = null;
+        const CreateIncidentUsers =
+          await incidentService.getCreateIncidentUsersByTeamId(teamId);
+        if (
+          CreateIncidentUsers.length > 0 &&
+          CreateIncidentUsers[0]["WHO_CAN_CREATE_INCIDENT"] != null &&
+          CreateIncidentUsers[0]["WHO_CAN_CREATE_INCIDENT"] != ""
+        ) {
+          const createIncidentUsersArr = CreateIncidentUsers[0][
+            "WHO_CAN_CREATE_INCIDENT"
+          ]
+            .split(",")
+            .map((useAadObjId, index) => {
+              if (useAadObjId) {
+                if (index == 0) {
+                  return ` select '${useAadObjId}' useAadObjId `;
+                } else {
+                  return ` union all select '${useAadObjId}' useAadObjId `;
+                }
+              }
+            });
+          if (createIncidentUsersArr.length > 0) {
+            CreateIncidentUsersLeftJoinQuery =
+              `left join (Select * from (` +
+              createIncidentUsersArr.join(" ") +
+              ") t1 ) tblAadObjId1 on tblAadObjId1.useAadObjId = u.user_aadobject_id ";
+          }
+        }
         teamsMembers = await incidentService.getAllTeamMembersByTeamId(
           teamId,
           "value",
           "title",
           userAadObjId,
           superUsersLeftJoinQuery,
+          CreateIncidentUsersLeftJoinQuery,
         );
       } else if (teamId == null || teamId == "null") {
-        var memberqery = `SELECT MIN(id) AS id,  -- optional: pick one id per user
-       MIN(team_id) AS team_id,  -- pick any team_id
-       user_aadobject_id,
-       MIN(user_id) AS value,
-       MIN(user_name) AS title,
-       MIN(email) AS email
-FROM MSTeamsTeamsUsers
-WHERE team_id IN (
+        var memberqery = `SELECT 
+    MIN(tu.id) AS id,
+    MIN(tu.team_id) AS team_id,
+    tu.user_aadobject_id,
+    MIN(tu.user_id) AS value,
+    MIN(tu.user_name) AS title,
+    MIN(tu.email) AS email,
+    CASE 
+        WHEN tu.user_aadobject_id = '${userAadObjId}'
+             AND EXISTS (
+                 SELECT 1
+                 FROM MSTeamsInstallationDetails mid
+                 WHERE mid.WHO_CAN_CREATE_INCIDENT IS NOT NULL
+                   AND mid.WHO_CAN_CREATE_INCIDENT <> ''
+                   AND mid.WHO_CAN_CREATE_INCIDENT LIKE '%${userAadObjId}%'
+             )
+        THEN CAST(1 AS BIT)
+        ELSE CAST(0 AS BIT)
+    END AS iscreateIncidentUser
+FROM MSTeamsTeamsUsers tu
+WHERE tu.team_id IN (
     SELECT team_id
     FROM MSTeamsTeamsUsers
     WHERE user_aadobject_id = '${userAadObjId}'
 )
-GROUP BY user_aadobject_id
+GROUP BY tu.user_aadobject_id
 ORDER BY email;
-;
 `;
+
         teamsMembers = await db.getDataFromDB(memberqery, userAadObjId);
       }
       // else if (userAadObjId != null && userAadObjId != "null") {
@@ -541,14 +577,18 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         //   "," +
         //   userlocation.lon +
         //   "&zoom=14&size=400x400&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
-
+        var Ulocation = "";
+        if (user?.DYNAMIC_LOCATION != null) {
+          Ulocation = `📍${user?.DYNAMIC_LOCATION}`;
+        }
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
           body: [
             {
               type: "TextBlock",
-              text: `**<at>${user.user_name}</at>** needs assistance.`,
+              text: `**<at>${user.user_name}</at>** needs assistance.\n
+              ${Ulocation}`,
               wrap: true,
             },
             ...(sendonetime == "true"
@@ -1863,6 +1903,20 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
+  manageColumns = async (teamId, settingName, value, userId) => {
+    let res = null;
+    try {
+      res = await incidentService.manageColumns(
+        teamId,
+        settingName,
+        value,
+        userId,
+      );
+    } catch (err) {
+      processSafetyBotError(err, teamId, "", userId, "error in manageColumns");
+    }
+    return Promise.resolve(res);
+  };
   setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     let res = null;
     try {
@@ -1929,6 +1983,15 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
+  setDynamicLocation = async (userid, location) => {
+    let res = null;
+    try {
+      res = await incidentService.setDynamicLocation(userid, location);
+    } catch (err) {
+      processSafetyBotError(err, "", "", userid, "error in setDynamicLocation");
+    }
+    return Promise.resolve(res);
+  };
   // saveRefreshToken = async (teamId, refresh_token, field) => {
   //   let res = null;
   //   try {
@@ -1980,6 +2043,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     SafetycheckForVisitorsQuestion2,
     SafetycheckForVisitorsQuestion3,
     emergencyContactsStr,
+    iscreateIncidentUser,
   }) => {
     let result = null;
     try {
@@ -1993,6 +2057,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         SafetycheckForVisitorsQuestion2,
         SafetycheckForVisitorsQuestion3,
         emergencyContactsStr,
+        iscreateIncidentUser,
       );
     } catch (err) {
       processSafetyBotError(
