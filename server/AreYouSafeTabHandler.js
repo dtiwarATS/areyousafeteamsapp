@@ -13,7 +13,7 @@ const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
 const { saveToken, getToken } = require("./store");
-const { sendPushNotification } = require("./services/fcmService");
+const { sendPushNotification, getFcmTokensForUsers } = require("./services/fcmService");
 
 const handlerForSafetyBotTab = (app) => {
   const tabObj = new tab.AreYouSafeTab();
@@ -929,7 +929,11 @@ const handlerForSafetyBotTab = (app) => {
     if (!userId || !title) {
       return res.status(400).json({ ok: false, error: "userId and title required" });
     }
-    const fcmToken = await getToken(userId);
+    let fcmToken = await getToken(userId);
+    if (!fcmToken) {
+      const tokens = await getFcmTokensForUsers([userId], "android");
+      fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
+    }
     if (!fcmToken) {
       return res.status(404).json({ ok: false, error: "No FCM token for this userId" });
     }

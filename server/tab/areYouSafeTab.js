@@ -7,6 +7,7 @@ const {
 
 const incidentService = require("../services/incidentService");
 const socketService = require("../socket/socketService");
+const fcmService = require("../services/fcmService");
 
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const path = require("path");
@@ -631,6 +632,10 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
           approvalCardResponse.body.push(cardLocation);
         }
 
+        const baseUrl =
+          process.env.BASE_URL ||
+          process.env.serviceUrl?.replace("/api/messages", "") ||
+          "http://localhost:3978";
         const adminArr = [];
         const emittedTenants = new Set();
         for (let i = 0; i < admins.length; i++) {
@@ -1063,6 +1068,18 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               });
             }
           }
+        }
+        try {
+          await fcmService.sendSosPushToAdmins(
+            admins,
+            user,
+            userAadObjId,
+            requestAssistanceid,
+            baseUrl,
+            incidentService,
+          );
+        } catch (pushErr) {
+          console.error("[requestAssistance] sendSosPushToAdmins error:", pushErr);
         }
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
