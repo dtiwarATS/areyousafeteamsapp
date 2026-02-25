@@ -1756,7 +1756,14 @@ const getUserTeamInfo = async (userAadObjId) => {
           AND team_id IS NOT NULL 
           AND team_id <> '';
 
-        SELECT * FROM #CTE ORDER BY teamName;
+         SELECT *
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY teamId ORDER BY teamName) AS rn
+    FROM #CTE
+) x
+WHERE rn = 1
+ORDER BY teamName;
 
         SELECT * FROM MSTeamsSOSResponder WHERE team_id IN (SELECT teamId FROM #CTE);
 
@@ -2048,26 +2055,53 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
         let responders = null;
         if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
           let respDetails = respDetailsForCurTeam.filter((r) => {
-            return usercity == r.CITY;
+            return usercity == r.CITY && usercountry == r.COUNTRY;
           });
           if (respDetails && respDetails.length > 0) {
             responders = respDetails[0].RESPONDER
               ? respDetails[0].RESPONDER
               : null;
           } else {
-            respDetails = respDetailsForCurTeam.filter((r) => {
-              return usercountry == r.COUNTRY;
+            let respDetails = respDetailsForCurTeam.filter((r) => {
+              return usercity == r.CITY;
             });
             if (respDetails && respDetails.length > 0) {
               responders = respDetails[0].RESPONDER
                 ? respDetails[0].RESPONDER
                 : null;
+            } else {
+              respDetails = respDetailsForCurTeam.filter((r) => {
+                return (
+                  usercountry == r.COUNTRY && (r.CITY == "" || r.CITY == null)
+                );
+              });
+              if (respDetails && respDetails.length > 0) {
+                responders = respDetails[0].RESPONDER
+                  ? respDetails[0].RESPONDER
+                  : null;
+              }
             }
           }
         }
         if (responders && responders.trim() !== "") {
           let responderArr = JSON.parse(responders);
           fieldToUse = responderArr.map((r) => r).join(",");
+        } else if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
+          let allRespDetails = responderDetails.filter(
+            (r) =>
+              r.TEAM_ID === userTeamId &&
+              r.CITY === "All" &&
+              r.COUNTRY === "All",
+          );
+          if (allRespDetails && allRespDetails.length > 0) {
+            responders = allRespDetails[0].RESPONDER
+              ? allRespDetails[0].RESPONDER
+              : null;
+          }
+          if (responders && responders.trim() !== "") {
+            let responderArr = JSON.parse(responders);
+            fieldToUse = responderArr.map((r) => r).join(",");
+          }
         } else if (
           usr.EMERGENCY_CONTACTS &&
           usr.EMERGENCY_CONTACTS.trim() !== ""
@@ -2453,6 +2487,33 @@ const saveAppPermission = async (
         SET IS_APP_PERMISSION_GRANTED = '${IsAppPermissionGranted}' 
         WHERE user_tenant_id='${tenantid}';`;
 
+    qry += `IF NOT EXISTS (
+    SELECT 1
+    FROM MSTeamsSOSResponder
+    WHERE TEAM_ID = '${teamId}'
+      AND COUNTRY = 'All'
+      AND CITY = 'All'
+)
+BEGIN
+    INSERT INTO MSTeamsSOSResponder (TEAM_ID, COUNTRY, CITY, RESPONDER)
+    SELECT
+        '${teamId}',
+        'All',
+        'All',
+        '[' + STRING_AGG('"' + value + '"', ',') + ']'
+    FROM (
+        SELECT DISTINCT LTRIM(RTRIM(s.value)) AS value
+        FROM MSTeamsInstallationDetails m
+        CROSS APPLY STRING_SPLIT(m.super_users, ',') s
+        WHERE m.team_id = '${teamId}'
+
+        UNION
+
+        SELECT DISTINCT user_obj_id
+        FROM MSTeamsInstallationDetails
+        WHERE team_id = '${teamId}'
+    ) t;
+END`;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";

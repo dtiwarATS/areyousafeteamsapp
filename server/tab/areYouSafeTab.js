@@ -6,6 +6,8 @@ const {
 } = require("botbuilder");
 
 const incidentService = require("../services/incidentService");
+const socketService = require("../socket/socketService");
+const fcmService = require("../services/fcmService");
 
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const path = require("path");
@@ -183,11 +185,11 @@ class AreYouSafeTab {
           delivered: [],
         };
         members.forEach((m) => {
-          const { isMessageDelivered, msgStatus } = m;
+          const { isMessageDelivered, msgStatus, response } = m;
 
           if (!msgStatus || msgStatus?.toString()?.trim() == "") {
             memberObj.deliveryInProgress.push(m);
-          } else if (isMessageDelivered === true) {
+          } else if (isMessageDelivered === true && !response) {
             memberObj.delivered.push(m);
           } else if (isMessageDelivered === false) {
             memberObj.notDelivered.push(m);
@@ -310,12 +312,7 @@ class AreYouSafeTab {
                 deliveredCount = memberObj.delivered.length;
               }
             }
-            if (
-              incTypeId &&
-              incTypeId == 1 &&
-              respOptions &&
-              respOptions.length > 0
-            ) {
+            if (incTypeId && respOptions && respOptions.length > 0) {
               respOptions.forEach((resp) => {
                 const dashResp = {};
                 let usersWithResponse = inc.members.filter((m) => {
@@ -580,7 +577,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         //   "," +
         //   userlocation.lon +
         //   "&zoom=14&size=400x400&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
-        var Ulocation;
+        var Ulocation = "";
         if (user?.DYNAMIC_LOCATION != null) {
           Ulocation = `📍${user?.DYNAMIC_LOCATION}`;
         }
@@ -675,7 +672,12 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
           approvalCardResponse.body.push(cardLocation);
         }
 
+        const baseUrl =
+          process.env.BASE_URL ||
+          process.env.serviceUrl?.replace("/api/messages", "") ||
+          "http://localhost:3978";
         const adminArr = [];
+        const emittedTenants = new Set();
         for (let i = 0; i < admins.length; i++) {
           if (adminArr.includes(admins[i].user_id)) {
             continue;
@@ -728,6 +730,15 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   "",
                 );
               });
+              if (!emittedTenants.has(admins[i].user_tenant_id)) {
+                emittedTenants.add(admins[i].user_tenant_id);
+                socketService.emitNewSosTeams(admins[i].user_tenant_id, {
+                  requestAssistanceid,
+                  userAadObjId,
+                  user: { user_name: user.user_name, user_id: user.user_id },
+                  userlocation,
+                });
+              }
             } catch (ex) {
               incidentService.saveAllTypeQuerylogs(
                 admins[i].user_aadobject_id,
@@ -1097,6 +1108,18 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               });
             }
           }
+        }
+        try {
+          await fcmService.sendSosPushToAdmins(
+            admins,
+            user,
+            userAadObjId,
+            requestAssistanceid,
+            baseUrl,
+            incidentService,
+          );
+        } catch (pushErr) {
+          console.error("[requestAssistance] sendSosPushToAdmins error:", pushErr);
         }
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
@@ -1890,13 +1913,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         userId,
       );
     } catch (err) {
-      processSafetyBotError(
-        err,
-        teamId,
-        "",
-        userId,
-        "error in manageColumns",
-      );
+      processSafetyBotError(err, teamId, "", userId, "error in manageColumns");
     }
     return Promise.resolve(res);
   };

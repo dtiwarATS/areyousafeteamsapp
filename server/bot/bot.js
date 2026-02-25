@@ -2459,7 +2459,13 @@ const sendSafetyCheckMsgViaSMS = async (
       // ✅ Case 2: Display full message directly
       body += `\n\n${data}`;
     }
-
+    let safeUrl =
+      process.env.serviceUrl +
+      "/posresp?userId=" +
+      encodeURIComponent(user.id) +
+      "&eventId=" +
+      encodeURIComponent(incId);
+    body += `\n\nClick here to acknowledge ${safeUrl}`;
     console.log("Final SMS body:", body);
   }
   for (let user of usrPhones) {
@@ -2947,8 +2953,15 @@ const incTypeObj = {
 const getIncTypeText = (incTypeId) => {
   return incTypeObj[incTypeId] || null;
 };
-const withhoutsafteycard = async (incdata) => {
+const withhoutsafteycard = async (incdata, user) => {
   try {
+    let safeUrl =
+      process.env.serviceUrl +
+      "/posresp?userId=" +
+      encodeURIComponent(user.userAadObjId) +
+      "&eventId=" +
+      encodeURIComponent(incdata.incId) +
+      "&isfrom=Email";
     const myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
 
@@ -3019,7 +3032,12 @@ const withhoutsafteycard = async (incdata) => {
                 }</p>
               </td>
             </tr>
-
+ <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+            <td align="center" style="border:1px solid #707070; border-radius:4px; padding:8px 16px;">
+                 <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">Acknowledge</a>
+                </td></tr>
+  </table>
             <tr>
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
@@ -3030,6 +3048,7 @@ const withhoutsafteycard = async (incdata) => {
                 </p>
               </td>
             </tr>
+            
           </table>
         ${wrapperBottom}
       `;
@@ -3063,7 +3082,12 @@ const withhoutsafteycard = async (incdata) => {
                 </div>
               </td>
             </tr>
-
+ <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+            <td align="center" style="border:1px solid #707070; border-radius:4px; padding:8px 16px;">
+                 <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">Acknowledge</a>
+                </td></tr>
+  </table>
             <tr>
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
@@ -3072,6 +3096,7 @@ const withhoutsafteycard = async (incdata) => {
                 </p>
               </td>
             </tr>
+            
           </table>
         ${wrapperBottom}
       `;
@@ -3109,7 +3134,12 @@ const withhoutsafteycard = async (incdata) => {
                 </div>
               </td>
             </tr>
-
+ <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+            <td align="center" style="border:1px solid #707070; border-radius:4px; padding:8px 16px;">
+                 <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">Acknowledge</a>
+                </td></tr>
+  </table>
             <tr>
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
@@ -3118,6 +3148,7 @@ const withhoutsafteycard = async (incdata) => {
                 </p>
               </td>
             </tr>
+            
           </table>
         ${wrapperBottom}
       `;
@@ -3160,7 +3191,12 @@ const withhoutsafteycard = async (incdata) => {
                 }</p>
               </td>
             </tr>
-
+ <table cellpadding="0" cellspacing="0" border="0">
+                <tr>
+            <td align="center" style="border:1px solid #707070; border-radius:4px; padding:8px 16px;">
+                 <a href="${safeUrl}" style="color:#4b5563; text-decoration:none; font-weight:bold;">Acknowledge</a>
+                </td></tr>
+  </table>
             <tr>
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
@@ -3171,6 +3207,7 @@ const withhoutsafteycard = async (incdata) => {
                 </p>
               </td>
             </tr>
+            
           </table>
         ${wrapperBottom}
       `;
@@ -3209,7 +3246,7 @@ const sendFeedbackEmail = async (incdata, userEmail, user) => {
         user,
       );
     } else {
-      body = await withhoutsafteycard(incdata);
+      body = await withhoutsafteycard(incdata, user);
     }
     const raw = JSON.stringify({
       projectName: "AYS",
