@@ -278,14 +278,19 @@ async function getActiveSelectedCountries() {
  * @param {string} teamId - kept for API backward compatibility, ignored
  * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string }>>}
  */
-async function getActiveSelectedCountriesForTenantTeam(tenantId, teamId) {
+async function getActiveSelectedCountriesForTenantTeam(
+  tenantId,
+  teamId,
+  advisorytype,
+) {
   const pool = await poolPromise;
   const result = await pool
     .request()
-    .input("TenantId", sql.NVarChar(256), tenantId || "").query(`
+    .input("TenantId", sql.NVarChar(256), tenantId || "")
+    .input("AdvisoryType", sql.NVarChar(50), advisorytype || "").query(`
     SELECT s.Id AS TravelAdvisorySelectedCountriesId, s.TenantId, s.CountryCode
     FROM [dbo].[Advisory] s
-    WHERE s.TenantId = @TenantId AND s.IsActive = 1
+    WHERE s.TenantId = @TenantId AND s.IsActive = 1 and AdvisoryType=@advisorytype
     ORDER BY s.Id
   `);
   return result.recordset || [];
@@ -303,7 +308,7 @@ async function getSavedAdvisoryForSelectedId(selectedId) {
     .query(`
       SELECT Level, LevelNumber, Summary, Link, LastUpdatedAtUtc
       FROM [dbo].[AdvisoryDetail]
-      WHERE AdvisoryId = @selectedId
+      WHERE TravelAdvisorySelectionId = @selectedId
     `);
   const rows = result.recordset || [];
   if (rows.length === 0) return null;
@@ -392,57 +397,72 @@ async function upsertSavedAdvisory(
   countryCode,
   advisory,
   jobRunAt,
+  AdvisoryType,
 ) {
   await ensureAllTravelAdvisoryTables();
   const pool = await poolPromise;
   const code = countryCode != null ? String(countryCode).trim() : "";
-  const feedId =
-    advisory && advisory.id != null ? String(advisory.id).slice(0, 50) : null;
-  const title =
-    advisory && advisory.title != null
-      ? String(advisory.title).slice(0, 500)
-      : null;
-  const level =
-    advisory && advisory.level != null
-      ? String(advisory.level).slice(0, 100)
-      : null;
-  const levelNumber =
-    advisory && advisory.levelNumber != null
+
+  // Common
+  const syncedAtUtc = jobRunAt instanceof Date ? jobRunAt : new Date(jobRunAt);
+
+  // ----------------------
+  // WEATHER
+  // ----------------------
+  const isWeather = AdvisoryType === "Weather";
+
+  const feedId = isWeather
+    ? (advisory[0]?.alertId?.toString().slice(0, 50) ?? null)
+    : (advisory?.id?.toString().slice(0, 50) ?? null);
+
+  const title = isWeather
+    ? (advisory[0]?.description?.localized?.toString().slice(0, 500) ?? null)
+    : (advisory?.title?.toString().slice(0, 500) ?? null);
+
+  const level = isWeather
+    ? (advisory[0]?.category?.toString().slice(0, 100) ?? null)
+    : (advisory?.level?.toString().slice(0, 100) ?? null);
+
+  const levelNumber = isWeather
+    ? null
+    : advisory[0]?.levelNumber != null
       ? Number(advisory.levelNumber)
       : null;
-  const link =
-    advisory && advisory.link != null
-      ? String(advisory.link).slice(0, 500)
-      : null;
-  const publishedDate =
-    advisory && advisory.pubDate != null
-      ? String(advisory.pubDate).slice(0, 100)
-      : null;
-  const description =
-    advisory && advisory.description != null
-      ? String(advisory.description)
-      : null;
-  const summary =
-    advisory && advisory.summary != null ? String(advisory.summary) : null;
-  const restrictions =
-    advisory && advisory.restrictions != null
-      ? Array.isArray(advisory.restrictions)
-        ? advisory.restrictions.join("\n")
-        : String(advisory.restrictions)
-      : null;
-  const recommendations =
-    advisory && advisory.recommendations != null
-      ? Array.isArray(advisory.recommendations)
-        ? advisory.recommendations.join("\n")
-        : String(advisory.recommendations)
-      : null;
-  const lastUpdatedAtUtc =
-    advisory && advisory.lastUpdated != null
+
+  const link = isWeather
+    ? (advisory[0]?.source ?? 0)
+    : (advisory?.link?.toString().slice(0, 500) ?? null);
+
+  const publishedDate = isWeather
+    ? null
+    : (advisory?.pubDate?.toString().slice(0, 100) ?? null);
+
+  const description = isWeather
+    ? (advisory?.alertAreas?.[0]?.alertDetails?.toString() ?? null)
+    : (advisory?.description?.toString() ?? null);
+
+  const summary = isWeather ? null : (advisory?.summary?.toString() ?? null);
+
+  const restrictions = isWeather
+    ? null
+    : Array.isArray(advisory?.restrictions)
+      ? advisory.restrictions.join("\n")
+      : (advisory?.restrictions?.toString() ?? null);
+
+  const recommendations = isWeather
+    ? null
+    : Array.isArray(advisory?.recommendations)
+      ? advisory.recommendations.join("\n")
+      : (advisory?.recommendations?.toString() ?? null);
+
+  const lastUpdatedAtUtc = isWeather
+    ? null
+    : advisory?.lastUpdated
       ? advisory.lastUpdated instanceof Date
         ? advisory.lastUpdated
         : new Date(advisory.lastUpdated)
       : null;
-  const syncedAtUtc = jobRunAt instanceof Date ? jobRunAt : new Date(jobRunAt);
+  const ApiResponseJson = isWeather ? JSON.stringify(advisory) : "";
 
   const req = pool
     .request()
@@ -456,22 +476,24 @@ async function upsertSavedAdvisory(
     .input("PublishedDate", sql.NVarChar(100), publishedDate)
     .input("Description", sql.NVarChar(sql.MAX), description)
     .input("Summary", sql.NVarChar(sql.MAX), summary)
+    .input("AdvisoryType", sql.NVarChar(sql.MAX), AdvisoryType)
     .input("Restrictions", sql.NVarChar(sql.MAX), restrictions)
     .input("Recommendations", sql.NVarChar(sql.MAX), recommendations)
     .input("LastUpdatedAtUtc", sql.DateTime, lastUpdatedAtUtc)
-    .input("SyncedAtUtc", sql.DateTime, syncedAtUtc);
+    .input("SyncedAtUtc", sql.DateTime, syncedAtUtc)
+    .input("ApiResponseJson", sql.NVarChar(sql.MAX), ApiResponseJson);
 
   const result = await req.query(`
     MERGE [dbo].[AdvisoryDetail] AS t
     USING (SELECT @TravelAdvisorySelectionId AS TravelAdvisorySelectionId ,  @CountryCode AS CountryCode) AS s
-    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId AND t.CountryCode = s.CountryCode 
+    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId AND t.CountryCode = s.CountryCode
     WHEN MATCHED THEN
       UPDATE SET FeedId = @FeedId, CountryCode = @CountryCode, Title = @Title, Level = @Level, LevelNumber = @LevelNumber,
-        Link = @Link, PublishedDate = @PublishedDate, Description = @Description, Summary = @Summary,
-        Restrictions = @Restrictions, Recommendations = @Recommendations, LastUpdatedAtUtc = @LastUpdatedAtUtc, SyncedAtUtc = @SyncedAtUtc
+        Link = @Link, PublishedDate = @PublishedDate, Description = @Description, Summary = @Summary,ApiResponseJson=@ApiResponseJson,
+        Restrictions = @Restrictions, Recommendations = @Recommendations, LastUpdatedAtUtc = @LastUpdatedAtUtc, SyncedAtUtc = @SyncedAtUtc,AdvisoryType=@AdvisoryType
     WHEN NOT MATCHED THEN
-      INSERT (TravelAdvisorySelectionId, FeedId, CountryCode, Title, Level, LevelNumber, Link, PublishedDate, Description, Summary, Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
-      VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryCode, @Title, @Level, @LevelNumber, @Link, @PublishedDate, @Description, @Summary, @Restrictions, @Recommendations, @LastUpdatedAtUtc, @SyncedAtUtc)
+      INSERT (TravelAdvisorySelectionId, FeedId, CountryCode, Title, Level, LevelNumber, Link, PublishedDate, ApiResponseJson,Description, Summary,AdvisoryType, Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
+      VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryCode, @Title, @Level, @LevelNumber, @Link, @PublishedDate,@ApiResponseJson ,@Description, @Summary,@AdvisoryType, @Restrictions, @Recommendations, @LastUpdatedAtUtc, @SyncedAtUtc)
     OUTPUT INSERTED.Id;
   `);
   const rows = result.recordset || [];
@@ -541,7 +563,7 @@ async function insertSelectedCountryLog(
  * @param {string} [tenantId] - if provided, selections are filtered by tenantId
  * @returns {Promise<{ advisories: Array<Object> }>}
  */
-async function getTravelAdvisoryByTeamData(teamId, tenantId) {
+async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
   const pool = await poolPromise;
 
   const tenantIdTrimmed =
@@ -555,14 +577,15 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId) {
 
   const advResult = await pool
     .request()
-    .input("TenantId", sql.NVarChar(256), tenantIdTrimmed).query(`
-    SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,
+    .input("TenantId", sql.NVarChar(256), tenantIdTrimmed)
+    .input("AdvisoryType", sql.NVarChar(256), AdvisoryType).query(`
+    SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,d.AdvisoryType,d.ApiResponseJson,
            d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc,
            ISNULL(c.name, d.CountryCode) AS CountryName, d.CountryCode
     FROM [dbo].[AdvisoryDetail] d
     INNER JOIN [dbo].[Advisory] s ON s.Id = d.TravelAdvisorySelectionId
     LEFT JOIN [dbo].[Countries] c ON UPPER(LTRIM(RTRIM(c.code))) = UPPER(LTRIM(RTRIM(d.CountryCode)))
-    WHERE s.TenantId = @TenantId AND s.IsActive = 1
+    WHERE s.TenantId = @TenantId AND s.IsActive = 1 and d.AdvisoryType=@AdvisoryType
     ORDER BY ISNULL(c.name, d.CountryCode)
   `);
   const rows = advResult.recordset || [];
@@ -595,6 +618,8 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId) {
       restrictions: restrictions.length ? restrictions : undefined,
       recommendations: recommendations.length ? recommendations : undefined,
       id: r.Id != null ? String(r.Id) : undefined,
+      AdvisoryType: r.AdvisoryType ?? null,
+      ApiResponseJson: r.ApiResponseJson ?? "",
     };
   });
 
@@ -714,9 +739,9 @@ async function getLogsForSelectedCountry(id, limit = 50) {
     .request()
     .input("id", sql.Int, id)
     .input("limit", sql.Int, lim).query(`
-      SELECT TOP (@limit) Id, AdvisoryId, AdvisoryDetailId, CountryCode, FieldName, OldValue, NewValue, JobRunAtUtc
+      SELECT TOP (@limit) Id, TravelAdvisorySelectionId, TravelAdvisoryDetailId, CountryCode, FieldName, OldValue, NewValue, JobRunAtUtc
       FROM [dbo].[AdvisoryChangeLog]
-      WHERE AdvisoryId = @id
+      WHERE TravelAdvisorySelectionId = @id
       ORDER BY JobRunAtUtc DESC
     `);
   return result.recordset || [];

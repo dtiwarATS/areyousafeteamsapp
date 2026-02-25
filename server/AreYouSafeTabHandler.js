@@ -3531,11 +3531,14 @@ const handlerForSafetyBotTab = (app) => {
     async (req, res) => {
       try {
         const teamId = req.query.teamId || (req.body && req.body.teamId) || "";
+        const AdvisoryType =
+          req.query.advisoryType || (req.body && req.body.advisoryType) || "";
         const tenantId =
           req.query.tenantId || (req.body && req.body.tenantId) || "";
         const data = await travelSelectedDb.getTravelAdvisoryByTeamData(
           tenantId ? "" : teamId,
           tenantId || undefined,
+          AdvisoryType || "",
         );
 
         res.json({ success: true, data });
@@ -3590,9 +3593,11 @@ const handlerForSafetyBotTab = (app) => {
         const tenantId = body.tenantId || req.query.tenantId || "";
         const userId = body.userId || req.query.userId || "";
         const advisoryType = body.type || req.query.type || "";
+        const coordsStr = body.coords || req.query.coords || "";
         const countryCodes = Array.isArray(body.countryCodes)
           ? body.countryCodes
           : [];
+
         if (!tenantId) {
           return res.status(400).json({
             success: false,
@@ -3620,11 +3625,12 @@ const handlerForSafetyBotTab = (app) => {
             .map((c) => String(c).trim().toUpperCase())
             .filter(Boolean),
         );
-        if (requestedCodesSet.size > 0) {
+        if (requestedCodesSet.size > 0 && advisoryType == "Travel") {
           const selections =
             await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
               tenantId,
               "",
+              "Travel",
             );
           const filtered = selections.filter((row) => {
             const countryCodes = (row.CountryCode || "")
@@ -3655,9 +3661,44 @@ const handlerForSafetyBotTab = (app) => {
                     code,
                     advisory,
                     now,
+                    "Travel",
                   );
                   detailSavedCount++;
                 }
+              }
+            }
+          }
+        } else if (advisoryType == "Weather") {
+          {
+            const parts = String(coordsStr)
+              .trim()
+              .split(/[,\s]+/);
+            const lat = parseFloat(parts[0]);
+            const lon = parseFloat(parts[1]);
+            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
+              const weatherAdvisory = require("./travelServices/weather-advisory-feed");
+              const results = await weatherAdvisory.getWeatherAlerts(lat, lon);
+              const selections =
+                await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
+                  tenantId,
+                  "",
+                  "Weather",
+                );
+              const now = new Date();
+              for (const row of selections) {
+                const advisoryId = row.TravelAdvisorySelectedCountriesId;
+                const countryCode =
+                  results.length > 0
+                    ? (results[0].countryCode || "").trim()
+                    : "";
+                await travelSelectedDb.upsertSavedAdvisory(
+                  advisoryId,
+                  countryCode,
+                  results,
+                  now,
+                  "Weather",
+                );
+                detailSavedCount++;
               }
             }
           }
