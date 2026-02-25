@@ -1756,7 +1756,14 @@ const getUserTeamInfo = async (userAadObjId) => {
           AND team_id IS NOT NULL 
           AND team_id <> '';
 
-        SELECT * FROM #CTE ORDER BY teamName;
+         SELECT *
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY teamId ORDER BY teamName) AS rn
+    FROM #CTE
+) x
+WHERE rn = 1
+ORDER BY teamName;
 
         SELECT * FROM MSTeamsSOSResponder WHERE team_id IN (SELECT teamId FROM #CTE);
 

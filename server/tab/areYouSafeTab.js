@@ -183,11 +183,11 @@ class AreYouSafeTab {
           delivered: [],
         };
         members.forEach((m) => {
-          const { isMessageDelivered, msgStatus } = m;
+          const { isMessageDelivered, msgStatus, response } = m;
 
           if (!msgStatus || msgStatus?.toString()?.trim() == "") {
             memberObj.deliveryInProgress.push(m);
-          } else if (isMessageDelivered === true) {
+          } else if (isMessageDelivered === true && !response) {
             memberObj.delivered.push(m);
           } else if (isMessageDelivered === false) {
             memberObj.notDelivered.push(m);

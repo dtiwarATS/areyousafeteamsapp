@@ -110,6 +110,15 @@ const getSafetyCheckTypeCard = async (
       text: safetyCheckMessageText,
     },
   ];
+  if (incTypeId == 2) {
+    cardBody.push({
+      type: "TextBlock",
+      separator: true,
+      wrap: true,
+      isVisible: incGuidance ? true : false,
+      text: `**Guidance:**\n\n` + incGuidance,
+    });
+  }
   if (incTypeId == 1 || incTypeId == 2) {
     let btnSafe = {
       type: "Action.Execute",
@@ -205,15 +214,15 @@ const getSafetyCheckTypeCard = async (
       text: `**Guidance:**\n\n` + incGuidance,
     });
   }
-  if (incTypeId == 2) {
-    cardBody.push({
-      type: "TextBlock",
-      separator: true,
-      wrap: true,
-      isVisible: incGuidance ? true : false,
-      text: `**Guidance:**\n\n` + incGuidance,
-    });
-  }
+  // if (incTypeId == 2) {
+  //   cardBody.push({
+  //     type: "TextBlock",
+  //     separator: true,
+  //     wrap: true,
+  //     isVisible: incGuidance ? true : false,
+  //     text: `**Guidance:**\n\n` + incGuidance,
+  //   });
+  // }
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     appId: process.env.MicrosoftAppId,
