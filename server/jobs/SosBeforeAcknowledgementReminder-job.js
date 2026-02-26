@@ -52,7 +52,8 @@ const dashboard = require("../models/dashboard");
     t.ReminderIntervalMinutesBeforeAcknowledgement,
     t.NotifyInitiatorIfNoResponseBeforeAcknowledgement,
     t.serviceUrl,
-    t.user_tenant_id
+    t.user_tenant_id,
+    t.NotifyNoResponseBeforeAcknowledgementMessage
 
 FROM MSTeamsAssistance a
 
@@ -112,8 +113,9 @@ WHERE
               user_tenant_id: tenantId,
               FIRST_RESPONDER,
               FIRST_RESPONDER_RESPONDED_AT,
+              NotifyNoResponseBeforeAcknowledgementMessage: initiatorMessage,
             } = sos;
-            const initiatorMessage = "";
+
             // Double-check reminder is enabled
 
             // Check if already responded (double-check)

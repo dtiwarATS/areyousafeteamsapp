@@ -880,6 +880,7 @@ const updateSuperUserDataByUserAadObjId = async (
   SOSFollowUpCountSection2,
   SOSFollowUpIntervalSection2,
   NotifyAllRespondersIfNoResponse,
+  SOSInitiatorMessage,
 ) => {
   let isUpdated = false;
   try {
@@ -900,7 +901,8 @@ const updateSuperUserDataByUserAadObjId = async (
     WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
 
     updateQuery += `; UPDATE MSTeamsInstallationDetails SET IsReminderEnabledBeforeAcknowledgement = ${EnableSOSFollowUps ? 1 : 0}, MaxReminderCountBeforeAcknowledgement = ${SOSFollowUpCount}, ReminderIntervalMinutesBeforeAcknowledgement = ${SOSFollowUpInterval}, NotifyInitiatorIfNoResponseBeforeAcknowledgement = ${NotifyInitiatorIfNoResponse ? 1 : 0},
-MaxReminderCountAfterAcknowledgement = ${SOSFollowUpCountSection2}, ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2}, NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement = ${NotifyAllRespondersIfNoResponse ? 1 : 0}
+MaxReminderCountAfterAcknowledgement = ${SOSFollowUpCountSection2}, NotifyNoResponseBeforeAcknowledgementMessage='${SOSInitiatorMessage.replace(/'/g, "''")}',
+ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2}, NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement = ${NotifyAllRespondersIfNoResponse ? 1 : 0}
 WHERE team_id = '${teamId}'`;
     const result = await pool.request().query(updateQuery);
     isUpdated = true;
