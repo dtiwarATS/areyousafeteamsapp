@@ -1739,6 +1739,14 @@ const getUserTeamInfo = async (userAadObjId) => {
 		  SEND_WHATSAPP,
 		  send_sms,
 		 IS_APP_PERMISSION_GRANTED,
+     IsReminderEnabledBeforeAcknowledgement as ENABLE_SOS_FOLLOW_UPS,
+     MaxReminderCountBeforeAcknowledgement as SOS_FOLLOW_UP_COUNT,
+     ReminderIntervalMinutesBeforeAcknowledgement as SOS_FOLLOW_UP_INTERVAL,
+     NotifyInitiatorIfNoResponseBeforeAcknowledgement as NOTIFY_INITIATOR_IF_NO_RESPONSE,
+     MaxReminderCountAfterAcknowledgement as SOS_FOLLOW_UP_COUNT_SECTION2,
+     ReminderIntervalMinutesAfterAcknowledgement as SOS_FOLLOW_UP_INTERVAL_SECTION2,
+     NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement as NOTIFY_ALL_RESPONDERS_IF_NO_RESPONSE,
+
       serviceUrl,
       AVAILABLE_FOR,
       SMS_INFO_DISPLAY,
@@ -1797,6 +1805,13 @@ const getUserTeamInfoData = async (userAadObjId) => {
       SEND_EMAIL,
       LANGUAGE,
 		 IS_APP_PERMISSION_GRANTED,
+     IsReminderEnabledBeforeAcknowledgement as ENABLE_SOS_FOLLOW_UPS,
+     MaxReminderCountBeforeAcknowledgement as SOS_FOLLOW_UP_COUNT,
+     ReminderIntervalMinutesBeforeAcknowledgement as SOS_FOLLOW_UP_INTERVAL,
+     NotifyInitiatorIfNoResponseBeforeAcknowledgement as NOTIFY_INITIATOR_IF_NO_RESPONSE,
+     MaxReminderCountAfterAcknowledgement as SOS_FOLLOW_UP_COUNT_SECTION2,
+     ReminderIntervalMinutesAfterAcknowledgement as SOS_FOLLOW_UP_INTERVAL_SECTION2,
+     NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement as NOTIFY_ALL_RESPONDERS_IF_NO_RESPONSE,
           s.UserLimit,
           s.SubscriptionType
         INTO #CTE

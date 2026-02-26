@@ -1119,7 +1119,10 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             incidentService,
           );
         } catch (pushErr) {
-          console.error("[requestAssistance] sendSosPushToAdmins error:", pushErr);
+          console.error(
+            "[requestAssistance] sendSosPushToAdmins error:",
+            pushErr,
+          );
         }
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
@@ -2044,6 +2047,13 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     SafetycheckForVisitorsQuestion3,
     emergencyContactsStr,
     iscreateIncidentUser,
+    EnableSOSFollowUps,
+    SOSFollowUpCount,
+    SOSFollowUpInterval,
+    NotifyInitiatorIfNoResponse,
+    SOSFollowUpCountSection2,
+    SOSFollowUpIntervalSection2,
+    NotifyAllRespondersIfNoResponse,
   }) => {
     let result = null;
     try {
@@ -2058,6 +2068,13 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         SafetycheckForVisitorsQuestion3,
         emergencyContactsStr,
         iscreateIncidentUser,
+        EnableSOSFollowUps,
+        SOSFollowUpCount,
+        SOSFollowUpInterval,
+        NotifyInitiatorIfNoResponse,
+        SOSFollowUpCountSection2,
+        SOSFollowUpIntervalSection2,
+        NotifyAllRespondersIfNoResponse,
       );
     } catch (err) {
       processSafetyBotError(
