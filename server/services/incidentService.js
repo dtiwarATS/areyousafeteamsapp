@@ -2469,6 +2469,120 @@ const setDynamicLocation = async (userid, location) => {
   }
   return Promise.resolve(result);
 };
+
+const getSosBeforeAcknowledgementSettings = async (teamId) => {
+  let result = null;
+  try {
+    const sqlQuery = `
+      SELECT 
+        IsReminderEnabledBeforeAcknowledgement,
+        MaxReminderCountBeforeAcknowledgement,
+        ReminderIntervalMinutesBeforeAcknowledgement,
+        NotifyInitiatorIfNoResponseBeforeAcknowledgement,
+        BeforeAcknowledgementInitiatorMessage,
+        serviceUrl,
+        user_tenant_id
+      FROM MSTeamsInstallationDetails
+      WHERE team_id = '${teamId}'
+        AND uninstallation_date IS NULL
+    `;
+    const res = await db.getDataFromDB(sqlQuery);
+    if (res && res.length > 0) {
+      result = res[0];
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in getSosBeforeAcknowledgementSettings",
+    );
+  }
+  return Promise.resolve(result);
+};
+
+const updateSosBeforeAcknowledgementReminder = async (
+  assistanceId,
+  reminderCount,
+  lastReminderSentAt,
+) => {
+  let result = null;
+  try {
+    const lastReminderValue = lastReminderSentAt
+      ? `'${lastReminderSentAt}'`
+      : "NULL";
+    const updateQuery = `
+      UPDATE MSTeamsAssistance 
+      SET BeforeAcknowledgementReminderCount = ${reminderCount},
+          BeforeAcknowledgementLastReminderSentAt = ${lastReminderValue},
+          LastUpdatedDateTime = GETDATE()
+      WHERE id = ${assistanceId}
+    `;
+    await db.updateDataIntoDB(updateQuery);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      `error in updateSosBeforeAcknowledgementReminder assistanceId=${assistanceId}`,
+    );
+  }
+  return Promise.resolve(result);
+};
+
+const shouldNotifyInitiatorBeforeAcknowledgement = async (
+  assistanceId,
+  teamId,
+) => {
+  let result = false;
+  try {
+    const sqlQuery = `
+      SELECT 
+        a.BeforeAcknowledgementReminderCount,
+        a.FIRST_RESPONDER,
+        a.FIRST_RESPONDER_RESPONDED_AT,
+        t.MaxReminderCountBeforeAcknowledgement,
+        t.NotifyInitiatorIfNoResponseBeforeAcknowledgement
+      FROM MSTeamsAssistance a
+      CROSS APPLY STRING_SPLIT(a.team_ids, ',', 1) ts
+      INNER JOIN MSTeamsInstallationDetails t ON (
+        t.team_id = LTRIM(RTRIM(ts.value))
+        AND t.team_id = '${teamId}'
+        AND t.uninstallation_date IS NULL
+      )
+      WHERE a.id = ${assistanceId}
+    `;
+    const res = await db.getDataFromDB(sqlQuery);
+    if (res && res.length > 0) {
+      const data = res[0];
+      const reminderCount = data.BeforeAcknowledgementReminderCount || 0;
+      const maxCount = data.MaxReminderCountBeforeAcknowledgement || 0;
+      const shouldNotify = data.NotifyInitiatorIfNoResponseBeforeAcknowledgement;
+
+      // Check if all reminders sent and no response
+      result =
+        reminderCount >= maxCount &&
+        !data.FIRST_RESPONDER &&
+        !data.FIRST_RESPONDER_RESPONDED_AT &&
+        shouldNotify === 1;
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      `error in shouldNotifyInitiatorBeforeAcknowledgement assistanceId=${assistanceId}`,
+    );
+  }
+  return Promise.resolve(result);
+};
 const saveRefreshToken = async (teamId, refresh_token, field = "send_sms") => {
   let result = null;
   try {
@@ -3797,4 +3911,7 @@ module.exports = {
   SosNotificationFor,
   setLanguagePreference,
   setDynamicLocation,
+  getSosBeforeAcknowledgementSettings,
+  updateSosBeforeAcknowledgementReminder,
+  shouldNotifyInitiatorBeforeAcknowledgement,
 };
