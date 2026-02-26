@@ -21,64 +21,64 @@ function initJob() {
   const bree = new Bree({
     root: false,
     jobs: [
-      // {
-      //   name: "recurr-job",
-      //   path: path.join(__dirname, "jobs", "recurr-job.js"),
-      //   cron: "*/15 * * * *",
-      // },
-      // {
-      //   name: "newSubcriptionAdded-job",
-      //   path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
-      //   cron: "*/10 * * * *",
-      // },
-      // {
-      //   name: "subscription-job",
-      //   path: path.join(__dirname, "jobs", "subscription-job.js"),
-      //   cron: "0 0 * * *",
-      // },
-      // {
-      //   name: "postInstallation-job",
-      //   path: path.join(__dirname, "jobs", "postInstallation-job.js"),
-      //   cron: "* 1 * * *",
-      // },
-      // {
-      //   name: "SendRemainder-job",
-      //   path: path.join(__dirname, "jobs", "SendRemainder-job.js"),
-      //   cron: "*/3 * * * *",
-      // },
-      // {
-      //   name: "SosBeforeAcknowledgementReminder-job",
-      //   path: path.join(
-      //     __dirname,
-      //     "jobs",
-      //     "SosBeforeAcknowledgementReminder-job.js",
-      //   ),
-      //   cron: "*/1 * * * *",
-      // },
-      // {
-      //   name: "updateTeamMembers-job",
-      //   path: path.join(__dirname, "jobs", "updateTeamMembers-job.js"),
-      //   cron: "0 */12 * * *",
-      // },
-      // {
-      //   name: "updateUserDetails-job",
-      //   path: path.join(__dirname, "jobs", "updateUserDetails-job.js"),
-      //   cron: "0 */1 * * *",
-      // },
-      // {
-      //   name: "travelAdvisorySelectedCountries-job",
-      //   path: path.join(
-      //     __dirname,
-      //     "jobs",
-      //     "travelAdvisorySelectedCountries-job.js",
-      //   ),
-      //   cron: "0 */6 * * *",
-      // },
-      // {
-      //   name: "GetAllUser-job",
-      //   path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
-      //   cron: "*/15 * * * *",
-      // },
+      {
+        name: "recurr-job",
+        path: path.join(__dirname, "jobs", "recurr-job.js"),
+        cron: "*/15 * * * *",
+      },
+      {
+        name: "newSubcriptionAdded-job",
+        path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
+        cron: "*/10 * * * *",
+      },
+      {
+        name: "subscription-job",
+        path: path.join(__dirname, "jobs", "subscription-job.js"),
+        cron: "0 0 * * *",
+      },
+      {
+        name: "postInstallation-job",
+        path: path.join(__dirname, "jobs", "postInstallation-job.js"),
+        cron: "* 1 * * *",
+      },
+      {
+        name: "SendRemainder-job",
+        path: path.join(__dirname, "jobs", "SendRemainder-job.js"),
+        cron: "*/3 * * * *",
+      },
+      {
+        name: "SosBeforeAcknowledgementReminder-job",
+        path: path.join(
+          __dirname,
+          "jobs",
+          "SosBeforeAcknowledgementReminder-job.js",
+        ),
+        cron: "*/2 * * * *",
+      },
+      {
+        name: "updateTeamMembers-job",
+        path: path.join(__dirname, "jobs", "updateTeamMembers-job.js"),
+        cron: "0 */12 * * *",
+      },
+      {
+        name: "updateUserDetails-job",
+        path: path.join(__dirname, "jobs", "updateUserDetails-job.js"),
+        cron: "0 */1 * * *",
+      },
+      {
+        name: "travelAdvisorySelectedCountries-job",
+        path: path.join(
+          __dirname,
+          "jobs",
+          "travelAdvisorySelectedCountries-job.js",
+        ),
+        cron: "0 */6 * * *",
+      },
+      {
+        name: "GetAllUser-job",
+        path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
+        cron: "*/15 * * * *",
+      },
     ],
   });
   //cron1: "*/1 * * * *"
