@@ -561,7 +561,7 @@ async function insertSelectedCountryLog(
  * Uses Advisory and AdvisoryDetail. Filters by TenantId only (TeamId removed).
  * @param {string} teamId - when tenantId is provided, use '' (sentinel); when tenantId not provided, cannot filter (returns empty)
  * @param {string} [tenantId] - if provided, selections are filtered by tenantId
- * @returns {Promise<{ advisories: Array<Object> }>}
+ * @returns {Promise<{ advisories: Array<Object>, countryCodes: string[] }>}
  */
 async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
   const pool = await poolPromise;
@@ -572,13 +572,14 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
       : "";
 
   if (!tenantIdTrimmed) {
-    return { advisories: [] };
+    return { advisories: [], countryCodes: [] };
   }
 
-  const advResult = await pool
+  const advPromise = pool
     .request()
     .input("TenantId", sql.NVarChar(256), tenantIdTrimmed)
-    .input("AdvisoryType", sql.NVarChar(256), AdvisoryType).query(`
+    .input("AdvisoryType", sql.NVarChar(256), AdvisoryType)
+    .query(`
     SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,d.AdvisoryType,d.ApiResponseJson,
            d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc,
            ISNULL(c.name, d.CountryCode) AS CountryName, d.CountryCode
@@ -588,7 +589,27 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     WHERE s.TenantId = @TenantId AND s.IsActive = 1 and d.AdvisoryType=@AdvisoryType
     ORDER BY ISNULL(c.name, d.CountryCode)
   `);
+
+  const countryCodesPromise = pool
+    .request()
+    .input("TenantId", sql.NVarChar(256), tenantIdTrimmed)
+    .input("AdvisoryType", sql.NVarChar(256), AdvisoryType)
+    .query(`
+    SELECT CountryCode
+    FROM [dbo].[Advisory]
+    WHERE TenantId = @TenantId AND AdvisoryType = @AdvisoryType AND IsActive = 1
+    ORDER BY CountryCode
+  `);
+
+  const [advResult, countryCodesResult] = await Promise.all([
+    advPromise,
+    countryCodesPromise,
+  ]);
+
   const rows = advResult.recordset || [];
+  const countryCodes = (countryCodesResult.recordset || [])
+    .map((r) => (r.CountryCode || "").trim())
+    .filter(Boolean);
   const advisories = rows.map((r) => {
     const restrictions =
       r.Restrictions != null
@@ -623,7 +644,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     };
   });
 
-  return { advisories };
+  return { advisories, countryCodes };
 }
 
 /**
