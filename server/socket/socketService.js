@@ -31,25 +31,7 @@ function attach(server) {
 
   io.on("connection", (socket) => {
     console.log("[SOCKET] client connected", { socketId: socket.id, timestamp: new Date().toISOString() });
-    setTimeout(() => {
-      socket.emit(EVENT_HELLO, { text: "hi_edddd" });
-    }, 3000);
-
-    let sent = 0;
-    const intervalId = setInterval(() => {
-      socket.emit(EVENT_TEST_MESSAGE, {
-        text: "test",
-        sequence: sent + 1,
-        total: 5,
-      });
-      sent++;
-      if (sent >= 5) {
-        clearInterval(intervalId);
-      }
-    }, 3000);
-
     socket.on("disconnect", () => {
-      clearInterval(intervalId);
       console.log("[SOCKET] client disconnected", { socketId: socket.id, timestamp: new Date().toISOString() });
     });
 
@@ -95,7 +77,8 @@ function emitRespondToAssistance(tenantId, payload) {
     tenantId,
     room,
     roomSize,
-    payload: JSON.stringify(payload),
+    hasPayload: !!payload,
+    payloadKeys: payload ? Object.keys(payload) : [],
   });
   if (roomSize === 0) {
     console.log("[SOCKET] WARNING: No clients in room - event will not be received");
@@ -124,7 +107,8 @@ function emitNewSosTeams(tenantId, payload) {
     tenantId,
     room,
     roomSize,
-    payload: JSON.stringify(payload),
+    hasPayload: !!payload,
+    payloadKeys: payload ? Object.keys(payload) : [],
   });
   if (roomSize === 0) {
     console.log("[SOCKET] WARNING: No clients in room - event will not be received");

@@ -108,7 +108,7 @@ async function sendSosPushToAdmins(admins, user, userAadObjId, requestAssistance
   if (!tokens || tokens.length === 0) return;
   const title = 'SOS Alert';
   const body = `${user.user_name || 'Someone'} needs assistance`;
-  for (const row of tokens) {
+  const pushTasks = tokens.map(async (row) => {
     const adminId = row.user_id;
     const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${adminId}`;
     const data = {
@@ -158,10 +158,11 @@ async function sendSosPushToAdmins(admins, user, userAadObjId, requestAssistance
         '',
         '',
         '',
-        String(err && err.message || ''),
+        String((err && err.message) || ''),
       );
     }
-  }
+  });
+  await Promise.allSettled(pushTasks);
 }
 
 module.exports = { sendPushNotification, getFcmTokensForUsers, sendSosPushToAdmins };
