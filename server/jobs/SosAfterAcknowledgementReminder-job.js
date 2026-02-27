@@ -340,19 +340,6 @@ WHERE
             log.addLog(
               `SOS ${assistanceId}: After-acknowledgement reminder sent successfully (${newReminderCount}/${maxReminderCount})`,
             );
-
-            // If this was the last reminder, check if we need to escalate
-            if (newReminderCount >= maxReminderCount && notifyAllResponders) {
-              await sendEscalationToAllResponders(
-                assistanceId,
-                initiatorUserId,
-                initiatorUser.user_name,
-                sentToIds,
-                serviceUrl,
-                tenantId,
-                log,
-              );
-            }
           } catch (err) {
             log.addLog(`Error processing SOS ${sos.id}: ${err.message}`);
             processSafetyBotError(
