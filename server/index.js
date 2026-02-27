@@ -6,7 +6,7 @@ const cors = require("cors");
 const poolPromise = require("./db/dbConn");
 const ENV_FILE = path.join(__dirname, "../.env");
 const areYouSafeTabHandler = require("./AreYouSafeTabHandler");
-const socketService = require("./socket/socketService");
+// const socketService = require("./socket/socketService");
 require("dotenv").config({ path: ENV_FILE });
 
 const { processSafetyBotError } = require("./models/processError");
@@ -135,7 +135,7 @@ app.get("/", (req, res) => {
 
 const server = app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
-  socketService.attach(server);
+  // socketService.attach(server);
 });
 
 server.keepAliveTimeout = 61 * 1000;

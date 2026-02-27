@@ -12,8 +12,8 @@ const { formatedDate } = require("./utils/index");
 const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
-const { saveToken, getToken } = require("./store");
-const { sendPushNotification, getFcmTokensForUsers } = require("./services/fcmService");
+// const { saveToken, getToken } = require("./store");
+// const { sendPushNotification, getFcmTokensForUsers } = require("./services/fcmService");
 
 const handlerForSafetyBotTab = (app) => {
   const tabObj = new tab.AreYouSafeTab();
@@ -926,55 +926,55 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
-  app.post("/areyousafetabhandler/registerFcmToken", async (req, res) => {
-    console.log("[registerFcmToken] REQUEST received, body:", JSON.stringify(req.body, null, 2));
-    const { userId, fcmToken, platform, basicPhoneInfo, extra } = req.body || {};
-    if (!userId || !fcmToken) {
-      console.log("[registerFcmToken] REJECTED: userId or fcmToken missing");
-      return res.status(400).json({ ok: false, error: "userId and fcmToken required" });
-    }
-    const deviceInfo = {};
-    if (basicPhoneInfo) {
-      deviceInfo.osVersion = basicPhoneInfo.osVersion ?? null;
-      const pc = basicPhoneInfo.platformConstants || {};
-      deviceInfo.deviceBrand = pc.Brand ?? null;
-      deviceInfo.deviceManufacturer = pc.Manufacturer ?? null;
-      deviceInfo.deviceModel = pc.Model ?? null;
-    }
-    if (extra && typeof extra.authStatus === "number") {
-      deviceInfo.authStatus = extra.authStatus;
-    }
-    console.log("[registerFcmToken] Calling saveToken with:", { userId, fcmToken, platform: platform || "android", deviceInfo });
-    try {
-      await saveToken(userId, fcmToken, platform || "android", deviceInfo);
-      console.log("[registerFcmToken] saveToken SUCCESS for userId:", userId);
-      res.status(200).json({ ok: true });
-    } catch (e) {
-      console.error("[registerFcmToken] error:", e?.message);
-      res.status(500).json({ ok: false, error: e?.message });
-    }
-  });
-  app.post("/areyousafetabhandler/sendNotification", async (req, res) => {
-    const { userId, title, body, data } = req.body || {};
-    if (!userId || !title) {
-      return res.status(400).json({ ok: false, error: "userId and title required" });
-    }
-    let fcmToken = await getToken(userId);
-    if (!fcmToken) {
-      const tokens = await getFcmTokensForUsers([userId], "android");
-      fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
-    }
-    if (!fcmToken) {
-      return res.status(404).json({ ok: false, error: "No FCM token for this userId" });
-    }
-    try {
-      await sendPushNotification(fcmToken, title, body || "", data || {});
-      res.status(200).json({ ok: true });
-    } catch (err) {
-      console.error("[sendNotification]", err);
-      res.status(500).json({ ok: false, error: err.message });
-    }
-  });
+  // app.post("/areyousafetabhandler/registerFcmToken", async (req, res) => {
+  //   console.log("[registerFcmToken] REQUEST received, body:", JSON.stringify(req.body, null, 2));
+  //   const { userId, fcmToken, platform, basicPhoneInfo, extra } = req.body || {};
+  //   if (!userId || !fcmToken) {
+  //     console.log("[registerFcmToken] REJECTED: userId or fcmToken missing");
+  //     return res.status(400).json({ ok: false, error: "userId and fcmToken required" });
+  //   }
+  //   const deviceInfo = {};
+  //   if (basicPhoneInfo) {
+  //     deviceInfo.osVersion = basicPhoneInfo.osVersion ?? null;
+  //     const pc = basicPhoneInfo.platformConstants || {};
+  //     deviceInfo.deviceBrand = pc.Brand ?? null;
+  //     deviceInfo.deviceManufacturer = pc.Manufacturer ?? null;
+  //     deviceInfo.deviceModel = pc.Model ?? null;
+  //   }
+  //   if (extra && typeof extra.authStatus === "number") {
+  //     deviceInfo.authStatus = extra.authStatus;
+  //   }
+  //   console.log("[registerFcmToken] Calling saveToken with:", { userId, fcmToken, platform: platform || "android", deviceInfo });
+  //   try {
+  //     await saveToken(userId, fcmToken, platform || "android", deviceInfo);
+  //     console.log("[registerFcmToken] saveToken SUCCESS for userId:", userId);
+  //     res.status(200).json({ ok: true });
+  //   } catch (e) {
+  //     console.error("[registerFcmToken] error:", e?.message);
+  //     res.status(500).json({ ok: false, error: e?.message });
+  //   }
+  // });
+  // app.post("/areyousafetabhandler/sendNotification", async (req, res) => {
+  //   const { userId, title, body, data } = req.body || {};
+  //   if (!userId || !title) {
+  //     return res.status(400).json({ ok: false, error: "userId and title required" });
+  //   }
+  //   let fcmToken = await getToken(userId);
+  //   if (!fcmToken) {
+  //     const tokens = await getFcmTokensForUsers([userId], "android");
+  //     fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
+  //   }
+  //   if (!fcmToken) {
+  //     return res.status(404).json({ ok: false, error: "No FCM token for this userId" });
+  //   }
+  //   try {
+  //     await sendPushNotification(fcmToken, title, body || "", data || {});
+  //     res.status(200).json({ ok: true });
+  //   } catch (err) {
+  //     console.error("[sendNotification]", err);
+  //     res.status(500).json({ ok: false, error: err.message });
+  //   }
+  // });
   app.get("/areyousafetabhandler/getAssistanceData", (req, res) => {
     const userAadObjId = req.query.userId;
     try {

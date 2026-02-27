@@ -108,60 +108,60 @@ async function sendSosPushToAdmins(admins, user, userAadObjId, requestAssistance
   if (!tokens || tokens.length === 0) return;
   const title = 'SOS Alert';
   const body = `${user.user_name || 'Someone'} needs assistance`;
-  const pushTasks = tokens.map(async (row) => {
-    const adminId = row.user_id;
-    const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${adminId}`;
-    const data = {
-      requestAssistanceid: String(requestAssistanceid),
-      userAadObjId: String(userAadObjId || ''),
-      adminId,
-      acceptLink,
-    };
-    try {
-      incidentService.saveAllTypeQuerylogs(
-        adminId,
-        '',
-        'SOS_PUSH',
-        'FCM',
-        requestAssistanceid,
-        'SENDING',
-        '',
-        '',
-        '',
-        '',
-        '',
-      );
-      await sendPushNotification(row.fcm_token, title, body, data);
-      incidentService.saveAllTypeQuerylogs(
-        adminId,
-        '',
-        'SOS_PUSH',
-        'FCM',
-        requestAssistanceid,
-        'SEND_SUCCESS',
-        '',
-        '',
-        '',
-        '',
-        '',
-      );
-    } catch (err) {
-      console.error('[sendSosPushToAdmins] sendPushNotification error:', err);
-      incidentService.saveAllTypeQuerylogs(
-        adminId,
-        '',
-        'SOS_PUSH',
-        'FCM',
-        requestAssistanceid,
-        'SEND_FAILED',
-        '',
-        '',
-        '',
-        '',
-        String((err && err.message) || ''),
-      );
-    }
-  });
+  // const pushTasks = tokens.map(async (row) => {
+  //   const adminId = row.user_id;
+  //   const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${adminId}`;
+  //   const data = {
+  //     requestAssistanceid: String(requestAssistanceid),
+  //     userAadObjId: String(userAadObjId || ''),
+  //     adminId,
+  //     acceptLink,
+  //   };
+  //   try {
+  //     incidentService.saveAllTypeQuerylogs(
+  //       adminId,
+  //       '',
+  //       'SOS_PUSH',
+  //       'FCM',
+  //       requestAssistanceid,
+  //       'SENDING',
+  //       '',
+  //       '',
+  //       '',
+  //       '',
+  //       '',
+  //     );
+  //     await sendPushNotification(row.fcm_token, title, body, data);
+  //     incidentService.saveAllTypeQuerylogs(
+  //       adminId,
+  //       '',
+  //       'SOS_PUSH',
+  //       'FCM',
+  //       requestAssistanceid,
+  //       'SEND_SUCCESS',
+  //       '',
+  //       '',
+  //       '',
+  //       '',
+  //       '',
+  //     );
+  //   } catch (err) {
+  //     console.error('[sendSosPushToAdmins] sendPushNotification error:', err);
+  //     incidentService.saveAllTypeQuerylogs(
+  //       adminId,
+  //       '',
+  //       'SOS_PUSH',
+  //       'FCM',
+  //       requestAssistanceid,
+  //       'SEND_FAILED',
+  //       '',
+  //       '',
+  //       '',
+  //       '',
+  //       String((err && err.message) || ''),
+  //     );
+  //   }
+  // });
   await Promise.allSettled(pushTasks);
 }
 

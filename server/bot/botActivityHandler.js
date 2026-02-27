@@ -16,7 +16,7 @@ const {
 } = require("botbuilder");
 const bot = require("../bot/bot");
 const incidentService = require("../services/incidentService");
-const socketService = require("../socket/socketService");
+// const socketService = require("../socket/socketService");
 const {
   getCompaniesData,
   insertCompanyData,
@@ -1749,16 +1749,16 @@ WHEN NOT MATCHED THEN
           user.id,
         );
 
-        // Emit via WebSocket so connected clients (e.g. requester's mobile app) get real-time "Accept and respond" notification
-        socketService.emitRespondToAssistance(tenantId, {
-          requestAssistanceid,
-          userAadObjId,
-          clickedBy: {
-            id: user.id,
-            aadObjectId: user.aadObjectId,
-            name: user.name,
-          },
-        });
+        // // Emit via WebSocket so connected clients (e.g. requester's mobile app) get real-time "Accept and respond" notification
+        // socketService.emitRespondToAssistance(tenantId, {
+        //   requestAssistanceid,
+        //   userAadObjId,
+        //   clickedBy: {
+        //     id: user.id,
+        //     aadObjectId: user.aadObjectId,
+        //     name: user.name,
+        //   },
+        // });
 
         // Get all admins from MSTeamsAssistance and send them notification
         let otherAdminNames = []; // Store other admin names for acknowledgment message
