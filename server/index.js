@@ -56,6 +56,15 @@ function initJob() {
         cron: "*/2 * * * *",
       },
       {
+        name: "SosAfterAcknowledgementReminder-job",
+        path: path.join(
+          __dirname,
+          "jobs",
+          "SosAfterAcknowledgementReminder-job.js",
+        ),
+        cron: "*/2 * * * *",
+      },
+      {
         name: "updateTeamMembers-job",
         path: path.join(__dirname, "jobs", "updateTeamMembers-job.js"),
         cron: "0 */12 * * *",

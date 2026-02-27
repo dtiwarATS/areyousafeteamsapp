@@ -2055,6 +2055,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     SOSFollowUpIntervalSection2,
     NotifyAllRespondersIfNoResponse,
     SOSInitiatorMessage,
+    SOSAllRespondersMessage,
   }) => {
     let result = null;
     try {
@@ -2077,6 +2078,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         SOSFollowUpIntervalSection2,
         NotifyAllRespondersIfNoResponse,
         SOSInitiatorMessage,
+        SOSAllRespondersMessage,
       );
     } catch (err) {
       processSafetyBotError(

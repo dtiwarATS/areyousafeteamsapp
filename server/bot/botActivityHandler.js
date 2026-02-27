@@ -1207,6 +1207,49 @@ WHEN NOT MATCHED THEN
             statusCode: StatusCodes.OK,
           },
         };
+      } else if (uVerb === "after_acknowledgement_response") {
+        await context.sendActivities([{ type: "typing" }]);
+        const action = context.activity.value.action;
+        const { assistanceId, responseType, userAadObjId } = action.data;
+        const user = context.activity.from;
+
+        // Handle the after-acknowledgement response button click
+        console.log("After acknowledgement response clicked:", {
+          assistanceId,
+          responseType,
+          clickedBy: user.id,
+          userAadObjId,
+        });
+
+        // Return OK immediately to Teams, then process asynchronously
+        this.handleAfterAcknowledgementResponseAsync(
+          context,
+          assistanceId,
+          responseType,
+          userAadObjId,
+          user,
+        ).catch((error) => {
+          console.log(
+            "Error in async after_acknowledgement_response handler:",
+            error,
+          );
+          processSafetyBotError(
+            error,
+            "",
+            "",
+            userAadObjId,
+            "error in async after_acknowledgement_response - assistanceId: " +
+              assistanceId,
+          );
+        });
+
+        // Return OK immediately
+        return {
+          status: StatusCodes.OK,
+          body: {
+            statusCode: StatusCodes.OK,
+          },
+        };
       } else if (uVerb === "submit_comment") {
         const action = context.activity.value.action;
         const {
@@ -1667,7 +1710,14 @@ WHEN NOT MATCHED THEN
         }
       } else {
         // No one has responded yet - update FIRST_RESPONDER and RESPONDED_AT
-        const updateQuery = `UPDATE MSTeamsAssistance SET FIRST_RESPONDER = '${user.aadObjectId}', FIRST_RESPONDER_RESPONDED_AT = GETDATE() WHERE id = ${requestAssistanceid}`;
+        // Also initialize after-acknowledgement tracking fields
+        const updateQuery = `UPDATE MSTeamsAssistance 
+          SET FIRST_RESPONDER = '${user.aadObjectId}', 
+              FIRST_RESPONDER_RESPONDED_AT = GETDATE(),
+              AfterAcknowledgementReminderCount = 0,
+              AfterAcknowledgementLastReminderSentAt = NULL,
+              AfterAcknowledgementResponseStatus = NULL
+          WHERE id = ${requestAssistanceid}`;
         await db.updateDataIntoDB(updateQuery, userAadObjId);
 
         // Create message card
@@ -2369,6 +2419,240 @@ WHERE rn = 1;
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
           requestAssistanceid,
+      );
+    }
+  }
+
+  async handleAfterAcknowledgementResponseAsync(
+    context,
+    assistanceId,
+    responseType,
+    userAadObjId,
+    user,
+  ) {
+    try {
+      // Get SOS assistance data
+      const assistanceQuery = `
+        SELECT 
+          a.id,
+          a.user_id,
+          a.sent_to_ids,
+          a.FIRST_RESPONDER,
+          a.AfterAcknowledgementResponseStatus,
+          t.serviceUrl,
+          t.user_tenant_id
+        FROM MSTeamsAssistance a
+        OUTER APPLY (
+          SELECT TOP 1 t.serviceUrl, t.user_tenant_id
+          FROM MSTeamsTeamsUsers tu
+          INNER JOIN MSTeamsInstallationDetails t
+            ON t.team_id = tu.team_id
+            AND t.uninstallation_date IS NULL
+          WHERE tu.user_id = a.user_id
+          ORDER BY t.team_id
+        ) t
+        WHERE a.id = ${assistanceId}
+      `;
+      const assistanceData = await db.getDataFromDB(
+        assistanceQuery,
+        userAadObjId,
+      );
+
+      if (!assistanceData || assistanceData.length === 0) {
+        console.log(`SOS ${assistanceId} not found`);
+        return;
+      }
+
+      const assistance = assistanceData[0];
+
+      // Check if already responded
+      if (assistance.AfterAcknowledgementResponseStatus) {
+        console.log(
+          `SOS ${assistanceId} already has response status ${assistance.AfterAcknowledgementResponseStatus}`,
+        );
+        return;
+      }
+
+      // Get user info for the person who clicked
+      const userInfoQuery = `
+        SELECT TOP 1 user_id, user_name, user_aadobject_id
+        FROM MSTeamsTeamsUsers
+        WHERE user_aadobject_id = '${user.aadObjectId}'
+      `;
+      const userInfoResult = await db.getDataFromDB(
+        userInfoQuery,
+        userAadObjId,
+      );
+      if (!userInfoResult || userInfoResult.length === 0) {
+        console.log(`User ${user.aadObjectId} not found`);
+        return;
+      }
+      const responderUser = userInfoResult[0];
+
+      // Get initiator user info
+      const initiatorQuery = `
+        SELECT TOP 1 user_id, user_name, user_aadobject_id
+        FROM MSTeamsTeamsUsers
+        WHERE user_id = '${assistance.user_id}'
+      `;
+      const initiatorResult = await db.getDataFromDB(
+        initiatorQuery,
+        userAadObjId,
+      );
+      if (!initiatorResult || initiatorResult.length === 0) {
+        console.log(`Initiator ${assistance.user_id} not found`);
+        return;
+      }
+      const initiatorUser = initiatorResult[0];
+
+      const serviceUrl = assistance.serviceUrl;
+      const tenantId = assistance.user_tenant_id;
+
+      // Update response status
+      const updateQuery = `
+        UPDATE MSTeamsAssistance 
+        SET AfterAcknowledgementResponseStatus = '${responseType}',
+            AfterAcknowledgementRespondedByUserId = '${responderUser.user_aadobject_id}',
+            AfterAcknowledgementRespondedAt = GETDATE(),
+            LastUpdatedDateTime = GETDATE()
+        WHERE id = ${assistanceId}
+      `;
+      await db.updateDataIntoDB(updateQuery, userAadObjId);
+
+      // Get all responders for notification
+      const sentToIds = assistance.sent_to_ids;
+      const responderIds = sentToIds
+        ? sentToIds
+            .split(",")
+            .map((id) => id.trim())
+            .filter((id) => id)
+        : [];
+
+      if (responderIds.length > 0) {
+        const responderIdsStr = responderIds.map((id) => `'${id}'`).join(",");
+        const responderQuery = `
+          WITH DistinctUsers AS (
+            SELECT DISTINCT
+              user_id,
+              user_name,
+              user_aadobject_id
+            FROM MSTeamsTeamsUsers
+            WHERE user_id IN (${responderIdsStr})
+          )
+          SELECT
+            u.user_id,
+            u.user_name,
+            u.user_aadobject_id,
+            t.serviceUrl,
+            t.user_tenant_id
+          FROM DistinctUsers u
+          OUTER APPLY (
+            SELECT TOP 1
+              t.serviceUrl,
+              t.user_tenant_id
+            FROM MSTeamsTeamsUsers tu
+            INNER JOIN MSTeamsInstallationDetails t
+              ON t.team_id = tu.team_id
+              AND t.uninstallation_date IS NULL
+            WHERE tu.user_id = u.user_id
+              AND t.serviceUrl IS NOT NULL
+              AND t.user_tenant_id IS NOT NULL
+            ORDER BY t.team_id
+          ) t
+          WHERE t.serviceUrl IS NOT NULL
+            AND t.user_tenant_id IS NOT NULL
+        `;
+        const responders = await db.getDataFromDB(responderQuery, userAadObjId);
+
+        if (responders && responders.length > 0) {
+          let notificationMessage = "";
+          if (responseType === "SAFE") {
+            notificationMessage = `**${initiatorUser.user_name}** has been confirmed safe.`;
+          } else if (responseType === "Additional_Help") {
+            notificationMessage = `Additional assistance has been requested for the SOS initiated by **${initiatorUser.user_name}**.\nThis SOS has been escalated to all responders.`;
+          }
+          const mentionUserEntities = [];
+          dashboard.mentionUser(
+            mentionUserEntities,
+            initiatorUser.user_id,
+            initiatorUser.user_name,
+          );
+          const notificationCard = {
+            $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+            appId: process.env.MicrosoftAppId,
+            body: [
+              {
+                type: "TextBlock",
+                text: notificationMessage,
+                wrap: true,
+              },
+            ],
+            msteams: {
+              entities: mentionUserEntities,
+            },
+            type: "AdaptiveCard",
+            version: "1.4",
+          };
+
+          // Send notification to all responders
+          for (const responder of responders) {
+            try {
+              const memberArr = [
+                {
+                  id: responder.user_id,
+                  name: responder.user_name,
+                },
+              ];
+
+              await sendProactiveMessaageToUser(
+                memberArr,
+                notificationCard,
+                null,
+                responder.serviceUrl || serviceUrl,
+                responder.user_tenant_id || tenantId,
+                null,
+                responder.user_aadobject_id,
+              );
+            } catch (err) {
+              console.log(
+                `Error sending notification to responder ${responder.user_id}: ${err.message}`,
+              );
+            }
+          }
+        }
+      }
+
+      // Update the card to show response received
+      const responseCard = {
+        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+        appId: process.env.MicrosoftAppId,
+        body: [
+          {
+            type: "TextBlock",
+            text:
+              responseType === "SAFE"
+                ? "✓ You have confirmed the user is safe."
+                : "✓ You have requested additional help. All responders have been notified.",
+            wrap: true,
+          },
+        ],
+        type: "AdaptiveCard",
+        version: "1.4",
+      };
+      const message = MessageFactory.attachment(
+        CardFactory.adaptiveCard(responseCard),
+      );
+      message.id = context.activity.replyToId;
+      await context.updateActivity(message);
+    } catch (error) {
+      console.log("Error in handleAfterAcknowledgementResponseAsync:", error);
+      processSafetyBotError(
+        error,
+        "",
+        "",
+        userAadObjId,
+        "error in handleAfterAcknowledgementResponseAsync - assistanceId: " +
+          assistanceId,
       );
     }
   }

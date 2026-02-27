@@ -2583,6 +2583,167 @@ const shouldNotifyInitiatorBeforeAcknowledgement = async (
   }
   return Promise.resolve(result);
 };
+
+const getSosAfterAcknowledgementSettings = async (teamId) => {
+  let result = null;
+  try {
+    const sqlQuery = `
+      SELECT 
+        MaxReminderCountAfterAcknowledgement,
+        ReminderIntervalMinutesAfterAcknowledgement,
+        NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement,
+        serviceUrl,
+        user_tenant_id
+      FROM MSTeamsInstallationDetails
+      WHERE team_id = '${teamId}'
+        AND uninstallation_date IS NULL
+    `;
+    const res = await db.getDataFromDB(sqlQuery);
+    if (res && res.length > 0) {
+      result = res[0];
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      teamId,
+      "",
+      "",
+      "error in getSosAfterAcknowledgementSettings",
+    );
+  }
+  return Promise.resolve(result);
+};
+
+const updateSosAfterAcknowledgementReminder = async (
+  assistanceId,
+  reminderCount,
+  lastReminderSentAt,
+) => {
+  let result = null;
+  try {
+    const lastReminderValue = lastReminderSentAt
+      ? `'${lastReminderSentAt}'`
+      : "NULL";
+    const updateQuery = `
+      UPDATE MSTeamsAssistance 
+      SET AfterAcknowledgementReminderCount = ${reminderCount},
+          AfterAcknowledgementLastReminderSentAt = ${lastReminderValue},
+          LastUpdatedDateTime = GETDATE()
+      WHERE id = ${assistanceId}
+    `;
+    await db.updateDataIntoDB(updateQuery);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      `error in updateSosAfterAcknowledgementReminder assistanceId=${assistanceId}`,
+    );
+  }
+  return Promise.resolve(result);
+};
+
+const updateSosAfterAcknowledgementResponse = async (
+  assistanceId,
+  status,
+  respondedByUserId,
+) => {
+  let result = null;
+  try {
+    const updateQuery = `
+      UPDATE MSTeamsAssistance 
+      SET AfterAcknowledgementResponseStatus = '${status}',
+          AfterAcknowledgementRespondedByUserId = '${respondedByUserId}',
+          AfterAcknowledgementRespondedAt = GETDATE(),
+          LastUpdatedDateTime = GETDATE()
+      WHERE id = ${assistanceId}
+    `;
+    await db.updateDataIntoDB(updateQuery);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      `error in updateSosAfterAcknowledgementResponse assistanceId=${assistanceId}`,
+    );
+  }
+  return Promise.resolve(result);
+};
+
+const getAllSosResponders = async (assistanceId) => {
+  let result = [];
+  try {
+    const sqlQuery = `
+      SELECT sent_to_ids
+      FROM MSTeamsAssistance
+      WHERE id = ${assistanceId}
+    `;
+    const res = await db.getDataFromDB(sqlQuery);
+    if (res && res.length > 0 && res[0].sent_to_ids) {
+      const sentToIds = res[0].sent_to_ids;
+      const responderIds = sentToIds
+        .split(",")
+        .map((id) => id.trim())
+        .filter((id) => id);
+
+      if (responderIds.length > 0) {
+        const responderIdsStr = responderIds.map((id) => `'${id}'`).join(",");
+        const responderQuery = `
+          WITH DistinctUsers AS (
+            SELECT DISTINCT
+              user_id,
+              user_name,
+              user_aadobject_id
+            FROM MSTeamsTeamsUsers
+            WHERE user_id IN (${responderIdsStr})
+          )
+          SELECT
+            u.user_id,
+            u.user_name,
+            u.user_aadobject_id,
+            t.serviceUrl,
+            t.user_tenant_id
+          FROM DistinctUsers u
+          OUTER APPLY (
+            SELECT TOP 1
+              t.serviceUrl,
+              t.user_tenant_id
+            FROM MSTeamsTeamsUsers tu
+            INNER JOIN MSTeamsInstallationDetails t
+              ON t.team_id = tu.team_id
+              AND t.uninstallation_date IS NULL
+            WHERE tu.user_id = u.user_id
+              AND t.serviceUrl IS NOT NULL
+              AND t.user_tenant_id IS NOT NULL
+            ORDER BY t.team_id
+          ) t
+          WHERE t.serviceUrl IS NOT NULL
+            AND t.user_tenant_id IS NOT NULL
+        `;
+        const responders = await db.getDataFromDB(responderQuery);
+        result = responders || [];
+      }
+    }
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      `error in getAllSosResponders assistanceId=${assistanceId}`,
+    );
+  }
+  return Promise.resolve(result);
+};
+
 const saveRefreshToken = async (teamId, refresh_token, field = "send_sms") => {
   let result = null;
   try {
@@ -3914,4 +4075,8 @@ module.exports = {
   getSosBeforeAcknowledgementSettings,
   updateSosBeforeAcknowledgementReminder,
   shouldNotifyInitiatorBeforeAcknowledgement,
+  getSosAfterAcknowledgementSettings,
+  updateSosAfterAcknowledgementReminder,
+  updateSosAfterAcknowledgementResponse,
+  getAllSosResponders,
 };
