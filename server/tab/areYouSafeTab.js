@@ -732,12 +732,20 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               });
               if (!emittedTenants.has(admins[i].user_tenant_id)) {
                 emittedTenants.add(admins[i].user_tenant_id);
-                socketService.emitNewSosTeams(admins[i].user_tenant_id, {
-                  requestAssistanceid,
-                  userAadObjId,
-                  user: { user_name: user.user_name, user_id: user.user_id },
-                  userlocation,
-                });
+                try {
+                  socketService.emitNewSosTeams(admins[i].user_tenant_id, {
+                    requestAssistanceid,
+                    userAadObjId,
+                    user: { user_name: user.user_name, user_id: user.user_id },
+                    userlocation,
+                  });
+                } catch (socketErr) {
+                  console.log("[SOCKET] emitNewSosTeams error", {
+                    tenantId: admins[i].user_tenant_id,
+                    requestAssistanceid,
+                    error: socketErr?.message || socketErr,
+                  });
+                }
               }
             } catch (ex) {
               incidentService.saveAllTypeQuerylogs(
@@ -1109,18 +1117,18 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             }
           }
         }
-        try {
-          await fcmService.sendSosPushToAdmins(
+        void fcmService
+          .sendSosPushToAdmins(
             admins,
             user,
             userAadObjId,
             requestAssistanceid,
             baseUrl,
             incidentService,
-          );
-        } catch (pushErr) {
-          console.error("[requestAssistance] sendSosPushToAdmins error:", pushErr);
-        }
+          )
+          .catch((pushErr) => {
+            console.error("[requestAssistance] sendSosPushToAdmins error:", pushErr);
+          });
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
           approvalCardResponse,
