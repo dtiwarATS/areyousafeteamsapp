@@ -1117,21 +1117,21 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             }
           }
         }
-        void fcmService
-          .sendSosPushToAdmins(
-            admins,
-            user,
-            userAadObjId,
-            requestAssistanceid,
-            baseUrl,
-            incidentService,
-          )
-          .catch((pushErr) => {
-            console.error(
-              "[requestAssistance] sendSosPushToAdmins error:",
-              pushErr,
-            );
-          });
+        // void fcmService
+        //   .sendSosPushToAdmins(
+        //     admins,
+        //     user,
+        //     userAadObjId,
+        //     requestAssistanceid,
+        //     baseUrl,
+        //     incidentService,
+        //   )
+        //   .catch((pushErr) => {
+        //     console.error(
+        //       "[requestAssistance] sendSosPushToAdmins error:",
+        //       pushErr,
+        //     );
+        //   });
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
           approvalCardResponse,
