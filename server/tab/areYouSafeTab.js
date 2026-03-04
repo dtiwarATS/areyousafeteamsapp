@@ -1973,7 +1973,21 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
-
+  setSuperAdmin = async (superadmin, teamId) => {
+    let res = null;
+    try {
+      res = await incidentService.setSuperAdmin(superadmin, teamId);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in SosNotificationFor",
+      );
+    }
+    return Promise.resolve(res);
+  };
   setLanguagePreference = async (language, teamId, tenantid) => {
     let res = null;
     try {
