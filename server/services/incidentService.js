@@ -2437,6 +2437,19 @@ const SosNotificationFor = async (SOS_NOTIFICATION_FOR, teamId) => {
   }
   return Promise.resolve(result);
 };
+const setSuperAdmin = async (superAdmins, teamId) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set super_users = '${superAdmins}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in setSuperAdmin");
+  }
+  return Promise.resolve(result);
+};
 const setLanguagePreference = async (language, teamId, tenantid) => {
   let result = null;
   try {
@@ -2562,7 +2575,8 @@ const shouldNotifyInitiatorBeforeAcknowledgement = async (
       const data = res[0];
       const reminderCount = data.BeforeAcknowledgementReminderCount || 0;
       const maxCount = data.MaxReminderCountBeforeAcknowledgement || 0;
-      const shouldNotify = data.NotifyInitiatorIfNoResponseBeforeAcknowledgement;
+      const shouldNotify =
+        data.NotifyInitiatorIfNoResponseBeforeAcknowledgement;
 
       // Check if all reminders sent and no response
       result =
@@ -4070,6 +4084,7 @@ module.exports = {
   saveAllTypelogs,
   saveAllTypeQuerylogs,
   SosNotificationFor,
+  setSuperAdmin,
   setLanguagePreference,
   setDynamicLocation,
   getSosBeforeAcknowledgementSettings,

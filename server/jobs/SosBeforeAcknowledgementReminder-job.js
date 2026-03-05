@@ -78,7 +78,7 @@ OUTER APPLY (
 ) t
 
 WHERE 
-    a.LastUpdatedDateTime >= '2026-02-26 00:00:00'
+    a.LastUpdatedDateTime >= '2026-02-28 00:00:00'
     AND a.FIRST_RESPONDER IS NULL
     AND a.FIRST_RESPONDER_RESPONDED_AT IS NULL
     AND (a.status IS NULL OR a.status <> 'Closed')

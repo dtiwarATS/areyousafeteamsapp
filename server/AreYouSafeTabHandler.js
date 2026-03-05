@@ -318,9 +318,9 @@ const handlerForSafetyBotTab = (app) => {
                       "",
                       "",
                       "error in get users phone number requestDateTime : " +
-                      requestDate +
-                      " ErrorDateTime: " +
-                      new Date(),
+                        requestDate +
+                        " ErrorDateTime: " +
+                        new Date(),
                       "",
                       false,
                       "",
@@ -356,7 +356,7 @@ const handlerForSafetyBotTab = (app) => {
               error.response.data.error_description
                 .toString()
                 .indexOf("The refresh token has expired due to inactivity.") >=
-              0
+                0
             ) {
               throw {
                 type: "authFailed",
@@ -641,7 +641,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/deleteIncident -> deleteInc then incId=" +
-            req.query.incid,
+              req.query.incid,
           );
         });
     } catch (err) {
@@ -651,7 +651,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/deleteIncident incId=" +
-        req.query.incid,
+          req.query.incid,
       );
     }
   });
@@ -674,9 +674,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/updateincstatus then -> incId=" +
-            incId +
-            " incStatus=" +
-            incStatus,
+              incId +
+              " incStatus=" +
+              incStatus,
           );
         });
     } catch (err) {
@@ -686,9 +686,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/updateincstatus -> incId=" +
-        incId +
-        " incStatus=" +
-        incStatus,
+          incId +
+          " incStatus=" +
+          incStatus,
       );
     }
   });
@@ -966,6 +966,24 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post("/areyousafetabhandler/setSuperAdmin", async (req, res) => {
+    const teamId = req.query.teamId;
+
+    const superAdmin = req.query.superAdmin;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setSuperAdmin(superAdmin, teamId);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setSOSNotification",
+      );
+    }
+  });
   app.post("/areyousafetabhandler/setSOSNotification", async (req, res) => {
     const teamId = req.query.teamId;
 
@@ -1201,8 +1219,9 @@ const handlerForSafetyBotTab = (app) => {
                   minute: "2-digit",
                   hour12: true,
                 },
-              )}** has been marked as closed by **<at>${closedByUser.user_name
-                }</at>**.`,
+              )}** has been marked as closed by **<at>${
+                closedByUser.user_name
+              }</at>**.`,
               wrap: true,
             },
             {
@@ -1310,7 +1329,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-              reqBody.comment,
+                reqBody.comment,
             );
             res.send(false);
           });
@@ -1322,7 +1341,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-        reqBody.comment,
+          reqBody.comment,
       );
     }
   });
@@ -1438,9 +1457,9 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userAadObjId,
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
-          userlocation +
-          " req.query.adminlist=" +
-          req.body.data,
+            userlocation +
+            " req.query.adminlist=" +
+            req.body.data,
         );
       }
     },
@@ -1499,7 +1518,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-              reqBody.comment,
+                reqBody.comment,
             );
             res.send(false);
           });
@@ -1511,7 +1530,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-        reqBody.comment,
+          reqBody.comment,
       );
     }
   });
@@ -2135,7 +2154,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         qs.userAadObjId,
         "error in /areyousafetabhandler/checkduplicateInc -> qs.incTitle=" +
-        qs.incTitle,
+          qs.incTitle,
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -2428,7 +2447,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         req.query.userAadObjId,
         "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-        req.query.incId,
+          req.query.incId,
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -2476,7 +2495,7 @@ const handlerForSafetyBotTab = (app) => {
           "",
           req.query.userAadObjId,
           "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-          req.query.incId,
+            req.query.incId,
         );
         res.send({ error: "Error: Please try again" });
       }
@@ -2512,9 +2531,9 @@ const handlerForSafetyBotTab = (app) => {
         userName,
         userId,
         "error in /areyousafetabhandler/contactus -> email=" +
-        email +
-        " msg=" +
-        msg,
+          email +
+          " msg=" +
+          msg,
       );
       res.send(false);
     }
@@ -2609,9 +2628,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-            incid +
-            " incType=" +
-            incType,
+              incid +
+              " incType=" +
+              incType,
           );
           res.send(0);
         });
@@ -2622,9 +2641,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-        incid +
-        " incType=" +
-        incType,
+          incid +
+          " incType=" +
+          incType,
       );
       res.send(0);
     }
@@ -2678,9 +2697,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-            serviceUrl +
-            " teamUserId=" +
-            teamUserId,
+              serviceUrl +
+              " teamUserId=" +
+              teamUserId,
           );
           res.send(0);
         });
@@ -2691,9 +2710,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-        serviceUrl +
-        " teamUserId=" +
-        teamUserId,
+          serviceUrl +
+          " teamUserId=" +
+          teamUserId,
       );
       res.send(0);
     }
@@ -2990,7 +3009,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             "Error in Saving AllAdminConsentInfo_IsAppPermissionGranted: " +
-            IsAppPermissionGranted,
+              IsAppPermissionGranted,
           );
         });
     }
@@ -3073,9 +3092,11 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
-        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
-        }`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -3389,9 +3410,11 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
-        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
-        }`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -3991,7 +4014,7 @@ WHERE
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguageData -> language=" +
-        language,
+          language,
       );
       res.status(500).json({ error: "Error fetching language data" });
     }
@@ -4074,9 +4097,9 @@ WHERE
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguage -> teamId=" +
-        teamId +
-        " userId=" +
-        userId,
+          teamId +
+          " userId=" +
+          userId,
       );
       res.status(500).json({ error: "Error fetching selected language" });
     }
@@ -4177,8 +4200,8 @@ WHERE
         locationData: result.recordsets[0] || [],
         filterEnabled:
           userAadObjId &&
-            result.recordsets[1] &&
-            result.recordsets[1].length > 0
+          result.recordsets[1] &&
+          result.recordsets[1].length > 0
             ? result.recordsets[1][0].FILTER_ENABLED
             : null,
       };
