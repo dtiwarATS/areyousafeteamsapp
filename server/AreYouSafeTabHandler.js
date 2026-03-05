@@ -1,3 +1,5 @@
+const crypto = require("crypto");
+const sql = require("mssql");
 const incidentService = require("./services/incidentService");
 const path = require("path");
 const poolPromise = require("./db/dbConn");
@@ -82,6 +84,138 @@ const handlerForSafetyBotTab = (app) => {
         userObjId,
         "Error in /areyousafetabhandler/getUserPermission",
       );
+    }
+  });
+
+  const LOGIN_CODE_LENGTH = 6;
+  const DEFAULT_LOGIN_CODE_EXPIRY_SECONDS = 300;
+  const LOGIN_CODE_EXPIRY_SECONDS =
+    Number.parseInt(process.env.LOGIN_CODE_EXPIRY_SECONDS, 10) ||
+    DEFAULT_LOGIN_CODE_EXPIRY_SECONDS;
+
+  app.post("/areyousafetabhandler/generate-login-code", async (req, res) => {
+    const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : "";
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId is required",
+      });
+    }
+
+    const code = crypto
+      .randomInt(0, 10 ** LOGIN_CODE_LENGTH)
+      .toString()
+      .padStart(LOGIN_CODE_LENGTH, "0");
+
+    const expiresAtUtc = new Date(Date.now() + LOGIN_CODE_EXPIRY_SECONDS * 1000);
+
+    try {
+      const pool = await poolPromise;
+      await pool
+        .request()
+        .input("code", sql.NVarChar(10), code)
+        .input("expiresAt", sql.DateTime2, expiresAtUtc)
+        .input("userId", sql.NVarChar(256), userId)
+        .query(`
+          UPDATE MSTeamsTeamsUsers 
+          SET Generated_code = @code, Generated_code_expires_at = @expiresAt 
+          WHERE user_aadobject_id = @userId OR user_id = @userId
+        `);
+    } catch (err) {
+      console.error("Error saving login code to MSTeamsTeamsUsers:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userId,
+        "error in /areyousafetabhandler/generate-login-code",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Failed to save login code",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      userId,
+      code,
+      expiresInSeconds: LOGIN_CODE_EXPIRY_SECONDS,
+      expiresAtUtc: expiresAtUtc.toISOString(),
+    });
+  });
+
+  app.post("/areyousafetabhandler/verify-login-code", async (req, res) => {
+    const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+    const fcmToken = typeof req.body?.fcmToken === "string" ? req.body.fcmToken.trim() : "";
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: "code is required",
+      });
+    }
+    if (!fcmToken) {
+      return res.status(400).json({
+        success: false,
+        message: "fcmToken is required to link the device to the user",
+      });
+    }
+
+    try {
+      const pool = await poolPromise;
+
+      const userResult = await pool
+        .request()
+        .input("code", sql.NVarChar(10), code)
+        .query(`
+          SELECT TOP 1 team_id, user_aadobject_id, user_name, email
+          FROM MSTeamsTeamsUsers
+          WHERE Generated_code = @code
+            AND (Generated_code_expires_at IS NULL OR Generated_code_expires_at > SYSUTCDATETIME())
+        `);
+
+      const user = userResult?.recordset?.[0];
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid or expired code",
+        });
+      }
+
+      const userAadObjectId = user.user_aadobject_id;
+
+      await pool
+        .request()
+        .input("user_aadobject_id", sql.NVarChar(256), userAadObjectId)
+        .input("fcm_token", sql.VarChar(500), fcmToken)
+        .query(`
+          UPDATE user_fcm_tokens
+          SET user_id = @user_aadobject_id
+          WHERE fcm_token = @fcm_token
+        `);
+
+      return res.status(200).json({
+        success: true,
+        team_id: user.team_id,
+        user_aadobject_id: user.user_aadobject_id,
+        user_name: user.user_name,
+        email: user.email,
+      });
+    } catch (err) {
+      console.error("Error in verify-login-code:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in /areyousafetabhandler/verify-login-code",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Failed to verify login code",
+      });
     }
   });
 
