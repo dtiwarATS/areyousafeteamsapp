@@ -77,7 +77,7 @@ OUTER APPLY (
 ) t
 
 WHERE 
-    a.LastUpdatedDateTime >= '2026-02-26 00:00:00'   -- ✅ after 25 Feb
+    a.LastUpdatedDateTime >= '2026-02-28 00:00:00'   -- ✅ after 25 Feb
     AND a.FIRST_RESPONDER IS NOT NULL
     AND a.FIRST_RESPONDER_RESPONDED_AT IS NOT NULL
     AND a.AfterAcknowledgementResponseStatus IS NULL
