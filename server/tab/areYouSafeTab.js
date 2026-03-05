@@ -1928,6 +1928,36 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
+  saveSafetyCheckFilter = async (body) => {
+    let res = null;
+    try {
+      res = await incidentService.saveSafetyCheckFilter(body);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        body?.tenantId || "",
+        "",
+        body?.createdByUserId || body?.updatedByUserId || "",
+        "error in saveSafetyCheckFilter",
+      );
+    }
+    return Promise.resolve(res);
+  };
+  getSavedSafetyCheckFilters = async (tenantId) => {
+    let res = [];
+    try {
+      res = await incidentService.getSavedSafetyCheckFilters(tenantId);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        tenantId || "",
+        "",
+        "",
+        "error in getSavedSafetyCheckFilters",
+      );
+    }
+    return Promise.resolve(Array.isArray(res) ? res : []);
+  };
   setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     let res = null;
     try {

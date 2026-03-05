@@ -905,6 +905,75 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+
+  app.post("/areyousafetabhandler/saveSafetyCheckFilter", async (req, res) => {
+    const {
+      id,
+      tenantId,
+      filterName,
+      filterJson,
+      createdByUserId,
+      updatedByUserId,
+    } = req.body;
+    try {
+      if (!tenantId || !filterName || filterJson === undefined) {
+        return res.status(400).json({
+          error:
+            "Missing required parameters: tenantId, filterName, filterJson",
+        });
+      }
+      const isUpdate = id != null && !isNaN(Number(id)) && Number(id) > 0;
+      if (!isUpdate && !createdByUserId) {
+        return res.status(400).json({
+          error: "Missing required parameter: createdByUserId",
+        });
+      }
+      const tabObj = new tab.AreYouSafeTab();
+      const result = await tabObj.saveSafetyCheckFilter(req.body);
+      if (result?.success) {
+        return res.json({ success: true, id: result.id });
+      }
+      return res
+        .status(result?.statusCode === 404 ? 404 : 500)
+        .json({ error: result?.error || "Error saving filter" });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        tenantId || "",
+        "",
+        createdByUserId || updatedByUserId || "",
+        "error in /areyousafetabhandler/saveSafetyCheckFilter",
+      );
+      return res.status(500).json({ error: "Error saving filter" });
+    }
+  });
+
+  app.get(
+    "/areyousafetabhandler/getSavedSafetyCheckFilters",
+    async (req, res) => {
+      const tenantId = req.query.tenantId;
+      try {
+        if (!tenantId) {
+          return res
+            .status(400)
+            .json({ error: "Missing required parameter: tenantId" });
+        }
+        const tabObj = new tab.AreYouSafeTab();
+        const rows = await tabObj.getSavedSafetyCheckFilters(tenantId);
+        res.json(Array.isArray(rows) ? rows : []);
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          tenantId || "",
+          "",
+          "",
+          "error in /areyousafetabhandler/getSavedSafetyCheckFilters",
+        );
+        res.json([]);
+      }
+    },
+  );
+
   app.post("/areyousafetabhandler/manageColumns", async (req, res) => {
     const teamId = req.body.teamId;
     const settingName = req.body.settingName;
