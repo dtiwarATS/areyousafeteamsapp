@@ -2385,6 +2385,79 @@ const manageColumns = async (teamId, settingName, value, userId) => {
   return Promise.resolve(result);
 };
 
+const saveSafetyCheckFilter = async (body) => {
+  const {
+    id,
+    tenantId,
+    filterName,
+    filterJson,
+    createdByUserId,
+    updatedByUserId,
+  } = body;
+  const isUpdate = id != null && !isNaN(Number(id)) && Number(id) > 0;
+  const pool = await poolPromise;
+  const sql = require("mssql");
+  const request = pool.request();
+  request.input("tenantId", sql.NVarChar(50), tenantId);
+  request.input("filterName", sql.NVarChar(75), filterName);
+  request.input("filterJson", sql.NVarChar(sql.MAX), filterJson);
+
+  if (isUpdate) {
+    request.input("id", sql.Int, Number(id));
+    request.input(
+      "updatedByUserId",
+      sql.NVarChar(100),
+      updatedByUserId || createdByUserId || null
+    );
+    const updateQuery = `
+      UPDATE SavedSafetyCheckFilters
+      SET FilterName = @filterName,
+          FilterJson = @filterJson,
+          UpdatedByUserId = @updatedByUserId,
+          UpdatedOn = GETDATE()
+      WHERE Id = @id AND TenantId = @tenantId
+    `;
+    const result = await request.query(updateQuery);
+    if (
+      result.rowsAffected &&
+      result.rowsAffected[0] !== undefined &&
+      result.rowsAffected[0] > 0
+    ) {
+      return { success: true, id: Number(id) };
+    }
+    return { success: false, statusCode: 404, error: "Filter not found or not updated" };
+  } else {
+    request.input("createdByUserId", sql.NVarChar(100), createdByUserId);
+    const insertQuery = `
+      INSERT INTO SavedSafetyCheckFilters (TenantId, FilterName, FilterJson, CreatedByUserId)
+      OUTPUT INSERTED.Id
+      VALUES (@tenantId, @filterName, @filterJson, @createdByUserId)
+    `;
+    const result = await request.query(insertQuery);
+    const insertedId =
+      result.recordset && result.recordset[0] ? result.recordset[0].Id : null;
+    if (insertedId != null) {
+      return { success: true, id: insertedId };
+    }
+    return { success: false, statusCode: 500, error: "Error saving filter" };
+  }
+};
+
+const getSavedSafetyCheckFilters = async (tenantId) => {
+  const pool = await poolPromise;
+  const sql = require("mssql");
+  const request = pool.request();
+  request.input("tenantId", sql.NVarChar(50), tenantId);
+  const query = `
+    SELECT Id, FilterName, FilterJson, CreatedOn, UpdatedOn
+    FROM SavedSafetyCheckFilters
+    WHERE TenantId = @tenantId
+    ORDER BY UpdatedOn DESC, CreatedOn DESC
+  `;
+  const result = await request.query(query);
+  return result.recordset || [];
+};
+
 const setSendEmail = async (teamId, sendemail) => {
   let result = null;
   try {
@@ -4062,6 +4135,8 @@ module.exports = {
   deleteSOSResponder,
   saveSOSResponder,
   saveFilterChecked,
+  saveSafetyCheckFilter,
+  getSavedSafetyCheckFilters,
   manageColumns,
   setSendWhatsapp,
   setSendEmail,
