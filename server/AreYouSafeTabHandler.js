@@ -839,6 +839,37 @@ const handlerForSafetyBotTab = (app) => {
     },
   );
 
+  app.delete(
+    "/areyousafetabhandler/deleteSavedSafetyCheckFilter",
+    async (req, res) => {
+      const { id } = req.query;
+      try {
+        if (!id) {
+          return res.status(400).json({
+            error: "Missing required parameter: id",
+          });
+        }
+        const tabObj = new tab.AreYouSafeTab();
+        const result = await tabObj.deleteSavedSafetyCheckFilter(id);
+        if (result?.success) {
+          return res.json({ success: true });
+        }
+        return res
+          .status(result?.statusCode === 404 ? 404 : 500)
+          .json({ error: result?.error || "Error deleting filter" });
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          id || "",
+          "",
+          "",
+          "error in /areyousafetabhandler/deleteSavedSafetyCheckFilter",
+        );
+        return res.status(500).json({ error: "Error deleting filter" });
+      }
+    },
+  );
+
   app.post("/areyousafetabhandler/manageColumns", async (req, res) => {
     const teamId = req.body.teamId;
     const settingName = req.body.settingName;

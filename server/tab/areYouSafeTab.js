@@ -1958,6 +1958,21 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(Array.isArray(res) ? res : []);
   };
+  deleteSavedSafetyCheckFilter = async (id) => {
+    let res = { success: false, statusCode: 500, error: "Error deleting filter" };
+    try {
+      res = await incidentService.deleteSavedSafetyCheckFilter(id);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        id || "",
+        "",
+        "",
+        "error in deleteSavedSafetyCheckFilter",
+      );
+    }
+    return Promise.resolve(res);
+  };
   setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
     let res = null;
     try {
