@@ -2458,6 +2458,26 @@ const getSavedSafetyCheckFilters = async (tenantId) => {
   return result.recordset || [];
 };
 
+const deleteSavedSafetyCheckFilter = async (id) => {
+  const pool = await poolPromise;
+  const sql = require("mssql");
+  const request = pool.request();
+  request.input("id", sql.Int, Number(id));
+  const deleteQuery = `
+    DELETE FROM SavedSafetyCheckFilters
+    WHERE Id = @id
+  `;
+  const result = await request.query(deleteQuery);
+  const rowsAffected =
+    result.rowsAffected && result.rowsAffected[0] !== undefined
+      ? result.rowsAffected[0]
+      : 0;
+  if (rowsAffected > 0) {
+    return { success: true };
+  }
+  return { success: false, statusCode: 404, error: "Filter not found" };
+};
+
 const setSendEmail = async (teamId, sendemail) => {
   let result = null;
   try {
@@ -4137,6 +4157,7 @@ module.exports = {
   saveFilterChecked,
   saveSafetyCheckFilter,
   getSavedSafetyCheckFilters,
+  deleteSavedSafetyCheckFilter,
   manageColumns,
   setSendWhatsapp,
   setSendEmail,
