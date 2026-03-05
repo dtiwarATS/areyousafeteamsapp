@@ -170,7 +170,7 @@ const handlerForSafetyBotTab = (app) => {
         .request()
         .input("code", sql.NVarChar(10), code)
         .query(`
-          SELECT TOP 1 team_id, user_aadobject_id, user_name, email
+          SELECT TOP 1 team_id, user_aadobject_id, user_name, email,tenantid
           FROM MSTeamsTeamsUsers
           WHERE Generated_code = @code
             AND (Generated_code_expires_at IS NULL OR Generated_code_expires_at > SYSUTCDATETIME())
@@ -202,6 +202,7 @@ const handlerForSafetyBotTab = (app) => {
         user_aadobject_id: user.user_aadobject_id,
         user_name: user.user_name,
         email: user.email,
+        tenantid: user.tenantid, 
       });
     } catch (err) {
       console.error("Error in verify-login-code:", err);
