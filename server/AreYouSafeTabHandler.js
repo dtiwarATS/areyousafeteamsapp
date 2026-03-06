@@ -17,6 +17,37 @@ const { console } = require("inspector");
 const { saveToken, getToken } = require("./store");
 const { sendPushNotification, getFcmTokensForUsers } = require("./services/fcmService");
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve Teams ID (29:1xxx) to AAD Object ID (UUID).
+ * Returns null if teamsId is falsy, already a UUID, or not found in MSTeamsTeamsUsers.
+ * @param {string} teamsId - Teams user ID (e.g. 29:1xxx...)
+ * @returns {Promise<string|null>} AAD Object ID or null
+ */
+async function resolveTeamsIdToAadObjectId(teamsId) {
+  if (!teamsId || typeof teamsId !== "string") return null;
+  const trimmed = teamsId.trim();
+  if (!trimmed) return null;
+  if (UUID_REGEX.test(trimmed)) return null;
+  if (!trimmed.startsWith("29:") || (!trimmed.includes("_") && !trimmed.includes("-"))) return null;
+
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("teamsId", sql.NVarChar(256), trimmed)
+      .query(`SELECT TOP 1 user_aadobject_id FROM MSTeamsTeamsUsers WHERE user_id = @teamsId`);
+    const row = result?.recordset?.[0];
+    return row?.user_aadobject_id || null;
+  } catch (err) {
+    console.error("[resolveTeamsIdToAadObjectId]", err?.message);
+    return null;
+  }
+}
+
+const SEND_NOTIFICATION_TIMEOUT_MS = 15000;
+
 const handlerForSafetyBotTab = (app) => {
   const tabObj = new tab.AreYouSafeTab();
 
@@ -1208,24 +1239,56 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
   app.post("/areyousafetabhandler/sendNotification", async (req, res) => {
+    const startMs = Date.now();
     const { userId, title, body, data } = req.body || {};
     if (!userId || !title) {
       return res.status(400).json({ ok: false, error: "userId and title required" });
     }
-    let fcmToken = await getToken(userId);
-    if (!fcmToken) {
-      const tokens = await getFcmTokensForUsers([userId], "android");
-      fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
-    }
-    if (!fcmToken) {
-      return res.status(404).json({ ok: false, error: "No FCM token for this userId" });
-    }
-    try {
+
+    const runWithTimeout = async () => {
+      let fcmToken = await getToken(userId);
+      if (!fcmToken) {
+        const tokens = await getFcmTokensForUsers([userId], "android");
+        fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
+      }
+      if (!fcmToken) {
+        const aadObjectId = await resolveTeamsIdToAadObjectId(userId);
+        if (aadObjectId) {
+          console.log("[sendNotification] resolved Teams ID to AAD Object ID, lookupMs:", Date.now() - startMs);
+          fcmToken = await getToken(aadObjectId);
+          if (!fcmToken) {
+            const tokens = await getFcmTokensForUsers([aadObjectId], "android");
+            fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
+          }
+        }
+      }
+      if (!fcmToken) {
+        console.log("[sendNotification] no token, lookupMs:", Date.now() - startMs);
+        return { ok: false, status: 404, body: { ok: false, error: "No FCM token for this userId" } };
+      }
+      console.log("[sendNotification] token found, lookupMs:", Date.now() - startMs);
       await sendPushNotification(fcmToken, title, body || "", data || {});
-      res.status(200).json({ ok: true });
+      return { ok: true, status: 200, body: { ok: true } };
+    };
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("sendNotification timeout")), SEND_NOTIFICATION_TIMEOUT_MS);
+    });
+
+    try {
+      const result = await Promise.race([runWithTimeout(), timeoutPromise]);
+      if (result?.status === 404) {
+        return res.status(404).json(result.body);
+      }
+      console.log("[sendNotification] done, totalMs:", Date.now() - startMs);
+      return res.status(200).json(result.body);
     } catch (err) {
-      console.error("[sendNotification]", err);
-      res.status(500).json({ ok: false, error: err.message });
+      const totalMs = Date.now() - startMs;
+      console.error("[sendNotification]", err?.message, "totalMs:", totalMs);
+      if (err?.message === "sendNotification timeout") {
+        return res.status(504).json({ ok: false, error: "Request timeout" });
+      }
+      return res.status(500).json({ ok: false, error: err.message });
     }
   });
   app.get("/areyousafetabhandler/getAssistanceData", (req, res) => {

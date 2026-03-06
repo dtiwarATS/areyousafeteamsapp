@@ -17,7 +17,7 @@ async function saveToken(userId, fcmToken, platform, deviceInfo = {}) {
   const pool = await poolPromise;
   const request = pool.request();
 
-  request.input("user_id", sql.VarChar(36), userId);
+  request.input("user_id", sql.VarChar(256), userId);
   request.input("fcm_token", sql.VarChar(500), fcmToken);
   request.input("platform", sql.VarChar(20), normalizedPlatform);
   request.input(
@@ -103,7 +103,7 @@ async function getToken(userId) {
 
   const pool = await poolPromise;
   const request = pool.request();
-  request.input("user_id", sql.VarChar(36), userId);
+  request.input("user_id", sql.VarChar(256), userId);
 
   const result = await request.query(`
     SELECT TOP 1 fcm_token
