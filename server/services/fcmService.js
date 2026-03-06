@@ -28,14 +28,24 @@ function getFirebaseApp() {
     }
   }
   if (credPath) {
-    const resolvedPath = path.isAbsolute(credPath) ? credPath : path.join(process.cwd(), credPath);
-    try {
-      const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
-      app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-      return app;
-    } catch (readErr) {
-      throw new Error('FCM not configured: could not read credentials from ' + credPath + ' - ' + (readErr && readErr.message));
+    let serviceAccount;
+    const trimmed = String(credPath).trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        serviceAccount = JSON.parse(trimmed);
+      } catch (parseErr) {
+        throw new Error('FCM not configured: FCM_SERVICE_ACCOUNT_PATH contains invalid JSON');
+      }
+    } else {
+      const resolvedPath = path.isAbsolute(credPath) ? credPath : path.join(process.cwd(), credPath);
+      try {
+        serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
+      } catch (readErr) {
+        throw new Error('FCM not configured: could not read credentials from ' + credPath + ' - ' + (readErr && readErr.message));
+      }
     }
+    app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    return app;
   }
   throw new Error('FCM not configured: set GOOGLE_APPLICATION_CREDENTIALS, FCM_SERVICE_ACCOUNT_PATH, or FCM_SERVICE_ACCOUNT_JSON');
 }
