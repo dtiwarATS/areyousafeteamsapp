@@ -830,6 +830,28 @@ async function getCountriesForByTeamResponse() {
   }
 }
 
+/**
+ * Get all active Weather-type selections with coordinates from Countries table.
+ * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string, latitude: number|null, longitude: number|null }>>}
+ */
+async function getActiveWeatherSelectedCountries() {
+  const pool = await poolPromise;
+  const result = await pool.request().query(`
+    SELECT
+      s.Id AS TravelAdvisorySelectedCountriesId,
+      s.TenantId,
+      s.CountryCode,
+      c.latitude,
+      c.longitude
+    FROM [dbo].[Advisory] s
+    LEFT JOIN [dbo].[Countries] c
+      ON UPPER(LTRIM(RTRIM(s.CountryCode))) = UPPER(LTRIM(RTRIM(c.code)))
+    WHERE s.AdvisoryType = 'Weather' AND s.IsActive = 1
+    ORDER BY s.Id
+  `);
+  return result.recordset || [];
+}
+
 module.exports = {
   getCountriesFromDb,
   getAllCountriesFromDb,
@@ -855,4 +877,5 @@ module.exports = {
   upsertSavedAdvisory,
   insertSelectedCountryLog,
   getTravelAdvisoryByTeamData,
+  getActiveWeatherSelectedCountries,
 };
