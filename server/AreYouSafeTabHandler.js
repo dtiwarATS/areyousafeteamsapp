@@ -4185,6 +4185,33 @@ WHERE
       res.status(500).json({ error: "Error fetching user location data" });
     }
   });
+  app.post("/voicecall", async (req, res) => {
+    const digit = req.body.Digits;
+    const incidentId = req.query.incidentId;
+    const userId = req.query.userId;
+
+    console.log("Digit:", digit);
+    console.log("Incident:", incidentId);
+    console.log("User:", userId);
+
+    res.type("text/xml");
+
+    if (digit === "1") {
+      res.send(`<Response><Say>Thank you. Marked safe.</Say></Response>`);
+      await bot.proccessSMSLinkClick(userId, incidentId, "YES", "VoiceCall");
+    } else if (digit === "2") {
+      res.send(`<Response><Say>Help request recorded.</Say></Response>`);
+      await bot.proccessSMSLinkClick(userId, incidentId, "NO", "VoiceCall");
+    } else {
+      res.send(`<Response><Say>Invalid input.</Say></Response>`);
+    }
+  });
+  app.post("/callstatus", async (req, res) => {
+    const incidentId = req.query.incidentId;
+    const userId = req.query.userId;
+    console.log("got reply for callstatus", req.body);
+    res.sendStatus(200);
+  });
 };
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;

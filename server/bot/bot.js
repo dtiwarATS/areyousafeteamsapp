@@ -4671,6 +4671,36 @@ const NewsendSafetyCheckMessageAsync = async (
           allincMembers,
         );
         let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
+        try {
+          var call = await tClient.calls.create({
+            twiml: `
+<Response>
+  <Gather numDigits="1" timeout="8" action="https://28ec-2401-4900-8815-cd6f-7929-dd62-f175-6ec5.ngrok-free.app/voicecall?incidentId=${incObj.incId}&amp;userId=${userAadObjIds[0]}" method="POST">
+    <Say voice="alice">
+      Hello, this is a safety check from ${createdByUserInfo.user_name}.
+      Press 1 if you are safe. Press 2 if you need help.
+    </Say>
+  </Gather>
+  <Say>No input received. Goodbye.</Say>
+</Response>
+`,
+            to: "+919699070995",
+            from: "+18023277232",
+
+            statusCallback: `https://28ec-2401-4900-8815-cd6f-7929-dd62-f175-6ec5.ngrok-free.app/callstatus?incidentId=${incObj.incId}&amp;userId=${userAadObjIds[0]}`,
+            statusCallbackMethod: "POST",
+            statusCallbackEvent: [
+              "initiated",
+              "ringing",
+              "answered",
+              "completed",
+            ],
+          });
+
+          console.log(call.sid);
+        } catch (err) {
+          console.log(`Error in making call via twilio: ${err}`);
+        }
         if (
           companyData.send_sms &&
           (companyData.SubscriptionType == 3 ||

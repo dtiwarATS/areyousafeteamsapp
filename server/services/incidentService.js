@@ -2407,7 +2407,7 @@ const saveSafetyCheckFilter = async (body) => {
     request.input(
       "updatedByUserId",
       sql.NVarChar(100),
-      updatedByUserId || createdByUserId || null
+      updatedByUserId || createdByUserId || null,
     );
     const updateQuery = `
       UPDATE SavedSafetyCheckFilters
@@ -2425,7 +2425,11 @@ const saveSafetyCheckFilter = async (body) => {
     ) {
       return { success: true, id: Number(id) };
     }
-    return { success: false, statusCode: 404, error: "Filter not found or not updated" };
+    return {
+      success: false,
+      statusCode: 404,
+      error: "Filter not found or not updated",
+    };
   } else {
     request.input("createdByUserId", sql.NVarChar(100), createdByUserId);
     const insertQuery = `
@@ -3865,7 +3869,13 @@ const updateSafetyCheckStatusViaSMSLink = async (
         new Date(),
       )}'
       , response_via = '${
-        viaSMS == "SMS" ? "SMS" : viaSMS == "Email" ? "Email" : "whatsapp"
+        viaSMS == "SMS"
+          ? "SMS"
+          : viaSMS == "Email"
+            ? "Email"
+            : viaSMS == "VoiceCall"
+              ? "VoiceCall"
+              : "whatsapp"
       }' 
        where runat = '${runat}' and 
       memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
@@ -3876,7 +3886,13 @@ const updateSafetyCheckStatusViaSMSLink = async (
         "yyyy-MM-dd hh:mm:ss",
         new Date(),
       )}', response_via = '${
-        viaSMS == "SMS" ? "SMS" : viaSMS == "Email" ? "Email" : "whatsapp"
+        viaSMS == "SMS"
+          ? "SMS"
+          : viaSMS == "Email"
+            ? "Email"
+            : viaSMS == "VoiceCall"
+              ? "VoiceCall"
+              : "whatsapp"
       }'
       where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}')`;
