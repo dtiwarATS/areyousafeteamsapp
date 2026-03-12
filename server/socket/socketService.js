@@ -113,7 +113,7 @@ function attach(server) {
           adminlist,
           [{ user_id: userId, user_name: userName }],
         ];
-        const step2Url = `${baseUrl}/areyousafetabhandler/sendNeedAssistanceProactiveMessage/?userId=${encodeURIComponent(userId)}&teamId=${encodeURIComponent(teamIdParam)}&requestAssistance=${encodeURIComponent(sosRequestId)}`;
+        const step2Url = `${baseUrl}/areyousafetabhandler/sendNeedAssistanceProactiveMessage/?userId=${encodeURIComponent(userId)}&teamId=${encodeURIComponent(teamIdParam)}&requestAssistance=${encodeURIComponent(sosRequestId)}&issendemail=true`;
         const step2Promise = axios.post(step2Url, {
           data: { adminlist: JSON.stringify(incData), ulocData: null },
         }, { headers: { "Content-Type": "application/json" }, validateStatus: () => true });
