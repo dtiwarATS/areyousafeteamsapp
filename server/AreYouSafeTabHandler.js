@@ -4199,9 +4199,59 @@ WHERE
     if (digit === "1") {
       res.send(`<Response><Say>Thank you. Marked safe.</Say></Response>`);
       await bot.proccessSMSLinkClick(userId, incidentId, "YES", "VoiceCall");
+
+      // Log positive acknowledgement via voice, similar to /posresp
+      await bot.SaveSmsLog(
+        userId,
+        "VOICE_CALL",
+        "YES",
+        JSON.stringify({ eventId: incidentId, userId }),
+        null,
+        null,
+        incidentId,
+      );
+
+      await incidentService.saveAllTypeQuerylogs(
+        userId,
+        "",
+        "VOICE_CALL",
+        "",
+        incidentId,
+        "VoiceCall VOICE",
+        "",
+        "",
+        "",
+        "YES",
+        "",
+      );
     } else if (digit === "2") {
       res.send(`<Response><Say>Help request recorded.</Say></Response>`);
       await bot.proccessSMSLinkClick(userId, incidentId, "NO", "VoiceCall");
+
+      // Log negative acknowledgement via voice, similar to /negresp
+      await bot.SaveSmsLog(
+        userId,
+        "VOICE_CALL",
+        "NO",
+        JSON.stringify({ eventId: incidentId, userId }),
+        null,
+        null,
+        incidentId,
+      );
+
+      await incidentService.saveAllTypeQuerylogs(
+        userId,
+        "",
+        "VOICE_CALL",
+        "",
+        incidentId,
+        "LINK_CLICKED",
+        "",
+        "",
+        "",
+        "NO",
+        "",
+      );
     } else {
       res.send(`<Response><Say>Invalid input.</Say></Response>`);
     }
@@ -4209,7 +4259,77 @@ WHERE
   app.post("/callstatus", async (req, res) => {
     const incidentId = req.query.incidentId;
     const userId = req.query.userId;
-    console.log("got reply for callstatus", req.body);
+    const { CallSid, CallStatus, From, To, CallDuration } = req.body;
+
+    console.log("got reply for callstatus", {
+      incidentId,
+      userId,
+      body: req.body,
+    });
+
+    try {
+      let internalStatus;
+      switch (CallStatus) {
+        case "queued":
+          internalStatus = "CALL_QUEUED";
+          break;
+        case "in-progress":
+          internalStatus = "CALL_IN_PROGRESS";
+          break;
+        case "completed":
+          internalStatus = "CALL_COMPLETED";
+          break;
+        case "no-answer":
+          internalStatus = "CALL_NO_ANSWER";
+          break;
+        default:
+          internalStatus = "CALL_STATUS_UNKNOWN";
+          break;
+      }
+
+      const maskedTo =
+        To && To.length > 4 ? To.slice(-4).padStart(To.length, "x") : To;
+
+      const payload = {
+        CallSid,
+        CallStatus,
+        From,
+        To: maskedTo,
+        CallDuration,
+        incidentId,
+        userId,
+      };
+
+      if (incidentId && userId) {
+        await SaveSmsLog(
+          userId,
+          internalStatus,
+          "Voice call status update",
+          JSON.stringify(payload),
+          CallSid,
+          null,
+          incidentId,
+        );
+
+        await incidentService.saveAllTypeQuerylogs(
+          userId,
+          "",
+          "VOICE_CALL_STATUS",
+          maskedTo || "",
+          incidentId,
+          internalStatus,
+          "VOICE_CALL",
+          "STATUS_UPDATE",
+          JSON.stringify(payload),
+          "",
+          "",
+        );
+      }
+    } catch (err) {
+      console.log("Error while processing /callstatus", err);
+    }
+
+    // Always acknowledge Twilio webhook quickly
     res.sendStatus(200);
   });
 };
