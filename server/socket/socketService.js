@@ -100,7 +100,15 @@ function attach(server) {
           return;
         }
 
-        // Steps 2 and 3: run in parallel
+        const sentToNames = (typeof step1Data === "object" && step1Data.sent_to_names)
+          ? step1Data.sent_to_names
+          : adminlist
+            .map((a) => a.user_name || a.user_aadobject_id)
+            .filter(Boolean)
+            .join(", ");
+        safeAck({ success: true, sosRequestId, sentToNames });
+
+        // Steps 2 and 3: run in background (fire-and-forget)
         const incData = [
           adminlist,
           [{ user_id: userId, user_name: userName }],
@@ -121,13 +129,9 @@ function attach(server) {
           }, { headers: { "Content-Type": "application/json" }, validateStatus: () => true });
         });
 
-        await Promise.all([step2Promise, ...step3Promises]);
-
-        const sentToNames = adminlist
-          .map((a) => a.user_name || a.user_aadobject_id)
-          .filter(Boolean)
-          .join(", ");
-        safeAck({ success: true, sosRequestId, sentToNames });
+        Promise.all([step2Promise, ...step3Promises]).catch((err) => {
+          console.error("[SOCKET] sos_request background error:", err?.message);
+        });
       } catch (err) {
         console.error("[SOCKET] sos_request error:", err?.message);
         safeAck({ success: false, error: err?.message || "Unknown error" });
