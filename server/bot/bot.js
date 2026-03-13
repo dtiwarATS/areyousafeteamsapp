@@ -2719,7 +2719,7 @@ const sendSafetyCheckMsgViaVoice = async (
       const call = await tClient.calls.create({
         twiml: `
 <Response>
-  <Gather numDigits="1" timeout="8" action="https://0f1a-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/voicecall?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+  <Gather numDigits="1" timeout="8" action="https://adb6-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/voicecall?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
     user.id,
   )}" method="POST">
     <Say voice="alice">
@@ -2732,7 +2732,7 @@ const sendSafetyCheckMsgViaVoice = async (
 `,
         to: phone,
         from: "+18023277232",
-        statusCallback: `https://0f1a-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/callstatus?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+        statusCallback: `https://adb6-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/callstatus?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
           user.id,
         )}`,
         statusCallbackMethod: "POST",

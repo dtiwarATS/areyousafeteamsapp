@@ -4212,8 +4212,8 @@ WHERE
   });
   app.post("/voicecall", async (req, res) => {
     const digit = req.body.Digits;
-    const incidentId = req.query.incidentId;
-    const userId = req.query.userId;
+    const incidentId = req.body.incidentId;
+    const userId = req.body.userId;
 
     console.log("Digit:", digit);
     console.log("Incident:", incidentId);
@@ -4242,7 +4242,7 @@ WHERE
         "VOICE_CALL",
         "",
         incidentId,
-        "VoiceCall VOICE",
+        "VOICE_Call_REPLAY",
         "",
         "",
         "",
@@ -4270,7 +4270,7 @@ WHERE
         "VOICE_CALL",
         "",
         incidentId,
-        "LINK_CLICKED",
+        "VOICE_Call_REPLAY",
         "",
         "",
         "",
@@ -4282,8 +4282,8 @@ WHERE
     }
   });
   app.post("/callstatus", async (req, res) => {
-    const incidentId = req.query.incidentId;
-    const userId = req.query.userId;
+    const incidentId = req.body.IncidentId;
+    const userId = req.body.userid;
     const { CallSid, CallStatus, From, To, CallDuration } = req.body;
 
     console.log("got reply for callstatus", {
