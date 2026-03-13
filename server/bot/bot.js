@@ -248,9 +248,9 @@ const processnewUsrSubscriptionType1 = async (context, action, companyData) => {
       "",
       "",
       "error in processnewUsrSubscriptionType1 companyData=" +
-      JSON.stringify(companyData) +
-      " userEmail=" +
-      action?.data?.userEmail,
+        JSON.stringify(companyData) +
+        " userEmail=" +
+        action?.data?.userEmail,
     );
   }
 };
@@ -277,7 +277,7 @@ const processnewUsrSubscriptionType2 = async (context, action) => {
       "",
       "",
       "error in processnewUsrSubscriptionType2 companyData=" +
-      JSON.stringify(action?.data?.companyData),
+        JSON.stringify(action?.data?.companyData),
     );
   }
 };
@@ -1903,7 +1903,7 @@ const sendProactiveMessageAsync = async (
         sqlUpdateMsgDeliveryStatus = "";
         const promise = db
           .updateDataIntoDBAsync(sql, dbPool, userAadObjId)
-          .then((resp) => { })
+          .then((resp) => {})
           .catch((err) => {
             sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(
@@ -2043,16 +2043,21 @@ const sendProactiveMessageAsync = async (
             ) {
               log.addLog(`For isRecurringInc Incident`);
               sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT)
-              values(${respMemberObj.memberResponsesId
-                }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId
-                }', '${msgResp?.activityId}', ${status}, '${error}', ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
-                }); `;
+              values(${
+                respMemberObj.memberResponsesId
+              }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${
+                msgResp?.conversationId
+              }', '${msgResp?.activityId}', ${status}, '${error}', ${
+                isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+              }); `;
             }
           } else {
             log.addLog(`For OneTime Incident`);
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
-              } where inc_id = ${incObj.incId} and user_id = '${msgResp.userId
-              }'; `;
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${
+              isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+            } where inc_id = ${incObj.incId} and user_id = '${
+              msgResp.userId
+            }'; `;
           }
         }
 
@@ -2280,9 +2285,9 @@ const sendProactiveMessageAsync = async (
             "",
             userAadObjId,
             " error in fnRecursiveCall startIndex=" +
-            startIndex +
-            " endIndex=" +
-            endIndex,
+              startIndex +
+              " endIndex=" +
+              endIndex,
           );
         }
       };
@@ -2312,9 +2317,9 @@ const sendProactiveMessageAsync = async (
       "",
       userAadObjId,
       "error in sendProactiveMessageAsync incData=" +
-      JSON.stringify(incData) +
-      " companyData=" +
-      JSON.stringify(companyData),
+        JSON.stringify(incData) +
+        " companyData=" +
+        JSON.stringify(companyData),
     );
     rejectFn(err);
   } finally {
@@ -2419,20 +2424,23 @@ const sendSafetyCheckMsgViaSMS = async (
 
       case 3: // Important Bulletin
         incTypeName = "Important bulletin";
-        data = `Guidance:\n${incData.incGuidance || ""
-          }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
+        data = `Guidance:\n${
+          incData.incGuidance || ""
+        }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
         break;
 
       case 4: // Travel Advisory
         incTypeName = "Travel advisory";
-        data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${incData.incGuidance || ""
-          }\n\nContact Information:\n${incData.contactInfo || ""}`;
+        data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${
+          incData.incGuidance || ""
+        }\n\nContact Information:\n${incData.contactInfo || ""}`;
         break;
 
       case 5: // Stakeholder Notice
         incTypeName = "Stakeholder notice";
-        data = `Situation:\n${incData.situation || ""
-          }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
+        data = `Situation:\n${
+          incData.situation || ""
+        }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
         break;
     }
 
@@ -2686,7 +2694,7 @@ const sendSafetyCheckMsgViaVoice = async (
         "VOICE",
         maskedPhone,
         incObj.incId,
-        "CALL_INITIATED",
+        "SEND_TO_CALL_INITIATED",
         "VOICE_CALL",
         "INITIATE",
         JSON.stringify(voiceInitiatePayload),
@@ -2697,9 +2705,9 @@ const sendSafetyCheckMsgViaVoice = async (
       const call = await tClient.calls.create({
         twiml: `
 <Response>
-  <Gather numDigits="1" timeout="8" action="${process.env.serviceUrl}/voicecall?incidentId=${incObj.incId}&userId=${encodeURIComponent(
-          user.id,
-        )}" method="POST">
+  <Gather numDigits="1" timeout="8" action="https://0f1a-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/voicecall?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+    user.id,
+  )}" method="POST">
     <Say voice="alice">
       Hello, this is a safety check from ${createdByUserInfo.user_name}.
       Press 1 if you are safe. Press 2 if you need help.
@@ -2710,7 +2718,7 @@ const sendSafetyCheckMsgViaVoice = async (
 `,
         to: phone,
         from: "+18023277232",
-        statusCallback: `${process.env.serviceUrl}/callstatus?incidentId=${incObj.incId}&userId=${encodeURIComponent(
+        statusCallback: `https://0f1a-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/callstatus?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
           user.id,
         )}`,
         statusCallbackMethod: "POST",
@@ -3143,24 +3151,28 @@ const withhoutsafteycard = async (incdata, user) => {
             <tr>
               <td style="padding:20px;">
                 <p style="font-size:12px; color:#555; text-transform:uppercase; margin-bottom:4px;">Travel Advisory</p>
-                <p style="font-size:18px; font-weight:500; color:#111;">${incdata.incTitle
-            }</p>
+                <p style="font-size:18px; font-weight:500; color:#111;">${
+                  incdata.incTitle
+                }</p>
 
                 <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Travel Update</p>
-                <p style="font-size:15px; color:#444;">${incdata.travelUpdate || ""
-            }</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.travelUpdate || ""
+                }</p>
 
                 <div style="margin-top:20px;">
                   <p style="font-size:12px; text-transform:uppercase; color:#92400e; margin-bottom:4px;">Guidance</p>
-                  <p style="font-size:14px; color:#78350f;">${incdata.incGuidance || ""
-            }</p>
+                  <p style="font-size:14px; color:#78350f;">${
+                    incdata.incGuidance || ""
+                  }</p>
                 </div>
 
                 <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Contact Information</p>
-                <p style="font-size:14px; color:#444;">${incdata.contactInfo || ""
-            }</p>
+                <p style="font-size:14px; color:#444;">${
+                  incdata.contactInfo || ""
+                }</p>
               </td>
             </tr>
  <table cellpadding="0" cellspacing="0" border="0">
@@ -3173,8 +3185,9 @@ const withhoutsafteycard = async (incdata, user) => {
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
                   Sent on ${formattedDate} by 
-                  <span style="color:#ea580c; font-weight:500;">${incdata.incCreatedByName
-            }</span>
+                  <span style="color:#ea580c; font-weight:500;">${
+                    incdata.incCreatedByName
+                  }</span>
                 </p>
               </td>
             </tr>
@@ -3304,18 +3317,21 @@ const withhoutsafteycard = async (incdata, user) => {
             <tr>
               <td style="padding:20px;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Title</p>
-                <p style="font-size:18px; font-weight:500; color:#111;">${incdata.incTitle
-            }</p>
+                <p style="font-size:18px; font-weight:500; color:#111;">${
+                  incdata.incTitle
+                }</p>
 
                 <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Situation</p>
-                <p style="font-size:15px; color:#444;">${incdata.situation || ""
-            }</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.situation || ""
+                }</p>
 
                 <hr style="margin:20px 0; border:0; border-top:1px solid #eee;">
                 <p style="font-size:12px; text-transform:uppercase; color:#555; margin-bottom:4px;">Additional Information</p>
-                <p style="font-size:15px; color:#444;">${incdata.additionalInfo || ""
-            }</p>
+                <p style="font-size:15px; color:#444;">${
+                  incdata.additionalInfo || ""
+                }</p>
               </td>
             </tr>
  <table cellpadding="0" cellspacing="0" border="0">
@@ -3328,8 +3344,9 @@ const withhoutsafteycard = async (incdata, user) => {
               <td style="background:#f9fafb; padding:10px; border-top:1px solid #eee; text-align:center;">
                 <p style="font-size:12px; color:#777; font-style:italic; margin:0;">
                   Sent on ${formattedDate} by 
-                  <span style="color:#0d9488; font-weight:500;">${incdata.incCreatedByName
-            }</span>
+                  <span style="color:#0d9488; font-weight:500;">${
+                    incdata.incCreatedByName
+                  }</span>
                 </p>
               </td>
             </tr>
@@ -3376,8 +3393,9 @@ const sendFeedbackEmail = async (incdata, userEmail, user) => {
     }
     const raw = JSON.stringify({
       projectName: "AYS",
-      emailSubject: `${getIncTypeText(incdata.incTypeId)} - ${incdata.incTitle
-        }`,
+      emailSubject: `${getIncTypeText(incdata.incTypeId)} - ${
+        incdata.incTitle
+      }`,
 
       emailBody: body,
       emailTo: userEmail,
@@ -4081,9 +4099,9 @@ const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
                     "",
                     "",
                     "error in get users phone number requestDateTime : " +
-                    requestDate +
-                    " ErrorDateTime: " +
-                    new Date(),
+                      requestDate +
+                      " ErrorDateTime: " +
+                      new Date(),
                     "",
                     false,
                     "",
@@ -4259,9 +4277,9 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                     "",
                     "",
                     "error in get users phone number requestDateTime : " +
-                    requestDate +
-                    " ErrorDateTime: " +
-                    new Date(),
+                      requestDate +
+                      " ErrorDateTime: " +
+                      new Date(),
                     "",
                     false,
                     "",
@@ -4634,11 +4652,11 @@ const sendSafetyCheckMessageAsync = async (
         "",
         userAadObjId,
         "error in sendSafetyCheckMessageAsync incId=" +
-        incId +
-        " createdByUserInfo=" +
-        JSON.stringify(createdByUserInfo) +
-        " resendSafetyCheck=" +
-        resendSafetyCheck,
+          incId +
+          " createdByUserInfo=" +
+          JSON.stringify(createdByUserInfo) +
+          " resendSafetyCheck=" +
+          resendSafetyCheck,
       );
       resolve(false);
     }
@@ -4798,12 +4816,14 @@ const NewsendSafetyCheckMessageAsync = async (
 
         // Voice calls to all users (similar to sendSafetyCheckMsgViaSMS)
         const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
-        await sendSafetyCheckMsgViaVoice(
-          companyData,
-          userAadObjIds,
-          incObj,
-          createdByUserInfo,
-        );
+        if (incData.incTypeId == 1) {
+          await sendSafetyCheckMsgViaVoice(
+            companyData,
+            userAadObjIds,
+            incObj,
+            createdByUserInfo,
+          );
+        }
         if (
           companyData.send_sms &&
           (companyData.SubscriptionType == 3 ||
@@ -4849,11 +4869,11 @@ const NewsendSafetyCheckMessageAsync = async (
         "",
         userAadObjId,
         "error in sendSafetyCheckMessageAsync incId=" +
-        incId +
-        " createdByUserInfo=" +
-        JSON.stringify(createdByUserInfo) +
-        " resendSafetyCheck=" +
-        resendSafetyCheck,
+          incId +
+          " createdByUserInfo=" +
+          JSON.stringify(createdByUserInfo) +
+          " resendSafetyCheck=" +
+          resendSafetyCheck,
       );
       resolve(false);
     }
@@ -4883,12 +4903,12 @@ const sendSafetyCheckMessage = async (
 
     let allMembersArr = allMembers.map(
       (tm) =>
-      (tm = {
-        ...tm,
-        messageDelivered: "na",
-        response: "na",
-        responseValue: "na",
-      }),
+        (tm = {
+          ...tm,
+          messageDelivered: "na",
+          response: "na",
+          responseValue: "na",
+        }),
     );
 
     if (selectedMembers != null && selectedMembers?.split(",").length > 0) {
@@ -4995,9 +5015,9 @@ const sendSafetyCheckMessage = async (
       "",
       userAadObjId,
       "error in sendSafetyCheckMessageAsync incId=" +
-      incId +
-      " createdByUserInfo=" +
-      JSON.stringify(createdByUserInfo),
+        incId +
+        " createdByUserInfo=" +
+        JSON.stringify(createdByUserInfo),
     );
   }
   log.addLog(`sendSafetyCheckMessage end`);
@@ -5021,12 +5041,12 @@ const sendApproval = async (context) => {
 
   let allMembersArr = allMembers.map(
     (tm) =>
-    (tm = {
-      ...tm,
-      messageDelivered: "na",
-      response: "na",
-      responseValue: "na",
-    }),
+      (tm = {
+        ...tm,
+        messageDelivered: "na",
+        response: "na",
+        responseValue: "na",
+      }),
   );
 
   if (selectedMembers.length > 0) {
@@ -5200,8 +5220,9 @@ const sendApprovalResponse = async (user, context) => {
       body: [
         {
           type: "TextBlock",
-          text: `User <at>${user.name
-            }</at> responded **${responseText.trim()}** for Incident: **${incTitle}** `,
+          text: `User <at>${
+            user.name
+          }</at> responded **${responseText.trim()}** for Incident: **${incTitle}** `,
           wrap: true,
         },
       ],
@@ -5444,9 +5465,9 @@ const submitComment = async (context, user, companyData) => {
       user.name,
       user.aadObjectId,
       "error in submitComment context=" +
-      JSON.stringify(context) +
-      " companyData=" +
-      JSON.stringify(companyData),
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData),
     );
   }
 };
@@ -5593,11 +5614,11 @@ const Question1safetyVisitor = async (
       user.name,
       user.aadObjectId,
       "error in Question1safetyVisitor loggerName=" +
-      loggerName +
-      " context=" +
-      JSON.stringify(context) +
-      " questionNumber=" +
-      questionNumber,
+        loggerName +
+        " context=" +
+        JSON.stringify(context) +
+        " questionNumber=" +
+        questionNumber,
     );
   }
 };
@@ -5697,7 +5718,8 @@ const sendNewContactEmail = async (
       "Hi,<br/> <br />" +
       "Below user has provided feedback for Safety Check app installed in Microsoft Teams : " +
       "<br />" +
-      `${userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
+      `${
+        userName !== "" ? "<b>User Name</b>: " + userName + " <br />" : " "
       } ` +
       "<b>Email: </b>" +
       emailVal +
@@ -6208,13 +6230,13 @@ const sendRecurrEventMsg = async (subEventObj, incId, incTitle, log) => {
       "",
       "",
       "error in sendRecurrEventMsg subEventObj=" +
-      JSON.stringify(subEventObj) +
-      " incId=" +
-      incId +
-      " incTitle=" +
-      incTitle +
-      " log=" +
-      log,
+        JSON.stringify(subEventObj) +
+        " incId=" +
+        incId +
+        " incTitle=" +
+        incTitle +
+        " log=" +
+        log,
     );
   }
   // return successflag;
@@ -6343,7 +6365,7 @@ const addteamsusers = async (context) => {
               "",
               "",
               "error in addteamsusers ->  getAllTeamMembersByConnectorClient -> cmpData=" +
-              JSON.stringify(cmpData),
+                JSON.stringify(cmpData),
             );
           } finally {
             log.addLog(`Inside loop start teamid: ${JSON.stringify(teamid)} `);
@@ -6406,7 +6428,7 @@ const sendNSRespToTeamChannel = async (
       "",
       userAadObjId,
       "error in sendNSRespToTeamChannel adaptiveCard=" +
-      JSON.stringify(adaptiveCard),
+        JSON.stringify(adaptiveCard),
     );
   }
 };
@@ -6511,7 +6533,7 @@ const createTestIncident = async (
       "",
       userAadObjId,
       "error in createTestIncident teamsMembers=" +
-      JSON.stringify(teamsMembers),
+        JSON.stringify(teamsMembers),
     );
   }
 };
