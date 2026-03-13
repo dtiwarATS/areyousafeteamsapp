@@ -1959,7 +1959,11 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     return Promise.resolve(Array.isArray(res) ? res : []);
   };
   deleteSavedSafetyCheckFilter = async (id) => {
-    let res = { success: false, statusCode: 500, error: "Error deleting filter" };
+    let res = {
+      success: false,
+      statusCode: 500,
+      error: "Error deleting filter",
+    };
     try {
       res = await incidentService.deleteSavedSafetyCheckFilter(id);
     } catch (err) {
@@ -2005,6 +2009,24 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       res = await incidentService.SosNotificationFor(
         AVAILABLE_FOR,
 
+        teamId,
+      );
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in SosNotificationFor",
+      );
+    }
+    return Promise.resolve(res);
+  };
+  followUpIncidentNotificationFor = async (AVAILABLE_FOR, teamId) => {
+    let res = null;
+    try {
+      res = await incidentService.followUpIncidentNotificationFor(
+        AVAILABLE_FOR,
         teamId,
       );
     } catch (err) {

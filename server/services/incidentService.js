@@ -311,7 +311,7 @@ const getAdmins = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (superUsersArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
+              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join(
@@ -1732,6 +1732,7 @@ const getUserTeamInfo = async (userAadObjId) => {
           team_id AS teamId,
           team_name AS teamName,
           SOS_NOTIFICATION,
+          FOLLOW_UP_INCIDENT_NOTIFICATION,
           channelId,
           ISNULL(team_name, '') + ' - ' + ISNULL(channelName, '') AS channelName,
           user_tenant_id AS tenant_id,
@@ -2160,7 +2161,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (contactsArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
+              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
@@ -2525,6 +2526,22 @@ const SosNotificationFor = async (SOS_NOTIFICATION_FOR, teamId) => {
   let result = null;
   try {
     const qry = `update MSTeamsInstallationDetails set SOS_NOTIFICATION = '${SOS_NOTIFICATION_FOR}' where team_id='${teamId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, teamId, "", "", "error in SosNotificationFor");
+  }
+  return Promise.resolve(result);
+};
+const followUpIncidentNotificationFor = async (
+  SOS_NOTIFICATION_FOR,
+  teamId,
+) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set FOLLOW_UP_INCIDENT_NOTIFICATION = '${SOS_NOTIFICATION_FOR}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
@@ -4206,4 +4223,5 @@ module.exports = {
   updateSosAfterAcknowledgementReminder,
   updateSosAfterAcknowledgementResponse,
   getAllSosResponders,
+  followUpIncidentNotificationFor,
 };

@@ -33,6 +33,7 @@ class Company {
     SMS_INFO_DISPLAY,
     SEND_EMAIL,
     LANGUAGE,
+    FOLLOW_UP_INCIDENT_NOTIFICATION,
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -67,6 +68,7 @@ class Company {
     this.SMS_INFO_DISPLAY = SMS_INFO_DISPLAY;
     this.SEND_EMAIL = SEND_EMAIL;
     this.LANGUAGE = LANGUAGE;
+    this.FOLLOW_UP_INCIDENT_NOTIFICATION = FOLLOW_UP_INCIDENT_NOTIFICATION;
   }
 }
 

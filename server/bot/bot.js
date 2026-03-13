@@ -2646,6 +2646,7 @@ const sendSafetyCheckMsgViaVoice = async (
   users,
   incObj,
   createdByUserInfo,
+  type = "onetime",
 ) => {
   const tenantId = companyData.userTenantId;
   const IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
@@ -2665,6 +2666,19 @@ const sendSafetyCheckMsgViaVoice = async (
       phone = user.mobilePhone;
     }
     if (!phone || phone === "null") {
+      incidentService.saveAllTypeQuerylogs(
+        user.id,
+        user.displayName,
+        "VOICE_CALL",
+        "",
+        incId,
+        "PHONE_NUM_NOT_FOUND",
+        type,
+        "",
+        incTitle,
+        "",
+        "",
+      );
       continue;
     }
 
@@ -2691,11 +2705,11 @@ const sendSafetyCheckMsgViaVoice = async (
       await incidentService.saveAllTypeQuerylogs(
         user.id,
         user.displayName || "",
-        "VOICE",
+        "VOICE_CALL",
         maskedPhone,
         incObj.incId,
-        "SEND_TO_CALL_INITIATED",
-        "VOICE_CALL",
+        "SEND_TO_TWILIO",
+        type,
         "INITIATE",
         JSON.stringify(voiceInitiatePayload),
         "",
@@ -2741,11 +2755,11 @@ const sendSafetyCheckMsgViaVoice = async (
       await incidentService.saveAllTypeQuerylogs(
         user.id,
         user.displayName || "",
-        "VOICE",
+        "VOICE_CALL",
         maskedPhone,
         incObj.incId,
-        "CALL_CREATED",
-        "VOICE_CALL",
+        "CALL_CREATED_SUCCESS",
+        type,
         "CREATED",
         JSON.stringify(voiceCreatedPayload),
         "",
@@ -2769,11 +2783,11 @@ const sendSafetyCheckMsgViaVoice = async (
       await incidentService.saveAllTypeQuerylogs(
         user.id,
         user.displayName || "",
-        "VOICE",
+        "VOICE_CALL",
         maskedPhone,
         incObj.incId,
         "CALL_FAILED",
-        "VOICE_CALL",
+        type,
         "FAILED",
         "",
         "",
@@ -4817,7 +4831,7 @@ const NewsendSafetyCheckMessageAsync = async (
         // Voice calls to all users (similar to sendSafetyCheckMsgViaSMS)
         const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (incData.incTypeId == 1) {
-          await sendSafetyCheckMsgViaVoice(
+          sendSafetyCheckMsgViaVoice(
             companyData,
             userAadObjIds,
             incObj,
@@ -6059,6 +6073,15 @@ const sendRecurrEventMsgAsync = async (
       subEventObj.filesData,
     );
     let userAadObjIds = subEventObj.eventMembers.map((x) => x.userAadObjId);
+    if (incData.incTypeId == 1) {
+      sendSafetyCheckMsgViaVoice(
+        companyData,
+        userAadObjIds,
+        incObj,
+        incCreatedByUserObj,
+        "recurringIncident",
+      );
+    }
     if (
       companyData.send_sms &&
       (companyData.SubscriptionType == 3 ||
@@ -6980,6 +7003,7 @@ module.exports = {
   createTestIncident,
   onInvokeActivity,
   sendSafetyCheckMsgViaSMS,
+  sendSafetyCheckMsgViaVoice,
   sendAcknowledmentinSMS,
   proccessSMSLinkClick,
   SaveSmsLog,
