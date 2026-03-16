@@ -483,9 +483,9 @@ SELECT
         FROM (
             SELECT DISTINCT 
                 CASE mal.MessageSentVia
-                    WHEN 'SOS_TEAMS' THEN 'TEAMS'
+                    WHEN 'SOS_TEAMS' THEN 'Teams'
                     WHEN 'SOS_SMS' THEN 'SMS'
-                    WHEN 'SOS_WHATSAPP' THEN 'WHATSAPP'
+                    WHEN 'SOS_WHATSAPP' THEN 'WhatsApp'
                     ELSE 'TEAMS'   -- default fallback
                 END AS ChannelName
             FROM MessageActivityLog mal
@@ -2407,7 +2407,7 @@ const saveSafetyCheckFilter = async (body) => {
     request.input(
       "updatedByUserId",
       sql.NVarChar(100),
-      updatedByUserId || createdByUserId || null
+      updatedByUserId || createdByUserId || null,
     );
     const updateQuery = `
       UPDATE SavedSafetyCheckFilters
@@ -2425,7 +2425,11 @@ const saveSafetyCheckFilter = async (body) => {
     ) {
       return { success: true, id: Number(id) };
     }
-    return { success: false, statusCode: 404, error: "Filter not found or not updated" };
+    return {
+      success: false,
+      statusCode: 404,
+      error: "Filter not found or not updated",
+    };
   } else {
     request.input("createdByUserId", sql.NVarChar(100), createdByUserId);
     const insertQuery = `
