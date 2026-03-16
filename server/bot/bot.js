@@ -2675,7 +2675,7 @@ const sendSafetyCheckMsgViaVoice = async (
         "PHONE_NUM_NOT_FOUND",
         type,
         "",
-        incTitle,
+        incObj.incTitle,
         "",
         "",
       );
@@ -2724,6 +2724,7 @@ const sendSafetyCheckMsgViaVoice = async (
   )}" method="POST">
     <Say voice="alice">
       Hello, this is a safety check from ${createdByUserInfo.user_name}.
+      We think you may be affected by "${incObj.incTitle}".
       Press 1 if you are safe. Press 2 if you need help.
     </Say>
   </Gather>
