@@ -28,14 +28,24 @@ function getFirebaseApp() {
     }
   }
   if (credPath) {
-    const resolvedPath = path.isAbsolute(credPath) ? credPath : path.join(process.cwd(), credPath);
-    try {
-      const serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
-      app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-      return app;
-    } catch (readErr) {
-      throw new Error('FCM not configured: could not read credentials from ' + credPath + ' - ' + (readErr && readErr.message));
+    let serviceAccount;
+    const trimmed = String(credPath).trim();
+    if (trimmed.startsWith('{')) {
+      try {
+        serviceAccount = JSON.parse(trimmed);
+      } catch (parseErr) {
+        throw new Error('FCM not configured: FCM_SERVICE_ACCOUNT_PATH contains invalid JSON');
+      }
+    } else {
+      const resolvedPath = path.isAbsolute(credPath) ? credPath : path.join(process.cwd(), credPath);
+      try {
+        serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
+      } catch (readErr) {
+        throw new Error('FCM not configured: could not read credentials from ' + credPath + ' - ' + (readErr && readErr.message));
+      }
     }
+    app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    return app;
   }
   throw new Error('FCM not configured: set GOOGLE_APPLICATION_CREDENTIALS, FCM_SERVICE_ACCOUNT_PATH, or FCM_SERVICE_ACCOUNT_JSON');
 }
@@ -108,60 +118,60 @@ async function sendSosPushToAdmins(admins, user, userAadObjId, requestAssistance
   if (!tokens || tokens.length === 0) return;
   const title = 'SOS Alert';
   const body = `${user.user_name || 'Someone'} needs assistance`;
-  // const pushTasks = tokens.map(async (row) => {
-  //   const adminId = row.user_id;
-  //   const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${adminId}`;
-  //   const data = {
-  //     requestAssistanceid: String(requestAssistanceid),
-  //     userAadObjId: String(userAadObjId || ''),
-  //     adminId,
-  //     acceptLink,
-  //   };
-  //   try {
-  //     incidentService.saveAllTypeQuerylogs(
-  //       adminId,
-  //       '',
-  //       'SOS_PUSH',
-  //       'FCM',
-  //       requestAssistanceid,
-  //       'SENDING',
-  //       '',
-  //       '',
-  //       '',
-  //       '',
-  //       '',
-  //     );
-  //     await sendPushNotification(row.fcm_token, title, body, data);
-  //     incidentService.saveAllTypeQuerylogs(
-  //       adminId,
-  //       '',
-  //       'SOS_PUSH',
-  //       'FCM',
-  //       requestAssistanceid,
-  //       'SEND_SUCCESS',
-  //       '',
-  //       '',
-  //       '',
-  //       '',
-  //       '',
-  //     );
-  //   } catch (err) {
-  //     console.error('[sendSosPushToAdmins] sendPushNotification error:', err);
-  //     incidentService.saveAllTypeQuerylogs(
-  //       adminId,
-  //       '',
-  //       'SOS_PUSH',
-  //       'FCM',
-  //       requestAssistanceid,
-  //       'SEND_FAILED',
-  //       '',
-  //       '',
-  //       '',
-  //       '',
-  //       String((err && err.message) || ''),
-  //     );
-  //   }
-  // });
+  const pushTasks = tokens.map(async (row) => {
+    const adminId = row.user_id;
+    const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${adminId}`;
+    const data = {
+      requestAssistanceid: String(requestAssistanceid),
+      userAadObjId: String(userAadObjId || ''),
+      adminId,
+      acceptLink,
+    };
+    try {
+      incidentService.saveAllTypeQuerylogs(
+        adminId,
+        '',
+        'SOS_PUSH',
+        'FCM',
+        requestAssistanceid,
+        'SENDING',
+        '',
+        '',
+        '',
+        '',
+        '',
+      );
+      await sendPushNotification(row.fcm_token, title, body, data);
+      incidentService.saveAllTypeQuerylogs(
+        adminId,
+        '',
+        'SOS_PUSH',
+        'FCM',
+        requestAssistanceid,
+        'SEND_SUCCESS',
+        '',
+        '',
+        '',
+        '',
+        '',
+      );
+    } catch (err) {
+      console.error('[sendSosPushToAdmins] sendPushNotification error:', err);
+      incidentService.saveAllTypeQuerylogs(
+        adminId,
+        '',
+        'SOS_PUSH',
+        'FCM',
+        requestAssistanceid,
+        'SEND_FAILED',
+        '',
+        '',
+        '',
+        '',
+        String((err && err.message) || ''),
+      );
+    }
+  });
   await Promise.allSettled(pushTasks);
 }
 

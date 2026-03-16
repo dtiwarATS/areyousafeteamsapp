@@ -1,3 +1,5 @@
+const crypto = require("crypto");
+const sql = require("mssql");
 const incidentService = require("./services/incidentService");
 const path = require("path");
 const poolPromise = require("./db/dbConn");
@@ -12,8 +14,39 @@ const { formatedDate } = require("./utils/index");
 const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
-// const { saveToken, getToken } = require("./store");
-// const { sendPushNotification, getFcmTokensForUsers } = require("./services/fcmService");
+const { saveToken, getToken } = require("./store");
+const { sendPushNotification, getFcmTokensForUsers } = require("./services/fcmService");
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Resolve Teams ID (29:1xxx) to AAD Object ID (UUID).
+ * Returns null if teamsId is falsy, already a UUID, or not found in MSTeamsTeamsUsers.
+ * @param {string} teamsId - Teams user ID (e.g. 29:1xxx...)
+ * @returns {Promise<string|null>} AAD Object ID or null
+ */
+async function resolveTeamsIdToAadObjectId(teamsId) {
+  if (!teamsId || typeof teamsId !== "string") return null;
+  const trimmed = teamsId.trim();
+  if (!trimmed) return null;
+  if (UUID_REGEX.test(trimmed)) return null;
+  if (!trimmed.startsWith("29:") || (!trimmed.includes("_") && !trimmed.includes("-"))) return null;
+
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("teamsId", sql.NVarChar(256), trimmed)
+      .query(`SELECT TOP 1 user_aadobject_id FROM MSTeamsTeamsUsers WHERE user_id = @teamsId`);
+    const row = result?.recordset?.[0];
+    return row?.user_aadobject_id || null;
+  } catch (err) {
+    console.error("[resolveTeamsIdToAadObjectId]", err?.message);
+    return null;
+  }
+}
+
+const SEND_NOTIFICATION_TIMEOUT_MS = 15000;
 
 const handlerForSafetyBotTab = (app) => {
   const tabObj = new tab.AreYouSafeTab();
@@ -82,6 +115,139 @@ const handlerForSafetyBotTab = (app) => {
         userObjId,
         "Error in /areyousafetabhandler/getUserPermission",
       );
+    }
+  });
+
+  const LOGIN_CODE_LENGTH = 6;
+  const DEFAULT_LOGIN_CODE_EXPIRY_SECONDS = 300;
+  const LOGIN_CODE_EXPIRY_SECONDS =
+    Number.parseInt(process.env.LOGIN_CODE_EXPIRY_SECONDS, 10) ||
+    DEFAULT_LOGIN_CODE_EXPIRY_SECONDS;
+
+  app.post("/areyousafetabhandler/generate-login-code", async (req, res) => {
+    const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : "";
+
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: "userId is required",
+      });
+    }
+
+    const code = crypto
+      .randomInt(0, 10 ** LOGIN_CODE_LENGTH)
+      .toString()
+      .padStart(LOGIN_CODE_LENGTH, "0");
+
+    const expiresAtUtc = new Date(Date.now() + LOGIN_CODE_EXPIRY_SECONDS * 1000);
+
+    try {
+      const pool = await poolPromise;
+      await pool
+        .request()
+        .input("code", sql.NVarChar(10), code)
+        .input("expiresAt", sql.DateTime2, expiresAtUtc)
+        .input("userId", sql.NVarChar(256), userId)
+        .query(`
+          UPDATE MSTeamsTeamsUsers 
+          SET Generated_code = @code, Generated_code_expires_at = @expiresAt 
+          WHERE user_aadobject_id = @userId OR user_id = @userId
+        `);
+    } catch (err) {
+      console.error("Error saving login code to MSTeamsTeamsUsers:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userId,
+        "error in /areyousafetabhandler/generate-login-code",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Failed to save login code",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      userId,
+      code,
+      expiresInSeconds: LOGIN_CODE_EXPIRY_SECONDS,
+      expiresAtUtc: expiresAtUtc.toISOString(),
+    });
+  });
+
+  app.post("/areyousafetabhandler/verify-login-code", async (req, res) => {
+    const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
+    const fcmToken = typeof req.body?.fcmToken === "string" ? req.body.fcmToken.trim() : "";
+
+    if (!code) {
+      return res.status(400).json({
+        success: false,
+        message: "code is required",
+      });
+    }
+    if (!fcmToken) {
+      return res.status(400).json({
+        success: false,
+        message: "fcmToken is required to link the device to the user",
+      });
+    }
+
+    try {
+      const pool = await poolPromise;
+
+      const userResult = await pool
+        .request()
+        .input("code", sql.NVarChar(10), code)
+        .query(`
+          SELECT TOP 1 team_id, user_aadobject_id, user_name, email,tenantid
+          FROM MSTeamsTeamsUsers
+          WHERE Generated_code = @code
+            AND (Generated_code_expires_at IS NULL OR Generated_code_expires_at > SYSUTCDATETIME())
+        `);
+
+      const user = userResult?.recordset?.[0];
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid or expired code",
+        });
+      }
+
+      const userAadObjectId = user.user_aadobject_id;
+
+      await pool
+        .request()
+        .input("user_aadobject_id", sql.NVarChar(256), userAadObjectId)
+        .input("fcm_token", sql.VarChar(500), fcmToken)
+        .query(`
+          UPDATE user_fcm_tokens
+          SET user_id = @user_aadobject_id
+          WHERE fcm_token = @fcm_token
+        `);
+
+      return res.status(200).json({
+        success: true,
+        team_id: user.team_id,
+        user_aadobject_id: user.user_aadobject_id,
+        user_name: user.user_name,
+        email: user.email,
+        tenantid: user.tenantid, 
+      });
+    } catch (err) {
+      console.error("Error in verify-login-code:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in /areyousafetabhandler/verify-login-code",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Failed to verify login code",
+      });
     }
   });
 
@@ -1094,55 +1260,87 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
-  // app.post("/areyousafetabhandler/registerFcmToken", async (req, res) => {
-  //   console.log("[registerFcmToken] REQUEST received, body:", JSON.stringify(req.body, null, 2));
-  //   const { userId, fcmToken, platform, basicPhoneInfo, extra } = req.body || {};
-  //   if (!userId || !fcmToken) {
-  //     console.log("[registerFcmToken] REJECTED: userId or fcmToken missing");
-  //     return res.status(400).json({ ok: false, error: "userId and fcmToken required" });
-  //   }
-  //   const deviceInfo = {};
-  //   if (basicPhoneInfo) {
-  //     deviceInfo.osVersion = basicPhoneInfo.osVersion ?? null;
-  //     const pc = basicPhoneInfo.platformConstants || {};
-  //     deviceInfo.deviceBrand = pc.Brand ?? null;
-  //     deviceInfo.deviceManufacturer = pc.Manufacturer ?? null;
-  //     deviceInfo.deviceModel = pc.Model ?? null;
-  //   }
-  //   if (extra && typeof extra.authStatus === "number") {
-  //     deviceInfo.authStatus = extra.authStatus;
-  //   }
-  //   console.log("[registerFcmToken] Calling saveToken with:", { userId, fcmToken, platform: platform || "android", deviceInfo });
-  //   try {
-  //     await saveToken(userId, fcmToken, platform || "android", deviceInfo);
-  //     console.log("[registerFcmToken] saveToken SUCCESS for userId:", userId);
-  //     res.status(200).json({ ok: true });
-  //   } catch (e) {
-  //     console.error("[registerFcmToken] error:", e?.message);
-  //     res.status(500).json({ ok: false, error: e?.message });
-  //   }
-  // });
-  // app.post("/areyousafetabhandler/sendNotification", async (req, res) => {
-  //   const { userId, title, body, data } = req.body || {};
-  //   if (!userId || !title) {
-  //     return res.status(400).json({ ok: false, error: "userId and title required" });
-  //   }
-  //   let fcmToken = await getToken(userId);
-  //   if (!fcmToken) {
-  //     const tokens = await getFcmTokensForUsers([userId], "android");
-  //     fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
-  //   }
-  //   if (!fcmToken) {
-  //     return res.status(404).json({ ok: false, error: "No FCM token for this userId" });
-  //   }
-  //   try {
-  //     await sendPushNotification(fcmToken, title, body || "", data || {});
-  //     res.status(200).json({ ok: true });
-  //   } catch (err) {
-  //     console.error("[sendNotification]", err);
-  //     res.status(500).json({ ok: false, error: err.message });
-  //   }
-  // });
+  app.post("/areyousafetabhandler/registerFcmToken", async (req, res) => {
+    console.log("[registerFcmToken] REQUEST received, body:", JSON.stringify(req.body, null, 2));
+    const { userId, fcmToken, platform, basicPhoneInfo, extra } = req.body || {};
+    if (!userId || !fcmToken) {
+      console.log("[registerFcmToken] REJECTED: userId or fcmToken missing");
+      return res.status(400).json({ ok: false, error: "userId and fcmToken required" });
+    }
+    const deviceInfo = {};
+    if (basicPhoneInfo) {
+      deviceInfo.osVersion = basicPhoneInfo.osVersion ?? null;
+      const pc = basicPhoneInfo.platformConstants || {};
+      deviceInfo.deviceBrand = pc.Brand ?? null;
+      deviceInfo.deviceManufacturer = pc.Manufacturer ?? null;
+      deviceInfo.deviceModel = pc.Model ?? null;
+    }
+    if (extra && typeof extra.authStatus === "number") {
+      deviceInfo.authStatus = extra.authStatus;
+    }
+    console.log("[registerFcmToken] Calling saveToken with:", { userId, fcmToken, platform: platform || "android", deviceInfo });
+    try {
+      await saveToken(userId, fcmToken, platform || "android", deviceInfo);
+      console.log("[registerFcmToken] saveToken SUCCESS for userId:", userId);
+      res.status(200).json({ ok: true });
+    } catch (e) {
+      console.error("[registerFcmToken] error:", e?.message);
+      res.status(500).json({ ok: false, error: e?.message });
+    }
+  });
+  app.post("/areyousafetabhandler/sendNotification", async (req, res) => {
+    const startMs = Date.now();
+    const { userId, title, body, data } = req.body || {};
+    if (!userId || !title) {
+      return res.status(400).json({ ok: false, error: "userId and title required" });
+    }
+
+    const runWithTimeout = async () => {
+      let fcmToken = await getToken(userId);
+      if (!fcmToken) {
+        const tokens = await getFcmTokensForUsers([userId], "android");
+        fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
+      }
+      if (!fcmToken) {
+        const aadObjectId = await resolveTeamsIdToAadObjectId(userId);
+        if (aadObjectId) {
+          console.log("[sendNotification] resolved Teams ID to AAD Object ID, lookupMs:", Date.now() - startMs);
+          fcmToken = await getToken(aadObjectId);
+          if (!fcmToken) {
+            const tokens = await getFcmTokensForUsers([aadObjectId], "android");
+            fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
+          }
+        }
+      }
+      if (!fcmToken) {
+        console.log("[sendNotification] no token, lookupMs:", Date.now() - startMs);
+        return { ok: false, status: 404, body: { ok: false, error: "No FCM token for this userId" } };
+      }
+      console.log("[sendNotification] token found, lookupMs:", Date.now() - startMs);
+      await sendPushNotification(fcmToken, title, body || "", data || {});
+      return { ok: true, status: 200, body: { ok: true } };
+    };
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("sendNotification timeout")), SEND_NOTIFICATION_TIMEOUT_MS);
+    });
+
+    try {
+      const result = await Promise.race([runWithTimeout(), timeoutPromise]);
+      if (result?.status === 404) {
+        return res.status(404).json(result.body);
+      }
+      console.log("[sendNotification] done, totalMs:", Date.now() - startMs);
+      return res.status(200).json(result.body);
+    } catch (err) {
+      const totalMs = Date.now() - startMs;
+      console.error("[sendNotification]", err?.message, "totalMs:", totalMs);
+      if (err?.message === "sendNotification timeout") {
+        return res.status(504).json({ ok: false, error: "Request timeout" });
+      }
+      return res.status(500).json({ ok: false, error: err.message });
+    }
+  });
   app.get("/areyousafetabhandler/getAssistanceData", (req, res) => {
     const userAadObjId = req.query.userId;
     try {
