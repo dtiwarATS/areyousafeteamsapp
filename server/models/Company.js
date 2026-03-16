@@ -34,6 +34,7 @@ class Company {
     SEND_EMAIL,
     LANGUAGE,
     FOLLOW_UP_INCIDENT_NOTIFICATION,
+    SEND_INCIDENT_MESSAGES_VIA,
   }) {
     this.companyId = id;
     this.userId = user_id;
@@ -69,6 +70,7 @@ class Company {
     this.SEND_EMAIL = SEND_EMAIL;
     this.LANGUAGE = LANGUAGE;
     this.FOLLOW_UP_INCIDENT_NOTIFICATION = FOLLOW_UP_INCIDENT_NOTIFICATION;
+    this.SEND_INCIDENT_MESSAGES_VIA = SEND_INCIDENT_MESSAGES_VIA;
   }
 }
 

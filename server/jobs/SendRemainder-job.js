@@ -191,7 +191,6 @@ const { processSafetyBotError } = require("../models/processError");
                   );
                 }
                 if (
-                  companyData.send_sms &&
                   (companyData.SubscriptionType == 3 ||
                     (companyData.SubscriptionType == 2 &&
                       companyData.sent_sms_count < 50)) &&
@@ -216,7 +215,6 @@ const { processSafetyBotError } = require("../models/processError");
               }
               if (
                 inc_type_id == 1 &&
-                companyData.send_whatsapp &&
                 companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes("WhatsApp")
               ) {
                 await bot.sendSafetyCheckMsgViaWhatsapp(
@@ -231,7 +229,6 @@ const { processSafetyBotError } = require("../models/processError");
                 );
               }
               if (
-                companyData.SEND_EMAIL &&
                 companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes("Email")
               ) {
                 await bot.sendSafetyCheckMsgViaEmail(

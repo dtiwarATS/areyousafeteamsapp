@@ -993,6 +993,31 @@ const handlerForSafetyBotTab = (app) => {
       }
     },
   );
+  app.post(
+    "/areyousafetabhandler/setIncidentMessagesNotification",
+    async (req, res) => {
+      const teamId = req.query.teamId;
+
+      const IncidentMessagesNotificationFor =
+        req.query.IncidentMessagesNotificationFor;
+      try {
+        const tabObj = new tab.AreYouSafeTab();
+        await tabObj.IncidentMessagesNotificationFor(
+          IncidentMessagesNotificationFor,
+          teamId,
+        );
+        res.send("success");
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          userAadObjId,
+          "error in /areyousafetabhandler/setSOSNotification",
+        );
+      }
+    },
+  );
   app.post("/areyousafetabhandler/setLanguagePreference", async (req, res) => {
     const teamId = req.query.teamId;
     const tenantid = req.query.tenantid;

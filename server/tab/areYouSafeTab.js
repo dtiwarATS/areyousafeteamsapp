@@ -2040,6 +2040,25 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
+  IncidentMessagesNotificationFor = async (AVAILABLE_FOR, teamId) => {
+    let res = null;
+    try {
+      res = await incidentService.IncidentMessagesNotificationFor(
+        AVAILABLE_FOR,
+        teamId,
+      );
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        null,
+        "error in SosNotificationFor",
+      );
+    }
+    return Promise.resolve(res);
+  };
+
   setSuperAdmin = async (superadmin, teamId) => {
     let res = null;
     try {

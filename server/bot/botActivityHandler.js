@@ -2032,6 +2032,7 @@ WHERE rn = 1;
               t.team_name,
               t.SOS_NOTIFICATION,
               t.FOLLOW_UP_INCIDENT_NOTIFICATION,
+              t.SEND_INCIDENT_MESSAGES_VIA,
               t.SEND_EMAIL,
               t.SEND_WHATSAPP,
               t.PHONE_FIELD,
