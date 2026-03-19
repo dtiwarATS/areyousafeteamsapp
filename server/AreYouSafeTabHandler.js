@@ -4628,11 +4628,17 @@ WHERE
     // 👇 your custom params
     const eventId = req.query.eventId;
     const userId = req.query.userId;
-    const phone = req.query.To;
+    const phone = req.body.To;
     console.log("Event:", eventId);
     console.log("User:", userId);
     console.log("Status:", status);
 
+    // Always acknowledge Twilio webhook quickly
+    res.sendStatus(200);
+
+    const maskedPhone = (phone || "")
+      .slice(-4)
+      .padStart((phone || "").length || 4, "x");
     const normalizedStatus =
       typeof status === "string" ? status.toLowerCase() : "";
     if (normalizedStatus !== "delivered" || !messageSid) {
@@ -4643,11 +4649,11 @@ WHERE
         Status: status,
       };
       incidentService.saveAllTypeQuerylogs(
-        userId,
+        userId || "",
         "",
         "SMS",
-        phone.slice(-4).padStart(phone.length, "x"),
-        incId,
+        maskedPhone,
+        eventId || "",
         "STATUS_UPDATE",
         "",
         "",
@@ -4656,7 +4662,7 @@ WHERE
         "",
         JSON.stringify(voiceInitiatePayload),
       );
-    } else if (normalizedStatus === "delivered") {
+    } else {
       const accountSid = process.env.TWILIO_ACCOUNT_ID;
       const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
       if (!accountSid || !authToken) {
@@ -4669,42 +4675,76 @@ WHERE
       const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages/${messageSid}.json`;
       axios
         .get(twilioUrl, { auth: { username: accountSid, password: authToken } })
-        .then((resp) => {
+        .then(async (resp) => {
           console.log("[twilio-status] Twilio message details:", resp?.data);
-          console.log("[twilio-status] Twilio fetch failed:", {
-            messageSid,
-            statusCode,
-            resp: resp?.data,
-          });
+          const price =
+            Math.abs(
+              parseFloat(resp?.data?.price ?? resp?.data?.Price ?? 0) || 0,
+            ) || 0;
           const voiceInitiatePayload = {
             eventId: eventId,
             userId: userId,
             SMS_ID: messageSid,
             Status: status,
-            Price: resp?.data?.Price,
+            Price: price,
           };
           incidentService.saveAllTypeQuerylogs(
-            user.id,
-            user.displayName,
+            userId || "",
+            "",
             "SMS",
-            phone.slice(-4).padStart(phone.length, "x"),
-            incId,
+            maskedPhone,
+            eventId || "",
             "STATUS_UPDATE",
             "",
             "",
-            JSON.stringify(body),
+            JSON.stringify(resp?.data || {}),
             "",
             "",
             JSON.stringify(voiceInitiatePayload),
           );
+
+          // Deduct price from REMAINING_SMS_BALANCE: eventId -> team_id -> SubscriptionDetailsId (single SQL)
+          if (eventId && price > 0) {
+            try {
+              const pool = await poolPromise;
+              const result = await pool
+                .request()
+                .input("eventId", sql.Int, parseInt(eventId, 10) || 0)
+                .input("price", sql.Float, price)
+                .query(
+                  `UPDATE s
+                   SET REMAINING_SMS_BALANCE = COALESCE(s.REMAINING_SMS_BALANCE, 0) - @price
+                   FROM MSTeamsSubscriptionDetails s
+                   INNER JOIN MSTeamsInstallationDetails i ON i.SubscriptionDetailsId = s.ID
+                   INNER JOIN MSTeamsIncidents inc ON inc.team_id = i.team_id
+                   WHERE inc.id = @eventId AND i.SubscriptionDetailsId IS NOT NULL`,
+                );
+              const rowsAffected = result?.rowsAffected?.[0] ?? 0;
+              if (rowsAffected > 0) {
+                console.log(
+                  "[twilio-status] Updated REMAINING_SMS_BALANCE, deducted",
+                  price,
+                );
+              }
+            } catch (dbErr) {
+              console.log(
+                "[twilio-status] Error updating REMAINING_SMS_BALANCE:",
+                dbErr?.message,
+              );
+            }
+          }
         })
         .catch((err) => {
           const statusCode = err?.response?.status;
           const body = err?.response?.data;
+          console.log("[twilio-status] Twilio fetch failed:", {
+            messageSid,
+            statusCode,
+            body,
+            error: err?.message,
+          });
         });
     }
-    // Always acknowledge Twilio webhook quickly
-    res.sendStatus(200);
   });
 };
 
