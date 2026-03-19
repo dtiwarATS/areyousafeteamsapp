@@ -4681,12 +4681,14 @@ WHERE
             Math.abs(
               parseFloat(resp?.data?.price ?? resp?.data?.Price ?? 0) || 0,
             ) || 0;
+          const numSegments = parseInt(resp?.data?.num_segments, 10) || 1;
           const voiceInitiatePayload = {
             eventId: eventId,
             userId: userId,
             SMS_ID: messageSid,
             Status: status,
             Price: price,
+            Segments: numSegments,
           };
           incidentService.saveAllTypeQuerylogs(
             userId || "",
@@ -4703,32 +4705,56 @@ WHERE
             JSON.stringify(voiceInitiatePayload),
           );
 
-          // Deduct price from REMAINING_SMS_BALANCE: eventId -> team_id -> SubscriptionDetailsId (single SQL)
-          if (eventId && price > 0) {
+          // Update BILLING_USAGE_DETAILS JSON: SMS.usedBalance += price, SMS.usedSegment += num_segments
+          if (eventId && (price > 0 || numSegments > 0)) {
             try {
               const pool = await poolPromise;
-              const result = await pool
+              const selRes = await pool
                 .request()
                 .input("eventId", sql.Int, parseInt(eventId, 10) || 0)
-                .input("price", sql.Float, price)
                 .query(
-                  `UPDATE s
-                   SET REMAINING_SMS_BALANCE = COALESCE(s.REMAINING_SMS_BALANCE, 0) - @price
+                  `SELECT s.ID, s.BILLING_USAGE_DETAILS
                    FROM MSTeamsSubscriptionDetails s
                    INNER JOIN MSTeamsInstallationDetails i ON i.SubscriptionDetailsId = s.ID
                    INNER JOIN MSTeamsIncidents inc ON inc.team_id = i.team_id
                    WHERE inc.id = @eventId AND i.SubscriptionDetailsId IS NOT NULL`,
                 );
-              const rowsAffected = result?.rowsAffected?.[0] ?? 0;
-              if (rowsAffected > 0) {
+              const row = selRes?.recordset?.[0];
+              if (row) {
+                let usage;
+                try {
+                  usage =
+                    typeof row.BILLING_USAGE_DETAILS === "string"
+                      ? JSON.parse(row.BILLING_USAGE_DETAILS || "{}")
+                      : row.BILLING_USAGE_DETAILS || {};
+                } catch {
+                  console.log(
+                    "[twilio-status] Invalid BILLING_USAGE_DETAILS JSON, skipping update",
+                  );
+                  return;
+                }
+                if (!usage.SMS) usage.SMS = {};
+                usage.SMS.usedBalance = (usage.SMS.usedBalance ?? 0) + price;
+                usage.SMS.usedSegment =
+                  (usage.SMS.usedSegment ?? 0) + numSegments;
+                const newJson = JSON.stringify(usage);
+                await pool
+                  .request()
+                  .input("id", sql.Int, row.ID)
+                  .input("json", sql.NVarChar(sql.MAX), newJson)
+                  .query(
+                    "UPDATE MSTeamsSubscriptionDetails SET BILLING_USAGE_DETAILS = @json WHERE ID = @id",
+                  );
                 console.log(
-                  "[twilio-status] Updated REMAINING_SMS_BALANCE, deducted",
+                  "[twilio-status] Updated BILLING_USAGE_DETAILS SMS.usedBalance +",
                   price,
+                  "usedSegment +",
+                  numSegments,
                 );
               }
             } catch (dbErr) {
               console.log(
-                "[twilio-status] Error updating REMAINING_SMS_BALANCE:",
+                "[twilio-status] Error updating BILLING_USAGE_DETAILS:",
                 dbErr?.message,
               );
             }
