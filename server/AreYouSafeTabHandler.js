@@ -1134,6 +1134,56 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post(
+    "/areyousafetabhandler/setFollowUpIncidentNotification",
+    async (req, res) => {
+      const teamId = req.query.teamId;
+
+      const FollowUpIncidentNotificationFor =
+        req.query.FollowUpIncidentNotificationFor;
+      try {
+        const tabObj = new tab.AreYouSafeTab();
+        await tabObj.followUpIncidentNotificationFor(
+          FollowUpIncidentNotificationFor,
+          teamId,
+        );
+        res.send("success");
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          userAadObjId,
+          "error in /areyousafetabhandler/setSOSNotification",
+        );
+      }
+    },
+  );
+  app.post(
+    "/areyousafetabhandler/setIncidentMessagesNotification",
+    async (req, res) => {
+      const teamId = req.query.teamId;
+
+      const IncidentMessagesNotificationFor =
+        req.query.IncidentMessagesNotificationFor;
+      try {
+        const tabObj = new tab.AreYouSafeTab();
+        await tabObj.IncidentMessagesNotificationFor(
+          IncidentMessagesNotificationFor,
+          teamId,
+        );
+        res.send("success");
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          userAadObjId,
+          "error in /areyousafetabhandler/setSOSNotification",
+        );
+      }
+    },
+  );
   app.post("/areyousafetabhandler/setLanguagePreference", async (req, res) => {
     const teamId = req.query.teamId;
     const tenantid = req.query.tenantid;
@@ -4382,6 +4432,153 @@ WHERE
       );
       res.status(500).json({ error: "Error fetching user location data" });
     }
+  });
+  app.post("/voicecall", async (req, res) => {
+    const digit = req.body.Digits;
+    const incidentId = req.body.incidentId;
+    const userId = req.body.userId;
+
+    console.log("Digit:", digit);
+    console.log("Incident:", incidentId);
+    console.log("User:", userId);
+
+    res.type("text/xml");
+
+    if (digit === "1") {
+      res.send(`<Response><Say>Thank you. Marked safe.</Say></Response>`);
+      await bot.proccessSMSLinkClick(userId, incidentId, "YES", "VoiceCall");
+
+      // Log positive acknowledgement via voice, similar to /posresp
+      await bot.SaveSmsLog(
+        userId,
+        "VOICE_CALL",
+        "YES",
+        JSON.stringify({ eventId: incidentId, userId }),
+        null,
+        null,
+        incidentId,
+      );
+
+      await incidentService.saveAllTypeQuerylogs(
+        userId,
+        "",
+        "VOICE_CALL",
+        "",
+        incidentId,
+        "VOICE_Call_REPLAY",
+        "",
+        "",
+        "",
+        "YES",
+        "",
+      );
+    } else if (digit === "2") {
+      res.send(`<Response><Say>Help request recorded.</Say></Response>`);
+      await bot.proccessSMSLinkClick(userId, incidentId, "NO", "VoiceCall");
+
+      // Log negative acknowledgement via voice, similar to /negresp
+      await bot.SaveSmsLog(
+        userId,
+        "VOICE_CALL",
+        "NO",
+        JSON.stringify({ eventId: incidentId, userId }),
+        null,
+        null,
+        incidentId,
+      );
+
+      await incidentService.saveAllTypeQuerylogs(
+        userId,
+        "",
+        "VOICE_CALL",
+        "",
+        incidentId,
+        "VOICE_Call_REPLAY",
+        "",
+        "",
+        "",
+        "NO",
+        "",
+      );
+    } else {
+      res.send(`<Response><Say>Invalid input.</Say></Response>`);
+    }
+  });
+  app.post("/callstatus", async (req, res) => {
+    const incidentId = req.body.IncidentId;
+    const userId = req.body.userid;
+    const { CallSid, CallStatus, From, To, CallDuration } = req.body;
+
+    console.log("got reply for callstatus", {
+      incidentId,
+      userId,
+      body: req.body,
+    });
+
+    try {
+      let internalStatus;
+      switch (CallStatus) {
+        case "queued":
+          internalStatus = "CALL_QUEUED";
+          break;
+        case "in-progress":
+          internalStatus = "CALL_IN_PROGRESS";
+          break;
+        case "completed":
+          internalStatus = "CALL_COMPLETED";
+          break;
+        case "no-answer":
+          internalStatus = "CALL_NO_ANSWER";
+          break;
+        default:
+          internalStatus = "CALL_STATUS_UNKNOWN";
+          break;
+      }
+
+      const maskedTo =
+        To && To.length > 4 ? To.slice(-4).padStart(To.length, "x") : To;
+
+      const payload = {
+        CallSid,
+        CallStatus,
+        From,
+        To: maskedTo,
+        CallDuration,
+        incidentId,
+        userId,
+      };
+
+      if (incidentId && userId) {
+        await SaveSmsLog(
+          userId,
+          internalStatus,
+          "Voice call status update",
+          JSON.stringify(payload),
+          CallSid,
+          null,
+          incidentId,
+        );
+
+        await incidentService.saveAllTypeQuerylogs(
+          userId,
+          "",
+          "VOICE_CALL_STATUS",
+          maskedTo || "",
+          incidentId,
+          internalStatus,
+          "VOICE_CALL",
+          "STATUS_UPDATE",
+          JSON.stringify(payload),
+          "",
+          "",
+        );
+      }
+    } catch (err) {
+      console.log("Error while processing /callstatus", err);
+    }
+
+    // Always acknowledge Twilio webhook quickly
+    res.sendStatus(200);
   });
 };
 

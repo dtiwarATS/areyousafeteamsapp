@@ -35,7 +35,7 @@ const { processSafetyBotError } = require("../models/processError");
       let membersNotRespondedList = [];
       let membersNotRespondedOneTimeList = await db.getDataFromDB(sqlQuery);
       let membersNotRespondedRecurringList = await db.getDataFromDB(
-        sqlQueryquerryReccuring
+        sqlQueryquerryReccuring,
       );
       membersNotRespondedList = membersNotRespondedOneTimeList;
       if (
@@ -81,7 +81,7 @@ const { processSafetyBotError } = require("../models/processError");
               diffMins >= member.SendRemindersTime
             ) {
               log.addLog(
-                `send proactive reminder messaage to ${member.user_id} Start`
+                `send proactive reminder messaage to ${member.user_id} Start`,
               );
               const companyData = await getCompanyDataByTeamId(member.team_id);
               let responseOptionData = {
@@ -120,7 +120,7 @@ const { processSafetyBotError } = require("../models/processError");
                 inc_name,
                 "",
                 "",
-                ""
+                "",
               );
               const approvalCard = await SafetyCheckCard(
                 inc_name,
@@ -132,7 +132,7 @@ const { processSafetyBotError } = require("../models/processError");
                 additionalInfo,
                 travelUpdate,
                 contactInfo,
-                situation
+                situation,
               );
               const filesData = await getFilesByIncId(inc_id);
               await sendProactiveMessaageToUser(
@@ -145,7 +145,7 @@ const { processSafetyBotError } = require("../models/processError");
                 "",
                 null,
                 null,
-                filesData
+                filesData,
               );
               incidentService.saveAllTypeQuerylogs(
                 user_aadobj_id,
@@ -159,26 +159,42 @@ const { processSafetyBotError } = require("../models/processError");
                 inc_name,
                 "",
                 "",
-                ""
+                "",
               );
               log.addLog(
-                `send proactive reminder messaage to ${member.user_id} successfully`
+                `send proactive reminder messaage to ${member.user_id} successfully`,
               );
               let userAadObjIds = [member.user_aadobj_id];
               if (member.inc_type == "onetime") {
                 await incidentService.updateremaindercounter(
                   member.inc_id,
-                  member.user_id
+                  member.user_id,
                 );
                 log.addLog(
-                  `Update oneTime reminder message count in DB  ${member.user_id} successfully`
+                  `Update oneTime reminder message count in DB  ${member.user_id} successfully`,
                 );
-
                 if (
-                  companyData.send_sms &&
                   (companyData.SubscriptionType == 3 ||
                     (companyData.SubscriptionType == 2 &&
-                      companyData.sent_sms_count < 50))
+                      companyData.sent_sms_count < 50)) &&
+                  inc_type_id == 1 &&
+                  companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes(
+                    "VoiceCall",
+                  )
+                ) {
+                  await bot.sendSafetyCheckMsgViaVoice(
+                    companyData,
+                    userAadObjIds,
+                    inc_id,
+                    incCreatedBy,
+                    "Follow-up",
+                  );
+                }
+                if (
+                  (companyData.SubscriptionType == 3 ||
+                    (companyData.SubscriptionType == 2 &&
+                      companyData.sent_sms_count < 50)) &&
+                  companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes("SMS")
                 ) {
                   await bot.sendSafetyCheckMsgViaSMS(
                     companyData,
@@ -186,18 +202,21 @@ const { processSafetyBotError } = require("../models/processError");
                     inc_id,
                     inc_name,
                     null,
-                    "Follow-up"
+                    "Follow-up",
                   );
                 }
               } else {
                 await incidentService.updateRecurrremaindercounter(
-                  member.MemberResponsesRecurrId
+                  member.MemberResponsesRecurrId,
                 );
                 log.addLog(
-                  `Update Reccuring reminder message count in DB  ${member.user_id} successfully`
+                  `Update Reccuring reminder message count in DB  ${member.user_id} successfully`,
                 );
               }
-              if (inc_type_id == 1 && companyData.send_whatsapp) {
+              if (
+                inc_type_id == 1 &&
+                companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes("WhatsApp")
+              ) {
                 await bot.sendSafetyCheckMsgViaWhatsapp(
                   companyData,
                   userAadObjIds,
@@ -206,10 +225,12 @@ const { processSafetyBotError } = require("../models/processError");
                   CREATED_BY_NAME,
                   responseOptionData.responseOptions,
                   incObj,
-                  "Follow-up"
+                  "Follow-up",
                 );
               }
-              if (companyData.SEND_EMAIL) {
+              if (
+                companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes("Email")
+              ) {
                 await bot.sendSafetyCheckMsgViaEmail(
                   companyData,
                   [member],
@@ -218,11 +239,11 @@ const { processSafetyBotError } = require("../models/processError");
                   CREATED_BY_NAME,
                   responseOptionData.responseOptions,
                   member,
-                  "Follow-up"
+                  "Follow-up",
                 );
               }
             }
-          })
+          }),
         );
       }
     } catch (err) {
@@ -235,7 +256,7 @@ const { processSafetyBotError } = require("../models/processError");
         "error in SendRemainder job sendProactiveMessage sqlQuery=" +
           sqlQuery +
           " sqlQueryquerryReccuring=" +
-          sqlQueryquerryReccuring
+          sqlQueryquerryReccuring,
       );
     } finally {
       if (saveLog) {

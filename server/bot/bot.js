@@ -2639,6 +2639,164 @@ const sendSafetyCheckMsgViaSMS = async (
     }
   }
 };
+
+// Send safety check via Voice calls (Twilio), similar to sendSafetyCheckMsgViaSMS
+const sendSafetyCheckMsgViaVoice = async (
+  companyData,
+  users,
+  incObj,
+  createdByUserInfo,
+  type = "onetime",
+) => {
+  const tenantId = companyData.userTenantId;
+  const IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
+
+  const usrPhones = await getUserPhone(
+    IS_APP_PERMISSION_GRANTED,
+    tenantId,
+    users,
+  );
+
+  for (const user of usrPhones) {
+    let phone =
+      user.businessPhones.length > 0 && user.businessPhones[0] !== ""
+        ? user.businessPhones[0]
+        : "";
+    if (companyData.PHONE_FIELD === "mobilePhone") {
+      phone = user.mobilePhone;
+    }
+    if (!phone || phone === "null") {
+      incidentService.saveAllTypeQuerylogs(
+        user.id,
+        user.displayName,
+        "VOICE_CALL",
+        "",
+        incId,
+        "PHONE_NUM_NOT_FOUND",
+        type,
+        "",
+        incObj.incTitle,
+        "",
+        "",
+      );
+      continue;
+    }
+
+    const maskedPhone =
+      phone.length > 4 ? phone.slice(-4).padStart(phone.length, "x") : phone;
+
+    const voiceInitiatePayload = {
+      eventId: incObj.incId,
+      userId: user.id,
+      to: maskedPhone,
+      from: "+18023277232",
+    };
+
+    try {
+      await SaveSmsLog(
+        user.id,
+        "CALL_INITIATED",
+        "Voice call initiated",
+        JSON.stringify(voiceInitiatePayload),
+        null,
+        null,
+        incObj.incId,
+      );
+      await incidentService.saveAllTypeQuerylogs(
+        user.id,
+        user.displayName || "",
+        "VOICE_CALL",
+        maskedPhone,
+        incObj.incId,
+        "SEND_TO_TWILIO",
+        type,
+        "INITIATE",
+        JSON.stringify(voiceInitiatePayload),
+        "",
+        "",
+      );
+
+      const call = await tClient.calls.create({
+        twiml: `
+<Response>
+  <Gather numDigits="1" timeout="8" action="https://adb6-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/voicecall?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+    user.id,
+  )}" method="POST">
+    <Say voice="alice">
+      Hello, this is a safety check from ${createdByUserInfo.user_name}.
+      We think you may be affected by "${incObj.incTitle}".
+      Press 1 if you are safe. Press 2 if you need help.
+    </Say>
+  </Gather>
+  <Say>No input received. Goodbye.</Say>
+</Response>
+`,
+        to: phone,
+        from: "+18023277232",
+        statusCallback: `https://adb6-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/callstatus?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+          user.id,
+        )}`,
+        statusCallbackMethod: "POST",
+        statusCallbackEvent: ["initiated", "ringing", "answered", "completed"],
+      });
+
+      const voiceCreatedPayload = {
+        ...voiceInitiatePayload,
+        callSid: call.sid,
+      };
+      await SaveSmsLog(
+        user.id,
+        "CALL_CREATED",
+        "Voice call created",
+        JSON.stringify(voiceCreatedPayload),
+        call.sid,
+        null,
+        incObj.incId,
+      );
+      await incidentService.saveAllTypeQuerylogs(
+        user.id,
+        user.displayName || "",
+        "VOICE_CALL",
+        maskedPhone,
+        incObj.incId,
+        "CALL_CREATED_SUCCESS",
+        type,
+        "CREATED",
+        JSON.stringify(voiceCreatedPayload),
+        "",
+        "",
+      );
+    } catch (err) {
+      const voiceErrorPayload = {
+        ...voiceInitiatePayload,
+        error: err && err.message ? err.message : String(err),
+      };
+
+      await SaveSmsLog(
+        user.id,
+        "CALL_FAILED",
+        "Voice call failed",
+        JSON.stringify(voiceErrorPayload),
+        null,
+        err && err.message ? err.message : String(err),
+        incObj.incId,
+      );
+      await incidentService.saveAllTypeQuerylogs(
+        user.id,
+        user.displayName || "",
+        "VOICE_CALL",
+        maskedPhone,
+        incObj.incId,
+        "CALL_FAILED",
+        type,
+        "FAILED",
+        "",
+        "",
+        err && err.message ? JSON.stringify(err.message) : String(err),
+      );
+    }
+  }
+};
 const sendWhatsappMessage = async (payload, user, companyData) => {
   try {
     let token = process.env.WHATSAPP_TOKEN; // Your WhatsApp Business API token
@@ -4670,9 +4828,22 @@ const NewsendSafetyCheckMessageAsync = async (
           isLastBatch,
           allincMembers,
         );
-        let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
+
+        // Voice calls to all users (similar to sendSafetyCheckMsgViaSMS)
+        const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
-          companyData.send_sms &&
+          incData.incTypeId == 1 &&
+          companyData.SEND_INCIDENT_MESSAGES_VIA.includes("VoiceCall")
+        ) {
+          sendSafetyCheckMsgViaVoice(
+            companyData,
+            userAadObjIds,
+            incObj,
+            createdByUserInfo,
+          );
+        }
+        if (
+          companyData.SEND_INCIDENT_MESSAGES_VIA.includes("SMS") &&
           (companyData.SubscriptionType == 3 ||
             (companyData.SubscriptionType == 2 &&
               companyData.sent_sms_count < 50))
@@ -4685,7 +4856,10 @@ const NewsendSafetyCheckMessageAsync = async (
             incData,
           );
         }
-        if (incData.incTypeId == 1 && companyData.send_whatsapp) {
+        if (
+          incData.incTypeId == 1 &&
+          companyData.SEND_INCIDENT_MESSAGES_VIA.includes("WhatsApp")
+        ) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
             userAadObjIds,
@@ -4696,7 +4870,7 @@ const NewsendSafetyCheckMessageAsync = async (
             incData,
           );
         }
-        if (companyData.SEND_EMAIL) {
+        if (companyData.SEND_INCIDENT_MESSAGES_VIA.includes("Email")) {
           sendSafetyCheckMsgViaEmail(
             companyData,
             allMembersArr,
@@ -5907,7 +6081,19 @@ const sendRecurrEventMsgAsync = async (
     );
     let userAadObjIds = subEventObj.eventMembers.map((x) => x.userAadObjId);
     if (
-      companyData.send_sms &&
+      incData.incTypeId == 1 &&
+      companyData.SEND_INCIDENT_MESSAGES_VIA.includes("VoiceCall")
+    ) {
+      sendSafetyCheckMsgViaVoice(
+        companyData,
+        userAadObjIds,
+        incObj,
+        incCreatedByUserObj,
+        "recurringIncident",
+      );
+    }
+    if (
+      companyData.SEND_INCIDENT_MESSAGES_VIA.includes("SMS") &&
       (companyData.SubscriptionType == 3 ||
         (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))
     ) {
@@ -5920,7 +6106,10 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
-    if (subEventObj.incTypeId == 1 && companyData.send_whatsapp) {
+    if (
+      subEventObj.incTypeId == 1 &&
+      companyData.SEND_INCIDENT_MESSAGES_VIA.includes("WhatsApp")
+    ) {
       await sendSafetyCheckMsgViaWhatsapp(
         companyData,
         userAadObjIds,
@@ -5932,7 +6121,7 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
-    if (companyData.SEND_EMAIL) {
+    if (companyData.SEND_INCIDENT_MESSAGES_VIA.includes("Email")) {
       let userObjects = subEventObj.eventMembers.map((x) => x);
       subEventObj.incGuidance = incGuidance;
       await sendSafetyCheckMsgViaEmail(
@@ -6827,6 +7016,7 @@ module.exports = {
   createTestIncident,
   onInvokeActivity,
   sendSafetyCheckMsgViaSMS,
+  sendSafetyCheckMsgViaVoice,
   sendAcknowledmentinSMS,
   proccessSMSLinkClick,
   SaveSmsLog,
