@@ -15,9 +15,13 @@ const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
 const { saveToken, getToken } = require("./store");
-const { sendPushNotification, getFcmTokensForUsers } = require("./services/fcmService");
+const {
+  sendPushNotification,
+  getFcmTokensForUsers,
+} = require("./services/fcmService");
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
  * Resolve Teams ID (29:1xxx) to AAD Object ID (UUID).
@@ -30,14 +34,20 @@ async function resolveTeamsIdToAadObjectId(teamsId) {
   const trimmed = teamsId.trim();
   if (!trimmed) return null;
   if (UUID_REGEX.test(trimmed)) return null;
-  if (!trimmed.startsWith("29:") || (!trimmed.includes("_") && !trimmed.includes("-"))) return null;
+  if (
+    !trimmed.startsWith("29:") ||
+    (!trimmed.includes("_") && !trimmed.includes("-"))
+  )
+    return null;
 
   try {
     const pool = await poolPromise;
     const result = await pool
       .request()
       .input("teamsId", sql.NVarChar(256), trimmed)
-      .query(`SELECT TOP 1 user_aadobject_id FROM MSTeamsTeamsUsers WHERE user_id = @teamsId`);
+      .query(
+        `SELECT TOP 1 user_aadobject_id FROM MSTeamsTeamsUsers WHERE user_id = @teamsId`,
+      );
     const row = result?.recordset?.[0];
     return row?.user_aadobject_id || null;
   } catch (err) {
@@ -125,7 +135,8 @@ const handlerForSafetyBotTab = (app) => {
     DEFAULT_LOGIN_CODE_EXPIRY_SECONDS;
 
   app.post("/areyousafetabhandler/generate-login-code", async (req, res) => {
-    const userId = typeof req.body?.userId === "string" ? req.body.userId.trim() : "";
+    const userId =
+      typeof req.body?.userId === "string" ? req.body.userId.trim() : "";
 
     if (!userId) {
       return res.status(400).json({
@@ -139,7 +150,9 @@ const handlerForSafetyBotTab = (app) => {
       .toString()
       .padStart(LOGIN_CODE_LENGTH, "0");
 
-    const expiresAtUtc = new Date(Date.now() + LOGIN_CODE_EXPIRY_SECONDS * 1000);
+    const expiresAtUtc = new Date(
+      Date.now() + LOGIN_CODE_EXPIRY_SECONDS * 1000,
+    );
 
     try {
       const pool = await poolPromise;
@@ -147,8 +160,7 @@ const handlerForSafetyBotTab = (app) => {
         .request()
         .input("code", sql.NVarChar(10), code)
         .input("expiresAt", sql.DateTime2, expiresAtUtc)
-        .input("userId", sql.NVarChar(256), userId)
-        .query(`
+        .input("userId", sql.NVarChar(256), userId).query(`
           UPDATE MSTeamsTeamsUsers 
           SET Generated_code = @code, Generated_code_expires_at = @expiresAt 
           WHERE user_aadobject_id = @userId OR user_id = @userId
@@ -179,7 +191,8 @@ const handlerForSafetyBotTab = (app) => {
 
   app.post("/areyousafetabhandler/verify-login-code", async (req, res) => {
     const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
-    const fcmToken = typeof req.body?.fcmToken === "string" ? req.body.fcmToken.trim() : "";
+    const fcmToken =
+      typeof req.body?.fcmToken === "string" ? req.body.fcmToken.trim() : "";
 
     if (!code) {
       return res.status(400).json({
@@ -199,8 +212,7 @@ const handlerForSafetyBotTab = (app) => {
 
       const userResult = await pool
         .request()
-        .input("code", sql.NVarChar(10), code)
-        .query(`
+        .input("code", sql.NVarChar(10), code).query(`
           SELECT TOP 1 team_id, user_aadobject_id, user_name, email,tenantid
           FROM MSTeamsTeamsUsers
           WHERE Generated_code = @code
@@ -220,8 +232,7 @@ const handlerForSafetyBotTab = (app) => {
       await pool
         .request()
         .input("user_aadobject_id", sql.NVarChar(256), userAadObjectId)
-        .input("fcm_token", sql.VarChar(500), fcmToken)
-        .query(`
+        .input("fcm_token", sql.VarChar(500), fcmToken).query(`
           UPDATE user_fcm_tokens
           SET user_id = @user_aadobject_id
           WHERE fcm_token = @fcm_token
@@ -233,7 +244,7 @@ const handlerForSafetyBotTab = (app) => {
         user_aadobject_id: user.user_aadobject_id,
         user_name: user.user_name,
         email: user.email,
-        tenantid: user.tenantid, 
+        tenantid: user.tenantid,
       });
     } catch (err) {
       console.error("Error in verify-login-code:", err);
@@ -1261,11 +1272,17 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
   app.post("/areyousafetabhandler/registerFcmToken", async (req, res) => {
-    console.log("[registerFcmToken] REQUEST received, body:", JSON.stringify(req.body, null, 2));
-    const { userId, fcmToken, platform, basicPhoneInfo, extra } = req.body || {};
+    console.log(
+      "[registerFcmToken] REQUEST received, body:",
+      JSON.stringify(req.body, null, 2),
+    );
+    const { userId, fcmToken, platform, basicPhoneInfo, extra } =
+      req.body || {};
     if (!userId || !fcmToken) {
       console.log("[registerFcmToken] REJECTED: userId or fcmToken missing");
-      return res.status(400).json({ ok: false, error: "userId and fcmToken required" });
+      return res
+        .status(400)
+        .json({ ok: false, error: "userId and fcmToken required" });
     }
     const deviceInfo = {};
     if (basicPhoneInfo) {
@@ -1278,7 +1295,12 @@ const handlerForSafetyBotTab = (app) => {
     if (extra && typeof extra.authStatus === "number") {
       deviceInfo.authStatus = extra.authStatus;
     }
-    console.log("[registerFcmToken] Calling saveToken with:", { userId, fcmToken, platform: platform || "android", deviceInfo });
+    console.log("[registerFcmToken] Calling saveToken with:", {
+      userId,
+      fcmToken,
+      platform: platform || "android",
+      deviceInfo,
+    });
     try {
       await saveToken(userId, fcmToken, platform || "android", deviceInfo);
       console.log("[registerFcmToken] saveToken SUCCESS for userId:", userId);
@@ -1292,7 +1314,9 @@ const handlerForSafetyBotTab = (app) => {
     const startMs = Date.now();
     const { userId, title, body, data } = req.body || {};
     if (!userId || !title) {
-      return res.status(400).json({ ok: false, error: "userId and title required" });
+      return res
+        .status(400)
+        .json({ ok: false, error: "userId and title required" });
     }
 
     const runWithTimeout = async () => {
@@ -1304,7 +1328,10 @@ const handlerForSafetyBotTab = (app) => {
       if (!fcmToken) {
         const aadObjectId = await resolveTeamsIdToAadObjectId(userId);
         if (aadObjectId) {
-          console.log("[sendNotification] resolved Teams ID to AAD Object ID, lookupMs:", Date.now() - startMs);
+          console.log(
+            "[sendNotification] resolved Teams ID to AAD Object ID, lookupMs:",
+            Date.now() - startMs,
+          );
           fcmToken = await getToken(aadObjectId);
           if (!fcmToken) {
             const tokens = await getFcmTokensForUsers([aadObjectId], "android");
@@ -1313,16 +1340,29 @@ const handlerForSafetyBotTab = (app) => {
         }
       }
       if (!fcmToken) {
-        console.log("[sendNotification] no token, lookupMs:", Date.now() - startMs);
-        return { ok: false, status: 404, body: { ok: false, error: "No FCM token for this userId" } };
+        console.log(
+          "[sendNotification] no token, lookupMs:",
+          Date.now() - startMs,
+        );
+        return {
+          ok: false,
+          status: 404,
+          body: { ok: false, error: "No FCM token for this userId" },
+        };
       }
-      console.log("[sendNotification] token found, lookupMs:", Date.now() - startMs);
+      console.log(
+        "[sendNotification] token found, lookupMs:",
+        Date.now() - startMs,
+      );
       await sendPushNotification(fcmToken, title, body || "", data || {});
       return { ok: true, status: 200, body: { ok: true } };
     };
 
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error("sendNotification timeout")), SEND_NOTIFICATION_TIMEOUT_MS);
+      setTimeout(
+        () => reject(new Error("sendNotification timeout")),
+        SEND_NOTIFICATION_TIMEOUT_MS,
+      );
     });
 
     try {
@@ -4578,6 +4618,38 @@ WHERE
     }
 
     // Always acknowledge Twilio webhook quickly
+    res.sendStatus(200);
+  });
+  app.post("/twilio-status", (req, res) => {
+    const status = req.body.MessageStatus;
+    const messageSid = req.body.MessageSid;
+
+    // 👇 your custom params
+    const eventId = req.query.eventId;
+    const userId = req.query.userId;
+
+    console.log("Event:", eventId);
+    console.log("User:", userId);
+    console.log("Status:", status);
+    // const voiceInitiatePayload = {
+    //   eventId: eventId,
+    //   userId: userId,
+    //   SMS_ID: messageSid,
+    // };
+    // incidentService.saveAllTypeQuerylogs(
+    //   user.id,
+    //   user.displayName,
+    //   "SMS",
+    //   phone.slice(-4).padStart(phone.length, "x"),
+    //   incId,
+    //   "SEND_SUCCESS",
+    //   isfrominctype,
+    //   "",
+    //   JSON.stringify(body),
+    //   "",
+    //   "",
+    //   JSON.stringify(voiceInitiatePayload),
+    // );
     res.sendStatus(200);
   });
 };

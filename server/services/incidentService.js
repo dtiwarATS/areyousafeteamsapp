@@ -4028,6 +4028,7 @@ const saveAllTypeQuerylogs = async (
   MESSAGE_CONTENT,
   INTERACTION_VALUE,
   ERROR_MESSAGE,
+  NOTIFICATION_CHARGES,
 ) => {
   try {
     console.log({ insidesaveAllTypeQuerylogs: count++ });
@@ -4053,6 +4054,7 @@ const saveAllTypeQuerylogs = async (
       INTERACTION_VALUE,
       ERROR_MESSAGE,
       EventDateTime: new Date().toISOString().slice(0, -1),
+      NOTIFICATION_CHARGES,
     });
 
     // If we have 10 logs, run batch insert
@@ -4070,7 +4072,7 @@ const saveAllTypeQuerylogs = async (
          )}', '${log.ERROR_MESSAGE.replaceAll(
            "'",
            "''",
-         )}','${log.EventDateTime.replaceAll("'", "''")}', GETDATE())`,
+         )}','${log.EventDateTime.replaceAll("'", "''")}', GETDATE(),'${log.NOTIFICATION_CHARGES}')`,
     ).join(", ");
 
     const batchQuery = `
@@ -4085,7 +4087,8 @@ const saveAllTypeQuerylogs = async (
           UserResponse,
           FailureReason,
           EventDateTime,
-          LogEntryCreatedAt
+          LogEntryCreatedAt,
+          NOTIFICATION_CHARGES
         ) VALUES ${valuesString};
       `;
 
