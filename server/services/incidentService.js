@@ -4028,7 +4028,7 @@ const saveAllTypeQuerylogs = async (
   MESSAGE_CONTENT,
   INTERACTION_VALUE,
   ERROR_MESSAGE,
-  NOTIFICATION_CHARGES,
+  NOTIFICATION_CHARGES = "",
 ) => {
   try {
     console.log({ insidesaveAllTypeQuerylogs: count++ });

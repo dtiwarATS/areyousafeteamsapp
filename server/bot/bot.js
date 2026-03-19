@@ -2564,7 +2564,7 @@ const sendSafetyCheckMsgViaSMS = async (
             shortenUrls: true,
             messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
             to: phone,
-            statusCallback: `https://3b8e-2405-201-36-4104-ed2d-6ae9-a491-f632.ngrok-free.app/twilio-status?eventId=${eventId}&userId=${userId}`,
+            statusCallback: `https://3b8e-2405-201-36-4104-ed2d-6ae9-a491-f632.ngrok-free.app/twilio-status?eventId=${incId}&userId=${user.id}`,
           });
         } catch (err) {
           console.error("Error sending SMS:", err.message);

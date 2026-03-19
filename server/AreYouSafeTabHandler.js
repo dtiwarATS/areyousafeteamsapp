@@ -19,6 +19,7 @@ const {
   sendPushNotification,
   getFcmTokensForUsers,
 } = require("./services/fcmService");
+const { Sms } = require("twilio/lib/twiml/VoiceResponse");
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -4627,29 +4628,82 @@ WHERE
     // 👇 your custom params
     const eventId = req.query.eventId;
     const userId = req.query.userId;
-
+    const phone = req.query.To;
     console.log("Event:", eventId);
     console.log("User:", userId);
     console.log("Status:", status);
-    // const voiceInitiatePayload = {
-    //   eventId: eventId,
-    //   userId: userId,
-    //   SMS_ID: messageSid,
-    // };
-    // incidentService.saveAllTypeQuerylogs(
-    //   user.id,
-    //   user.displayName,
-    //   "SMS",
-    //   phone.slice(-4).padStart(phone.length, "x"),
-    //   incId,
-    //   "SEND_SUCCESS",
-    //   isfrominctype,
-    //   "",
-    //   JSON.stringify(body),
-    //   "",
-    //   "",
-    //   JSON.stringify(voiceInitiatePayload),
-    // );
+
+    const normalizedStatus =
+      typeof status === "string" ? status.toLowerCase() : "";
+    if (normalizedStatus !== "delivered" || !messageSid) {
+      const voiceInitiatePayload = {
+        eventId: eventId,
+        userId: userId,
+        SMS_ID: messageSid,
+        Status: status,
+      };
+      incidentService.saveAllTypeQuerylogs(
+        userId,
+        "",
+        "SMS",
+        phone.slice(-4).padStart(phone.length, "x"),
+        incId,
+        "STATUS_UPDATE",
+        "",
+        "",
+        "",
+        "",
+        "",
+        JSON.stringify(voiceInitiatePayload),
+      );
+    } else if (normalizedStatus === "delivered") {
+      const accountSid = process.env.TWILIO_ACCOUNT_ID;
+      const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
+      if (!accountSid || !authToken) {
+        console.log(
+          "[twilio-status] Missing TWILIO_ACCOUNT_ID/TWILIO_ACCOUNT_AUTH_TOKEN; cannot fetch message details",
+        );
+        return;
+      }
+
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages/${messageSid}.json`;
+      axios
+        .get(twilioUrl, { auth: { username: accountSid, password: authToken } })
+        .then((resp) => {
+          console.log("[twilio-status] Twilio message details:", resp?.data);
+          console.log("[twilio-status] Twilio fetch failed:", {
+            messageSid,
+            statusCode,
+            resp: resp?.data,
+          });
+          const voiceInitiatePayload = {
+            eventId: eventId,
+            userId: userId,
+            SMS_ID: messageSid,
+            Status: status,
+            Price: resp?.data?.Price,
+          };
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName,
+            "SMS",
+            phone.slice(-4).padStart(phone.length, "x"),
+            incId,
+            "STATUS_UPDATE",
+            "",
+            "",
+            JSON.stringify(body),
+            "",
+            "",
+            JSON.stringify(voiceInitiatePayload),
+          );
+        })
+        .catch((err) => {
+          const statusCode = err?.response?.status;
+          const body = err?.response?.data;
+        });
+    }
+    // Always acknowledge Twilio webhook quickly
     res.sendStatus(200);
   });
 };
