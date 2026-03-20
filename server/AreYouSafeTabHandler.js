@@ -4772,6 +4772,99 @@ WHERE
         });
     }
   });
+  app.get("/areyousafetabhandler/getSubscription", async (req, res) => {
+    const userAadObjId = req.query.userId || "";
+    const teamId = req.query.teamId || "";
+
+    try {
+      const pool = await poolPromise;
+      const sql = require("mssql");
+
+      let query = "";
+
+      // ✅ CASE 1: TEAM_ID
+      if (teamId) {
+        query = `
+        SELECT 
+            SD.*,
+            U.TOTAL_USERS,
+            U.LICENSED_USERS
+        FROM MSTeamsInstallationDetails ID
+        INNER JOIN MSTeamsSubscriptionDetails SD 
+            ON ID.SubscriptionDetailsId = SD.ID
+        LEFT JOIN (
+            SELECT 
+                ID2.user_tenant_id,
+                COUNT(TU.USER_ID) AS TOTAL_USERS,
+                SUM(CASE WHEN TU.hasLicense = 1 THEN 1 ELSE 0 END) AS LICENSED_USERS
+            FROM MSTeamsInstallationDetails ID2
+            LEFT JOIN MSTeamsTeamsUsers TU 
+                ON TU.TEAM_ID = ID2.TEAM_ID
+            GROUP BY ID2.user_tenant_id
+        ) U 
+            ON U.user_tenant_id = ID.user_tenant_id
+        WHERE ID.TEAM_ID = @teamId;
+      `;
+      }
+
+      // ✅ CASE 2: USER_AAD_OBJ_ID
+      else if (userAadObjId) {
+        query = `
+        SELECT 
+            SD.*,
+            U.TOTAL_USERS,
+            U.LICENSED_USERS
+        FROM MSTeamsTeamsUsers TU
+        INNER JOIN MSTeamsInstallationDetails ID 
+            ON TU.TEAM_ID = ID.TEAM_ID
+        INNER JOIN MSTeamsSubscriptionDetails SD 
+            ON ID.SubscriptionDetailsId = SD.ID
+        LEFT JOIN (
+            SELECT 
+                ID2.user_tenant_id,
+                COUNT(TU2.USER_ID) AS TOTAL_USERS,
+                SUM(CASE WHEN TU2.hasLicense = 1 THEN 1 ELSE 0 END) AS LICENSED_USERS
+            FROM MSTeamsInstallationDetails ID2
+            LEFT JOIN MSTeamsTeamsUsers TU2 
+                ON TU2.TEAM_ID = ID2.TEAM_ID
+            GROUP BY ID2.user_tenant_id
+        ) U 
+            ON U.user_tenant_id = ID.user_tenant_id
+        WHERE TU.user_aadobject_id = @userAadObjId;
+      `;
+      } else {
+        return res
+          .status(400)
+          .json({ error: "teamId or userAadObjId is required" });
+      }
+
+      const request = pool.request();
+
+      if (teamId) {
+        request.input("teamId", sql.NVarChar, teamId);
+      }
+
+      if (userAadObjId) {
+        request.input("userAadObjId", sql.NVarChar, userAadObjId);
+      }
+
+      const result = await request.query(query);
+
+      res.json({
+        subscriptionData: result.recordset || [],
+      });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSubscription",
+      );
+      res.status(500).json({ error: "Error fetching subscription data" });
+    }
+  });
 };
 
 module.exports.handlerForSafetyBotTab = handlerForSafetyBotTab;
