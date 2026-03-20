@@ -3927,6 +3927,61 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getHistory", async (req, res) => {
+    try {
+      const { incidentId } = req.query;
+      const parsedIncidentId = parseInt(incidentId, 10);
+      if (!incidentId || !Number.isFinite(parsedIncidentId)) {
+        return res.status(400).json({ error: "Missing required parameters" });
+      }
+
+      const query = `
+SELECT 
+    ACL.*,  
+
+    AST.requested_date,
+    AST.closed_at,
+    AST.closed_by_user,
+    AST.FIRST_RESPONDER_RESPONDED_AT,
+    AST.FIRST_RESPONDER,
+  AST.comments,
+	AST.comment_date,
+AST.status,
+
+    TU.user_name
+
+FROM [dbo].[MessageActivityLog] ACL
+
+LEFT JOIN [dbo].[MSTeamsAssistance] AST
+    ON AST.id = ACL.IncidentId
+
+LEFT JOIN [dbo].[MSTeamsTeamsUsers] TU
+    ON TU.user_aadobject_id = ACL.UserId
+
+WHERE ACL.IncidentId = @incidentId
+
+ORDER BY ACL.EventDateTime DESC
+`;
+      const pool = await poolPromise;
+      const result = await pool
+        .request()
+        .input("incidentId", sql.Int, parsedIncidentId)
+        .query(query);
+
+      res.json(result.recordset || []);
+    } catch (error) {
+      console.error("Error fetching History:", error);
+      processSafetyBotError(
+        error,
+        "",
+        "",
+        req.query.userAadObjId,
+        "Error in /areyousafetabhandler/getHistory",
+      );
+      res.status(500).json({ error: "Failed to fetch history" });
+    }
+  });
+
   app.get("/areyousafetabhandler/getSOSLog", async (req, res) => {
     const userAadObjId = req.query.userAadObjId;
     const teamId = req.query.teamId;
