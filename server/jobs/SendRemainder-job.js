@@ -185,8 +185,8 @@ const { processSafetyBotError } = require("../models/processError");
                   await bot.sendSafetyCheckMsgViaVoice(
                     companyData,
                     userAadObjIds,
-                    inc_id,
-                    incCreatedBy,
+                    incObj,
+                    incObj.incCreatedBy,
                     "Follow-up",
                   );
                 }

@@ -2729,7 +2729,7 @@ const sendSafetyCheckMsgViaVoice = async (
     user.id,
   )}" method="POST">
     <Say voice="alice">
-      Hello, this is a safety check from ${createdByUserInfo.user_name}.
+      Hello, this is a safety check from ${createdByUserInfo.user_name || createdByUserInfo.CREATED_BY_NAME || createdByUserInfo.name}.
       We think you may be affected by "${incObj.incTitle}".
       Press 1 if you are safe. Press 2 if you need help.
     </Say>
