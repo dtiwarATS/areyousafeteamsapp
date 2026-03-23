@@ -2564,7 +2564,7 @@ const sendSafetyCheckMsgViaSMS = async (
             shortenUrls: true,
             messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
             to: phone,
-            statusCallback: `https://3b8e-2405-201-36-4104-ed2d-6ae9-a491-f632.ngrok-free.app/twilio-status?eventId=${incId}&userId=${user.id}`,
+            statusCallback: `${process.env.serviceUrl}/twilio-status?eventId=${incId}&userId=${user.id}`,
           });
         } catch (err) {
           console.error("Error sending SMS:", err.message);
@@ -2725,7 +2725,7 @@ const sendSafetyCheckMsgViaVoice = async (
       const call = await tClient.calls.create({
         twiml: `
 <Response>
-  <Gather numDigits="1" timeout="8" action="https://adb6-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/voicecall?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+  <Gather numDigits="1" timeout="8" action="https://safetycheckreceiverapi.azurewebsites.net/voicecall?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
     user.id,
   )}" method="POST">
     <Say voice="alice">
@@ -2739,7 +2739,7 @@ const sendSafetyCheckMsgViaVoice = async (
 `,
         to: phone,
         from: "+18023277232",
-        statusCallback: `https://adb6-2401-4900-8815-cd6f-d107-577a-4622-4bd0.ngrok-free.app/callstatus?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+        statusCallback: `https://safetycheckreceiverapi.azurewebsites.net/callstatus?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
           user.id,
         )}`,
         statusCallbackMethod: "POST",
@@ -6521,6 +6521,9 @@ const createTestIncident = async (
       EnableSendReminders: false,
       SendRemindersCount: 3,
       SendRemindersTime: 5,
+      responseType: "buttons",
+      responseOptions:
+        '[{"id":1,"option":"I am safe","color":"#4CAF50"},{"id":2,"option":"I need assistance","color":"#F44336"}]',
     };
     const newInc = await incidentService.createNewInc(
       incData,
