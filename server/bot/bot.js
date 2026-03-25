@@ -4839,7 +4839,8 @@ const NewsendSafetyCheckMessageAsync = async (
         const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
           incData.incTypeId == 1 &&
-          companyData.SEND_INCIDENT_MESSAGES_VIA.includes("VoiceCall")
+          companyData.SEND_INCIDENT_MESSAGES_VIA &&
+          companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("VoiceCall")
         ) {
           sendSafetyCheckMsgViaVoice(
             companyData,
@@ -4850,6 +4851,7 @@ const NewsendSafetyCheckMessageAsync = async (
         }
         if (
           companyData.SEND_INCIDENT_MESSAGES_VIA.includes("SMS") &&
+          companyData.SEND_INCIDENT_MESSAGES_VIA &&
           (companyData.SubscriptionType == 3 ||
             (companyData.SubscriptionType == 2 &&
               companyData.sent_sms_count < 50))
@@ -4864,6 +4866,7 @@ const NewsendSafetyCheckMessageAsync = async (
         }
         if (
           incData.incTypeId == 1 &&
+          companyData.SEND_INCIDENT_MESSAGES_VIA &&
           companyData.SEND_INCIDENT_MESSAGES_VIA.includes("WhatsApp")
         ) {
           sendSafetyCheckMsgViaWhatsapp(
@@ -4876,7 +4879,10 @@ const NewsendSafetyCheckMessageAsync = async (
             incData,
           );
         }
-        if (companyData.SEND_INCIDENT_MESSAGES_VIA.includes("Email")) {
+        if (
+          companyData.SEND_INCIDENT_MESSAGES_VIA &&
+          companyData.SEND_INCIDENT_MESSAGES_VIA.includes("Email")
+        ) {
           sendSafetyCheckMsgViaEmail(
             companyData,
             allMembersArr,
