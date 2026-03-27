@@ -1879,8 +1879,25 @@ const sendProactiveMessageAsync = async (
       activity.attachments.push(CardFactory.adaptiveCard(card));
     }
     // 👇 This sets the preview text in Teams
-
-    activity.summary = titalmessage;
+    var safetyCheckMessageText = "";
+    if (incTypeId == 1 || incTypeId == 2) {
+      safetyCheckMessageText = await getSafetyCheckMessageText(
+        incObj.incId,
+        incObj.incCreatedBy.name,
+        incTitle,
+        [],
+        incObj.incResponseSelectedUsersList,
+        incTypeId,
+        incObj.incGuidance,
+      );
+    } else if (incTypeId == 3) {
+      safetyCheckMessageText = `This is an important bulletin from ${incObj.incCreatedBy.name}`;
+    } else if (incTypeId == 4) {
+      safetyCheckMessageText = `This is a travel advisory from ${incObj.incCreatedBy.name}`;
+    } else if (incTypeId == 5) {
+      safetyCheckMessageText = `This is a stakeholder notice from ${incObj.incCreatedBy.name}`;
+    }
+    activity.summary = safetyCheckMessageText || titalmessage;
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
 
@@ -2236,8 +2253,8 @@ const sendProactiveMessageAsync = async (
             const conversationId = member.conversationId;
             sendProactiveMessaageToUserAsync(
               memberArr,
+              activity,
               null,
-              titalmessage,
               serviceUrl,
               userTenantId,
               log,
@@ -2252,29 +2269,47 @@ const sendProactiveMessageAsync = async (
               sendErrorEmail,
               retryCounter,
             );
-            setTimeout(async () => {
-              console.log({
-                insidesendProactiveMessaageToUserAsync: member.userAadObjId,
-              });
-              sendProactiveMessaageToUserAsync(
-                memberArr,
-                activity,
-                null,
-                serviceUrl,
-                userTenantId,
-                log,
-                userAadObjId,
-                conversationId,
-                connectorClient,
-                afterMessageSent,
-                i,
-                delay,
-                member,
-                msgNotSentArr,
-                sendErrorEmail,
-                retryCounter,
-              );
-            }, 1000);
+            // sendProactiveMessaageToUserAsync(
+            //   memberArr,
+            //   null,
+            //   titalmessage,
+            //   serviceUrl,
+            //   userTenantId,
+            //   log,
+            //   userAadObjId,
+            //   conversationId,
+            //   connectorClient,
+            //   afterMessageSent,
+            //   i,
+            //   delay,
+            //   member,
+            //   msgNotSentArr,
+            //   sendErrorEmail,
+            //   retryCounter,
+            // );
+            // setTimeout(async () => {
+            //   console.log({
+            //     insidesendProactiveMessaageToUserAsync: member.userAadObjId,
+            //   });
+            //   sendProactiveMessaageToUserAsync(
+            //     memberArr,
+            //     activity,
+            //     null,
+            //     serviceUrl,
+            //     userTenantId,
+            //     log,
+            //     userAadObjId,
+            //     conversationId,
+            //     connectorClient,
+            //     afterMessageSent,
+            //     i,
+            //     delay,
+            //     member,
+            //     msgNotSentArr,
+            //     sendErrorEmail,
+            //     retryCounter,
+            //   );
+            // }, 1000);
             console.log({ i });
           }
         } catch (err) {
@@ -6739,7 +6774,7 @@ const onInvokeActivity = async (context) => {
       let incGuidance = await incidentService.getIncGuidance(incId);
       incGuidance = incGuidance; //? incGuidance : "";
       let responseText = commentVal
-        ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
+        ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible \n\n **Additional Comments**: ${commentVal}`
         : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
 
       const cards = CardFactory.adaptiveCard(

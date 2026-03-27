@@ -1263,7 +1263,7 @@ WHEN NOT MATCHED THEN
         let incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance; //? incGuidance : "No details available";
         let responseText = commentVal
-          ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
+          ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible \n\n **Additional Comments**: ${commentVal}`
           : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),

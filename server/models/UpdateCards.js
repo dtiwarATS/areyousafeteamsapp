@@ -21,7 +21,7 @@ const updateMainCard = (companyData) => {
   const webUrl = `https://0f5a-110-172-16-5.ngrok.io/areYouSafeTab/index.html`;
   var encodedWebUrl = encodeURIComponent(`${webUrl}`);
   let taskContext = encodeURIComponent(
-    `{"channelId":"19:-hsC9OMcGeta4Ke-bYtIVS4HFxNJZ8D8fYK50KZi7q01@thread.tacv2"}`
+    `{"channelId":"19:-hsC9OMcGeta4Ke-bYtIVS4HFxNJZ8D8fYK50KZi7q01@thread.tacv2"}`,
   );
 
   // const webUrl = `https://areyousafeteamsprod.azurewebsites.net/areYouSafeTab/index.html`;
@@ -111,7 +111,7 @@ const updateSendApprovalMessage = (
   isRecurringInc,
   safetyCheckMessageText,
   mentionUserEntities,
-  guidance
+  guidance,
 ) => {
   let msg = isRecurringInc ? "will be" : "has been";
   return {
@@ -199,7 +199,7 @@ const updateSafeMessage = (
   incId,
   companyData,
   inc,
-  incGuidance
+  incGuidance,
 ) => {
   var isVisi = false;
   if (incGuidance != "") isVisi = true;
@@ -215,8 +215,7 @@ const updateSafeMessage = (
       },
       {
         type: "Input.Text",
-        placeholder:
-          "For example - Daniel Foster is stuck in the elevator on the 7th floor.",
+
         style: "text",
         id: "commentVal",
         isMultiline: true,
@@ -276,7 +275,7 @@ const updateSafeMessageqestion1 = (
   incId,
   companyData,
   inc,
-  incGuidance
+  incGuidance,
 ) => {
   var card = {
     type: "AdaptiveCard",
@@ -340,7 +339,7 @@ const updateSafeMessageqestion2 = (
   incId,
   companyData,
   inc,
-  incGuidance
+  incGuidance,
 ) => {
   var card = {
     type: "AdaptiveCard",
@@ -404,7 +403,7 @@ const updateSafeMessageqestion3 = (
   incId,
   companyData,
   inc,
-  incGuidance
+  incGuidance,
 ) => {
   var card = {
     type: "AdaptiveCard",
