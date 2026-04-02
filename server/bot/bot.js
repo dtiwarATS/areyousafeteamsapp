@@ -2361,7 +2361,31 @@ const sendProactiveMessageAsync = async (
     log.addLog(` Send SafteyCheck card  end.`);
   }
 };
+const getTitleMessage = (incTypeId, incTitle) => {
+  let titalmessage = "";
 
+  switch (incTypeId) {
+    case 1:
+      titalmessage = `Safety Check`;
+      break;
+    case 2:
+      titalmessage = `Safety Alert`;
+      break;
+    case 3:
+      titalmessage = `Important Bulletin`;
+      break;
+    case 4:
+      titalmessage = `Travel Advisory`;
+      break;
+    case 5:
+      titalmessage = `Stakeholder Notice`;
+      break;
+    default:
+      titalmessage = "Safety Check"; // fallback if no match
+  }
+
+  return titalmessage;
+};
 const getAcknowledgeMsgToCreatorAdaptiveCard = (
   numberOfUsers,
   teamName,
@@ -2391,7 +2415,7 @@ const sendAcknowledgeMsgToCreator = (
       baseUri: serviceUrl,
     });
   }
-  let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
+  let msgText = `Thanks! Your <b>${getTitleMessage(incData.incTypeId)}</b> has been sent to ${numberOfUsers} users.<br />
 Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
 For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Safety Check</b> tab`;
   let activity = MessageFactory.text(msgText);
