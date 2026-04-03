@@ -6150,10 +6150,11 @@ const sendRecurrEventMsgAsync = async (
       subEventObj.runAt,
       subEventObj.filesData,
     );
-    let userAadObjIds = subEventObj.eventMembers.map((x) => x.userAadObjId);
+    let userAadObjIds = subEventObj.eventMembers?.map((x) => x.userAadObjId);
+
     if (
-      incData.incTypeId == 1 &&
-      companyData.SEND_INCIDENT_MESSAGES_VIA.includes("VoiceCall")
+      subEventObj.incType == 1 &&
+      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("VoiceCall")
     ) {
       sendSafetyCheckMsgViaVoice(
         companyData,
@@ -6164,7 +6165,7 @@ const sendRecurrEventMsgAsync = async (
       );
     }
     if (
-      companyData.SEND_INCIDENT_MESSAGES_VIA.includes("SMS") &&
+      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("SMS") &&
       (companyData.SubscriptionType == 3 ||
         (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))
     ) {
@@ -6179,7 +6180,7 @@ const sendRecurrEventMsgAsync = async (
     }
     if (
       subEventObj.incTypeId == 1 &&
-      companyData.SEND_INCIDENT_MESSAGES_VIA.includes("WhatsApp")
+      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("WhatsApp")
     ) {
       await sendSafetyCheckMsgViaWhatsapp(
         companyData,
@@ -6192,7 +6193,7 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
-    if (companyData.SEND_INCIDENT_MESSAGES_VIA.includes("Email")) {
+    if (companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("Email")) {
       let userObjects = subEventObj.eventMembers.map((x) => x);
       subEventObj.incGuidance = incGuidance;
       await sendSafetyCheckMsgViaEmail(
