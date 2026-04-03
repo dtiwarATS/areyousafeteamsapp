@@ -2054,12 +2054,8 @@ const sendProactiveMessageAsync = async (
             isMessageDelivered = 0;
           }
           if (isRecurringInc) {
-            if (
-              msgResp.isSafetyCheckTitleResponse === undefined ||
-              !msgResp.isSafetyCheckTitleResponse
-            ) {
-              log.addLog(`For isRecurringInc Incident`);
-              sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT)
+            log.addLog(`For isRecurringInc Incident`);
+            sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT)
               values(${
                 respMemberObj.memberResponsesId
               }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${
@@ -2067,7 +2063,6 @@ const sendProactiveMessageAsync = async (
               }', '${msgResp?.activityId}', ${status}, '${error}', ${
                 isMessageDelivered == 1 ? "GETDATE()" : "NULL"
               }); `;
-            }
           } else {
             log.addLog(`For OneTime Incident`);
             sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error}', LastReminderSentAT = ${
