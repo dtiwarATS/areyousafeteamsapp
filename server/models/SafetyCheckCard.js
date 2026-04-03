@@ -13,10 +13,10 @@ const getSafetyCheckMessageText = async (
   let onBehalfOf = "",
     responseUsers = "";
   if (incTypeId == 1) {
-    if (incRespSelectedUsers == null) {
-      incRespSelectedUsers =
-        await incidentService.getIncResponseSelectedUsersList(incId);
-    }
+    // if (incRespSelectedUsers == null) {
+    //   incRespSelectedUsers =
+    //     await incidentService.getIncResponseSelectedUsersList(incId);
+    // }
     // if (incRespSelectedUsers != null && incRespSelectedUsers.length > 0) {
     //   for (let i = 0; i < incRespSelectedUsers.length; i++) {
     //     const { user_id: userId, user_name: userName } =
