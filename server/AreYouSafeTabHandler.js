@@ -2507,27 +2507,24 @@ const handlerForSafetyBotTab = (app) => {
       const sql = require("mssql");
       const pool = await poolPromise;
 
-      // Helper function to escape SQL strings and handle null
-      const escapeSqlString = (str) => {
-        if (str === null || str === undefined) return "''";
-        return `N'${String(str).replace(/'/g, "''")}'`;
+      const toSqlNVarChar = (value) =>
+        `N'${String(value).replace(/'/g, "''")}'`;
+      const toSqlNVarCharOrNull = (value) => {
+        if (value === null || value === undefined) return "NULL";
+        const str = String(value);
+        if (str.length === 0) return "NULL";
+        return toSqlNVarChar(str);
       };
+      const hasConversationId = (conversationId) =>
+        conversationId !== null &&
+        conversationId !== undefined &&
+        String(conversationId).toLowerCase() !== "null" &&
+        String(conversationId).length > 0;
+      const getKey = (team, aad) => `${team}::${aad}`;
 
-      // Process and validate users, build VALUES for MERGE statement
-      const validUsers = [];
-      let skippedCount = 0;
-
-      for (const user of users) {
-        // Get team_id from user object or query params
+      // Normalize users (preserve input order for response)
+      const normalized = users.map((user, index) => {
         const userTeamId = user.team_id || user.teamId || teamId;
-
-        if (!userTeamId) {
-          console.warn("Skipping user - no team_id found:", user);
-          skippedCount++;
-          continue;
-        }
-
-        // Extract user properties (supporting multiple property name variations)
         const userAadObjectId =
           user.aadObjectId ||
           user.objectId ||
@@ -2552,112 +2549,183 @@ const handlerForSafetyBotTab = (app) => {
               ? user.isTeamMember
               : 1;
 
-        if (!userAadObjectId) {
-          console.warn("Skipping user - no user_aadobject_id found:", user);
-          skippedCount++;
-          continue;
-        }
-        const newConversationId = await apimeth.getUsersConversationId(
-          tenantId,
-          [
-            {
-              id: userAadObjectId, // REQUIRED
-              name: userName,
-            },
-          ],
-          botServiceUrl,
-          userAadObjectId,
-        );
-        console.log("Conversation ID fetch result:", {
-          userName,
-          conversationId: newConversationId,
-        });
+        const isValid = Boolean(userTeamId && userAadObjectId);
+        return {
+          index,
+          original: user,
+          isValid,
+          team_id: userTeamId,
+          user_aadobject_id: userAadObjectId,
+          user_id: userId,
+          user_name: userName,
+          userPrincipalName,
+          email,
+          tenantid: tenantId,
+          userRole,
+          IS_TEAM_MEMBER: isTeamMember ? 1 : 0,
+          hasLicense: 1,
+          conversationId: null,
+          conversation: false,
+        };
+      });
 
-        if (newConversationId != null) {
-          validUsers.push({
-            team_id: userTeamId,
-            user_aadobject_id: userAadObjectId,
-            user_id: userId,
-            user_name: userName,
-            userPrincipalName: userPrincipalName,
-            email: email,
-            tenantid: tenantId,
-            userRole: userRole,
-            IS_TEAM_MEMBER: isTeamMember ? 1 : 0,
-            conversationId: newConversationId,
-            hasLicense: 1,
-          });
-        }
+      let skippedCount = 0;
+      for (const u of normalized) {
+        if (!u.isValid) skippedCount++;
       }
 
+      const validUsers = normalized.filter((u) => u.isValid);
       if (validUsers.length === 0) {
         return res.send({
           success: false,
           error: "No valid users to save after validation",
           skippedCount,
+          totalUsers: users.length,
         });
       }
-      // Build INSERT statement with NOT EXISTS check for all users in a single query
-      const valuesClause = validUsers
+
+      // Batch pre-check: which users already have conversationId in DB
+      const keysValuesClause = validUsers
+        .map(
+          (u) =>
+            `(${toSqlNVarChar(u.team_id)}, ${toSqlNVarChar(u.user_aadobject_id)})`,
+        )
+        .join(",\n    ");
+
+      const precheckQuery = `
+        SELECT 
+          source.team_id,
+          source.user_aadobject_id,
+          existing.conversationId
+        FROM (VALUES
+          ${keysValuesClause}
+        ) AS source (team_id, user_aadobject_id)
+        LEFT JOIN MSTeamsTeamsUsers AS existing
+          ON existing.team_id = source.team_id
+         AND existing.user_aadobject_id = source.user_aadobject_id;
+      `;
+
+      const precheckResult = await pool.request().query(precheckQuery);
+      const existingConversationMap = new Map();
+      for (const row of precheckResult.recordset || []) {
+        existingConversationMap.set(
+          getKey(row.team_id, row.user_aadobject_id),
+          row.conversationId,
+        );
+      }
+
+      let alreadyHadConversationCount = 0;
+      for (const u of validUsers) {
+        const existingConversationId = existingConversationMap.get(
+          getKey(u.team_id, u.user_aadobject_id),
+        );
+        if (hasConversationId(existingConversationId)) {
+          u.conversationId = existingConversationId;
+          u.conversation = true;
+          alreadyHadConversationCount++;
+        }
+      }
+
+      // Create conversations only for users missing conversationId
+      let createdConversationCount = 0;
+      for (const u of validUsers) {
+        if (u.conversation) continue;
+
+        const newConversationId = await apimeth.getUsersConversationId(
+          tenantId,
+          [
+            {
+              id: u.user_aadobject_id, // REQUIRED
+              name: u.user_name,
+            },
+          ],
+          botServiceUrl,
+          u.user_aadobject_id,
+        );
+
+        console.log("Conversation ID fetch result:", {
+          userName: u.user_name,
+          conversationId: newConversationId,
+        });
+
+        if (hasConversationId(newConversationId)) {
+          u.conversationId = newConversationId;
+          u.conversation = true;
+          createdConversationCount++;
+        }
+      }
+
+      // Upsert users (insert new rows; update missing conversationId when available)
+      const upsertValuesClause = validUsers
         .map((u) => {
           return `(
-          ${escapeSqlString(u.team_id)},
-          ${escapeSqlString(u.user_aadobject_id)},
-          ${escapeSqlString(u.user_id)},
-          ${escapeSqlString(u.user_name)},
-          ${escapeSqlString(u.userPrincipalName)},
-          ${escapeSqlString(u.email)},
-          ${escapeSqlString(u.tenantid)},
-          ${escapeSqlString(u.userRole)},
+          ${toSqlNVarChar(u.team_id)},
+          ${toSqlNVarChar(u.user_aadobject_id)},
+          ${toSqlNVarCharOrNull(u.user_id)},
+          ${toSqlNVarCharOrNull(u.user_name)},
+          ${toSqlNVarCharOrNull(u.userPrincipalName)},
+          ${toSqlNVarCharOrNull(u.email)},
+          ${toSqlNVarCharOrNull(u.tenantid)},
+          ${toSqlNVarCharOrNull(u.userRole)},
           ${u.IS_TEAM_MEMBER},
-          ${escapeSqlString(u.conversationId)},
-           ${u.hasLicense}
+          ${toSqlNVarCharOrNull(u.conversationId)},
+          ${u.hasLicense}
         )`;
         })
         .join(",\n    ");
 
-      const insertQuery = `
-        INSERT INTO MSTeamsTeamsUsers
-        (team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER,conversationId,hasLicense)
-        SELECT 
-          source.team_id,
-          source.user_aadobject_id,
-          source.user_id,
-          source.user_name,
-          source.userPrincipalName,
-          source.email,
-          source.tenantid,
-          source.userRole,
-          source.IS_TEAM_MEMBER,
-          source.conversationId,
-          hasLicense
-        FROM (VALUES
-          ${valuesClause}
+      const mergeQuery = `
+        MERGE INTO MSTeamsTeamsUsers AS target
+        USING (VALUES
+          ${upsertValuesClause}
         ) AS source
         (
-          team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER,conversationId,hasLicense
+          team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER, conversationId, hasLicense
         )
-        WHERE NOT EXISTS (
-          SELECT 1 
-          FROM MSTeamsTeamsUsers AS existing
-          WHERE existing.team_id = source.team_id 
-            AND existing.user_aadobject_id = source.user_aadobject_id
-        );
+        ON target.team_id = source.team_id
+       AND target.user_aadobject_id = source.user_aadobject_id
+        WHEN MATCHED THEN
+          UPDATE SET
+            user_id = source.user_id,
+            user_name = source.user_name,
+            userPrincipalName = source.userPrincipalName,
+            email = source.email,
+            tenantid = source.tenantid,
+            userRole = source.userRole,
+            IS_TEAM_MEMBER = source.IS_TEAM_MEMBER,
+            hasLicense = source.hasLicense,
+            conversationId = CASE
+              WHEN (target.conversationId IS NULL OR target.conversationId = 'null')
+               AND (source.conversationId IS NOT NULL AND source.conversationId <> 'null')
+              THEN source.conversationId
+              ELSE target.conversationId
+            END
+        WHEN NOT MATCHED THEN
+          INSERT (team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER, conversationId, hasLicense)
+          VALUES (source.team_id, source.user_aadobject_id, source.user_id, source.user_name, source.userPrincipalName, source.email, source.tenantid, source.userRole, source.IS_TEAM_MEMBER, source.conversationId, source.hasLicense);
       `;
 
-      // Execute the single INSERT query
-      const result = await pool.request().query(insertQuery);
+      const mergeResult = await pool.request().query(mergeQuery);
+
+      const usersWithConversationFlag = normalized.map((u) => ({
+        ...u.original,
+        conversation: Boolean(u.conversation),
+      }));
 
       console.log(
-        `✅ Successfully saved ${validUsers.length} users in a single query, skipped ${skippedCount}`,
+        `✅ Processed ${users.length} users. valid=${validUsers.length}, skipped=${skippedCount}, alreadyHadConversation=${alreadyHadConversationCount}, createdConversation=${createdConversationCount}`,
       );
 
       res.send({
         success: true,
         message: `Processed ${users.length} users`,
-        savedCount: validUsers.length,
-        skippedCount,
         totalUsers: users.length,
+        validCount: validUsers.length,
+        skippedCount,
+        alreadyHadConversationCount,
+        createdConversationCount,
+        dbRowsAffected: mergeResult?.rowsAffected,
+        users: usersWithConversationFlag,
       });
     } catch (err) {
       console.log("Error in saveInstalledUsersToDB:", err);
