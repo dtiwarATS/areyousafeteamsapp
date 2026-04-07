@@ -71,7 +71,7 @@ OUTER APPLY (
         ON t.team_id = tu.team_id
         AND t.uninstallation_date IS NULL
     WHERE tu.user_id = a.user_id
-      AND t.IsReminderEnabledBeforeAcknowledgement = 1   -- REQUIRED by you
+      AND t.IsReminderEnabledAfterAcknowledgement = 1   -- REQUIRED by you
       AND t.MaxReminderCountAfterAcknowledgement > 0     -- after-ack config exists
     ORDER BY t.team_id
 ) t
