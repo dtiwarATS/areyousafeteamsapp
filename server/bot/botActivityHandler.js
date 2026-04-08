@@ -2902,7 +2902,7 @@ WHERE rn = 1;
       }
 
       new PersonalEmail.PersonalEmail()
-        .sendWelcomEmail(companyData.userEmail, userAadObjId)
+        .sendWelcomEmail(companyData.userEmail, userAadObjId, process.env.build)
         .then(() => {})
         .catch((err) => {
           console.log(err);
@@ -2953,7 +2953,7 @@ WHERE rn = 1;
     }
     if (userInfo && userInfo.length > 0) {
       new PersonalEmail.PersonalEmail()
-        .sendUninstallationEmail(userEmailId, userAadObjId,process.env.build)
+        .sendUninstallationEmail(userEmailId, userAadObjId, process.env.build)
         .then(() => {})
         .catch((err) => {
           console.log(err);
