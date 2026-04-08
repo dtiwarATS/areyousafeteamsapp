@@ -64,7 +64,7 @@ class PersonalEmail {
       "https://emailservices.azurewebsites.net/api/sendemail?projectName=AYS&emailType=UnInstall&emailTo=" +
         toUserEmailId +
         "&userCount=0&authKey=A9fG4dX2pL7qW8mZ&Environment=" +
-        build,
+        this.build,
       requestOptions
     )
       .then((response) => {
