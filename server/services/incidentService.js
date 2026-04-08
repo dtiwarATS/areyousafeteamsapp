@@ -1729,7 +1729,7 @@ const getUserTeamInfo = async (userAadObjId) => {
   try {
     const sqlTeamInfo = `SELECT  
           user_id AS userid,
-          team_id AS teamId,
+          t.team_id AS teamId,
           team_name AS teamName,
           SOS_NOTIFICATION,
           FOLLOW_UP_INCIDENT_NOTIFICATION,
@@ -1756,15 +1756,20 @@ const getUserTeamInfo = async (userAadObjId) => {
       LANGUAGE,
      PHONE_FIELD,
           s.UserLimit,
-          s.SubscriptionType
+          s.SubscriptionType,
+          
+		  st.SETTING_VALUE AS DisableAIGenerateMessage
         INTO #CTE
         FROM MSTeamsInstallationDetails t
         LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
+        LEFT JOIN SETTINGS st 
+    ON st.TEAM_ID = t.team_id 
+    AND st.SETTING_NAME = 'DisableAIGenerateMessage'
         WHERE (user_obj_id = '${userAadObjId}' 
                   OR super_users like '%${userAadObjId}%' or WHO_CAN_CREATE_INCIDENT like '%${userAadObjId}%') 
           AND uninstallation_date IS NULL 
-          AND team_id IS NOT NULL 
-          AND team_id <> '';
+          AND t.team_id IS NOT NULL 
+          AND t.team_id <> '';
 
          SELECT *
 FROM (
@@ -1796,7 +1801,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
   try {
     const sqlTeamInfo = `SELECT  
           user_id AS userid,
-          team_id AS teamId,
+          t.team_id AS teamId,
           team_name AS teamName,
           channelId,
           ISNULL(team_name, '') + ' - ' + ISNULL(channelName, '') AS channelName,
@@ -1815,15 +1820,20 @@ const getUserTeamInfoData = async (userAadObjId) => {
      ReminderIntervalMinutesAfterAcknowledgement as SOS_FOLLOW_UP_INTERVAL_SECTION2,
      NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement as NOTIFY_ALL_RESPONDERS_IF_NO_RESPONSE,
           s.UserLimit,
-          s.SubscriptionType
+          s.SubscriptionType,
+    st.SETTING_VALUE AS DisableAIGenerateMessage
         INTO #CTE
         FROM MSTeamsInstallationDetails t
         LEFT JOIN MSTeamsSubscriptionDetails s ON t.SubscriptionDetailsId = s.ID 
+        LEFT JOIN SETTINGS st 
+    ON st.TEAM_ID = t.team_id 
+    AND st.SETTING_NAME = 'DisableAIGenerateMessage'
+
         WHERE (user_obj_id = '${userAadObjId}' 
                   OR super_users like '%${userAadObjId}%' or WHO_CAN_CREATE_INCIDENT like '%${userAadObjId}%' ) 
           AND uninstallation_date IS NULL 
-          AND team_id IS NOT NULL 
-          AND team_id <> ''
+          AND t.team_id IS NOT NULL 
+          AND t.team_id <> ''
 		  AND IS_APP_PERMISSION_GRANTED IS NOT NULL;
 
         SELECT * FROM #CTE ORDER BY teamName;
@@ -2369,7 +2379,19 @@ const manageColumns = async (teamId, settingName, value, userId) => {
     const safeSettingName = settingName;
     const safeValue = value;
     const safeUserId = userId;
-    const query = `IF EXISTS (SELECT * FROM SETTINGS WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}')
+    let query = "";
+    if (safeSettingName == "DisableAIGenerateMessage") {
+      query = `IF EXISTS (SELECT * FROM SETTINGS WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}')
+      BEGIN
+      UPDATE SETTINGS SET SETTING_VALUE = N'${safeValue}' WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}';
+      END
+      ELSE
+      BEGIN
+      INSERT INTO SETTINGS (TEAM_ID, USR_AAD_OBJ_ID, SETTING_NAME, SETTING_VALUE) VALUES
+      ('${safeTeamId}', '${safeUserId}', '${safeSettingName}', N'${safeValue}')
+      END`;
+    } else {
+      query = `IF EXISTS (SELECT * FROM SETTINGS WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}')
       BEGIN
       UPDATE SETTINGS SET SETTING_VALUE = N'${safeValue}' WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}';
       END
@@ -2378,6 +2400,7 @@ const manageColumns = async (teamId, settingName, value, userId) => {
       INSERT INTO SETTINGS (TEAM_ID, USR_AAD_OBJ_ID, SETTING_NAME, SETTING_VALUE) VALUES
       ('${safeTeamId}', '${safeUserId}', '${safeSettingName}', N'${safeValue}')
       END`;
+    }
     await db.getDataFromDB(query, userId);
     result = "success";
   } catch (err) {
