@@ -693,6 +693,9 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 name: admins[i].user_name,
               },
             ];
+            let IntegrationConfigure = JSON.parse(
+              admins[i].INTEGRATION_CONFIGURE,
+            );
             try {
               incidentService.saveAllTypeQuerylogs(
                 admins[i].user_aadobject_id,
@@ -762,9 +765,9 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 JSON.stringify(ex),
               );
             }
-
             if (
-              admins[i].SOS_NOTIFICATION.includes("SMS") &&
+              IntegrationConfigure.channels.sms.enabled &&
+              IntegrationConfigure.channels.sms.events.sos &&
               sendonetime == "true"
             ) {
               usrPhones.map(async (userpho) => {
@@ -855,7 +858,11 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 }
               });
             }
-            if (admins[i].SEND_EMAIL && sendonetime == "true") {
+            if (
+              IntegrationConfigure.channels.email.enabled &&
+              IntegrationConfigure.channels.email.events.sos &&
+              sendonetime == "true"
+            ) {
               try {
                 var useremail = admins[i].email;
                 if (useremail) {
@@ -973,7 +980,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               }
             }
             if (
-              admins[i].SOS_NOTIFICATION.includes("WhatsApp") &&
+              IntegrationConfigure.channels.whatsapp.enabled &&
+              IntegrationConfigure.channels.whatsapp.events.sos &&
               sendonetime == "true"
             ) {
               usrPhones.map(async (userpho) => {
@@ -1875,6 +1883,16 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     }
     return Promise.resolve(res);
   };
+  setfields = async (tenantId, sendSMS, phoneField) => {
+    let res = null;
+    try {
+      res = await incidentService.setfields(tenantId, sendSMS, phoneField);
+    } catch (err) {
+      processSafetyBotError(err, tenantId, "", null, "error in setfields");
+    }
+    return Promise.resolve(res);
+  };
+
   SavesmsInfoDisplay = async (teamId, dsiplaysmsinfo) => {
     let res = null;
     try {
@@ -2165,6 +2183,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     SOSInitiatorMessage,
     SOSAllRespondersMessage,
     enableSOSFollowUpsSection2,
+    integrationPanelDraft,
   }) => {
     let result = null;
     try {
@@ -2189,6 +2208,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         SOSInitiatorMessage,
         SOSAllRespondersMessage,
         enableSOSFollowUpsSection2,
+        integrationPanelDraft,
       );
     } catch (err) {
       processSafetyBotError(

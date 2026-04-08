@@ -897,6 +897,24 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post("/areyousafetabhandler/setfields", async (req, res) => {
+    const tenantId = req.query.tenantId;
+    const sendSMS = req.query.sendSMS;
+    const phoneField = req.query.phoneField;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.setfields(tenantId, sendSMS, phoneField);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        tenantId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSendSMS",
+      );
+    }
+  });
   app.post("/areyousafetabhandler/setSendEmail", async (req, res) => {
     const teamId = req.query.teamId;
     const setSendEmail = req.query.setSendEmail;

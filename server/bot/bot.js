@@ -4889,12 +4889,16 @@ const NewsendSafetyCheckMessageAsync = async (
           allincMembers,
         );
 
+        let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
+          ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
+          : null;
+        console.log({ IntegrationConfigure });
         // Voice calls to all users (similar to sendSafetyCheckMsgViaSMS)
         const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
           incData.incTypeId == 1 &&
-          companyData.SEND_INCIDENT_MESSAGES_VIA &&
-          companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("VoiceCall")
+          IntegrationConfigure.channels.voice.enabled &&
+          IntegrationConfigure.channels.voice.events.incident
         ) {
           sendSafetyCheckMsgViaVoice(
             companyData,
@@ -4904,8 +4908,8 @@ const NewsendSafetyCheckMessageAsync = async (
           );
         }
         if (
-          companyData.SEND_INCIDENT_MESSAGES_VIA.includes("SMS") &&
-          companyData.SEND_INCIDENT_MESSAGES_VIA &&
+          IntegrationConfigure.channels.sms.enabled &&
+          IntegrationConfigure.channels.sms.events.incident &&
           (companyData.SubscriptionType == 3 ||
             (companyData.SubscriptionType == 2 &&
               companyData.sent_sms_count < 50))
@@ -4920,8 +4924,8 @@ const NewsendSafetyCheckMessageAsync = async (
         }
         if (
           incData.incTypeId == 1 &&
-          companyData.SEND_INCIDENT_MESSAGES_VIA &&
-          companyData.SEND_INCIDENT_MESSAGES_VIA.includes("WhatsApp")
+          IntegrationConfigure.channels.whatsapp.enabled &&
+          IntegrationConfigure.channels.whatsapp.events.incident
         ) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
@@ -4934,8 +4938,8 @@ const NewsendSafetyCheckMessageAsync = async (
           );
         }
         if (
-          companyData.SEND_INCIDENT_MESSAGES_VIA &&
-          companyData.SEND_INCIDENT_MESSAGES_VIA.includes("Email")
+          IntegrationConfigure.channels.email.enabled &&
+          IntegrationConfigure.channels.email.events.incident
         ) {
           sendSafetyCheckMsgViaEmail(
             companyData,

@@ -883,11 +883,15 @@ const updateSuperUserDataByUserAadObjId = async (
   SOSInitiatorMessage,
   SOSAllRespondersMessage,
   enableSOSFollowUpsSection2,
+  integrationPanelDraft,
 ) => {
   let isUpdated = false;
   try {
     pool = await poolPromise;
-
+    console.log(
+      "integrationPanelDraft in updateSuperUserDataByUserAadObjId: ",
+      integrationPanelDraft,
+    );
     // Get current super_users value before update for audit trail
     const selectQuery = `SELECT super_users FROM MSTeamsInstallationDetails WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
     const currentResult = await pool.request().query(selectQuery);

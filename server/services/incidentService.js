@@ -311,7 +311,7 @@ const getAdmins = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (superUsersArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
+              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join(
@@ -1749,7 +1749,7 @@ const getUserTeamInfo = async (userAadObjId) => {
      MaxReminderCountAfterAcknowledgement as SOS_FOLLOW_UP_COUNT_SECTION2,
      ReminderIntervalMinutesAfterAcknowledgement as SOS_FOLLOW_UP_INTERVAL_SECTION2,
      NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement as NOTIFY_ALL_RESPONDERS_IF_NO_RESPONSE,
-
+INTEGRATION_CONFIGURE,
       serviceUrl,
       AVAILABLE_FOR,
       SMS_INFO_DISPLAY,
@@ -1821,6 +1821,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
      MaxReminderCountAfterAcknowledgement as SOS_FOLLOW_UP_COUNT_SECTION2,
      ReminderIntervalMinutesAfterAcknowledgement as SOS_FOLLOW_UP_INTERVAL_SECTION2,
      NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement as NOTIFY_ALL_RESPONDERS_IF_NO_RESPONSE,
+     INTEGRATION_CONFIGURE,
           s.UserLimit,
           s.SubscriptionType,
     st.SETTING_VALUE AS DisableAIGenerateMessage
@@ -2174,7 +2175,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (contactsArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
+              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
@@ -2346,6 +2347,20 @@ const setSendSMS = async (teamId, sendSMS, phoneField) => {
   }
   return Promise.resolve(result);
 };
+const setfields = async (tenantId, sendSMS, phoneField) => {
+  let result = null;
+  try {
+    const qry = `update MSTeamsInstallationDetails set SMS_INFO_DISPLAY = '${sendSMS}', PHONE_FIELD = '${phoneField}' where user_tenant_id='${tenantId}' `;
+    console.log({ qry });
+    await db.getDataFromDB(qry);
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, tenantId, "", "", "error in setfields");
+  }
+  return Promise.resolve(result);
+};
+
 const SavesmsInfoDisplay = async (teamId, displaymsg) => {
   let result = null;
   try {
@@ -2764,6 +2779,7 @@ const getSosAfterAcknowledgementSettings = async (teamId) => {
         MaxReminderCountAfterAcknowledgement,
         ReminderIntervalMinutesAfterAcknowledgement,
         NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement,
+        INTEGRATION_CONFIGURE,
         serviceUrl,
         user_tenant_id
       FROM MSTeamsInstallationDetails
@@ -4231,6 +4247,7 @@ module.exports = {
   getenablecheck,
   getSendSMS,
   setSendSMS,
+  setfields,
   SavesmsInfoDisplay,
   deleteSOSResponder,
   saveSOSResponder,
