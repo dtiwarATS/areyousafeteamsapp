@@ -2110,11 +2110,7 @@ const sendProactiveMessageAsync = async (
         let updateEndTime = new Date().getTime();
         updateEndTime = (updateEndTime - updateStartTime) / 2000;
 
-        if (
-          sqlUpdateMsgDeliveryStatus != "" &&
-          updateEndTime != null &&
-          Number(updateEndTime) >= 2
-        ) {
+        if (sqlUpdateMsgDeliveryStatus != "") {
           updateStartTime = null;
           console.log("inside first ", { msgResp });
           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
