@@ -911,6 +911,8 @@ MaxReminderCountAfterAcknowledgement = ${SOSFollowUpCountSection2}, NotifyNoResp
 ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2},NotifyNoResponseAfterAcknowledgementMessage='${SOSAllRespondersMessage.replace(/'/g, "''")}',
  NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement = ${NotifyAllRespondersIfNoResponse ? 1 : 0},IsReminderEnabledAfterAcknowledgement=${enableSOSFollowUpsSection2 ? 1 : 0}
 WHERE team_id = '${teamId}'`;
+
+    updateQuery += `; UPDATE MSTeamsInstallationDetails SET INTEGRATION_CONFIGURE = '${integrationPanelDraft ? integrationPanelDraft : null}' WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
     const result = await pool.request().query(updateQuery);
     isUpdated = true;
 

@@ -164,6 +164,9 @@ const { processSafetyBotError } = require("../models/processError");
               log.addLog(
                 `send proactive reminder messaage to ${member.user_id} successfully`,
               );
+              let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
+                ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
+                : null;
               let userAadObjIds = [member.user_aadobj_id];
               if (member.inc_type == "onetime") {
                 await incidentService.updateremaindercounter(
@@ -173,14 +176,14 @@ const { processSafetyBotError } = require("../models/processError");
                 log.addLog(
                   `Update oneTime reminder message count in DB  ${member.user_id} successfully`,
                 );
+
                 if (
                   (companyData.SubscriptionType == 3 ||
                     (companyData.SubscriptionType == 2 &&
                       companyData.sent_sms_count < 50)) &&
                   inc_type_id == 1 &&
-                  companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes(
-                    "VoiceCall",
-                  )
+                  IntegrationConfigure.channels.voice.enabled &&
+                  IntegrationConfigure.channels.voice.events.incident
                 ) {
                   await bot.sendSafetyCheckMsgViaVoice(
                     companyData,
@@ -194,7 +197,8 @@ const { processSafetyBotError } = require("../models/processError");
                   (companyData.SubscriptionType == 3 ||
                     (companyData.SubscriptionType == 2 &&
                       companyData.sent_sms_count < 50)) &&
-                  companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes("SMS")
+                  IntegrationConfigure.channels.sms.enabled &&
+                  IntegrationConfigure.channels.sms.events.incident
                 ) {
                   await bot.sendSafetyCheckMsgViaSMS(
                     companyData,
@@ -215,7 +219,8 @@ const { processSafetyBotError } = require("../models/processError");
               }
               if (
                 inc_type_id == 1 &&
-                companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes("WhatsApp")
+                IntegrationConfigure.channels.whatsapp.enabled &&
+                IntegrationConfigure.channels.whatsapp.events.incident
               ) {
                 await bot.sendSafetyCheckMsgViaWhatsapp(
                   companyData,
@@ -229,7 +234,8 @@ const { processSafetyBotError } = require("../models/processError");
                 );
               }
               if (
-                companyData.FOLLOW_UP_INCIDENT_NOTIFICATION.includes("Email")
+                IntegrationConfigure.channels.email.enabled &&
+                IntegrationConfigure.channels.email.events.incident
               ) {
                 await bot.sendSafetyCheckMsgViaEmail(
                   companyData,

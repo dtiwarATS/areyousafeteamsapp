@@ -1106,6 +1106,7 @@ const getCompanyData = async (teamId) => {
       WHATSAPP_PHONE_NUMBER_ID: result[0].WHATSAPP_PHONE_NUMBER_ID,
       SEND_EMAIL: result[0].SEND_EMAIL,
       LANGUAGE: result[0].LANGUAGE,
+      INTEGRATION_CONFIGURE: result[0].INTEGRATION_CONFIGURE,
     };
   }
   return companyDataObj;
