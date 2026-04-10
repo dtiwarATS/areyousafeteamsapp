@@ -2436,7 +2436,7 @@ const sendSafetyCheckMsgViaSMS = async (
   let body = "";
   let incTypeId = 1;
   // if (incData && Number(incData.incTypeId) != 1) {
-  //   incTypeId = Number(incData.incTypeId);
+  incTypeId = Number(incData.incTypeId);
   //   let incTypeName = "",
   //     data = "";
   //   switch (incTypeId) {
@@ -2460,64 +2460,7 @@ const sendSafetyCheckMsgViaSMS = async (
   //   body = `${incTypeName} from ${companyData.teamName} - ${incTitle} \n${data} `;
   //   body = body.substring(0, 142);
   // }
-  if (incData && Number(incData.incTypeId) !== 1) {
-    incTypeId = Number(incData.incTypeId);
-    incTypeName = "";
-    data = "";
-    body = "";
 
-    switch (incTypeId) {
-      case 2: // Safety Alert
-        incTypeName = "Safety alert";
-        data = `Guidance:\n${incData.incGuidance || ""}`;
-        break;
-
-      case 3: // Important Bulletin
-        incTypeName = "Important bulletin";
-        data = `Guidance:\n${
-          incData.incGuidance || ""
-        }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
-        break;
-
-      case 4: // Travel Advisory
-        incTypeName = "Travel advisory";
-        data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${
-          incData.incGuidance || ""
-        }\n\nContact Information:\n${incData.contactInfo || ""}`;
-        break;
-
-      case 5: // Stakeholder Notice
-        incTypeName = "Stakeholder notice";
-        data = `Situation:\n${
-          incData.situation || ""
-        }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
-        break;
-    }
-
-    // Common base message
-    body = `${incTypeName} from ${companyData.teamName} - ${incTitle}`;
-
-    if (companyData.SMS_INFO_DISPLAY === "includeHyperlink") {
-      // ✅ Case 1: Include hyperlink
-      const incidentUrl =
-        process.env.serviceUrl +
-        "/IncDetails?eventId=" +
-        encodeURIComponent(incId);
-      body += `\nSee more: ${incidentUrl}`;
-      body = body.substring(0, 142);
-    } else if (companyData.SMS_INFO_DISPLAY === "displayFullMessage") {
-      // ✅ Case 2: Display full message directly
-      body += `\n\n${data}`;
-    }
-    let safeUrl =
-      process.env.serviceUrl +
-      "/posresp?userId=" +
-      encodeURIComponent(user.id) +
-      "&eventId=" +
-      encodeURIComponent(incId);
-    body += `\n\nClick here to acknowledge ${safeUrl}`;
-    console.log("Final SMS body:", body);
-  }
   for (let user of usrPhones) {
     if (counter == 50 && companyData.SubscriptionType == 2) break;
     try {
@@ -2583,6 +2526,63 @@ const sendSafetyCheckMsgViaSMS = async (
             "or " +
             notSafeUrl +
             " if you need help.";
+        }
+        else {
+          if (incData && Number(incData.incTypeId) !== 1) {
+            incTypeId = Number(incData.incTypeId);
+            incTypeName = "";
+            data = "";
+            body = "";
+
+            switch (incTypeId) {
+              case 2: // Safety Alert
+                incTypeName = "Safety alert";
+                data = `Guidance:\n${incData.incGuidance || ""}`;
+                break;
+
+              case 3: // Important Bulletin
+                incTypeName = "Important bulletin";
+                data = `Guidance:\n${incData.incGuidance || ""
+                  }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
+                break;
+
+              case 4: // Travel Advisory
+                incTypeName = "Travel advisory";
+                data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${incData.incGuidance || ""
+                  }\n\nContact Information:\n${incData.contactInfo || ""}`;
+                break;
+
+              case 5: // Stakeholder Notice
+                incTypeName = "Stakeholder notice";
+                data = `Situation:\n${incData.situation || ""
+                  }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
+                break;
+            }
+
+            // Common base message
+            body = `${incTypeName} from ${companyData.teamName} - ${incTitle}`;
+
+            if (companyData.SMS_INFO_DISPLAY === "includeHyperlink") {
+              // ✅ Case 1: Include hyperlink
+              const incidentUrl =
+                process.env.serviceUrl +
+                "/IncDetails?eventId=" +
+                encodeURIComponent(incId);
+              body += `\nSee more: ${incidentUrl}`;
+              body = body.substring(0, 142);
+            } else if (companyData.SMS_INFO_DISPLAY === "displayFullMessage") {
+              // ✅ Case 2: Display full message directly
+              body += `\n\n${data}`;
+            }
+            let safeUrl =
+              process.env.serviceUrl +
+              "/posresp?userId=" +
+              encodeURIComponent(user.id) +
+              "&eventId=" +
+              encodeURIComponent(incId);
+            body += `\n\nClick here to acknowledge ${safeUrl}`;
+            console.log("Final SMS body:", body);
+          }
         }
         try {
           SaveSmsLog(

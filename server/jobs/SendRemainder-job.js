@@ -183,7 +183,7 @@ const { processSafetyBotError } = require("../models/processError");
                       companyData.sent_sms_count < 50)) &&
                   inc_type_id == 1 &&
                   IntegrationConfigure.channels.voice.enabled &&
-                  IntegrationConfigure.channels.voice.events.incident
+                  IntegrationConfigure.channels.voice.events.incidentFollowUp
                 ) {
                   await bot.sendSafetyCheckMsgViaVoice(
                     companyData,
@@ -198,7 +198,7 @@ const { processSafetyBotError } = require("../models/processError");
                     (companyData.SubscriptionType == 2 &&
                       companyData.sent_sms_count < 50)) &&
                   IntegrationConfigure.channels.sms.enabled &&
-                  IntegrationConfigure.channels.sms.events.incident
+                  IntegrationConfigure.channels.sms.events.incidentFollowUp
                 ) {
                   await bot.sendSafetyCheckMsgViaSMS(
                     companyData,
@@ -220,7 +220,7 @@ const { processSafetyBotError } = require("../models/processError");
               if (
                 inc_type_id == 1 &&
                 IntegrationConfigure.channels.whatsapp.enabled &&
-                IntegrationConfigure.channels.whatsapp.events.incident
+                IntegrationConfigure.channels.whatsapp.events.incidentFollowUp
               ) {
                 await bot.sendSafetyCheckMsgViaWhatsapp(
                   companyData,
@@ -235,7 +235,7 @@ const { processSafetyBotError } = require("../models/processError");
               }
               if (
                 IntegrationConfigure.channels.email.enabled &&
-                IntegrationConfigure.channels.email.events.incident
+                IntegrationConfigure.channels.email.events.incidentFollowUp
               ) {
                 await bot.sendSafetyCheckMsgViaEmail(
                   companyData,
