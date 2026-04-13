@@ -2902,7 +2902,7 @@ WHERE rn = 1;
       }
 
       new PersonalEmail.PersonalEmail()
-        .sendWelcomEmail(companyData.userEmail, userAadObjId)
+        .sendWelcomEmail(companyData.userEmail, userAadObjId, process.env.build)
         .then(() => {})
         .catch((err) => {
           console.log(err);
@@ -2941,24 +2941,25 @@ WHERE rn = 1;
   }
 
   async sendUninstallationEmail(userAadObjId) {
-    // const userInfo =
-    //   await incidentService.getUserInfoByUserAadObjId(userAadObjId);
-    // let userEmailId = userInfo[0].email;
-    // let user_name = userInfo[0].user_name;
-    // if (!userEmailId) {
-    //   const companyData = await getCompaniesData(userAadObjId);
-    //   userEmailId = companyData?.userEmail;
-    //   user_name = companyData?.userName;
-    // }
-    // if (userInfo && userInfo.length > 0) {
-    //   new PersonalEmail.PersonalEmail()
-    //     .sendUninstallationEmail(userEmailId, userAadObjId, process.env.build)
-    //     .then(() => {})
-    //     .catch((err) => {
-    //       console.log(err);
-    //     });
-    //   await bot.sendUninstallationEmail(userEmailId, user_name);
-    // }
+    const userInfo = await incidentService.getUserInfoByUserAadObjId(
+      userAadObjId
+    );
+    let userEmailId = userInfo[0].email;
+    let user_name = userInfo[0].user_name;
+    if (!userEmailId) {
+      const companyData = await getCompaniesData(userAadObjId);
+      userEmailId = companyData?.userEmail;
+      user_name = companyData?.userName;
+    }
+    if (userInfo && userInfo.length > 0) {
+      new PersonalEmail.PersonalEmail()
+        .sendUninstallationEmail(userEmailId, userAadObjId, process.env.build)
+        .then(() => {})
+        .catch((err) => {
+          console.log(err);
+        });
+      await bot.sendUninstallationEmail(userEmailId, user_name);
+    }
   }
 }
 
