@@ -4022,31 +4022,33 @@ const handlerForSafetyBotTab = (app) => {
       }
 
       const query = `
-SELECT 
+DECLARE @IncidentIdParam VARCHAR(50) = @incidentId ;
+ 
+SELECT
     ACL.*,  
-
     AST.requested_date,
     AST.closed_at,
     AST.closed_by_user,
     AST.FIRST_RESPONDER_RESPONDED_AT,
     AST.FIRST_RESPONDER,
-  AST.comments,
-	AST.comment_date,
-AST.status,
-
+    AST.comments,
+    AST.comment_date,
+    AST.status,
     TU.user_name
-
+ 
 FROM [dbo].[MessageActivityLog] ACL
-
+ 
 LEFT JOIN [dbo].[MSTeamsAssistance] AST
     ON AST.id = ACL.IncidentId
-
+ 
 LEFT JOIN [dbo].[MSTeamsTeamsUsers] TU
     ON TU.user_aadobject_id = ACL.UserId
-
-WHERE ACL.IncidentId = @incidentId
-
-ORDER BY ACL.EventDateTime DESC
+ 
+WHERE
+    TRY_CAST(@IncidentIdParam AS INT) IS NOT NULL
+    AND ACL.IncidentId = TRY_CAST(@IncidentIdParam AS varchar)
+ 
+ORDER BY ACL.EventDateTime DESC;
 `;
       const pool = await poolPromise;
       const result = await pool
