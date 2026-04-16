@@ -1733,6 +1733,7 @@ const getUserTeamInfo = async (userAadObjId) => {
           t.team_id AS teamId,
           team_name AS teamName,
           SOS_NOTIFICATION,
+          EMERGENCY_CONTACTS,
           FOLLOW_UP_INCIDENT_NOTIFICATION,
           SEND_INCIDENT_MESSAGES_VIA,
           channelId,
