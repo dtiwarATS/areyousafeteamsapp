@@ -555,7 +555,12 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
       },
     ],
   };
-  members.forEach(async (member) => {
+  const installerTeamsUserId = companyDataObj?.userId;
+  const recipients = Array.isArray(members)
+    ? members.filter((m) => (installerTeamsUserId ? m.id !== installerTeamsUserId : true))
+    : [];
+
+  recipients.forEach(async (member) => {
     const userObj = {
       id: member.id,
       name: member.name,
@@ -766,6 +771,13 @@ const insertCompanyData = async (
             let user = data.users.find((user) => user.user_id === info.id);
             return !user.SETUPCOMPLETED;
           });
+        }
+
+        // Don't send the "Complete Setup" message to the installer.
+        if (companyDataObj?.userId) {
+          allMembersInfo = allMembersInfo.filter(
+            (member) => member?.id !== companyDataObj.userId,
+          );
         }
         await sendSetupMessageToAllMembers(allMembersInfo, companyDataObj);
       }
