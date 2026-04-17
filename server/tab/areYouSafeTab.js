@@ -173,7 +173,11 @@ class AreYouSafeTab {
                   userName: `${m.userName} (Visitors)`,
                 });
               }
-            } else if (responseValue === false || responseValue == null) {
+            }
+            // else if (responseValue == 2 && response == true) {
+            //   memberObj.membersUnsafe.push(m);
+            // }
+            else if (responseValue === false || responseValue == null) {
               memberObj.membersUnsafe.push(m);
             }
           }
@@ -566,11 +570,13 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       let user = data[1][0];
       if (admins != null && admins.length > 0) {
         let mentionUserEntities = [];
-        dashboard.mentionUser(
-          mentionUserEntities,
-          user.user_id,
-          user.user_name,
-        );
+        if (sendonetime == "true") {
+          dashboard.mentionUser(
+            mentionUserEntities,
+            user.user_id,
+            user.user_name,
+          );
+        }
         // var LocationUrl =
         //   "https://maps.googleapis.com/maps/api/staticmap?center=" +
         //   userlocation.lat +
@@ -585,12 +591,17 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
           body: [
-            {
-              type: "TextBlock",
-              text: `**<at>${user.user_name}</at>** needs assistance.\n
-              ${Ulocation}`,
-              wrap: true,
-            },
+            ...(sendonetime == "true"
+              ? [
+                  {
+                    type: "TextBlock",
+                    text: `**<at>${user.user_name}</at>** needs assistance.\n
+                    ${Ulocation}`,
+                    wrap: true,
+                  },
+                ]
+              : []),
+
             ...(sendonetime == "true"
               ? [
                   {
