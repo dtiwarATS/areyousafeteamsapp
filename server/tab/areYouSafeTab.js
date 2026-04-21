@@ -173,11 +173,9 @@ class AreYouSafeTab {
                   userName: `${m.userName} (Visitors)`,
                 });
               }
-            }
-            // else if (responseValue == 2 && response == true) {
-            //   memberObj.membersUnsafe.push(m);
-            // }
-            else if (responseValue === false || responseValue == null) {
+            } else if (responseValue == 2 && response == true) {
+              memberObj.membersUnsafe.push(m);
+            } else if (responseValue === false || responseValue == null) {
               memberObj.membersUnsafe.push(m);
             }
           }
