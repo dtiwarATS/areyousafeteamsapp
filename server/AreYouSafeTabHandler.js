@@ -4046,7 +4046,7 @@ LEFT JOIN [dbo].[MSTeamsTeamsUsers] TU
  
 WHERE
     TRY_CAST(@IncidentIdParam AS INT) IS NOT NULL
-    AND ACL.IncidentId = TRY_CAST(@IncidentIdParam AS varchar)
+    AND ACL.IncidentId = TRY_CAST(@IncidentIdParam AS varchar)and MessageSentVia!='SOS_RESPONSE_EMAIL'
  
 ORDER BY ACL.EventDateTime DESC;
 `;

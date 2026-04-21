@@ -1323,7 +1323,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               incidentService.saveAllTypeQuerylogs(
                 admins[i].user_aadobject_id,
                 "",
-                "SOS_TEAMS",
+                "SOS_COMMENTS_TEAMS",
                 "",
                 requestAssistanceid,
                 "SENDING",
@@ -1345,7 +1345,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 incidentService.saveAllTypeQuerylogs(
                   admins[i].user_aadobject_id,
                   "",
-                  "SOS_TEAMS",
+                  "SOS_COMMENTS_TEAMS",
                   "",
                   requestAssistanceid,
                   "SEND_SUCCESS",
@@ -1360,7 +1360,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               incidentService.saveAllTypeQuerylogs(
                 admins[i].user_aadobject_id,
                 "",
-                "SOS_TEAMS",
+                "SOS_COMMENTS_TEAMS",
                 "",
                 requestAssistanceid,
                 "SENDING_ERROR",
@@ -1384,7 +1384,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       incidentService.saveAllTypeQuerylogs(
                         admins[i].user_aadobject_id,
                         num.slice(-4).padStart(num.length, "x"),
-                        "SOS_SMS",
+                        "SOS_COMMENTS_SMS",
                         num.slice(-4).padStart(num.length, "x"),
                         requestAssistanceid,
                         "SENT_TO_TWILIO",
@@ -1408,7 +1408,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                           incidentService.saveAllTypeQuerylogs(
                             admins[i].user_aadobject_id,
                             "",
-                            "SOS_SMS",
+                            "SOS_COMMENTS_SMS",
                             num.slice(-4).padStart(num.length, "x"),
                             requestAssistanceid,
                             "SEND_SUCCESS",
@@ -1424,7 +1424,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       incidentService.saveAllTypeQuerylogs(
                         admins[i].user_aadobject_id,
                         "",
-                        "SOS_SMS",
+                        "SOS_COMMENTS_SMS",
                         num.slice(-4).padStart(num.length, "x"),
                         requestAssistanceid,
                         "SEND_FAILED",
@@ -1439,7 +1439,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                     incidentService.saveAllTypeQuerylogs(
                       admins[i].user_aadobject_id,
                       "",
-                      "SOS_SMS",
+                      "SOS_COMMENTS_SMS",
                       "",
                       requestAssistanceid,
                       "PHONE_NUM_NOT_FOUND",
@@ -1469,7 +1469,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             //           incidentService.saveAllTypeQuerylogs(
             //             admins[i].user_aadobject_id,
             //             "",
-            //             "SOS_Whatsapp",
+            //             "SOS_COMMENTS_Whatsapp",
             //             num.slice(-4).padStart(num.length, "x"),
             //             requestAssistanceid,
             //             "SENT_TO_WHATSAPP",
@@ -1515,7 +1515,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             //                 incidentService.saveAllTypeQuerylogs(
             //                   admins[i].user_aadobject_id,
             //                   "",
-            //                   "SOS_Whatsapp",
+            //                   "SOS_COMMENTS_Whatsapp",
             //                   num.slice(-4).padStart(num.length, "x"),
             //                   requestAssistanceid,
             //                   "SEND_SUCCESS",
@@ -1529,7 +1529,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             //                 incidentService.saveAllTypeQuerylogs(
             //                   admins[i].user_aadobject_id,
             //                   "",
-            //                   "SOS_Whatsapp",
+            //                   "SOS_COMMENTS_Whatsapp",
             //                   num.slice(-4).padStart(num.length, "x"),
             //                   requestAssistanceid,
             //                   "SEND_FAILED",
@@ -1546,7 +1546,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             //           incidentService.saveAllTypeQuerylogs(
             //             admins[i].user_aadobject_id,
             //             "",
-            //             "SOS_Whatsapp",
+            //             "SOS_COMMENTS_Whatsapp",
             //             num.slice(-4).padStart(num.length, "x"),
             //             requestAssistanceid,
             //             "SEND_FAILED",
@@ -1561,7 +1561,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             //         incidentService.saveAllTypeQuerylogs(
             //           admins[i].user_aadobject_id,
             //           "",
-            //           "SOS_Whatsapp",
+            //           "SOS_COMMENTS_Whatsapp",
             //           "",
             //           requestAssistanceid,
             //           "PHONE_NUM_NOT_FOUND",
