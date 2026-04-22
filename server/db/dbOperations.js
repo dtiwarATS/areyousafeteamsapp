@@ -557,7 +557,9 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
   };
   const installerTeamsUserId = companyDataObj?.userId;
   const recipients = Array.isArray(members)
-    ? members.filter((m) => (installerTeamsUserId ? m.id !== installerTeamsUserId : true))
+    ? members.filter((m) =>
+        installerTeamsUserId ? m.id !== installerTeamsUserId : true,
+      )
     : [];
 
   recipients.forEach(async (member) => {
@@ -922,7 +924,7 @@ const updateSuperUserDataByUserAadObjId = async (
 MaxReminderCountAfterAcknowledgement = ${SOSFollowUpCountSection2}, NotifyNoResponseBeforeAcknowledgementMessage='${SOSInitiatorMessage.replace(/'/g, "''")}',
 ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2},NotifyNoResponseAfterAcknowledgementMessage='${SOSAllRespondersMessage.replace(/'/g, "''")}',
  NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement = ${NotifyAllRespondersIfNoResponse ? 1 : 0},IsReminderEnabledAfterAcknowledgement=${enableSOSFollowUpsSection2 ? 1 : 0}
-WHERE team_id = '${teamId}'`;
+WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
 
     updateQuery += `; UPDATE MSTeamsInstallationDetails SET INTEGRATION_CONFIGURE = '${integrationPanelDraft ? integrationPanelDraft : null}' WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
     const result = await pool.request().query(updateQuery);

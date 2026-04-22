@@ -53,8 +53,8 @@ const dashboard = require("../models/dashboard");
     t.NotifyInitiatorIfNoResponseBeforeAcknowledgement,
     t.serviceUrl,
     t.user_tenant_id,
-    t.NotifyNoResponseBeforeAcknowledgementMessage
-
+    t.NotifyNoResponseBeforeAcknowledgementMessage,
+    t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT
 FROM MSTeamsAssistance a
 
 -- ✅ Get initiator name (single row)
@@ -82,6 +82,8 @@ WHERE
     AND a.FIRST_RESPONDER IS NULL
     AND a.FIRST_RESPONDER_RESPONDED_AT IS NULL
     AND (a.status IS NULL OR a.status <> 'Closed')
+    AND   t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT IS NOT NULL
+AND CONVERT(DATETIME, a.requested_date, 101)  >= t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT
     AND t.team_id IS NOT NULL;   -- ensures eligible config exists
 
     `;

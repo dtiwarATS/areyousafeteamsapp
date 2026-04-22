@@ -52,7 +52,8 @@ const dashboard = require("../models/dashboard");
     t.NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement,
     t.NotifyNoResponseAfterAcknowledgementMessage,
     t.serviceUrl,
-    t.user_tenant_id
+    t.user_tenant_id,
+    t.SOS_REMINDER_AFTER_ACKNOWLEDGEMENT_UPDATED_AT
 
 FROM MSTeamsAssistance a
 
@@ -82,6 +83,8 @@ WHERE
     AND a.FIRST_RESPONDER_RESPONDED_AT IS NOT NULL
     AND a.AfterAcknowledgementResponseStatus IS NULL
     and a.AfterAcknowledgementNoResponseCount IS NULL
+    AND  t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT IS NOT NULL
+AND CONVERT(DATETIME, a.requested_date, 101)  >= t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT
     AND (a.status IS NULL OR a.status <> 'Closed')
     AND t.team_id IS NOT NULL
     
