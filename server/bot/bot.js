@@ -5307,9 +5307,9 @@ const sendApprovalResponse = async (user, context) => {
       body: [
         {
           type: "TextBlock",
-          text: `User <at>${
+          text: `User **<at>${
             user.name
-          }</at> responded **${responseText.trim()}** for Incident: **${incTitle}** `,
+          }</at>** responded **${responseText.trim()}** for Incident: **${incTitle}** `,
           wrap: true,
         },
       ],
