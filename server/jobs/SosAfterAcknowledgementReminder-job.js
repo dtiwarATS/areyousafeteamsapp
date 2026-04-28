@@ -31,7 +31,7 @@ const dashboard = require("../models/dashboard");
     // - AfterAcknowledgementReminderCount < MaxReminderCountAfterAcknowledgement
     // - Time interval met since last reminder
     const sosQuery = `
-     SELECT 
+    SELECT 
     a.id,
     a.user_id,
     u.user_name,
@@ -83,8 +83,9 @@ WHERE
     AND a.FIRST_RESPONDER_RESPONDED_AT IS NOT NULL
     AND a.AfterAcknowledgementResponseStatus IS NULL
     and a.AfterAcknowledgementNoResponseCount IS NULL
-    AND  t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT IS NOT NULL
-AND CONVERT(DATETIME, a.requested_date, 101)  >= t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT
+    AND  t.MaxReminderCountAfterAcknowledgement IS NOT NULL
+AND a.FIRST_RESPONDER_RESPONDED_AT >= t.SOS_REMINDER_AFTER_ACKNOWLEDGEMENT_UPDATED_AT
+AND a.FIRST_RESPONDER_RESPONDED_AT <= DATEADD(MINUTE, 5, t.SOS_REMINDER_AFTER_ACKNOWLEDGEMENT_UPDATED_AT)
     AND (a.status IS NULL OR a.status <> 'Closed')
     AND t.team_id IS NOT NULL
     

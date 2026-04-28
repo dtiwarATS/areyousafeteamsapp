@@ -32,7 +32,7 @@ const dashboard = require("../models/dashboard");
     // - BeforeAcknowledgementReminderCount < MaxReminderCountBeforeAcknowledgement
     // - Time since last reminder (or SOS creation) >= ReminderIntervalMinutesBeforeAcknowledgement
     const sosQuery = `
-      SELECT 
+       SELECT 
     a.id,
     a.user_id,
     u.user_name,
@@ -83,7 +83,8 @@ WHERE
     AND a.FIRST_RESPONDER_RESPONDED_AT IS NULL
     AND (a.status IS NULL OR a.status <> 'Closed')
     AND   t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT IS NOT NULL
-AND CONVERT(DATETIME, a.requested_date, 101)  >= t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT
+AND a.requested_date >= t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT
+AND a.requested_date <= DATEADD(MINUTE, 5, t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT_UPDATED_AT)
     AND t.team_id IS NOT NULL;   -- ensures eligible config exists
 
     `;

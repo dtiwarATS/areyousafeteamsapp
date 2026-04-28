@@ -1254,6 +1254,10 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             teamIds,
             "null",
           ]);
+          const updatequerry = `UPDATE MSTeamsAssistance
+SET requested_date = CONVERT(NVARCHAR(23), GETDATE(), 121)
+WHERE id = ${res[0].id}`;
+          var res1 = await db.updateDataIntoDB(updatequerry);
         } else {
           const updatequerry = `update MSTeamsAssistance set UserLocation='${userlocation}' where id=${UserDataUpdateID}`;
           res = await db.updateDataIntoDB(updatequerry);
