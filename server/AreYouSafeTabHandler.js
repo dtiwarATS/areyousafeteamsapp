@@ -901,9 +901,10 @@ const handlerForSafetyBotTab = (app) => {
     const tenantId = req.query.tenantId;
     const sendSMS = req.query.sendSMS;
     const phoneField = req.query.phoneField;
+    const userAadObjId = req.query.userAadObjId;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      await tabObj.setfields(tenantId, sendSMS, phoneField);
+      await tabObj.setfields(tenantId, sendSMS, phoneField, userAadObjId);
       res.send("success");
     } catch (err) {
       processSafetyBotError(
@@ -1114,9 +1115,15 @@ const handlerForSafetyBotTab = (app) => {
     const teamId = req.query.teamId;
     const tenantId = req.query.tenantId;
     const availablefor = req.query.availablefor;
+    const userAadObjId = req.query.userAadObjId;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      await tabObj.setavailableforapp(availablefor, tenantId, teamId);
+      await tabObj.setavailableforapp(
+        availablefor,
+        tenantId,
+        teamId,
+        userAadObjId,
+      );
       res.send("success");
     } catch (err) {
       processSafetyBotError(
@@ -1132,9 +1139,10 @@ const handlerForSafetyBotTab = (app) => {
     const teamId = req.query.teamId;
 
     const superAdmin = req.query.superAdmin;
+    const userAadObjId = req.query.userId;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      await tabObj.setSuperAdmin(superAdmin, teamId);
+      await tabObj.setSuperAdmin(superAdmin, teamId, userAadObjId);
       res.send("success");
     } catch (err) {
       processSafetyBotError(
@@ -1218,9 +1226,15 @@ const handlerForSafetyBotTab = (app) => {
     const teamId = req.query.teamId;
     const tenantid = req.query.tenantid;
     const language = req.query.language;
+    const userAadObjId = req.query.userAadObjId;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      await tabObj.setLanguagePreference(language, teamId, tenantid);
+      await tabObj.setLanguagePreference(
+        language,
+        teamId,
+        tenantid,
+        userAadObjId,
+      );
       res.send("success");
     } catch (err) {
       processSafetyBotError(
@@ -4995,6 +5009,66 @@ WHERE
 
       res.json({
         subscriptionData: result.recordset || [],
+      });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/getSubscription",
+      );
+      res.status(500).json({ error: "Error fetching subscription data" });
+    }
+  });
+  app.get("/areyousafetabhandler/GetAuditTrail", async (req, res) => {
+    const userAadObjId = req.query.userId || "";
+    const teamId = req.query.teamId || "";
+
+    try {
+      const pool = await poolPromise;
+      const sql = require("mssql");
+
+      let query = "";
+
+      // ✅ CASE 2: USER_AAD_OBJ_ID
+
+      query = `
+       SELECT DISTINCT
+    A.AUDIT_TRAIL_ID,
+    A.UPDATED_IN,
+    A.ENTITY_ID,
+    A.ACTION,
+    A.TEAM_ID,
+    A.FIELD_NAME,
+    A.[FROM],
+    A.[TO],
+	A.UPDATED_BY,
+    ISNULL(UB.user_name, A.UPDATED_BY) AS UPDATED_BY_NAME,
+    A.UPDATED_DATETIME
+FROM AUDIT_TRAIL A
+LEFT JOIN MSTeamsTeamsUsers UB 
+    ON UB.user_aadobject_id = A.UPDATED_BY
+WHERE 
+    A.ENTITY_ID = '${teamId}'
+    AND A.UPDATED_IN = 'MSTeamsInstallationDetails' and A.UPDATED_BY IS NOT NULL
+ORDER BY 
+    A.UPDATED_DATETIME DESC;
+
+
+      `;
+
+      const request = pool.request();
+
+      if (teamId) {
+        request.input("teamId", sql.NVarChar, teamId);
+      }
+
+      const result = await request.query(query);
+
+      res.json({
+        AuditTrailData: result.recordset || [],
       });
     } catch (err) {
       console.log(err);

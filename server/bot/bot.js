@@ -2526,8 +2526,7 @@ const sendSafetyCheckMsgViaSMS = async (
             "or " +
             notSafeUrl +
             " if you need help.";
-        }
-        else {
+        } else {
           if (incData && Number(incData.incTypeId) !== 1) {
             incTypeId = Number(incData.incTypeId);
             incTypeName = "";
@@ -2542,20 +2541,23 @@ const sendSafetyCheckMsgViaSMS = async (
 
               case 3: // Important Bulletin
                 incTypeName = "Important bulletin";
-                data = `Guidance:\n${incData.incGuidance || ""
-                  }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
+                data = `Guidance:\n${
+                  incData.incGuidance || ""
+                }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
                 break;
 
               case 4: // Travel Advisory
                 incTypeName = "Travel advisory";
-                data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${incData.incGuidance || ""
-                  }\n\nContact Information:\n${incData.contactInfo || ""}`;
+                data = `Travel Update:\n${incData.travelUpdate || ""}\n\nGuidance:\n${
+                  incData.incGuidance || ""
+                }\n\nContact Information:\n${incData.contactInfo || ""}`;
                 break;
 
               case 5: // Stakeholder Notice
                 incTypeName = "Stakeholder notice";
-                data = `Situation:\n${incData.situation || ""
-                  }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
+                data = `Situation:\n${
+                  incData.situation || ""
+                }\n\nAdditional Information:\n${incData.additionalInfo || ""}`;
                 break;
             }
 
@@ -4311,7 +4313,7 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                         let department = escapeSql(user.department || "");
                         let userId = escapeSql(user.id || "");
 
-                        qry += `update MSTeamsTeamsUsers set city = N'${city}', country = N'${country}', state = N'${state}', department = N'${department}' where user_aadobject_id = '${userId}'; `;
+                        qry += `update MSTeamsTeamsUsers set city = N'${city}', country = N'${country}', state = N'${state}', department = N'${department}', LAST_UPDATED_BY = 'SYSTEM' where user_aadobject_id = '${userId}'; `;
                       });
 
                       if (qry != "") {
@@ -7021,15 +7023,14 @@ const onInvokeActivity = async (context) => {
 
       await sendDirectMessage(context, context.activity.from, msg);
     } else if (uVerb == "triggerTestSafetyCheckMessage") {
-      const action = context.activity.value.action;
-      const { companyData, teamMemberCount } = action.data;
-      const cards = CardFactory.adaptiveCard(
-        getTestIncPreviewCard(teamMemberCount, companyData),
-      );
-
-      const message = MessageFactory.attachment(cards);
-      message.id = context.activity.replyToId;
-      context.updateActivity(message);
+      // const action = context.activity.value.action;
+      // const { companyData, teamMemberCount } = action.data;
+      // const cards = CardFactory.adaptiveCard(
+      //   getTestIncPreviewCard(teamMemberCount, companyData),
+      // );
+      // const message = MessageFactory.attachment(cards);
+      // message.id = context.activity.replyToId;
+      // context.updateActivity(message);
     }
 
     const user = context.activity.from;

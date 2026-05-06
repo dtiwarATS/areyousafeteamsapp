@@ -1896,10 +1896,15 @@ WHERE id = ${res[0].id}`;
     }
     return Promise.resolve(res);
   };
-  setfields = async (tenantId, sendSMS, phoneField) => {
+  setfields = async (tenantId, sendSMS, phoneField, userAadObjId) => {
     let res = null;
     try {
-      res = await incidentService.setfields(tenantId, sendSMS, phoneField);
+      res = await incidentService.setfields(
+        tenantId,
+        sendSMS,
+        phoneField,
+        userAadObjId,
+      );
     } catch (err) {
       processSafetyBotError(err, tenantId, "", null, "error in setfields");
     }
@@ -2021,13 +2026,19 @@ WHERE id = ${res[0].id}`;
     }
     return Promise.resolve(res);
   };
-  setavailableforapp = async (AVAILABLE_FOR, tenantId, teamId) => {
+  setavailableforapp = async (
+    AVAILABLE_FOR,
+    tenantId,
+    teamId,
+    userAadObjId,
+  ) => {
     let res = null;
     try {
       res = await incidentService.setavailableforapp(
         AVAILABLE_FOR,
         tenantId,
         teamId,
+        userAadObjId,
       );
     } catch (err) {
       processSafetyBotError(err, teamId, "", null, "error in setsendWhatsapp");
@@ -2093,7 +2104,12 @@ WHERE id = ${res[0].id}`;
   setSuperAdmin = async (superadmin, teamId) => {
     let res = null;
     try {
-      res = await incidentService.setSuperAdmin(superadmin, teamId);
+      res = await incidentService.setSuperAdmin(
+        superadmin,
+        teamId,
+        userAadObjId,
+        userAadObjId,
+      );
     } catch (err) {
       processSafetyBotError(
         err,
@@ -2105,7 +2121,7 @@ WHERE id = ${res[0].id}`;
     }
     return Promise.resolve(res);
   };
-  setLanguagePreference = async (language, teamId, tenantid) => {
+  setLanguagePreference = async (language, teamId, tenantid, userAadObjId) => {
     let res = null;
     try {
       res = await incidentService.setLanguagePreference(
@@ -2113,6 +2129,7 @@ WHERE id = ${res[0].id}`;
 
         teamId,
         tenantid,
+        userAadObjId,
       );
     } catch (err) {
       processSafetyBotError(

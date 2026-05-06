@@ -1481,12 +1481,12 @@ WHEN NOT MATCHED THEN
       } else if (uVerb == "triggerTestSafetyCheckMessage") {
         const action = context.activity.value.action;
         const { companyData, teamMemberCount } = action.data;
-        const cards = CardFactory.adaptiveCard(
-          getTestIncPreviewCard(teamMemberCount, companyData),
-        );
-        const message = MessageFactory.attachment(cards);
-        message.id = context.activity.replyToId;
-        context.updateActivity(message);
+        // const cards = CardFactory.adaptiveCard(
+        //   getTestIncPreviewCard(teamMemberCount, companyData),
+        // );
+        // const message = MessageFactory.attachment(cards);
+        // message.id = context.activity.replyToId;
+        // context.updateActivity(message);
       }
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
@@ -2873,16 +2873,15 @@ WHERE rn = 1;
           teamName,
         );
         if (teamMemberCount > 0) {
-          const testIncPreviewCard = getTestIncPreviewCard(
-            teamMemberCount,
-            companyData,
-          );
+          // const testIncPreviewCard = getTestIncPreviewCard(
+          //   teamMemberCount,
+          //   companyData,
+          // );
           await sendMultipleDirectMessageCard(
             context,
             acvtivityData.from,
             welcomeMessageCard,
             welcomeMessageCard2,
-            testIncPreviewCard,
           );
         } else {
           await sendDirectMessageCard(
@@ -2941,9 +2940,8 @@ WHERE rn = 1;
   }
 
   async sendUninstallationEmail(userAadObjId) {
-    const userInfo = await incidentService.getUserInfoByUserAadObjId(
-      userAadObjId
-    );
+    const userInfo =
+      await incidentService.getUserInfoByUserAadObjId(userAadObjId);
     let userEmailId = userInfo[0].email;
     let user_name = userInfo[0].user_name;
     if (!userEmailId) {

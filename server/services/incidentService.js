@@ -311,7 +311,7 @@ const getAdmins = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (superUsersArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
+              selectQuery = `SELECT distinct A.user_id,A.user_aadobject_id,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.created_date,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.serviceUrl, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join(
@@ -684,13 +684,14 @@ const createNewInc = async (
     }
     let incidentValues = Object.keys(incObj).map((key) => incObj[key]);
     if (incId && incId > 0) {
-      const updateQuery = db.getUpdateDataIntoDBQuery(
+      let updateQuery = db.getUpdateDataIntoDBQuery(
         "MSTeamsIncidents",
         incidentValues,
         "id",
         incId,
         userAadObjId,
       );
+      updateQuery += `update MSTeamsIncidents set LAST_UPDATED_BY='${userAadObjId}' where id=${incId}`;
       if (updateQuery != null) {
         const result = await db.updateDataIntoDB(updateQuery, userAadObjId);
         if (result != null) {
@@ -1743,6 +1744,7 @@ const getUserTeamInfo = async (userAadObjId) => {
 		  SEND_WHATSAPP,
 		  send_sms,
 		 IS_APP_PERMISSION_GRANTED,
+     created_date,
      IsReminderEnabledBeforeAcknowledgement as ENABLE_SOS_FOLLOW_UPS,
      IsReminderEnabledAfterAcknowledgement as ENABLE_SOS_FOLLOW_UPS_SECTION2,
      MaxReminderCountBeforeAcknowledgement as SOS_FOLLOW_UP_COUNT,
@@ -1814,6 +1816,7 @@ const getUserTeamInfoData = async (userAadObjId) => {
 		  send_sms,
       SEND_EMAIL,
       LANGUAGE,
+      created_date,
 		 IS_APP_PERMISSION_GRANTED,
      IsReminderEnabledBeforeAcknowledgement as ENABLE_SOS_FOLLOW_UPS,
      IsReminderEnabledAfterAcknowledgement as ENABLE_SOS_FOLLOW_UPS_SECTION2,
@@ -2177,7 +2180,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (contactsArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
+              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.created_date,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
@@ -2349,10 +2352,10 @@ const setSendSMS = async (teamId, sendSMS, phoneField) => {
   }
   return Promise.resolve(result);
 };
-const setfields = async (tenantId, sendSMS, phoneField) => {
+const setfields = async (tenantId, sendSMS, phoneField, userAadObjId) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set SMS_INFO_DISPLAY = '${sendSMS}', PHONE_FIELD = '${phoneField}' where user_tenant_id='${tenantId}' `;
+    const qry = `update MSTeamsInstallationDetails set SMS_INFO_DISPLAY = '${sendSMS}', PHONE_FIELD = '${phoneField}',LAST_UPDATED_BY = '${userAadObjId}' where user_tenant_id='${tenantId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
@@ -2402,7 +2405,7 @@ const manageColumns = async (teamId, settingName, value, userId) => {
     if (safeSettingName == "DisableAIGenerateMessage") {
       query = `IF EXISTS (SELECT * FROM SETTINGS WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}')
       BEGIN
-      UPDATE SETTINGS SET SETTING_VALUE = N'${safeValue}' WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}';
+      UPDATE SETTINGS SET SETTING_VALUE = N'${safeValue}', LAST_UPDATED_BY = '${safeUserId}' WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}';
       END
       ELSE
       BEGIN
@@ -2412,7 +2415,7 @@ const manageColumns = async (teamId, settingName, value, userId) => {
     } else {
       query = `IF EXISTS (SELECT * FROM SETTINGS WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}')
       BEGIN
-      UPDATE SETTINGS SET SETTING_VALUE = N'${safeValue}' WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}';
+      UPDATE SETTINGS SET SETTING_VALUE = N'${safeValue}', LAST_UPDATED_BY = '${safeUserId}' WHERE TEAM_ID = '${safeTeamId}' AND SETTING_NAME = '${safeSettingName}' AND USR_AAD_OBJ_ID='${safeUserId}';
       END
       ELSE
       BEGIN
@@ -2437,6 +2440,7 @@ const saveSafetyCheckFilter = async (body) => {
     filterJson,
     createdByUserId,
     updatedByUserId,
+    userAadObjId,
   } = body;
   const isUpdate = id != null && !isNaN(Number(id)) && Number(id) > 0;
   const pool = await poolPromise;
@@ -2451,7 +2455,7 @@ const saveSafetyCheckFilter = async (body) => {
     request.input(
       "updatedByUserId",
       sql.NVarChar(100),
-      updatedByUserId || createdByUserId || null,
+      userAadObjId || updatedByUserId || createdByUserId || null,
     );
     const updateQuery = `
       UPDATE SavedSafetyCheckFilters
@@ -2552,10 +2556,15 @@ const setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
   }
   return Promise.resolve(result);
 };
-const setavailableforapp = async (AVAILABLE_FOR, tenantId, teamId) => {
+const setavailableforapp = async (
+  AVAILABLE_FOR,
+  tenantId,
+  teamId,
+  userAadObjId,
+) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set AVAILABLE_FOR = '${AVAILABLE_FOR}' where user_tenant_id='${tenantId}' `;
+    const qry = `update MSTeamsInstallationDetails set AVAILABLE_FOR = '${AVAILABLE_FOR}', LAST_UPDATED_BY = '${userAadObjId}' where user_tenant_id='${tenantId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
@@ -2612,10 +2621,10 @@ const IncidentMessagesNotificationFor = async (
   return Promise.resolve(result);
 };
 
-const setSuperAdmin = async (superAdmins, teamId) => {
+const setSuperAdmin = async (superAdmins, teamId, userAadObjId) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set super_users = '${superAdmins}' where team_id='${teamId}' `;
+    const qry = `update MSTeamsInstallationDetails set super_users = '${superAdmins}', LAST_UPDATED_BY = '${userAadObjId}' where team_id='${teamId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
@@ -2625,10 +2634,15 @@ const setSuperAdmin = async (superAdmins, teamId) => {
   }
   return Promise.resolve(result);
 };
-const setLanguagePreference = async (language, teamId, tenantid) => {
+const setLanguagePreference = async (
+  language,
+  teamId,
+  tenantid,
+  userAadObjId,
+) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set LANGUAGE = '${language}' where user_tenant_id='${tenantid}' `;
+    const qry = `update MSTeamsInstallationDetails set LANGUAGE = '${language}', LAST_UPDATED_BY = '${userAadObjId}' where user_tenant_id='${tenantid}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
@@ -2647,7 +2661,7 @@ const setLanguagePreference = async (language, teamId, tenantid) => {
 const setDynamicLocation = async (userid, location) => {
   let result = null;
   try {
-    const qry = `update MSTeamsTeamsUsers set DYNAMIC_LOCATION = '${location}' where user_aadobject_id='${userid}' `;
+    const qry = `update MSTeamsTeamsUsers set DYNAMIC_LOCATION = '${location}', LAST_UPDATED_BY = '${userid}' where user_aadobject_id='${userid}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";

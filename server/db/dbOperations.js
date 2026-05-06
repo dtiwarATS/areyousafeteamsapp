@@ -927,43 +927,44 @@ ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2},Not
 WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
 
     updateQuery += `; UPDATE MSTeamsInstallationDetails SET INTEGRATION_CONFIGURE = '${integrationPanelDraft ? integrationPanelDraft : null}' WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
+    updateQuery += `; UPDATE MSTeamsInstallationDetails SET LAST_UPDATED_BY = '${userId}' WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
     const result = await pool.request().query(updateQuery);
     isUpdated = true;
 
-    // Log audit trail if super_users value changed
-    if (oldSuperUsers !== selectedUserStr) {
-      const escapedOldValue = (oldSuperUsers || "").replace(/'/g, "''");
-      const escapedNewValue = (selectedUserStr || "").replace(/'/g, "''");
-      const escapedUserId = (userId || "").replace(/'/g, "''");
-      const escapedTeamId = (teamId || "").replace(/'/g, "''");
+    // // Log audit trail if super_users value changed
+    // if (oldSuperUsers !== selectedUserStr) {
+    //   const escapedOldValue = (oldSuperUsers || "").replace(/'/g, "''");
+    //   const escapedNewValue = (selectedUserStr || "").replace(/'/g, "''");
+    //   const escapedUserId = (userId || "").replace(/'/g, "''");
+    //   const escapedTeamId = (teamId || "").replace(/'/g, "''");
 
-      const auditQuery = `INSERT INTO AUDIT_TRAIL (
-        UPDATED_IN,
-        ACTION,
-        TEAM_ID,
-        FIELD_NAME,
-        [FROM],
-        [TO],
-        UPDATED_BY,
-        UPDATED_DATETIME
-      ) VALUES (
-        'ADMIN_CONFIG',
-        'UPDATE',
-        '${escapedTeamId}',
-        'Select users who can create incident',
-        '${escapedOldValue}',
-        '${escapedNewValue}',
-        '${escapedUserId}',
-        GETDATE()
-      )`;
+    //   const auditQuery = `INSERT INTO AUDIT_TRAIL (
+    //     UPDATED_IN,
+    //     ACTION,
+    //     TEAM_ID,
+    //     FIELD_NAME,
+    //     [FROM],
+    //     [TO],
+    //     UPDATED_BY,
+    //     UPDATED_DATETIME
+    //   ) VALUES (
+    //     'ADMIN_CONFIG',
+    //     'UPDATE',
+    //     '${escapedTeamId}',
+    //     'Select users who can create incident',
+    //     '${escapedOldValue}',
+    //     '${escapedNewValue}',
+    //     '${escapedUserId}',
+    //     GETDATE()
+    //   )`;
 
-      try {
-        await pool.request().query(auditQuery);
-      } catch (auditErr) {
-        console.log("Error inserting audit trail:", auditErr);
-        // Don't fail the main update if audit trail fails
-      }
-    }
+    //   try {
+    //     await pool.request().query(auditQuery);
+    //   } catch (auditErr) {
+    //     console.log("Error inserting audit trail:", auditErr);
+    //     // Don't fail the main update if audit trail fails
+    //   }
+    // }
     // return Promise.resolve();
   } catch (err) {
     console.log(err);
