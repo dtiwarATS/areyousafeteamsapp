@@ -53,7 +53,7 @@ const {
                             SET 
                                 user_name = '${memberName.replace(/'/g, "''")}',
                                 email = '${memberEmail.replace(/'/g, "''")}',
-                                LAST_UPDATED_BY = 'SYSTEM',
+                                LAST_UPDATED_BY = 'SYSTEM'
                             WHERE user_id = '${member.id}'
                         ELSE
                             INSERT INTO MSTeamsTeamsUsers (

@@ -6,7 +6,7 @@ const {
 } = require("../db/dbOperations");
 const Member = require("../models/Member");
 const Incident = require("../models/Incident");
-
+const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 const db = require("../db");
 const { getCron } = require("../utils");
@@ -881,11 +881,25 @@ const deleteInc = async (incId, userAadObjId) => {
   let incName = null;
   try {
     pool = await poolPromise;
-    const query = `DELETE FROM MSTeamsMemberResponses WHERE inc_id = ${incId};
-    DELETE FROM MSTeamsIncidents OUTPUT Deleted.inc_name WHERE id = ${incId}`;
 
-    // console.log("delete query => ", query);
-    const res = await pool.request().query(query);
+    const query = `
+      DELETE FROM MSTeamsMemberResponses
+      WHERE inc_id = @incId;
+
+      DECLARE @Deleted TABLE (inc_name NVARCHAR(MAX));
+
+      DELETE FROM MSTeamsIncidents
+      OUTPUT DELETED.inc_name INTO @Deleted
+      WHERE id = @incId;
+
+      SELECT * FROM @Deleted;
+    `;
+
+    const res = await pool
+      .request()
+      .input("incId", sql.Int, incId)
+      .query(query);
+
     if (res.recordset.length > 0) {
       incName = res.recordset[0].inc_name;
     }
