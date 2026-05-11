@@ -4083,11 +4083,102 @@ const saveAllTypelogs = async (
     console.log();
   }
 };
-// Keep this array globally (or at least in a scope that persists between calls)
-let UserSendLogQuery = [];
+// Buffered bulk insert for MessageActivityLog
+// Optimized for high-volume Teams sends (1000+ users)
 
-var count = 0;
-const saveAllTypeQuerylogs = async (
+let UserSendLogQuery = [];
+let isUserSendLogFlushInProgress = false;
+let userSendLogFlushTimer = null;
+
+const USER_SEND_LOG_FLUSH_MAX_ROWS = 200;
+const USER_SEND_LOG_FLUSH_MAX_DELAY_MS = 1000;
+
+const escapeSqlString = (value) => {
+  if (value === null || value === undefined) return "";
+  return String(value).replaceAll("'", "''");
+};
+
+const flushUserSendLogQueryBuffer = async () => {
+  try {
+    // Prevent parallel flushes
+    if (isUserSendLogFlushInProgress) return;
+
+    // Nothing to flush
+    if (!UserSendLogQuery || UserSendLogQuery.length === 0) return;
+
+    isUserSendLogFlushInProgress = true;
+
+    // Take snapshot
+    const bufferToFlush = [...UserSendLogQuery];
+
+    // Clear main buffer immediately
+    UserSendLogQuery = [];
+
+    const valuesString = bufferToFlush
+      .map(
+        (log) =>
+          `(
+            '${escapeSqlString(log.USER_ID)}',
+            '${escapeSqlString(log.IS_FROM)}',
+            '${escapeSqlString(log.PHONE_NUMBER)}',
+            '${escapeSqlString(log.INCIDENT_ID)}',
+            '${escapeSqlString(log.DELIVERY_STATUS)}',
+            '${escapeSqlString(log.MESSAGE_TYPE)}',
+            '${escapeSqlString(log.MESSAGE_CONTENT)}',
+            '${escapeSqlString(log.INTERACTION_VALUE)}',
+            '${escapeSqlString(log.ERROR_MESSAGE)}',
+            '${escapeSqlString(log.EventDateTime)}',
+            GETDATE(),
+            '${escapeSqlString(log.NOTIFICATION_CHARGES)}'
+          )`,
+      )
+      .join(",");
+
+    const batchQuery = `
+      INSERT INTO MessageActivityLog (
+        UserId,
+        MessageSentVia,
+        RecipientContact,
+        IncidentId,
+        DeliveryStatus,
+        MessageType,
+        MessageContent,
+        UserResponse,
+        FailureReason,
+        EventDateTime,
+        LogEntryCreatedAt,
+        NOTIFICATION_CHARGES
+      )
+      VALUES ${valuesString};
+    `;
+
+    const pool = await poolPromise;
+
+    // NON-BLOCKING DB write
+    pool
+      .request()
+      .query(batchQuery)
+      .catch((err) => {
+        console.error("Error flushing saveAllTypeQuerylogs buffer:", err);
+
+        // Re-queue failed logs
+        UserSendLogQuery = [...bufferToFlush, ...UserSendLogQuery];
+      });
+  } catch (err) {
+    console.error("Error in flushUserSendLogQueryBuffer:", err);
+  } finally {
+    isUserSendLogFlushInProgress = false;
+
+    // Continue flushing remaining logs immediately
+    if (UserSendLogQuery.length > 0) {
+      setTimeout(() => {
+        flushUserSendLogQueryBuffer();
+      }, 100);
+    }
+  }
+};
+
+const saveAllTypeQuerylogs = (
   USER_ID,
   USER_NAME,
   IS_FROM,
@@ -4102,16 +4193,7 @@ const saveAllTypeQuerylogs = async (
   NOTIFICATION_CHARGES = "",
 ) => {
   try {
-    console.log({ insidesaveAllTypeQuerylogs: count++ });
-    // Remove existing entry for this USER_ID (keep only latest)
-    // const existingIndex = UserSendLogQuery.findIndex(
-    //   (log) => log.USER_ID === USER_ID
-    // );
-    // if (existingIndex !== -1) {
-    //   UserSendLogQuery.splice(existingIndex, 1);
-    // }
-
-    // Push new log into buffer
+    // Push into memory buffer
     UserSendLogQuery.push({
       USER_ID,
       USER_NAME,
@@ -4128,59 +4210,32 @@ const saveAllTypeQuerylogs = async (
       NOTIFICATION_CHARGES,
     });
 
-    // If we have 10 logs, run batch insert
-    // if (UserSendLogQuery.length >= 2) {
-    const valuesString = UserSendLogQuery.map(
-      (log) =>
-        `('${log.USER_ID}', '${log.IS_FROM}', '${log.PHONE_NUMBER}', 
-        '${log.INCIDENT_ID}', '${log.DELIVERY_STATUS}', '${log.MESSAGE_TYPE}', 
-         '${log.MESSAGE_CONTENT.replaceAll(
-           "'",
-           "''",
-         )}', '${log.INTERACTION_VALUE.replaceAll(
-           "'",
-           "''",
-         )}', '${log.ERROR_MESSAGE.replaceAll(
-           "'",
-           "''",
-         )}','${log.EventDateTime.replaceAll("'", "''")}', GETDATE(),'${log.NOTIFICATION_CHARGES}')`,
-    ).join(", ");
+    // Flush immediately if threshold reached
+    if (UserSendLogQuery.length >= USER_SEND_LOG_FLUSH_MAX_ROWS) {
+      if (userSendLogFlushTimer) {
+        clearTimeout(userSendLogFlushTimer);
+        userSendLogFlushTimer = null;
+      }
 
-    const batchQuery = `
-        INSERT INTO MessageActivityLog (
-          UserId,
-          MessageSentVia,
-          RecipientContact,
-          IncidentId,
-          DeliveryStatus,
-          MessageType,
-          MessageContent,
-          UserResponse,
-          FailureReason,
-          EventDateTime,
-          LogEntryCreatedAt,
-          NOTIFICATION_CHARGES
-        ) VALUES ${valuesString};
-      `;
+      // FIRE AND FORGET
+      flushUserSendLogQueryBuffer();
 
-    console.log("Executing batch insert:", batchQuery);
-    UserSendLogQuery = [];
-    // Uncomment when ready to execute against DB
-    const pool = await poolPromise;
-    await pool
-      .request()
-      .query(batchQuery)
-      .then((res) => {
-        UserSendLogQuery = [];
-      });
+      return;
+    }
 
-    // Clear buffer after insert
-    // }
+    // Schedule delayed flush
+    if (!userSendLogFlushTimer) {
+      userSendLogFlushTimer = setTimeout(() => {
+        userSendLogFlushTimer = null;
+
+        // FIRE AND FORGET
+        flushUserSendLogQueryBuffer();
+      }, USER_SEND_LOG_FLUSH_MAX_DELAY_MS);
+    }
   } catch (err) {
     console.error("Error in saveAllTypeQuerylogs:", err);
   }
 };
-
 const updateCommentViaSMSLink = async (userId, incId, comment) => {
   try {
     const recurrRespQuery = `update MSTeamsMemberResponses set comment = '${comment}' where inc_id = ${incId} and user_id = 

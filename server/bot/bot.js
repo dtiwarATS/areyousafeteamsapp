@@ -1943,7 +1943,7 @@ const sendProactiveMessageAsync = async (
       retryCountTill = 10,
       respTime = new Date().getTime(),
       recurTimerDelay = 1000,
-      rps = 1;
+      rps = 3;
 
     const respTimeInterval = setInterval(() => {
       try {
@@ -2115,8 +2115,7 @@ const sendProactiveMessageAsync = async (
           console.log("inside first ", { msgResp });
           updateMsgDeliveryStatus(sqlUpdateMsgDeliveryStatus);
         }
-        const totalMessageCountAfterTitleNotification =
-          allMembersArr.length * 2;
+        const totalMessageCountAfterTitleNotification = allMembersArr.length;
         console.log({
           messageCount,
           totalMessageCountAfterTitleNotification,
@@ -2202,7 +2201,7 @@ const sendProactiveMessageAsync = async (
           let startIndex = endIndex;
           endIndex = endIndex + 1;
 
-          if (startIndex % 45 == 0) {
+          if (startIndex % 100 == 0) {
             console.log({ startIndex, endIndex });
             setTimeout(() => {
               fnRecursiveCall(startIndex, endIndex);
@@ -4867,25 +4866,80 @@ const NewsendSafetyCheckMessageAsync = async (
           incResponseSelectedUsersList: null,
           responseOptionData,
         };
+        const batchSize = 100;
 
-        await sendProactiveMessageAsync(
-          allMembersArr,
-          incData,
-          incObj,
-          companyData,
-          serviceUrl,
-          userAadObjId,
-          userTenantId,
-          log,
-          resolve,
-          reject,
-          null,
-          incFilesData,
-          createdByUserInfo.conversationId,
-          resendSafetyCheck,
-          isLastBatch,
-          allincMembers,
-        );
+        if (allMembersArr.length > 100) {
+          const batchPromises = [];
+
+          for (let i = 0; i < allMembersArr.length; i += batchSize) {
+            const membersBatch = allMembersArr.slice(i, i + batchSize);
+
+            const isFinalBatch =
+              i + batchSize >= allMembersArr.length ? "true" : "false";
+
+            console.log(`STARTING BATCH ${i / batchSize + 1}`);
+
+            const batchPromise = new Promise((batchResolve, batchReject) => {
+              sendProactiveMessageAsync(
+                membersBatch,
+                incData,
+                incObj,
+                companyData,
+                serviceUrl,
+                userAadObjId,
+                userTenantId,
+                log,
+                (val) => {
+                  console.log(`BATCH COMPLETED ${i / batchSize + 1}`);
+
+                  batchResolve(val);
+                },
+                (err) => {
+                  console.log(`BATCH ERROR ${i / batchSize + 1}`);
+
+                  batchReject(err);
+                },
+                null,
+                incFilesData,
+                createdByUserInfo.conversationId,
+                resendSafetyCheck,
+                isFinalBatch,
+                allincMembers,
+              );
+            });
+
+            batchPromises.push(batchPromise);
+
+            // stagger batches slightly
+            await new Promise((r) => setTimeout(r, 500));
+          }
+
+          // WAIT FOR ALL BATCHES
+          const results = await Promise.allSettled(batchPromises);
+
+          console.log("ALL BATCHES FINISHED");
+
+          resolve(results);
+        } else {
+          await sendProactiveMessageAsync(
+            allMembersArr,
+            incData,
+            incObj,
+            companyData,
+            serviceUrl,
+            userAadObjId,
+            userTenantId,
+            log,
+            resolve,
+            reject,
+            null,
+            incFilesData,
+            createdByUserInfo.conversationId,
+            resendSafetyCheck,
+            "true",
+            allincMembers,
+          );
+        }
 
         let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
           ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
