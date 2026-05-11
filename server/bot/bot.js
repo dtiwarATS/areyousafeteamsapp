@@ -4782,25 +4782,6 @@ const NewsendSafetyCheckMessageAsync = async (
         responseType: "buttons",
       };
 
-      if (allincMembers?.length > 0 && isFirstBatch == "true") {
-        let AlluserAadObjIds = allincMembers.map((x) => x?.value || x);
-        saveallMembersArr = allMembers.filter((tm) =>
-          AlluserAadObjIds.includes(tm.id),
-        );
-      } else {
-        saveallMembersArr = allMembers;
-      }
-      if (
-        !resendSafetyCheck ||
-        (resendSafetyCheck === "false" && isFirstBatch == "true")
-      ) {
-        await incidentService.addMembersIntoIncData(
-          incId,
-          saveallMembersArr,
-          incCreatedBy,
-          userAadObjId,
-        );
-      }
       if (incData.responseOptions && incData.responseType) {
         responseOptionData = {
           responseOptions: JSON.parse(incData.responseOptions),
@@ -4828,6 +4809,71 @@ const NewsendSafetyCheckMessageAsync = async (
         );
       } else {
         allMembersArr = allMembers;
+      }
+
+      // If UI is already doing batching (passing isFirstBatch/isLastBatch), keep legacy behavior.
+      const hasClientBatchFlags =
+        isFirstBatch !== undefined &&
+        isFirstBatch !== null &&
+        isLastBatch !== undefined &&
+        isLastBatch !== null;
+
+      const normalizeMemberIds = (arr) => {
+        if (!Array.isArray(arr) || arr.length === 0) return [];
+        return arr.map((x) => x?.value || x).filter(Boolean);
+      };
+
+      // Build an effective recipient set:
+      // - Start from `incData.selectedMembers` filtering (already in allMembersArr)
+      // - Then (if provided) intersect with `allincMembers` ids coming from UI
+      let effectiveMemberIds = normalizeMemberIds(allincMembers);
+      let effectiveAllMembersArr =
+        effectiveMemberIds.length > 0
+          ? allMembersArr.filter((tm) => effectiveMemberIds.includes(tm.id))
+          : allMembersArr;
+
+      // When UI doesn't pass `allincMembers`, derive from effective recipients.
+      if (effectiveMemberIds.length === 0) {
+        effectiveMemberIds = effectiveAllMembersArr.map((m) => m.id);
+      }
+
+      const total = effectiveMemberIds.length;
+      const shouldBatch = total > 100;
+      const batchSize = shouldBatch
+        ? Math.max(1, Math.ceil(total * 0.1))
+        : total;
+
+      // Persist recipients once per overall send (or once per first client batch in legacy mode)
+      if (hasClientBatchFlags) {
+        if (allincMembers?.length > 0 && isFirstBatch == "true") {
+          const AlluserAadObjIds = normalizeMemberIds(allincMembers);
+          saveallMembersArr = allMembers.filter((tm) =>
+            AlluserAadObjIds.includes(tm.id),
+          );
+        } else {
+          saveallMembersArr = allMembers;
+        }
+        if (
+          !resendSafetyCheck ||
+          (resendSafetyCheck === "false" && isFirstBatch == "true")
+        ) {
+          await incidentService.addMembersIntoIncData(
+            incId,
+            saveallMembersArr,
+            incCreatedBy,
+            userAadObjId,
+          );
+        }
+      } else {
+        // Server-managed mode (single-call): always save the effective recipient list once.
+        if (!resendSafetyCheck || resendSafetyCheck === "false") {
+          await incidentService.addMembersIntoIncData(
+            incId,
+            effectiveAllMembersArr,
+            incCreatedBy,
+            userAadObjId,
+          );
+        }
       }
       // if (!resendSafetyCheck || resendSafetyCheck === "false") {
       //   await incidentService.addMembersIntoIncData(
@@ -4868,53 +4914,38 @@ const NewsendSafetyCheckMessageAsync = async (
           responseOptionData,
         };
 
-        await sendProactiveMessageAsync(
-          allMembersArr,
-          incData,
-          incObj,
-          companyData,
-          serviceUrl,
-          userAadObjId,
-          userTenantId,
-          log,
-          resolve,
-          reject,
-          null,
-          incFilesData,
-          createdByUserInfo.conversationId,
-          resendSafetyCheck,
-          isLastBatch,
-          allincMembers,
-        );
-
-        let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
+        const IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
           ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
           : null;
         console.log({ IntegrationConfigure });
-        // Voice calls to all users (similar to sendSafetyCheckMsgViaSMS)
-        const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
+
+        const fullUserAadObjIds = effectiveAllMembersArr.map(
+          (x) => x.userAadObjId,
+        );
+
+        // Trigger non-Teams channels once per overall send (not per batch)
         if (
           incData.incTypeId == 1 &&
-          IntegrationConfigure.channels.voice.enabled &&
-          IntegrationConfigure.channels.voice.events.incident
+          IntegrationConfigure?.channels?.voice?.enabled &&
+          IntegrationConfigure?.channels?.voice?.events?.incident
         ) {
           sendSafetyCheckMsgViaVoice(
             companyData,
-            userAadObjIds,
+            fullUserAadObjIds,
             incObj,
             createdByUserInfo,
           );
         }
         if (
-          IntegrationConfigure.channels.sms.enabled &&
-          IntegrationConfigure.channels.sms.events.incident &&
+          IntegrationConfigure?.channels?.sms?.enabled &&
+          IntegrationConfigure?.channels?.sms?.events?.incident &&
           (companyData.SubscriptionType == 3 ||
             (companyData.SubscriptionType == 2 &&
               companyData.sent_sms_count < 50))
         ) {
           sendSafetyCheckMsgViaSMS(
             companyData,
-            userAadObjIds,
+            fullUserAadObjIds,
             incId,
             incTitle,
             incData,
@@ -4922,12 +4953,12 @@ const NewsendSafetyCheckMessageAsync = async (
         }
         if (
           incData.incTypeId == 1 &&
-          IntegrationConfigure.channels.whatsapp.enabled &&
-          IntegrationConfigure.channels.whatsapp.events.incident
+          IntegrationConfigure?.channels?.whatsapp?.enabled &&
+          IntegrationConfigure?.channels?.whatsapp?.events?.incident
         ) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
-            userAadObjIds,
+            fullUserAadObjIds,
             incId,
             incTitle,
             createdByUserInfo.user_name,
@@ -4936,17 +4967,68 @@ const NewsendSafetyCheckMessageAsync = async (
           );
         }
         if (
-          IntegrationConfigure.channels.email.enabled &&
-          IntegrationConfigure.channels.email.events.incident
+          IntegrationConfigure?.channels?.email?.enabled &&
+          IntegrationConfigure?.channels?.email?.events?.incident
         ) {
           sendSafetyCheckMsgViaEmail(
             companyData,
-            allMembersArr,
+            effectiveAllMembersArr,
             incId,
             incTitle,
             createdByUserInfo.user_name,
             responseOptionData.responseOptions,
             incData,
+          );
+        }
+
+        if (shouldBatch) {
+          for (let i = 0; i < total; i += batchSize) {
+            const batchIds = effectiveMemberIds.slice(i, i + batchSize);
+            const batchMembersArr = effectiveAllMembersArr.filter((tm) =>
+              batchIds.includes(tm.id),
+            );
+            const batchIsLast = i + batchSize >= total;
+
+            await new Promise((batchResolve, batchReject) => {
+              sendProactiveMessageAsync(
+                batchMembersArr,
+                incData,
+                incObj,
+                companyData,
+                serviceUrl,
+                userAadObjId,
+                userTenantId,
+                log,
+                batchResolve,
+                batchReject,
+                null,
+                incFilesData,
+                createdByUserInfo.conversationId,
+                resendSafetyCheck,
+                String(batchIsLast),
+                allincMembers,
+              );
+            });
+          }
+          resolve(true);
+        } else {
+          await sendProactiveMessageAsync(
+            effectiveAllMembersArr,
+            incData,
+            incObj,
+            companyData,
+            serviceUrl,
+            userAadObjId,
+            userTenantId,
+            log,
+            resolve,
+            reject,
+            null,
+            incFilesData,
+            createdByUserInfo.conversationId,
+            resendSafetyCheck,
+            "true",
+            allincMembers,
           );
         }
       }

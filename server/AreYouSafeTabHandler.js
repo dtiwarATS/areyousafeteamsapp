@@ -2820,8 +2820,9 @@ const handlerForSafetyBotTab = (app) => {
         const incdata = req.body.incdata;
         const userAadObjId = qs.userAadObjId;
         const resendSafetyCheck = qs.resendSafetyCheck || false;
-        const isLastBatch = qs.isLastBatch;
-        const isFirstBatch = qs.isFirstBatch;
+        // Optional: if UI doesn't send batching flags, server will manage batching.
+        const isLastBatch = qs.isLastBatch || undefined;
+        const isFirstBatch = qs.isFirstBatch || undefined;
         //const responseOptionData = JSON.parse(qs.responseOptionData);
         const tabObj = new tab.AreYouSafeTab();
         const log = new AYSLog();
