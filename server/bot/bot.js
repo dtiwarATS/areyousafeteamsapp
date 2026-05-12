@@ -1943,7 +1943,7 @@ const sendProactiveMessageAsync = async (
       retryCountTill = 10,
       respTime = new Date().getTime(),
       recurTimerDelay = 1000,
-      rps = 3;
+      rps = 1;
 
     const respTimeInterval = setInterval(() => {
       try {
