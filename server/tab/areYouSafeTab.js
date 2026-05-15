@@ -2214,6 +2214,7 @@ WHERE id = ${res[0].id}`;
     SOSAllRespondersMessage,
     enableSOSFollowUpsSection2,
     integrationPanelDraft,
+    AllowUsersToSendSosRequest,
   }) => {
     let result = null;
     try {
@@ -2239,6 +2240,7 @@ WHERE id = ${res[0].id}`;
         SOSAllRespondersMessage,
         enableSOSFollowUpsSection2,
         integrationPanelDraft,
+        AllowUsersToSendSosRequest,
       );
     } catch (err) {
       processSafetyBotError(

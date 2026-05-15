@@ -898,6 +898,7 @@ const updateSuperUserDataByUserAadObjId = async (
   SOSAllRespondersMessage,
   enableSOSFollowUpsSection2,
   integrationPanelDraft,
+  AllowUsersToSendSosRequest,
 ) => {
   let isUpdated = false;
   try {
@@ -926,7 +927,7 @@ ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2},Not
  NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement = ${NotifyAllRespondersIfNoResponse ? 1 : 0},IsReminderEnabledAfterAcknowledgement=${enableSOSFollowUpsSection2 ? 1 : 0}
 WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
 
-    updateQuery += `; UPDATE MSTeamsInstallationDetails SET INTEGRATION_CONFIGURE = '${integrationPanelDraft ? integrationPanelDraft : null}' WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
+    updateQuery += `; UPDATE MSTeamsInstallationDetails SET INTEGRATION_CONFIGURE = '${integrationPanelDraft ? integrationPanelDraft : null}', SHOW_SOS_BUTTON = ${AllowUsersToSendSosRequest ? 1 : 0} WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
     updateQuery += `; UPDATE MSTeamsInstallationDetails SET LAST_UPDATED_BY = '${userId}' WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
     const result = await pool.request().query(updateQuery);
     isUpdated = true;
