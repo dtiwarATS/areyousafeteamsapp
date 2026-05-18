@@ -1680,6 +1680,7 @@ const getUserInfo = async (teamId, useraadObjId) => {
   try {
     const sqlUserInfo = `SELECT TOP 1 
     tu.*, 
+    inst.SHOW_SOS_BUTTON as ALLOW_USERS_TO_SEND_SOS_REQUEST,
     inst.user_name AS adminName,  
     inst.team_name AS teamName,
     s.SETTING_NAME,
