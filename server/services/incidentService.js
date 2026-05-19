@@ -2689,7 +2689,39 @@ const setDynamicLocation = async (userid, location) => {
   }
   return Promise.resolve(result);
 };
+const SaveAiTotalToken = async (userid, totaltoken) => {
+  let result = null;
 
+  try {
+    const qry = `
+      UPDATE MSTeamsInstallationDetails
+      SET 
+        AI_TOKENS_USED = 
+          CAST(ISNULL(CAST(AI_TOKENS_USED AS BIGINT), 0) + ${totaltoken} AS NVARCHAR(MAX)),
+        LAST_UPDATED_BY = '${userid}'
+      WHERE user_tenant_id IN (
+        SELECT user_tenant_id
+        FROM MSTeamsInstallationDetails
+        WHERE team_id IN (
+          SELECT team_id
+          FROM MSTeamsTeamsUsers
+          WHERE user_aadobject_id = '${userid}'
+        )
+      )
+    `;
+
+    console.log({ qry });
+
+    await db.getDataFromDB(qry);
+
+    result = "success";
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(err, "", "", userid, "error in SaveAiTotalToken");
+  }
+
+  return Promise.resolve(result);
+};
 const getSosBeforeAcknowledgementSettings = async (teamId) => {
   let result = null;
   try {
@@ -4378,4 +4410,5 @@ module.exports = {
   getAllSosResponders,
   followUpIncidentNotificationFor,
   IncidentMessagesNotificationFor,
+  SaveAiTotalToken,
 };

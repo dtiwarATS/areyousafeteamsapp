@@ -4569,6 +4569,23 @@ WHERE
       );
     }
   });
+  app.post("/areyousafetabhandler/saveAITokenUsage", async (req, res) => {
+    const userid = req.body.userId;
+    const totalTokens = req.body.totalTokens;
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      await tabObj.SaveAiTotalToken(userid, totalTokens);
+      res.send("success");
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/setSOSNotification",
+      );
+    }
+  });
   app.get("/areyousafetabhandler/GetUserLocationData", async (req, res) => {
     const userAadObjId = req.query.userAadObjId || "";
     const teamId = req.query.teamId || "";

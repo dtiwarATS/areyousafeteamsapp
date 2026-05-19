@@ -2151,6 +2151,15 @@ WHERE id = ${res[0].id}`;
     }
     return Promise.resolve(res);
   };
+  SaveAiTotalToken = async (userid, totaltoken) => {
+    let res = null;
+    try {
+      res = await incidentService.SaveAiTotalToken(userid, totaltoken);
+    } catch (err) {
+      processSafetyBotError(err, "", "", userid, "error in SaveAiTotalToken");
+    }
+    return Promise.resolve(res);
+  };
   // saveRefreshToken = async (teamId, refresh_token, field) => {
   //   let res = null;
   //   try {
