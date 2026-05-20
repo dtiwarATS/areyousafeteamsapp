@@ -2320,19 +2320,19 @@ const sendProactiveMessageAsync = async (
       fnRecursiveCall(0, endIndex);
     };
     sendProactiveMessage(allMembersArr);
-    if (incCreaterConversationId && isLastBatch == "true") {
-      sendAcknowledgeMsgToCreator(
-        connectorClient,
-        incData,
-        serviceUrl,
-        incCreaterConversationId,
-        allincMembers?.length != 0
-          ? allincMembers.length
-          : allMembersArr.length,
-        companyData.teamName,
-        companyData.channelName,
-      );
-    }
+    // if (incCreaterConversationId && isLastBatch == "true") {
+    //   sendAcknowledgeMsgToCreator(
+    //     connectorClient,
+    //     incData,
+    //     serviceUrl,
+    //     incCreaterConversationId,
+    //     allincMembers?.length != 0
+    //       ? allincMembers.length
+    //       : allMembersArr.length,
+    //     companyData.teamName,
+    //     companyData.channelName,
+    //   );
+    // }
   } catch (err) {
     log.addLog(` An Error occured: ${JSON.stringify(err)}`);
     console.log(err);
@@ -4940,7 +4940,26 @@ const NewsendSafetyCheckMessageAsync = async (
             allincMembers,
           );
         }
+        const appId = process.env.MicrosoftAppId;
+        const appPass = process.env.MicrosoftAppPassword;
 
+        var credentials = new MicrosoftAppCredentials(appId, appPass);
+        var connectorClient = new ConnectorClient(credentials, {
+          baseUri: serviceUrl,
+        });
+        if (createdByUserInfo.conversationId) {
+          sendAcknowledgeMsgToCreator(
+            connectorClient,
+            incData,
+            serviceUrl,
+            createdByUserInfo.conversationId,
+            allincMembers?.length != 0
+              ? allincMembers.length
+              : allMembersArr.length,
+            companyData.teamName,
+            companyData.channelName,
+          );
+        }
         let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
           ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
           : null;
