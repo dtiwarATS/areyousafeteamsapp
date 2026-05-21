@@ -88,6 +88,11 @@ function initJob() {
         path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
         cron: "*/15 * * * *",
       },
+      {
+        name: "DeleteTrialTeams-job",
+        path: path.join(__dirname, "jobs", "DeleteTrialTeams-job.js"),
+        cron: "0 12 * * *",
+      },
     ],
   });
   //cron1: "*/1 * * * *"
