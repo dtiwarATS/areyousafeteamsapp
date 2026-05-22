@@ -2101,13 +2101,12 @@ WHERE id = ${res[0].id}`;
     return Promise.resolve(res);
   };
 
-  setSuperAdmin = async (superadmin, teamId) => {
+  setSuperAdmin = async (superadmin, teamId, userAadObjId) => {
     let res = null;
     try {
       res = await incidentService.setSuperAdmin(
         superadmin,
         teamId,
-        userAadObjId,
         userAadObjId,
       );
     } catch (err) {
