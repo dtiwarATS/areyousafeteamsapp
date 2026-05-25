@@ -2869,6 +2869,101 @@ const handlerForSafetyBotTab = (app) => {
     res.send(filterData);
   });
 
+  app.get("/areyousafetabhandler/GetManualLocations/", async (req, res) => {
+    const tenantId = req.query.tenantId || req.query.teamId;
+    const userAadObjId = req.query.userAadObjId || "";
+
+    if (!tenantId) {
+      return res.status(400).json({ error: "tenantId is required" });
+    }
+
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const locations = await tabObj.getManualLocations(tenantId);
+      res.json({ data: Array.isArray(locations) ? locations : [] });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        tenantId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/GetManualLocations",
+      );
+      res.status(500).json({ error: "Error fetching manual locations" });
+    }
+  });
+
+  app.post("/areyousafetabhandler/SaveManualLocations/", async (req, res) => {
+    const tenantId = req.body?.tenantId || req.body?.teamId;
+    const userAadObjId = req.body?.userAadObjId || "";
+
+    if (!tenantId) {
+      return res.status(400).json({ error: "tenantId is required" });
+    }
+
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const result = await tabObj.saveManualLocations({
+        tenantId,
+        userAadObjId,
+        locations: req.body?.locations,
+      });
+
+      if (result?.success) {
+        return res.json(result);
+      }
+
+      return res
+        .status(result?.statusCode || 500)
+        .json({ error: result?.error || "Failed to save manual locations" });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        tenantId,
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/SaveManualLocations",
+      );
+      res.status(500).json({ error: "Failed to save manual locations" });
+    }
+  });
+
+  app.post("/areyousafetabhandler/DeleteManualLocation/", async (req, res) => {
+    const id = Number(req.body?.id);
+    const userAadObjId = req.body?.userAadObjId || "";
+
+    if (!Number.isInteger(id) || id <= 0) {
+      return res.status(400).json({ success: false, error: "id is required" });
+    }
+
+    try {
+      const tabObj = new tab.AreYouSafeTab();
+      const result = await tabObj.deleteManualLocation(id);
+
+      if (result?.success) {
+        return res.json(result);
+      }
+
+      return res
+        .status(result?.statusCode || 500)
+        .json({ success: false, error: result?.error || "Failed to delete manual location" });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/DeleteManualLocation",
+      );
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to delete manual location" });
+    }
+  });
+
   app.put("/areyousafetabhandler/contactus", async (req, res) => {
     const email = req.query.email;
     const msg = req.query.msg;

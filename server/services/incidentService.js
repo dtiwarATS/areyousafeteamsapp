@@ -1893,6 +1893,180 @@ const getFilterData = async (teamId) => {
   return Promise.resolve(result);
 };
 
+const normalizeManualLocations = (locations) => {
+  if (!Array.isArray(locations)) {
+    return [];
+  }
+
+  return locations
+    .map((row) => ({
+      id: Number(row?.id ?? row?.ID) > 0 ? Number(row?.id ?? row?.ID) : null,
+      country: String(
+        row?.country ?? row?.COUNTRY ?? row?.Country ?? "",
+      ).trim(),
+      city: String(row?.city ?? row?.CITY ?? row?.City ?? "").trim(),
+      department: String(
+        row?.department ?? row?.DEPARTMENT ?? row?.Department ?? "",
+      ).trim(),
+    }))
+    .filter((row) => row.country && row.city);
+};
+
+const getManualLocations = async (tenantId) => {
+  const pool = await poolPromise;
+  const request = pool.request();
+  request.input("tenantId", sql.NVarChar(sql.MAX), String(tenantId).trim());
+
+  const query = `
+    SELECT
+      ID AS id,
+      TENENT_ID AS tenantId,
+      COUNTRY AS country,
+      CITY AS city,
+      DEPARTMENT AS department,
+      CREATED_DATE AS createdDate,
+      LastUpdatedDateTime AS lastUpdatedDateTime,
+      LAST_UPDATED_BY AS lastUpdatedBy
+    FROM LOCATION_CONFIGURATION
+    WHERE TENENT_ID = @tenantId
+    ORDER BY COUNTRY, CITY
+  `;
+
+  const result = await request.query(query);
+  return result.recordset || [];
+};
+
+const saveManualLocations = async (body) => {
+  const tenantId = String(body?.tenantId || "").trim();
+  const userAadObjId = body?.userAadObjId
+    ? String(body.userAadObjId).trim()
+    : null;
+
+  if (!tenantId) {
+    return {
+      success: false,
+      statusCode: 400,
+      error: "tenantId is required",
+    };
+  }
+
+  if (!Array.isArray(body?.locations)) {
+    return {
+      success: false,
+      statusCode: 400,
+      error: "locations must be an array",
+    };
+  }
+
+  const locations = normalizeManualLocations(body.locations);
+  const pool = await poolPromise;
+  const transaction = new sql.Transaction(pool);
+  let transactionStarted = false;
+  let insertedCount = 0;
+  let updatedCount = 0;
+
+  try {
+    await transaction.begin();
+    transactionStarted = true;
+
+    for (const location of locations) {
+      const saveRequest = new sql.Request(transaction);
+      saveRequest.input("tenantId", sql.NVarChar(sql.MAX), tenantId);
+      saveRequest.input("country", sql.NVarChar(sql.MAX), location.country);
+      saveRequest.input("city", sql.NVarChar(sql.MAX), location.city);
+      saveRequest.input(
+        "department",
+        sql.NVarChar(sql.MAX),
+        location.department || null,
+      );
+      saveRequest.input("userAadObjId", sql.NVarChar(sql.MAX), userAadObjId);
+
+      if (location.id) {
+        saveRequest.input("id", sql.Int, location.id);
+        const updateResult = await saveRequest.query(`
+          UPDATE LOCATION_CONFIGURATION
+          SET COUNTRY = @country,
+              CITY = @city,
+              DEPARTMENT = @department,
+              LastUpdatedDateTime = GETDATE(),
+              LAST_UPDATED_BY = @userAadObjId
+          WHERE ID = @id
+            AND TENENT_ID = @tenantId
+        `);
+
+        if ((updateResult.rowsAffected?.[0] || 0) > 0) {
+          updatedCount += 1;
+          continue;
+        }
+      }
+
+      const insertRequest = new sql.Request(transaction);
+      insertRequest.input("tenantId", sql.NVarChar(sql.MAX), tenantId);
+      insertRequest.input("country", sql.NVarChar(sql.MAX), location.country);
+      insertRequest.input("city", sql.NVarChar(sql.MAX), location.city);
+      insertRequest.input(
+        "department",
+        sql.NVarChar(sql.MAX),
+        location.department || null,
+      );
+      insertRequest.input("userAadObjId", sql.NVarChar(sql.MAX), userAadObjId);
+
+      await insertRequest.query(`
+        INSERT INTO LOCATION_CONFIGURATION
+          (TENENT_ID, COUNTRY, CITY, DEPARTMENT, CREATED_BY, LastUpdatedDateTime)
+        VALUES
+          (@tenantId, @country, @city, @department, @userAadObjId, GETDATE())
+      `);
+      insertedCount += 1;
+    }
+
+    await transaction.commit();
+    return {
+      success: true,
+      count: locations.length,
+      insertedCount,
+      updatedCount,
+    };
+  } catch (err) {
+    if (transactionStarted) {
+      await transaction.rollback();
+    }
+    throw err;
+  }
+};
+
+const deleteManualLocation = async (id) => {
+  const locationId = Number(id);
+
+  if (!Number.isInteger(locationId) || locationId <= 0) {
+    return {
+      success: false,
+      statusCode: 400,
+      error: "id is required",
+    };
+  }
+
+  const pool = await poolPromise;
+  const request = pool.request();
+  request.input("id", sql.Int, locationId);
+
+  const result = await request.query(`
+    DELETE FROM LOCATION_CONFIGURATION
+    WHERE ID = @id
+  `);
+
+  const rowsAffected = result.rowsAffected?.[0] || 0;
+  if (rowsAffected > 0) {
+    return { success: true };
+  }
+
+  return {
+    success: false,
+    statusCode: 404,
+    error: "Manual location not found",
+  };
+};
+
 const getSuperUsersByTeamId = async (teamId) => {
   let result = null;
   try {
@@ -4338,6 +4512,9 @@ module.exports = {
   getUserTeamInfo,
   getUserTeamInfoData,
   getFilterData,
+  getManualLocations,
+  saveManualLocations,
+  deleteManualLocation,
   getSuperUsersByTeamId,
   getCreateIncidentUsersByTeamId,
   isWelcomeMessageSend,

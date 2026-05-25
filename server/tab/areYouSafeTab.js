@@ -1788,6 +1788,54 @@ WHERE id = ${res[0].id}`;
     return Promise.resolve(filterData);
   };
 
+  getManualLocations = async (tenantId) => {
+    let manualLocations = [];
+    try {
+      manualLocations = await incidentService.getManualLocations(tenantId);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        tenantId,
+        "",
+        "",
+        "error in getManualLocations",
+      );
+    }
+    return Promise.resolve(manualLocations);
+  };
+
+  saveManualLocations = async (body) => {
+    let res = null;
+    try {
+      res = await incidentService.saveManualLocations(body);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        body?.tenantId || "",
+        "",
+        body?.userAadObjId || "",
+        "error in saveManualLocations",
+      );
+    }
+    return Promise.resolve(res);
+  };
+
+  deleteManualLocation = async (id) => {
+    let res = null;
+    try {
+      res = await incidentService.deleteManualLocation(id);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in deleteManualLocation",
+      );
+    }
+    return Promise.resolve(res);
+  };
+
   submitContactUs = async (email, msg, userId, userName) => {
     try {
       const companyData = await getCompaniesData(userId);
