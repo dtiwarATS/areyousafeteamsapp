@@ -4784,8 +4784,13 @@ const NewsendSafetyCheckMessageAsync = async (
       if (allincMembers?.length > 0 && isFirstBatch == "true") {
         let AlluserAadObjIds = allincMembers.map((x) => x?.value || x);
         saveallMembersArr = allMembers.filter((tm) =>
-          AlluserAadObjIds.includes(tm.id),
+          AlluserAadObjIds.includes(tm.id || tm.userAadObjId),
         );
+        if (saveallMembersArr.length == 0) {
+          saveallMembersArr = allMembers.filter((tm) =>
+            AlluserAadObjIds.includes(tm.userAadObjId),
+          );
+        }
       } else {
         saveallMembersArr = allMembers;
       }
@@ -4825,6 +4830,11 @@ const NewsendSafetyCheckMessageAsync = async (
         allMembersArr = allMembers.filter((tm) =>
           selectedMembersArr.includes(tm.id),
         );
+        if (allMembersArr.length == 0) {
+          allMembersArr = allMembers.filter((tm) =>
+            selectedMembersArr.includes(tm.userAadObjId),
+          );
+        }
       } else {
         allMembersArr = allMembers;
       }
@@ -4968,8 +4978,8 @@ const NewsendSafetyCheckMessageAsync = async (
         const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
           incData.incTypeId == 1 &&
-          IntegrationConfigure.channels.voice.enabled &&
-          IntegrationConfigure.channels.voice.events.incident
+          IntegrationConfigure?.channels.voice.enabled &&
+          IntegrationConfigure?.channels.voice.events.incident
         ) {
           sendSafetyCheckMsgViaVoice(
             companyData,
@@ -4979,8 +4989,8 @@ const NewsendSafetyCheckMessageAsync = async (
           );
         }
         if (
-          IntegrationConfigure.channels.sms.enabled &&
-          IntegrationConfigure.channels.sms.events.incident &&
+          IntegrationConfigure?.channels.sms.enabled &&
+          IntegrationConfigure?.channels.sms.events.incident &&
           (companyData.SubscriptionType == 3 ||
             (companyData.SubscriptionType == 2 &&
               companyData.sent_sms_count < 50))
@@ -4995,8 +5005,8 @@ const NewsendSafetyCheckMessageAsync = async (
         }
         if (
           incData.incTypeId == 1 &&
-          IntegrationConfigure.channels.whatsapp.enabled &&
-          IntegrationConfigure.channels.whatsapp.events.incident
+          IntegrationConfigure?.channels.whatsapp.enabled &&
+          IntegrationConfigure?.channels.whatsapp.events.incident
         ) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
@@ -5009,8 +5019,8 @@ const NewsendSafetyCheckMessageAsync = async (
           );
         }
         if (
-          IntegrationConfigure.channels.email.enabled &&
-          IntegrationConfigure.channels.email.events.incident
+          IntegrationConfigure?.channels.email.enabled &&
+          IntegrationConfigure?.channels.email.events.incident
         ) {
           sendSafetyCheckMsgViaEmail(
             companyData,
