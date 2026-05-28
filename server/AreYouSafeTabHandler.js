@@ -3327,6 +3327,77 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.post(
+    "/areyousafetabhandler/trackSafetyCheckResponse/",
+    async (req, res) => {
+      const { incId, teamId, userAadObjId, responseOption } = req.body ?? {};
+
+      try {
+        const parsedIncId = Number(incId);
+        if (!Number.isFinite(parsedIncId) || parsedIncId <= 0) {
+          return res.send({ success: false, error: "Invalid incId" });
+        }
+        if (!userAadObjId || typeof userAadObjId !== "string") {
+          return res.send({ success: false, error: "Missing userAadObjId" });
+        }
+
+        // Map UI text to the existing DB convention:
+        // response=1 (responded), response_value=1 (safe) or 2 (need assistance)
+        const raw = (responseOption ?? "").toString().trim();
+        const lower = raw.toLowerCase();
+        let responseValue = Number.parseInt(raw, 10);
+        if (!Number.isFinite(responseValue)) {
+          responseValue = null;
+        }
+        if (responseValue == null) {
+          if (lower === "i am safe" || lower === "i_am_safe") responseValue = 1;
+          else if (lower === "i need assistance" || lower === "need_assistance")
+            responseValue = 2;
+        }
+
+        if (responseValue !== 1 && responseValue !== 2) {
+          return res.send({
+            success: false,
+            error: "Invalid responseOption",
+          });
+        }
+
+        const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", new Date());
+
+        const pool = await poolPromise;
+        const sql = require("mssql");
+
+        let query = "";
+
+        // ✅ CASE 2: USER_AAD_OBJ_ID
+
+        query = `
+      UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE inc_id = ${incId} AND user_id in (select  top 1 user_id from MSTeamsTeamsUsers where user_aadobject_id= '${userAadObjId}')
+
+
+      `;
+
+        const request = pool.request();
+        const result = await request.query(query);
+        return res.send({ success: true });
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(
+          err,
+          teamId ?? "",
+          "",
+          userAadObjId ?? "",
+          "error in /areyousafetabhandler/trackSafetyCheckResponse incId=" +
+            incId,
+        );
+        return res.send({
+          success: false,
+          error: err?.message || "Failed to track response",
+        });
+      }
+    },
+  );
+
   app.get("/areyousafetabhandler/getEmergencyContactUsers", (req, res) => {
     console.log("came in request");
 
