@@ -1515,6 +1515,7 @@ const getTeamMemeberSqlQuery = (
       ? " CASE when tblAadObjId1.useAadObjId is not null then 1 else 0 end iscreateIncidentUser "
       : " 0 iscreateIncidentUser ") +
     `, u.conversationId,
+    u.DYNAMIC_LOCATION,
   case when inst.user_id is null then 0 else 1 end isAdmin , city, country, state, department,u.email,u.hasLicense
   FROM MSTEAMSTEAMSUSERS u
   left join MSTeamsInstallationDetails inst on u.user_id = inst.user_id and u.team_id = inst.team_id and inst.uninstallation_date is null ` +
@@ -2850,10 +2851,14 @@ const setLanguagePreference = async (
   }
   return Promise.resolve(result);
 };
-const setDynamicLocation = async (userid, location) => {
+const setDynamicLocation = async (userid, location, source) => {
   let result = null;
   try {
     const qry = `update MSTeamsTeamsUsers set DYNAMIC_LOCATION = '${location}', LAST_UPDATED_BY = '${userid}' where user_aadobject_id='${userid}' `;
+    if (source === "manual") {
+      var locationArr = location.split(", ");
+      qry += `update MSTeamsTeamsUsers set city = '${locationArr[0]}', country = '${locationArr[1]}', LAST_UPDATED_BY = '${userid}' where user_aadobject_id='${userid}'`;
+    }
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";

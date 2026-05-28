@@ -470,6 +470,7 @@ class AreYouSafeTab {
     MIN(tu.user_id) AS value,
     MIN(tu.user_name) AS title,
     MIN(tu.email) AS email,
+    MIN(tu.DYNAMIC_LOCATION) AS DYNAMIC_LOCATION,
     CASE 
         WHEN tu.user_aadobject_id = '${userAadObjId}'
              AND EXISTS (
@@ -1825,13 +1826,7 @@ WHERE id = ${res[0].id}`;
     try {
       res = await incidentService.deleteManualLocation(id);
     } catch (err) {
-      processSafetyBotError(
-        err,
-        "",
-        "",
-        "",
-        "error in deleteManualLocation",
-      );
+      processSafetyBotError(err, "", "", "", "error in deleteManualLocation");
     }
     return Promise.resolve(res);
   };
@@ -2189,10 +2184,10 @@ WHERE id = ${res[0].id}`;
     }
     return Promise.resolve(res);
   };
-  setDynamicLocation = async (userid, location) => {
+  setDynamicLocation = async (userid, location, source) => {
     let res = null;
     try {
-      res = await incidentService.setDynamicLocation(userid, location);
+      res = await incidentService.setDynamicLocation(userid, location, source);
     } catch (err) {
       processSafetyBotError(err, "", "", userid, "error in setDynamicLocation");
     }

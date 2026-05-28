@@ -4825,9 +4825,10 @@ WHERE
   app.get("/areyousafetabhandler/SaveDynamicLocation", async (req, res) => {
     const userid = req.query.userid;
     const location = req.query.location;
+    const source = req.query.source;
     try {
       const tabObj = new tab.AreYouSafeTab();
-      await tabObj.setDynamicLocation(userid, location);
+      await tabObj.setDynamicLocation(userid, location, source);
       res.send("success");
     } catch (err) {
       processSafetyBotError(
