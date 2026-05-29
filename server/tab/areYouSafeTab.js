@@ -2356,7 +2356,21 @@ WHERE id = ${res[0].id}`;
         .then(async (userInfo) => {
           if (userInfo && userInfo.length > 0) {
             let userIds = userInfo.map((user) => user.user_aadobject_id);
-            if (companyData.IS_APP_PERMISSION_GRANTED) {
+            let integrationConfigure = null;
+            try {
+              integrationConfigure = companyData?.INTEGRATION_CONFIGURE
+                ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
+                : null;
+            } catch (parseErr) {
+              console.log(parseErr);
+            }
+
+            const isManualLocationSource =
+              integrationConfigure?.location?.source === "manual" ?? false;
+            const shouldSyncOffice365Location =
+              companyData.IS_APP_PERMISSION_GRANTED && !isManualLocationSource;
+
+            if (shouldSyncOffice365Location) {
               await bot.getUserDetails(
                 companyData.userTenantId,
                 companyData.IS_APP_PERMISSION_GRANTED,
