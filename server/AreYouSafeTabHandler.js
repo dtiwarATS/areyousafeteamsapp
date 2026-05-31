@@ -2967,8 +2967,10 @@ const handlerForSafetyBotTab = (app) => {
   });
   app.get("/areyousafetabhandler/getFilterData", async (req, res) => {
     const teamId = req.query.teamId;
+
+    const source = req.query.source || "office365";
     const tabObj = new tab.AreYouSafeTab();
-    const filterData = await tabObj.getFilterData(teamId);
+    const filterData = await tabObj.getFilterData(teamId, source);
     res.send(filterData);
   });
 

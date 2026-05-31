@@ -1779,10 +1779,10 @@ WHERE id = ${res[0].id}`;
     return Promise.resolve(userTeamInfo);
   };
 
-  getFilterData = async (teamId) => {
+  getFilterData = async (teamId, source) => {
     let filterData = null;
     try {
-      filterData = await incidentService.getFilterData(teamId);
+      filterData = await incidentService.getFilterData(teamId, source);
     } catch (err) {
       processSafetyBotError(err, "", "", "", "error in getFilterData");
     }

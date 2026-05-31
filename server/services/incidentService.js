@@ -1881,11 +1881,46 @@ const getUserTeamInfoData = async (userAadObjId) => {
   }
   return Promise.resolve(result);
 };
-const getFilterData = async (teamId) => {
+const getFilterData = async (teamId, source) => {
   let result = null;
+  let sqlTeamInfo = "";
   try {
-    const sqlTeamInfo = `select distinct city, country from MSTeamsTeamsUsers where team_id = '${teamId}' and ((country is not null and country != '') or (city is not null and city != '')) order by country, city;
+    if (source === "manual") {
+      sqlTeamInfo = `SELECT DISTINCT 
+    MTU.CITY as city,
+    MTU.COUNTRY as country
+FROM MSTeamsTeamsUsers MTU
+WHERE MTU.TEAM_ID = '${teamId}'
+    AND (
+        (MTU.COUNTRY IS NOT NULL AND MTU.COUNTRY <> '')
+        OR
+        (MTU.CITY IS NOT NULL AND MTU.CITY <> '')
+    )
+
+UNION
+
+SELECT DISTINCT 
+    LC.CITY as city,
+    LC.COUNTRY as country
+FROM LOCATION_CONFIGURATION LC
+INNER JOIN MSTeamsInstallationDetails ID
+    ON LC.TENENT_ID = ID.user_tenant_id
+WHERE ID.TEAM_ID = '${teamId}'
+    AND (
+        (LC.COUNTRY IS NOT NULL AND LC.COUNTRY <> '')
+        OR
+        (LC.CITY IS NOT NULL AND LC.CITY <> '')
+    )
+
+ORDER BY COUNTRY, CITY;
+      select distinct department, city, country from MSTeamsTeamsUsers where team_id = '${teamId}' and department is not null and department != '' order by department`;
+      //result = await db.getDataFromDB(sqlTeamInfo, "", false);
+    } else {
+      sqlTeamInfo = `select distinct city, country from MSTeamsTeamsUsers where team_id = '${teamId}' and ((country is not null and country != '') or (city is not null and city != '')) order by country, city;
           select distinct department, city, country from MSTeamsTeamsUsers where team_id = '${teamId}' and department is not null and department != '' order by department`;
+      //result = await db.getDataFromDB(sqlTeamInfo, "", false);
+    }
+
     result = await db.getDataFromDB(sqlTeamInfo, "", false);
   } catch (err) {
     console.log(err);
@@ -2854,7 +2889,7 @@ const setLanguagePreference = async (
 const setDynamicLocation = async (userid, location, source) => {
   let result = null;
   try {
-    const qry = `update MSTeamsTeamsUsers set DYNAMIC_LOCATION = '${location}', LAST_UPDATED_BY = '${userid}' where user_aadobject_id='${userid}' `;
+    let qry = `update MSTeamsTeamsUsers set DYNAMIC_LOCATION = '${location}', LAST_UPDATED_BY = '${userid}' where user_aadobject_id='${userid}' `;
     if (source === "manual") {
       var locationArr = location.split(", ");
       qry += `update MSTeamsTeamsUsers set city = '${locationArr[0]}', country = '${locationArr[1]}', LAST_UPDATED_BY = '${userid}' where user_aadobject_id='${userid}'`;
