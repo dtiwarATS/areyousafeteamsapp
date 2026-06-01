@@ -57,6 +57,7 @@ const getColumns = (tableName) => {
         "SendRemindersTime",
         "RESPONSE_TYPE",
         "RESPONSE_OPTIONS",
+        "IS_DRILL",
       ];
       break;
 
