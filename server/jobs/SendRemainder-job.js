@@ -66,6 +66,7 @@ const { processSafetyBotError } = require("../models/processError");
               inc_type,
               MemberResponsesRecurrId,
               user_aadobj_id,
+              IS_DRILL,
             } = member;
 
             let ctime = new Date();
@@ -107,6 +108,7 @@ const { processSafetyBotError } = require("../models/processError");
                   name: CREATED_BY_NAME,
                 },
                 responseOptionData,
+                isDrill: IS_DRILL,
               };
               incidentService.saveAllTypeQuerylogs(
                 user_aadobj_id,

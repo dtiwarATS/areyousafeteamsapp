@@ -42,6 +42,8 @@ class Incident {
     RESPONSE_TYPE,
     RESPONSE_OPTIONS,
     selectedMembersCount,
+    isDrill,
+    IS_DRILL,
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -88,6 +90,8 @@ class Incident {
     this.selectedMembersCount = selectedMembersCount;
     this.responseType = RESPONSE_TYPE; // Initialize with null or default value
     this.responseOptions = RESPONSE_OPTIONS; // Initialize with null or default value
+    this.isDrill = isDrill;
+    this.IS_DRILL = IS_DRILL;
   }
 }
 

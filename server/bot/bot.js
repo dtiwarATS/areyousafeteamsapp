@@ -4875,6 +4875,7 @@ const NewsendSafetyCheckMessageAsync = async (
           incGuidance,
           incResponseSelectedUsersList: null,
           responseOptionData,
+          isDrill: incData.isDrill || incData.IS_DRILL,
         };
         const batchSize = 100;
 
@@ -6213,6 +6214,7 @@ const sendRecurrEventMsgAsync = async (
     incGuidance,
     incResponseSelectedUsersList: null,
     responseOptionData,
+    isDraft: subEventObj.IS_DRILL ? subEventObj.IS_DRILL : false,
   };
   let companyData = subEventObj.companyData;
   return new Promise(async (resolve, reject) => {

@@ -254,6 +254,7 @@ class AreYouSafeTab {
             incidentMediafiles,
             responseOptions,
             selectedMembersCount,
+            isDrill,
           } = inc;
 
           if (messageDeliveredCount == 0 && isTestRecord) {
@@ -377,6 +378,7 @@ class AreYouSafeTab {
             userid,
             responses,
             selectedMembersCount,
+            isDrill,
           };
           incFormatedData.push(incObj);
         });
