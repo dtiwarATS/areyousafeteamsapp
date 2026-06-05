@@ -1246,6 +1246,29 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.get("/areyousafetabhandler/getAllLanguages", async (req, res) => {
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request().query(`
+        SELECT
+          LANGUAGE_ID AS id,
+          LANGUAGE AS label,
+          CULTURE_CODE AS value
+        FROM SYS_LANGUAGE
+        ORDER BY LANGUAGE ASC
+      `);
+      res.json(result.recordset || []);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in /areyousafetabhandler/getAllLanguages",
+      );
+      res.status(500).json({ error: "Failed to fetch languages" });
+    }
+  });
   // app.post("/areyousafetabhandler/setRefreshToken", async (req, res) => {
   //   const teamId = req.query.teamId;
   //   const refresh_token = req.query.refresh_token;

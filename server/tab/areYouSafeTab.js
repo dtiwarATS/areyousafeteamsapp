@@ -473,6 +473,7 @@ class AreYouSafeTab {
     MIN(tu.user_name) AS title,
     MIN(tu.email) AS email,
     MIN(tu.DYNAMIC_LOCATION) AS DYNAMIC_LOCATION,
+    tu.LANGUAGE_ID,
     CASE 
         WHEN tu.user_aadobject_id = '${userAadObjId}'
              AND EXISTS (
@@ -491,7 +492,7 @@ WHERE tu.team_id IN (
     FROM MSTeamsTeamsUsers
     WHERE user_aadobject_id = '${userAadObjId}'
 )
-GROUP BY tu.user_aadobject_id
+GROUP BY tu.user_aadobject_id,tu.LANGUAGE_ID
 ORDER BY email;
 `;
 

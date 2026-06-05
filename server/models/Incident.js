@@ -44,6 +44,7 @@ class Incident {
     selectedMembersCount,
     isDrill,
     IS_DRILL,
+    TRANSLATED_TEXT_JSON,
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -92,6 +93,7 @@ class Incident {
     this.responseOptions = RESPONSE_OPTIONS; // Initialize with null or default value
     this.isDrill = isDrill;
     this.IS_DRILL = IS_DRILL;
+    this.TRANSLATED_TEXT_JSON = TRANSLATED_TEXT_JSON;
   }
 }
 

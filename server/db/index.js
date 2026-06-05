@@ -58,6 +58,7 @@ const getColumns = (tableName) => {
         "RESPONSE_TYPE",
         "RESPONSE_OPTIONS",
         "IS_DRILL",
+        "TRANSLATED_TEXT_JSON",
       ];
       break;
 
