@@ -102,6 +102,41 @@ const resolveTranslatedIncidentFields = (translatedText, languageId, fields) => 
     ),
   };
 };
+
+const getTranslatedOptionText = (
+  translatedText,
+  optionText,
+  languageId,
+  fallback,
+) => {
+  return getTranslatedField(translatedText, optionText, languageId, fallback);
+};
+
+const resolveTranslatedResponseOptionData = (
+  translatedText,
+  languageId,
+  responseOptionData,
+) => {
+  if (
+    !translatedText ||
+    !languageId ||
+    !responseOptionData?.responseOptions?.length
+  ) {
+    return responseOptionData;
+  }
+  return {
+    ...responseOptionData,
+    responseOptions: responseOptionData.responseOptions.map((opt) => ({
+      ...opt,
+      option: getTranslatedOptionText(
+        translatedText,
+        opt.option,
+        languageId,
+        opt.option,
+      ),
+    })),
+  };
+};
 const getSafetyCheckTypeCard = async (
   incTitle,
   incObj,
@@ -680,6 +715,7 @@ const SafetyCheckCard = async (
   languageId = null,
 ) => {
   const translatedText = incObj?.translatedtext || incObj?.TRANSLATED_TEXT_JSON;
+  let cardIncObj = incObj;
   if (translatedText && languageId) {
     ({ incGuidance, additionalInfo, travelUpdate, contactInfo, situation } =
       resolveTranslatedIncidentFields(translatedText, languageId, {
@@ -689,13 +725,23 @@ const SafetyCheckCard = async (
         contactInfo,
         situation,
       }));
+    if (incObj.responseOptionData) {
+      cardIncObj = {
+        ...incObj,
+        responseOptionData: resolveTranslatedResponseOptionData(
+          translatedText,
+          languageId,
+          incObj.responseOptionData,
+        ),
+      };
+    }
   }
   let card = null;
   switch (incTypeId) {
     case 1: //Safety Check
       card = await getSafetyCheckTypeCard(
         incTitle,
-        incObj,
+        cardIncObj,
         companyData,
         incGuidance,
         incResponseSelectedUsersList,
@@ -709,7 +755,7 @@ const SafetyCheckCard = async (
     case 2: //Safety Alert
       card = await getSafetyCheckTypeCard(
         incTitle,
-        incObj,
+        cardIncObj,
         companyData,
         incGuidance,
         null,
@@ -723,7 +769,7 @@ const SafetyCheckCard = async (
         additionalInfo,
         incObj.incCreatedBy.id,
         incObj.incCreatedBy.name,
-        incObj,
+        cardIncObj,
         companyData,
       );
       break;
@@ -735,7 +781,7 @@ const SafetyCheckCard = async (
         contactInfo,
         incObj.incCreatedBy.id,
         incObj.incCreatedBy.name,
-        incObj,
+        cardIncObj,
         companyData,
       );
       break;
@@ -746,7 +792,7 @@ const SafetyCheckCard = async (
         additionalInfo,
         incObj.incCreatedBy.id,
         incObj.incCreatedBy.name,
-        incObj,
+        cardIncObj,
         companyData,
       );
       break;
@@ -760,4 +806,6 @@ module.exports = {
   getSafetyCheckTypeCard,
   getTranslatedField,
   resolveTranslatedIncidentFields,
+  getTranslatedOptionText,
+  resolveTranslatedResponseOptionData,
 };
