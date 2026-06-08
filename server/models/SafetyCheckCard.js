@@ -53,6 +53,55 @@ const getSafetyCheckMessageText = async (
 const escapeRegex = (text) => {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
+
+const getTranslatedField = (translatedText, fieldName, languageId, fallback) => {
+  if (!translatedText || languageId == null || languageId === "") return fallback;
+  try {
+    const parsed =
+      typeof translatedText === "string"
+        ? JSON.parse(translatedText)
+        : translatedText;
+    const value = parsed?.[fieldName]?.[String(languageId)];
+    return value != null && value !== "" ? value : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const resolveTranslatedIncidentFields = (translatedText, languageId, fields) => {
+  return {
+    incGuidance: getTranslatedField(
+      translatedText,
+      "guidance",
+      languageId,
+      fields.incGuidance,
+    ),
+    additionalInfo: getTranslatedField(
+      translatedText,
+      "additionalInfo",
+      languageId,
+      fields.additionalInfo,
+    ),
+    travelUpdate: getTranslatedField(
+      translatedText,
+      "travelUpdate",
+      languageId,
+      fields.travelUpdate,
+    ),
+    contactInfo: getTranslatedField(
+      translatedText,
+      "contactInfo",
+      languageId,
+      fields.contactInfo,
+    ),
+    situation: getTranslatedField(
+      translatedText,
+      "situation",
+      languageId,
+      fields.situation,
+    ),
+  };
+};
 const getSafetyCheckTypeCard = async (
   incTitle,
   incObj,
@@ -628,7 +677,19 @@ const SafetyCheckCard = async (
   travelUpdate,
   contactInfo,
   situation,
+  languageId = null,
 ) => {
+  const translatedText = incObj?.translatedtext || incObj?.TRANSLATED_TEXT_JSON;
+  if (translatedText && languageId) {
+    ({ incGuidance, additionalInfo, travelUpdate, contactInfo, situation } =
+      resolveTranslatedIncidentFields(translatedText, languageId, {
+        incGuidance,
+        additionalInfo,
+        travelUpdate,
+        contactInfo,
+        situation,
+      }));
+  }
   let card = null;
   switch (incTypeId) {
     case 1: //Safety Check
@@ -697,4 +758,6 @@ module.exports = {
   getSafetyCheckMessageText,
   SafetyCheckCard,
   getSafetyCheckTypeCard,
+  getTranslatedField,
+  resolveTranslatedIncidentFields,
 };

@@ -1817,67 +1817,6 @@ const sendProactiveMessageAsync = async (
       `Start Saftey Check card Sending:IncId-${incObj.incId},TeamId-${incData.teamId}, SelectedMember-${incData.selectedMembers},CreatedByUSerId-${companyData.userId}`,
     );
     log.addLog(`${JSON.stringify(incData)}`);
-    const approvalCard = await SafetyCheckCard(
-      incTitle,
-      incObj,
-      companyData,
-      incObj.incGuidance,
-      incObj.incResponseSelectedUsersList,
-      incTypeId,
-      additionalInfo,
-      travelUpdate,
-      contactInfo,
-      situation,
-    );
-    const activity = MessageFactory.attachment(
-      CardFactory.adaptiveCard(approvalCard),
-    );
-    log.addLog(`Card Create Successfully `);
-    if (incFilesData != null && incFilesData.length > 0) {
-      const cardBody = [];
-      if (incFilesData.length == 1) {
-        cardBody.push({
-          type: "Image",
-          url: incFilesData[0].Blob,
-          msTeams: {
-            allowExpand: true,
-          },
-        });
-      } else {
-        let columns = [];
-        incFilesData.forEach((incFile, index) => {
-          if (index % 2 == 0) {
-            columns = [];
-            let cs = {
-              type: "ColumnSet",
-              columns: columns,
-            };
-            cardBody.push(cs);
-          }
-          let columnItems = [];
-          columnItems.push({
-            type: "Image",
-            url: incFile.Blob,
-            msTeams: {
-              allowExpand: true,
-            },
-          });
-          let column = {
-            type: "Column",
-            items: columnItems,
-          };
-          columns.push(column);
-        });
-      }
-      let card = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: cardBody,
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
-      activity.attachments.push(CardFactory.adaptiveCard(card));
-    }
     // 👇 This sets the preview text in Teams
     var safetyCheckMessageText = "";
     if (incTypeId == 1 || incTypeId == 2) {
@@ -1897,7 +1836,75 @@ const sendProactiveMessageAsync = async (
     } else if (incTypeId == 5) {
       safetyCheckMessageText = `This is a stakeholder notice from ${incObj.incCreatedBy.name}`;
     }
-    activity.summary = safetyCheckMessageText || titalmessage;
+    const activitySummary = safetyCheckMessageText || titalmessage;
+
+    const buildMemberActivity = async (languageId) => {
+      const approvalCard = await SafetyCheckCard(
+        incTitle,
+        incObj,
+        companyData,
+        incObj.incGuidance,
+        incObj.incResponseSelectedUsersList,
+        incTypeId,
+        additionalInfo,
+        travelUpdate,
+        contactInfo,
+        situation,
+        languageId,
+      );
+      const memberActivity = MessageFactory.attachment(
+        CardFactory.adaptiveCard(approvalCard),
+      );
+      log.addLog(`Card Create Successfully `);
+      if (incFilesData != null && incFilesData.length > 0) {
+        const cardBody = [];
+        if (incFilesData.length == 1) {
+          cardBody.push({
+            type: "Image",
+            url: incFilesData[0].Blob,
+            msTeams: {
+              allowExpand: true,
+            },
+          });
+        } else {
+          let columns = [];
+          incFilesData.forEach((incFile, index) => {
+            if (index % 2 == 0) {
+              columns = [];
+              let cs = {
+                type: "ColumnSet",
+                columns: columns,
+              };
+              cardBody.push(cs);
+            }
+            let columnItems = [];
+            columnItems.push({
+              type: "Image",
+              url: incFile.Blob,
+              msTeams: {
+                allowExpand: true,
+              },
+            });
+            let column = {
+              type: "Column",
+              items: columnItems,
+            };
+            columns.push(column);
+          });
+        }
+        let card = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: cardBody,
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
+        memberActivity.attachments.push(CardFactory.adaptiveCard(card));
+      }
+      memberActivity.summary = activitySummary;
+      return memberActivity;
+    };
+
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
 
@@ -2241,9 +2248,10 @@ const sendProactiveMessageAsync = async (
               insidesendProactiveMessaageToUserAsync: member.userAadObjId,
             });
             const conversationId = member.conversationId;
+            const memberActivity = await buildMemberActivity(member.LANGUAGE_ID);
             sendProactiveMessaageToUserAsync(
               memberArr,
-              activity,
+              memberActivity,
               null,
               serviceUrl,
               userTenantId,
@@ -4876,6 +4884,7 @@ const NewsendSafetyCheckMessageAsync = async (
           incResponseSelectedUsersList: null,
           responseOptionData,
           isDrill: incData.isDrill || incData.IS_DRILL,
+          translatedtext: incData.TRANSLATED_TEXT_JSON,
         };
         const batchSize = 100;
 

@@ -2166,7 +2166,13 @@ WHERE id = ${res[0].id}`;
     }
     return Promise.resolve(res);
   };
-  setLanguagePreference = async (language, teamId, tenantid, userAadObjId) => {
+  setLanguagePreference = async (
+    language,
+    teamId,
+    tenantid,
+    userAadObjId,
+    languageId,
+  ) => {
     let res = null;
     try {
       res = await incidentService.setLanguagePreference(
@@ -2175,6 +2181,7 @@ WHERE id = ${res[0].id}`;
         teamId,
         tenantid,
         userAadObjId,
+        languageId,
       );
     } catch (err) {
       processSafetyBotError(

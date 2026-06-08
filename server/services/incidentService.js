@@ -2868,10 +2868,12 @@ const setLanguagePreference = async (
   teamId,
   tenantid,
   userAadObjId,
+  languageId,
 ) => {
   let result = null;
   try {
-    const qry = `update MSTeamsInstallationDetails set LANGUAGE = '${language}', LAST_UPDATED_BY = '${userAadObjId}' where user_tenant_id='${tenantid}' `;
+    //const qry = `update MSTeamsInstallationDetails set LANGUAGE = '${language}', LAST_UPDATED_BY = '${userAadObjId}' where user_tenant_id='${tenantid}' `;
+    const qry = `update MSTeamsTeamsUsers set LANGUAGE_ID = '${languageId}', LAST_UPDATED_BY = '${userAadObjId}' where user_aadobject_id='${userAadObjId}' `;
     console.log({ qry });
     await db.getDataFromDB(qry);
     result = "success";
