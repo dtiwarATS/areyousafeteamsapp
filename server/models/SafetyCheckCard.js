@@ -141,7 +141,7 @@ const getSafetyCheckTypeCard = async (
                   type: "TextBlock",
                   wrap: true,
                   //maxLines: 1,
-                  text: "**THIS IS A DRILL.** No real emergency exists. Please respond as you would in a real event.",
+                  text: "**THIS IS A DRILL.** Please respond as you would in a real event.",
                 },
               ],
               verticalContentAlignment: "Center",
