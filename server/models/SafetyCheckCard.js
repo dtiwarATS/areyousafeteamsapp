@@ -54,8 +54,14 @@ const escapeRegex = (text) => {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
-const getTranslatedField = (translatedText, fieldName, languageId, fallback) => {
-  if (!translatedText || languageId == null || languageId === "") return fallback;
+const getTranslatedField = (
+  translatedText,
+  fieldName,
+  languageId,
+  fallback,
+) => {
+  if (!translatedText || languageId == null || languageId === "")
+    return fallback;
   try {
     const parsed =
       typeof translatedText === "string"
@@ -68,7 +74,11 @@ const getTranslatedField = (translatedText, fieldName, languageId, fallback) => 
   }
 };
 
-const resolveTranslatedIncidentFields = (translatedText, languageId, fields) => {
+const resolveTranslatedIncidentFields = (
+  translatedText,
+  languageId,
+  fields,
+) => {
   return {
     incGuidance: getTranslatedField(
       translatedText,
@@ -148,6 +158,7 @@ const getSafetyCheckTypeCard = async (
   incCreatedById = null,
   incCreatedByName = null,
   isPreview = false,
+  languageId = null,
 ) => {
   const mentionUserEntities = [];
   if (!safetyCheckMessageText) {
@@ -267,6 +278,7 @@ const getSafetyCheckTypeCard = async (
                 info: option.id,
                 inc: incObj,
                 companyData: companyData,
+                languageId: languageId,
               },
             };
             actions.push(btn);
@@ -300,6 +312,7 @@ const getSafetyCheckTypeCard = async (
             info: "dropdown_selection",
             inc: incObj,
             companyData: companyData,
+            languageId: languageId,
           },
         };
         actions.push(btnSafe);
@@ -750,6 +763,7 @@ const SafetyCheckCard = async (
         null,
         null,
         false,
+        languageId,
       );
       break;
     case 2: //Safety Alert
