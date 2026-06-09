@@ -1,5 +1,12 @@
 const incidentService = require("../services/incidentService");
 const dashboard = require("../models/dashboard");
+const {
+  getBotStaticText,
+  DEFAULT_LANGUAGE_ID,
+} = require("../utils/botStaticTranslations");
+
+const getHelloText = (languageId) =>
+  getBotStaticText("hello", languageId || DEFAULT_LANGUAGE_ID, "Hello!");
 
 const getSafetyCheckMessageText = async (
   incId,
@@ -196,7 +203,7 @@ const getSafetyCheckTypeCard = async (
       type: "TextBlock",
       size: "Large",
       weight: "Bolder",
-      text: "Hello!",
+      text: getHelloText(languageId),
     },
     {
       type: "TextBlock",
@@ -382,13 +389,14 @@ const getImpBulletineTypeCard = async (
   incCreatedByName,
   incObj,
   companyData,
+  languageId = null,
 ) => {
   const cardBody = [
     {
       type: "TextBlock",
       size: "Large",
       weight: "Bolder",
-      text: "Hello!",
+      text: getHelloText(languageId),
     },
     {
       type: "TextBlock",
@@ -494,13 +502,14 @@ const getTravelAdvisoryTypeCard = async (
   incCreatedByName,
   incObj,
   companyData,
+  languageId = null,
 ) => {
   const cardBody = [
     {
       type: "TextBlock",
       size: "Large",
       weight: "Bolder",
-      text: "Hello!",
+      text: getHelloText(languageId),
     },
     {
       type: "TextBlock",
@@ -611,13 +620,14 @@ const getStakeholderNoticeTypeCard = async (
   incCreatedByName,
   incObj,
   companyData,
+  languageId = null,
 ) => {
   const cardBody = [
     {
       type: "TextBlock",
       size: "Large",
       weight: "Bolder",
-      text: "Hello!",
+      text: getHelloText(languageId),
     },
     {
       type: "TextBlock",
@@ -790,6 +800,7 @@ const SafetyCheckCard = async (
         incObj.incCreatedBy.name,
         cardIncObj,
         companyData,
+        languageId,
       );
       break;
     case 4: //Travel Advisory
@@ -802,6 +813,7 @@ const SafetyCheckCard = async (
         incObj.incCreatedBy.name,
         cardIncObj,
         companyData,
+        languageId,
       );
       break;
     case 5: //Stakeholder Notice
@@ -813,6 +825,7 @@ const SafetyCheckCard = async (
         incObj.incCreatedBy.name,
         cardIncObj,
         companyData,
+        languageId,
       );
       break;
   }

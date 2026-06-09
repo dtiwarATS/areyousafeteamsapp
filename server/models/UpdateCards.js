@@ -251,6 +251,7 @@ const updateSafeMessage = (
               incCreatedBy: incCreatedBy,
               companyData: companyData,
               inc,
+              resolvedLanguageId,
             },
           },
         ],

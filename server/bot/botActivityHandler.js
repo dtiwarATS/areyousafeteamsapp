@@ -226,7 +226,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                  JSON.stringify(context),
+                JSON.stringify(context),
               );
             }
 
@@ -270,9 +270,9 @@ class BotActivityHandler extends TeamsActivityHandler {
             "",
             userAadObjectId,
             "error in insertData - " +
-              contextInfo +
-              " sqlQuery=" +
-              (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
+            contextInfo +
+            " sqlQuery=" +
+            (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
           );
           throw err;
         }
@@ -510,7 +510,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 null,
                 null,
               );
-            } catch (err) {}
+            } catch (err) { }
           }
         } else if (
           (acvtivityData &&
@@ -874,11 +874,11 @@ WHEN NOT MATCHED THEN
                       adminUserInfo?.name || "",
                       userAadObjectId,
                       "error in onConversationUpdate - personal scope context=" +
-                        JSON.stringify({
-                          conversationType: conversationType,
-                          userAadObjectId: userAadObjectId,
-                          tenantId: acvtivityData.channelData?.tenant?.id,
-                        }),
+                      JSON.stringify({
+                        conversationType: conversationType,
+                        userAadObjectId: userAadObjectId,
+                        tenantId: acvtivityData.channelData?.tenant?.id,
+                      }),
                     );
                     throw err;
                   }
@@ -1200,7 +1200,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-              requestAssistanceid,
+            requestAssistanceid,
           );
         });
 
@@ -1243,7 +1243,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async after_acknowledgement_response - assistanceId: " +
-              assistanceId,
+            assistanceId,
           );
         });
 
@@ -1263,6 +1263,7 @@ WHEN NOT MATCHED THEN
           incCreatedBy,
           eventResponse,
           commentVal,
+          resolvedLanguageId,
         } = action.data;
         let incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance; //? incGuidance : "No details available";
@@ -2428,7 +2429,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-          requestAssistanceid,
+        requestAssistanceid,
       );
     }
   }
@@ -2533,9 +2534,9 @@ WHERE rn = 1;
       const sentToIds = assistance.sent_to_ids;
       const responderIds = sentToIds
         ? sentToIds
-            .split(",")
-            .map((id) => id.trim())
-            .filter((id) => id)
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id)
         : [];
 
       if (responderIds.length > 0) {
@@ -2659,7 +2660,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleAfterAcknowledgementResponseAsync - assistanceId: " +
-          assistanceId,
+        assistanceId,
       );
     }
   }
@@ -2687,9 +2688,9 @@ WHERE rn = 1;
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-          JSON.stringify(context) +
-          " companyData=" +
-          JSON.stringify(companyData),
+        JSON.stringify(context) +
+        " companyData=" +
+        JSON.stringify(companyData),
       );
     }
   }
@@ -2791,11 +2792,11 @@ WHERE rn = 1;
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-          JSON.stringify(context) +
-          " userEmail=" +
-          userEmail +
-          " companyDataObj=" +
-          JSON.stringify(companyDataObj),
+        JSON.stringify(context) +
+        " userEmail=" +
+        userEmail +
+        " companyDataObj=" +
+        JSON.stringify(companyDataObj),
       );
     }
   }
@@ -2910,7 +2911,7 @@ WHERE rn = 1;
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId, process.env.build)
-        .then(() => {})
+        .then(() => { })
         .catch((err) => {
           console.log(err);
         });
@@ -2960,7 +2961,7 @@ WHERE rn = 1;
     if (userInfo && userInfo.length > 0) {
       new PersonalEmail.PersonalEmail()
         .sendUninstallationEmail(userEmailId, userAadObjId, process.env.build)
-        .then(() => {})
+        .then(() => { })
         .catch((err) => {
           console.log(err);
         });
