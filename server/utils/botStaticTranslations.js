@@ -41,7 +41,47 @@ const applyBotStaticPlaceholders = (text, placeholders = {}) => {
   if (IncidentTitle != null) {
     result = result.replace(/\{IncidentTitle\}/g, IncidentTitle);
   }
+  if (placeholders.AdditionalCommentsLabel != null) {
+    result = result.replace(
+      /\{AdditionalCommentsLabel\}/g,
+      placeholders.AdditionalCommentsLabel,
+    );
+  }
+  if (placeholders.CommentVal != null) {
+    result = result.replace(/\{CommentVal\}/g, placeholders.CommentVal);
+  }
   return result;
+};
+
+const buildSubmitCommentResponseText = (
+  commentVal,
+  incCreatedBy,
+  languageId,
+) => {
+  const resolvedLanguageId = languageId || DEFAULT_LANGUAGE_ID;
+  if (commentVal) {
+    const additionalCommentsLabel = getBotStaticText(
+      "additionalComments",
+      resolvedLanguageId,
+      "Additional Comments",
+    );
+    let text = getBotStaticText(
+      "submitCommentWithMessage",
+      resolvedLanguageId,
+      "✔️ Your message has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    );
+    return applyBotStaticPlaceholders(text, {
+      incidentCreator: incCreatedBy,
+      AdditionalCommentsLabel: additionalCommentsLabel,
+      CommentVal: commentVal,
+    });
+  }
+  let text = getBotStaticText(
+    "submitCommentSafetyStatus",
+    resolvedLanguageId,
+    "✔️ Your safety status has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible.",
+  );
+  return applyBotStaticPlaceholders(text, { incidentCreator: incCreatedBy });
 };
 
 const buildUserRespondedCard = (user, responseOption, incTitle, languageId) => {
@@ -89,4 +129,5 @@ module.exports = {
   getBotStaticText,
   applyBotStaticPlaceholders,
   buildUserRespondedCard,
+  buildSubmitCommentResponseText,
 };

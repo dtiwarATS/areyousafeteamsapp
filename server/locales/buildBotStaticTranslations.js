@@ -3,339 +3,727 @@ const path = require("path");
 
 const translations = {
   hello: {
-    "10000": "Hello!",
-    "10001": "Bonjour !",
-    "10002": "Hello!",
-    "10003": "مرحباً!",
-    "10004": "Здравейте!",
-    "10005": "Hola!",
-    "10006": "你好！",
-    "10007": "您好！",
-    "10008": "Pozdrav!",
-    "10009": "Dobrý den!",
-    "10010": "Hej!",
-    "10011": "Hallo!",
-    "10012": "Tere!",
-    "10013": "Hei!",
-    "10014": "Bonjour !",
-    "10015": "Hallo!",
-    "10016": "Γεια σας!",
-    "10017": "שלום!",
-    "10018": "नमस्ते!",
-    "10019": "Helló!",
-    "10020": "Halo!",
-    "10021": "Ciao!",
-    "10022": "こんにちは！",
-    "10023": "안녕하세요!",
-    "10024": "Sveiki!",
-    "10025": "Sveiki!",
-    "10026": "Helo!",
-    "10027": "Hei!",
-    "10028": "Cześć!",
-    "10029": "Olá!",
-    "10030": "Olá!",
-    "10031": "Bună!",
-    "10032": "Здравствуйте!",
-    "10033": "Zdravo!",
-    "10034": "Dobrý deň!",
-    "10035": "Pozdravljeni!",
-    "10036": "¡Hola!",
-    "10037": "¡Hola!",
-    "10038": "Hej!",
-    "10039": "สวัสดี!",
-    "10040": "Merhaba!",
-    "10041": "Вітаємо!",
-    "10042": "Xin chào!",
-    "10043": "Helo!",
-    "10044": "Kaixo!",
-    "10045": "Ola!",
-    "10046": "Hallo!",
-    "10047": "Përshëndetje!",
-    "10048": "Բարև!",
-    "10049": "Salam!",
-    "10050": "Вітаем!",
-    "10051": "Zdravo!",
-    "10052": "Kumusta!",
-    "10053": "გამარჯობა!",
-    "10054": "Halló!",
-    "10055": "Dia duit!",
-    "10056": "Сәлем!",
-    "10057": "Здраво!",
-    "10058": "Сайн уу!",
-    "10059": "سلام!",
-    "10060": "Habari!",
-    "10061": "வணக்கம்!",
-    "10062": "నమస్కారం!",
-    "10063": "سلام!",
-    "10064": "Salom!",
+    10000: "Hello!",
+    10001: "Bonjour !",
+    10002: "Hello!",
+    10003: "مرحباً!",
+    10004: "Здравейте!",
+    10005: "Hola!",
+    10006: "你好！",
+    10007: "您好！",
+    10008: "Pozdrav!",
+    10009: "Dobrý den!",
+    10010: "Hej!",
+    10011: "Hallo!",
+    10012: "Tere!",
+    10013: "Hei!",
+    10014: "Bonjour !",
+    10015: "Hallo!",
+    10016: "Γεια σας!",
+    10017: "שלום!",
+    10018: "नमस्ते!",
+    10019: "Helló!",
+    10020: "Halo!",
+    10021: "Ciao!",
+    10022: "こんにちは！",
+    10023: "안녕하세요!",
+    10024: "Sveiki!",
+    10025: "Sveiki!",
+    10026: "Helo!",
+    10027: "Hei!",
+    10028: "Cześć!",
+    10029: "Olá!",
+    10030: "Olá!",
+    10031: "Bună!",
+    10032: "Здравствуйте!",
+    10033: "Zdravo!",
+    10034: "Dobrý deň!",
+    10035: "Pozdravljeni!",
+    10036: "¡Hola!",
+    10037: "¡Hola!",
+    10038: "Hej!",
+    10039: "สวัสดี!",
+    10040: "Merhaba!",
+    10041: "Вітаємо!",
+    10042: "Xin chào!",
+    10043: "Helo!",
+    10044: "Kaixo!",
+    10045: "Ola!",
+    10046: "Hallo!",
+    10047: "Përshëndetje!",
+    10048: "Բարև!",
+    10049: "Salam!",
+    10050: "Вітаем!",
+    10051: "Zdravo!",
+    10052: "Kumusta!",
+    10053: "გამარჯობა!",
+    10054: "Halló!",
+    10055: "Dia duit!",
+    10056: "Сәлем!",
+    10057: "Здраво!",
+    10058: "Сайн уу!",
+    10059: "سلام!",
+    10060: "Habari!",
+    10061: "வணக்கம்!",
+    10062: "నమస్కారం!",
+    10063: "سلام!",
+    10064: "Salom!",
+  },
+  submitCommentSafetyStatus: {
+    10000:
+      "✔️ Your safety status has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible.",
+    10001:
+      "✔️ Votre statut de sécurité a été envoyé à <IncidentCreator>. Quelqu'un vous contactera dès que possible.",
+    10002:
+      "✔️ Your safety status has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible.",
+    10003:
+      "✔️ تم إرسال حالتك الأمنية إلى <IncidentCreator>. سيتواصل معك أحد قريباً.",
+    10004:
+      "✔️ Вашият статус за безопасност е изпратен до <IncidentCreator>. Някой ще се свърже с вас възможно най-скоро.",
+    10005:
+      "✔️ El vostre estat de seguretat s'ha enviat a <IncidentCreator>. Algú es posarà en contacte amb vosaltres aviat.",
+    10006: "✔️您的安全状态已发送给 <IncidentCreator>。我们会尽快与您联系。",
+    10007: "✔️ 您的安全狀態已傳送給 <IncidentCreator>。我們會盡快與您聯繫。",
+    10008:
+      "✔️ Vaš sigurnosni status poslan je korisniku <IncidentCreator>. Netko će vas uskoro kontaktirati.",
+    10009:
+      "✔️ Váš bezpečnostní stav byl odeslán uživateli <IncidentCreator>. Někdo vás bude co nejdříve kontaktovat.",
+    10010:
+      "✔️ Din sikkerhedsstatus er sendt til <IncidentCreator>. Nogen vil kontakte dig hurtigst muligt.",
+    10011:
+      "✔️ Uw veiligheidsstatus is verzonden naar <IncidentCreator>. Iemand neemt zo snel mogelijk contact met u op.",
+    10012:
+      "✔️ Teie turvastaatus on saadetud kasutajale <IncidentCreator>. Keegi võtab teiega peagi ühendust.",
+    10013:
+      "✔️ Turvallisuustilasi on lähetetty käyttäjälle <IncidentCreator>. Joku ottaa sinuun yhteyttä mahdollisimman pian.",
+    10014:
+      "✔️ Votre statut de sécurité a été envoyé à <IncidentCreator>. Quelqu'un vous contactera dès que possible.",
+    10015:
+      "✔️ Ihr Sicherheitsstatus wurde an <IncidentCreator> gesendet. Jemand wird sich so schnell wie möglich bei Ihnen melden.",
+    10016:
+      "✔️ Η κατάσταση ασφαλείας σας στάλθηκε στον <IncidentCreator>. Κάποιος θα επικοινωνήσει μαζί σας το συντομότερο δυνατό.",
+    10017:
+      "✔️ סטטוס הבטיחות שלך נשלח אל <IncidentCreator>. מישהו ייצור איתך קשר בהקדם האפשרי.",
+    10018:
+      "✔️ आपकी सुरक्षा स्थिति <IncidentCreator> को भेज दी गई है। कोई जल्द ही आपसे संपर्क करेगा।",
+    10019:
+      "✔️ Biztonsági állapotát elküldtük <IncidentCreator> részére. Valaki hamarosan felveszi Önnel a kapcsolatot.",
+    10020:
+      "✔️ Status keamanan Anda telah dikirim ke <IncidentCreator>. Seseorang akan segera menghubungi Anda.",
+    10021:
+      "✔️ Il tuo stato di sicurezza è stato inviato a <IncidentCreator>. Qualcuno ti contatterà al più presto.",
+    10022:
+      "✔️ あなたの安全ステータスは <IncidentCreator> に送信されました。できるだけ早くご連絡いたします。",
+    10023:
+      "✔️ 귀하의 안전 상태가 <IncidentCreator>에게 전송되었습니다. 가능한 한 빨리 누군가가 연락드릴 것입니다.",
+    10024:
+      "✔️ Jūsu drošības statuss ir nosūtīts lietotājam <IncidentCreator>. Kāds drīz ar jums sazināsies.",
+    10025:
+      "✔️ Jūsų saugos būsena išsiųsta <IncidentCreator>. Netrukus su jumis susisieks specialistas.",
+    10026:
+      "✔️ Status keselamatan anda telah dihantar kepada <IncidentCreator>. Seseorang akan menghubungi anda secepat mungkin.",
+    10027:
+      "✔️ Sikkerhetsstatusen din er sendt til <IncidentCreator>. Noen vil kontakte deg så snart som mulig.",
+    10028:
+      "✔️ Twój status bezpieczeństwa został wysłany do <IncidentCreator>. Ktoś skontaktuje się z Tobą jak najszybciej.",
+    10029:
+      "✔️ Seu status de segurança foi enviado para <IncidentCreator>. Alguém entrará em contato com você o mais breve possível.",
+    10030:
+      "✔️ O seu estado de segurança foi enviado para <IncidentCreator>. Alguém entrará em contacto consigo o mais breve possível.",
+    10031:
+      "✔️ Starea dvs. de siguranță a fost trimisă către <IncidentCreator>. Cineva vă va contacta cât mai curând.",
+    10032:
+      "✔️ Ваш статус безопасности отправлен пользователю <IncidentCreator>. С вами свяжутся в ближайшее время.",
+    10033:
+      "✔️ Vaš sigurnosni status je poslat korisniku <IncidentCreator>. Neko će vas uskoro kontaktirati.",
+    10034:
+      "✔️ Váš bezpečnostný stav bol odoslaný používateľovi <IncidentCreator>. Niečo vás bude čoskoro kontaktovať.",
+    10035:
+      "✔️ Vaš varnostni status je bil poslan uporabniku <IncidentCreator>. Nekdo vas bo kmalu kontaktiral.",
+    10036:
+      "✔️ Su estado de seguridad se envió a <IncidentCreator>. Alguien se pondrá en contacto con usted lo antes posible.",
+    10037:
+      "✔️ Tu estado de seguridad se envió a <IncidentCreator>. Alguien se pondrá en contacto contigo lo antes posible.",
+    10038:
+      "✔️ Din säkerhetsstatus har skickats till <IncidentCreator>. Någon kommer att kontakta dig så snart som möjligt.",
+    10039:
+      "✔️ สถานะความปลอดภัยของคุณถูกส่งไปยัง <IncidentCreator> แล้ว จะมีผู้ติดต่อกลับโดยเร็วที่สุด",
+    10040:
+      "✔️ Güvenlik durumunuz <IncidentCreator> kullanıcısına gönderildi. En kısa sürede biri sizinle iletişime geçecek.",
+    10041:
+      "✔️ Ваш статус безпеки надіслано користувачу <IncidentCreator>. Хтось зв'яжеться з вами якомога швидше.",
+    10042:
+      "✔️ Trạng thái an toàn của bạn đã được gửi đến <IncidentCreator>. Ai đó sẽ liên hệ với bạn sớm nhất có thể.",
+    10043:
+      "✔️ Anfonwyd eich statws diogelwch at <IncidentCreator>. Bydd rhywun yn cysylltu â chi cyn gynted â phosibl.",
+    10044:
+      "✔️ Zure segurtasun-egoera <IncidentCreator> erabiltzaileari bidali zaio. Norbait laster jarriko da harremanetan.",
+    10045:
+      "✔️ O seu estado de seguridade enviouse a <IncidentCreator>. Alguén porase en contacto contigo o antes posible.",
+    10046:
+      "✔️ Jou veiligheidstatus is na <IncidentCreator> gestuur. Iemand sal so gou moontlik met jou kontak maak.",
+    10047:
+      "✔️ Statusi juaj i sigurisë u dërgua te <IncidentCreator>. Dikush do t'ju kontaktojë sa më shpejt të jetë e mundur.",
+    10048:
+      "✔️ Ձեր անվտանգության կարգավիճակը ուղարկվել է <IncidentCreator> օգտատիրոջը։ Շուտով ինչ-որ մեկը կկապվի ձեզ հետ։",
+    10049:
+      "✔️ Təhlükəsizlik statusunuz <IncidentCreator> istifadəçisinə göndərildi. Tezliklə biri sizinlə əlaqə saxlayacaq.",
+    10050:
+      "✔️ Ваш статус бяспекі адпраўлены карыстальніку <IncidentCreator>. Хтось неўзабаве звяжацца з вамі.",
+    10051:
+      "✔️ Vaš sigurnosni status je poslan korisniku <IncidentCreator>. Neko će vas uskoro kontaktirati.",
+    10052:
+      "✔️ Naipadala na ang iyong safety status kay <IncidentCreator>. May makikipag-ugnayan sa iyo sa lalong madaling panahon.",
+    10053:
+      "✔️ თქვენი უსაფრთხოების სტატუსი გაეგზავნა <IncidentCreator>-ს. ვიღაც მალე დაგიკავშირდებათ.",
+    10054:
+      "✔️ Öryggisstaða þín hefur verið send til <IncidentCreator>. Einhver mun hafa samband við þig eins fljótt og auðið er.",
+    10055:
+      "✔️ Seoladh do stádas sábháilteachta chuig <IncidentCreator>. Déanfaidh duine éigin teagmháil leat chomh luath agus is féidir.",
+    10056:
+      "✔️ Сіздің қауіпсіздік мәртебеңіз <IncidentCreator> пайдаланушысына жіберілді. Біреу жақын арада хабарласады.",
+    10057:
+      "✔️ Вашиот безбедносен статус е испратен до <IncidentCreator>. Некој ќе ве контактира што е можно поскоро.",
+    10058:
+      "✔️ Таны аюулгүй байдлын төлөв <IncidentCreator> руу илгээгдлээ. Хэн нэгэн удахгүй холбогдоно.",
+    10059:
+      "✔️ وضعیت ایمنی شما به <IncidentCreator> ارسال شد. به زودی با شما تماس گرفته می‌شود.",
+    10060:
+      "✔️ Hali yako ya usalama imetumwa kwa <IncidentCreator>. Mtu atawasiliana nawe haraka iwezekanavyo.",
+    10061:
+      "✔️ உங்கள் பாதுகாப்பு நிலை <IncidentCreator> க்கு அனுப்பப்பட்டது. விரைவில் யாரோ உங்களை தொடர்பு கொள்வார்.",
+    10062:
+      "✔️ మీ భద్రతా స్థితి <IncidentCreator> కు పంపబడింది. ఎవరో త్వరలో మిమ్మల్ని సంప్రదిస్తారు.",
+    10063:
+      "✔️ آپ کی حفاظتی حیثیت <IncidentCreator> کو بھیج دی گئی ہے۔ کوئی جلد آپ سے رابطہ کرے گا۔",
+    10064:
+      "✔️ Xavfsizlik holatingiz <IncidentCreator> ga yuborildi. Tez orada kimdir siz bilan bog'lanadi.",
+  },
+  submitCommentWithMessage: {
+    10000:
+      "✔️ Your message has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10001:
+      "✔️ Votre message a été envoyé à <IncidentCreator>. Quelqu'un vous contactera dès que possible \n\n **{AdditionalCommentsLabel}** : {CommentVal}",
+    10002:
+      "✔️ Your message has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10003:
+      "✔️ تم إرسال رسالتك إلى <IncidentCreator>. سيتواصل معك أحد قريباً \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10004:
+      "✔️ Съобщението ви е изпратено до <IncidentCreator>. Някой ще се свърже с вас възможно най-скоро \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10005:
+      "✔️ El vostre missatge s'ha enviat a <IncidentCreator>. Algú es posarà en contacte amb vosaltres aviat \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10006:
+      "✔️ 您的消息已发送给 <IncidentCreator>。我们会尽快与您联系 \n\n **{AdditionalCommentsLabel}**：{CommentVal}",
+    10007:
+      "✔️ 您的訊息已傳送給 <IncidentCreator>。我們會盡快與您聯繫 \n\n **{AdditionalCommentsLabel}**：{CommentVal}",
+    10008:
+      "✔️ Vaša poruka je poslana korisniku <IncidentCreator>. Netko će vas uskoro kontaktirati \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10009:
+      "✔️ Vaše zpráva byla odeslána uživateli <IncidentCreator>. Někdo vás bude co nejdříve kontaktovat \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10010:
+      "✔️ Din besked er sendt til <IncidentCreator>. Nogen vil kontakte dig hurtigst muligt \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10011:
+      "✔️ Uw bericht is verzonden naar <IncidentCreator>. Iemand neemt zo snel mogelijk contact met u op \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10012:
+      "✔️ Teie sõnum on saadetud kasutajale <IncidentCreator>. Keegi võtab teiega peagi ühendust \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10013:
+      "✔️ Viestisi on lähetetty käyttäjälle <IncidentCreator>. Joku ottaa sinuun yhteyttä mahdollisimman pian \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10014:
+      "✔️ Votre message a été envoyé à <IncidentCreator>. Quelqu'un vous contactera dès que possible \n\n **{AdditionalCommentsLabel}** : {CommentVal}",
+    10015:
+      "✔️ Ihre Nachricht wurde an <IncidentCreator> gesendet. Jemand wird sich so schnell wie möglich bei Ihnen melden \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10016:
+      "✔️ Το μήνυμά σας στάλθηκε στον <IncidentCreator>. Κάποιος θα επικοινωνήσει μαζί σας το συντομότερο δυνατό \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10017:
+      "✔️ ההודעה שלך נשלחה אל <IncidentCreator>. מישהו ייצור איתך קשר בהקדם האפשרי \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10018:
+      "✔️ आपका संदेश <IncidentCreator> को भेज दिया गया है। कोई जल्द ही आपसे संपर्क करेगा \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10019:
+      "✔️ Üzenetét elküldtük <IncidentCreator> részére. Valaki hamarosan felveszi Önnel a kapcsolatot \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10020:
+      "✔️ Pesan Anda telah dikirim ke <IncidentCreator>. Seseorang akan segera menghubungi Anda \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10021:
+      "✔️ Il tuo messaggio è stato inviato a <IncidentCreator>. Qualcuno ti contatterà al più presto \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10022:
+      "✔️ メッセージは <IncidentCreator> に送信されました。できるだけ早くご連絡いたします \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10023:
+      "✔️ 귀하의 안전 상태가 <IncidentCreator>에게 전송되었습니다. 가능한 한 빨리 누군가가 연락드릴 것입니다. \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10024:
+      "✔️ Jūsu ziņojums ir nosūtīts lietotājam <IncidentCreator>. Kāds drīz ar jums sazināsies \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10025:
+      "✔️ Jūsų žinutė išsiųsta <IncidentCreator>. Netrukus su jumis susisieks specialistas \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10026:
+      "✔️ Mesej anda telah dihantar kepada <IncidentCreator>. Seseorang akan menghubungi anda secepat mungkin \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10027:
+      "✔️ Meldingen din er sendt til <IncidentCreator>. Noen vil kontakte deg så snart som mulig \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10028:
+      "✔️ Twoja wiadomość została wysłana do <IncidentCreator>. Ktoś skontaktuje się z Tobą jak najszybciej \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10029:
+      "✔️ Sua mensagem foi enviada para <IncidentCreator>. Alguém entrará em contato com você o mais breve possível \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10030:
+      "✔️ A sua mensagem foi enviada para <IncidentCreator>. Alguém entrará em contacto consigo o mais breve possível \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10031:
+      "✔️ Mesajul dvs. a fost trimis către <IncidentCreator>. Cineva vă va contacta cât mai curând \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10032:
+      "✔️ Ваше сообщение отправлено пользователю <IncidentCreator>. С вами свяжутся в ближайшее время \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10033:
+      "✔️ Vaša poruka je poslata korisniku <IncidentCreator>. Neko će vas uskoro kontaktirati \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10034:
+      "✔️ Vaša správa bola odoslaná používateľovi <IncidentCreator>. Niečo vás bude čoskoro kontaktovať \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10035:
+      "✔️ Vaše sporočilo je bilo poslano uporabniku <IncidentCreator>. Nekdo vas bo kmalu kontaktiral \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10036:
+      "✔️ Su mensaje se envió a <IncidentCreator>. Alguien se pondrá en contacto con usted lo antes posible \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10037:
+      "✔️ Tu mensaje se envió a <IncidentCreator>. Alguien se pondrá en contacto contigo lo antes posible \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10038:
+      "✔️ Ditt meddelande har skickats till <IncidentCreator>. Någon kommer att kontakta dig så snart som möjligt \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10039:
+      "✔️ ข้อความของคุณถูกส่งไปยัง <IncidentCreator> แล้ว จะมีผู้ติดต่อกลับโดยเร็วที่สุด \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10040:
+      "✔️ Mesajınız <IncidentCreator> kullanıcısına gönderildi. En kısa sürede biri sizinle iletişime geçecek \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10041:
+      "✔️ Ваше повідомлення надіслано користувачу <IncidentCreator>. Хтось зв'яжеться з вами якомога швидше \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10042:
+      "✔️ Tin nhắn của bạn đã được gửi đến <IncidentCreator>. Ai đó sẽ liên hệ với bạn sớm nhất có thể \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10043:
+      "✔️ Anfonwyd eich neges at <IncidentCreator>. Bydd rhywun yn cysylltu â chi cyn gynted â phosibl \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10044:
+      "✔️ Zure mezua <IncidentCreator> erabiltzaileari bidali zaio. Norbait laster jarriko da harremanetan \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10045:
+      "✔️ A súa mensaxe enviouse a <IncidentCreator>. Alguén porase en contacto contigo o antes posible \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10046:
+      "✔️ Jou boodskap is na <IncidentCreator> gestuur. Iemand sal so gou moontlik met jou kontak maak \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10047:
+      "✔️ Mesazhi juaj u dërgua te <IncidentCreator>. Dikush do t'ju kontaktojë sa më shpejt të jetë e mundur \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10048:
+      "✔️ Ձեր հաղորդագրությունը ուղարկվել է <IncidentCreator> օգտատիրոջը։ Շուտով ինչ-որ մեկը կկապվի ձեզ հետ \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10049:
+      "✔️ Mesajınız <IncidentCreator> istifadəçisinə göndərildi. Tezliklə biri sizinlə əlaqə saxlayacaq \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10050:
+      "✔️ Ваша паведамленне адпраўлена карыстальніку <IncidentCreator>. Хтось неўзабаве звяжацца з вамі \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10051:
+      "✔️ Vaša poruka je poslata korisniku <IncidentCreator>. Neko će vas uskoro kontaktirati \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10052:
+      "✔️ Naipadala na ang iyong mensahe kay <IncidentCreator>. May makikipag-ugnayan sa iyo sa lalong madaling panahon \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10053:
+      "✔️ თქვენი შეტყობინება გაეგზავნა <IncidentCreator>-ს. ვიღაც მალე დაგიკავშირდებათ \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10054:
+      "✔️ Skilaboð þitt hefur verið sent til <IncidentCreator>. Einhver mun hafa samband við þig eins fljótt og auðið er \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10055:
+      "✔️ Seoladh do theachtaireacht chuig <IncidentCreator>. Déanfaidh duine éigin teagmháil leat chomh luath agus is féidir \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10056:
+      "✔️ Хабарламаңыз <IncidentCreator> пайдаланушысына жіберілді. Біреу жақын арада хабарласады \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10057:
+      "✔️ Вашата порака е испратена до <IncidentCreator>. Некој ќе ве контактира што е можно поскоро \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10058:
+      "✔️ Таны зурвас <IncidentCreator> руу илгээгдлээ. Хэн нэгэн удахгүй холбогдоно \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10059:
+      "✔️ پیام شما به <IncidentCreator> ارسال شد. به زودی با شما تماس گرفته می‌شود \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10060:
+      "✔️ Ujumbe wako umetumwa kwa <IncidentCreator>. Mtu atawasiliana nawe haraka iwezekanavyo \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10061:
+      "✔️ உங்கள் செய்தி <IncidentCreator> க்கு அனுப்பப்பட்டது. விரைவில் யாரோ உங்களை தொடர்பு கொள்வார் \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10062:
+      "✔️ మీ సందేశం <IncidentCreator> కు పంపబడింది. ఎవరో త్వరలో మిమ్మల్ని సంప్రదిస్తారు \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10063:
+      "✔️ آپ کا پیغام <IncidentCreator> کو بھیج دیا گیا ہے۔ کوئی جلد آپ سے رابطہ کرے گا \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+    10064:
+      "✔️ Xabaringiz <IncidentCreator> ga yuborildi. Tez orada kimdir siz bilan bog'lanadi \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
   },
   saferesponsebtntext1: {
-    "10000": "Thank you for your response. Your status has been recorded and shared with <IncidentCreator>",
-    "10001": "Merci pour votre réponse. Votre statut a été enregistré et partagé avec <IncidentCreator>",
-    "10002": "Thank you for your response. Your status has been recorded and shared with <IncidentCreator>",
-    "10003": "شكراً لردك. تم تسجيل حالتك ومشاركتها مع <IncidentCreator>",
-    "10004": "Благодарим ви за отговора. Вашият статус е записан и споделен с <IncidentCreator>",
-    "10005": "Gràcies per la vostra resposta. El vostre estat s'ha registrat i s'ha compartit amb <IncidentCreator>",
-    "10006": "感谢您的回复。您的状态已记录并与 <IncidentCreator> 共享",
-    "10007": "感謝您的回覆。您的狀態已記錄並與 <IncidentCreator> 共享",
-    "10008": "Hvala na odgovoru. Vaš status je zabilježen i podijeljen s <IncidentCreator>",
-    "10009": "Děkujeme za vaši odpověď. Váš stav byl zaznamenán a sdílen s uživatelem <IncidentCreator>",
-    "10010": "Tak for dit svar. Din status er blevet registreret og delt med <IncidentCreator>",
-    "10011": "Bedankt voor uw reactie. Uw status is geregistreerd en gedeeld met <IncidentCreator>",
-    "10012": "Täname vastuse eest. Teie staatus on salvestatud ja jagatud kasutajaga <IncidentCreator>",
-    "10013": "Kiitos vastauksestasi. Tilasi on tallennettu ja jaettu käyttäjän <IncidentCreator> kanssa",
-    "10014": "Merci pour votre réponse. Votre statut a été enregistré et partagé avec <IncidentCreator>",
-    "10015": "Vielen Dank für Ihre Antwort. Ihr Status wurde erfasst und mit <IncidentCreator> geteilt",
-    "10016": "Σας ευχαριστούμε για την απάντησή σας. Η κατάστασή σας έχει καταγραφεί και κοινοποιηθεί στον <IncidentCreator>",
-    "10017": "תודה על תגובתך. הסטטוס שלך נרשם ושותף עם <IncidentCreator>",
-    "10018": "आपके जवाब के लिए धन्यवाद। आपकी स्थिति दर्ज की गई है और <IncidentCreator> के साथ साझा की गई है",
-    "10019": "Köszönjük a válaszát. Az állapota rögzítésre került és megosztásra került <IncidentCreator> felhasználóval",
-    "10020": "Terima kasih atas tanggapan Anda. Status Anda telah dicatat dan dibagikan dengan <IncidentCreator>",
-    "10021": "Grazie per la risposta. Il tuo stato è stato registrato e condiviso con <IncidentCreator>",
-    "10022": "ご回答ありがとうございます。あなたのステータスは記録され、<IncidentCreator> と共有されました",
-    "10023": "답변 감사합니다. 귀하의 상태가 기록되어 <IncidentCreator>와 공유되었습니다",
-    "10024": "Paldies par atbildi. Jūsu statuss ir reģistrēts un kopīgots ar lietotāju <IncidentCreator>",
-    "10025": "Dėkojame už atsakymą. Jūsų būsena užregistruota ir bendrinta su <IncidentCreator>",
-    "10026": "Terima kasih atas respons anda. Status anda telah direkodkan dan dikongsi dengan <IncidentCreator>",
-    "10027": "Takk for svaret. Statusen din er registrert og delt med <IncidentCreator>",
-    "10028": "Dziękujemy za odpowiedź. Twój status został zarejestrowany i udostępniony użytkownikowi <IncidentCreator>",
-    "10029": "Obrigado pela sua resposta. Seu status foi registrado e compartilhado com <IncidentCreator>",
-    "10030": "Obrigado pela sua resposta. O seu estado foi registado e partilhado com <IncidentCreator>",
-    "10031": "Vă mulțumim pentru răspuns. Starea dvs. a fost înregistrată și partajată cu <IncidentCreator>",
-    "10032": "Спасибо за ваш ответ. Ваш статус записан и передан пользователю <IncidentCreator>",
-    "10033": "Hvala na odgovoru. Vaš status je zabeležen i podeljen sa korisnikom <IncidentCreator>",
-    "10034": "Ďakujeme za vašu odpoveď. Váš stav bol zaznamenaný a zdieľaný s používateľom <IncidentCreator>",
-    "10035": "Hvala za odgovor. Vaš status je bil zabeležen in deljen z uporabnikom <IncidentCreator>",
-    "10036": "Gracias por su respuesta. Su estado ha sido registrado y compartido con <IncidentCreator>",
-    "10037": "Gracias por tu respuesta. Tu estado se registró y se compartió con <IncidentCreator>",
-    "10038": "Tack för ditt svar. Din status har registrerats och delats med <IncidentCreator>",
-    "10039": "ขอบคุณสำหรับการตอบกลับ สถานะของคุณได้รับการบันทึกและแชร์กับ <IncidentCreator> แล้ว",
-    "10040": "Yanıtınız için teşekkür ederiz. Durumunuz kaydedildi ve <IncidentCreator> ile paylaşıldı",
-    "10041": "Дякуємо за вашу відповідь. Ваш статус зафіксовано та передано користувачу <IncidentCreator>",
-    "10042": "Cảm ơn bạn đã phản hồi. Trạng thái của bạn đã được ghi nhận và chia sẻ với <IncidentCreator>",
-    "10043": "Diolch am eich ymateb. Mae eich statws wedi'i gofnodi a'i rannu gyda <IncidentCreator>",
-    "10044": "Eskerrik asko zure erantzunagatik. Zure egoera erregistratu eta <IncidentCreator> erabiltzailearekin partekatu da",
-    "10045": "Grazas pola súa resposta. O seu estado foi rexistrado e compartido con <IncidentCreator>",
-    "10046": "Dankie vir jou antwoord. Jou status is aangeteken en met <IncidentCreator> gedeel",
-    "10047": "Faleminderit për përgjigjen tuaj. Statusi juaj është regjistruar dhe ndarë me <IncidentCreator>",
-    "10048": "Շնորհակալություն պատասխանի համար: Ձեր կարգավիճակը գրանցվել է և համօգտագործվել է <IncidentCreator> հետ",
-    "10049": "Cavabınız üçün təşəkkür edirik. Statusunuz qeydə alınıb və <IncidentCreator> ilə paylaşılıb",
-    "10050": "Дзякуй за адказ. Ваш статус запісаны і перададзены <IncidentCreator>",
-    "10051": "Hvala na odgovoru. Vaš status je zabilježen i podijeljen sa <IncidentCreator>",
-    "10052": "Salamat sa iyong tugon. Naitala at naibahagi ang iyong status kay <IncidentCreator>",
-    "10053": "გმადლობთ პასუხისთვის. თქვენი სტატუსი ჩაიწერა და გაზიარდა <IncidentCreator>თან",
-    "10054": "Takk fyrir svaritið. Staða þín hefur verið skráð og deilt með <IncidentCreator>",
-    "10055": "Go raibh maith agat as do fhreagra. Tá do stádas taifeadta agus roinnte le <IncidentCreator>",
-    "10056": "Жауабыңызға рақмет. Статусыңыз тіркелді және <IncidentCreator> пайдаланушысымен бөлісілді",
-    "10057": "Ви благодариме за одговорот. Вашиот статус е евидентиран и споделен со <IncidentCreator>",
-    "10058": "Хариултаа өгсөнд баярлалаа. Таны төлөв бүртгэгдэж <IncidentCreator> хэрэглэгчтэй хуваалцсан",
-    "10059": "از پاسخ شما متشکریم. وضعیت شما ثبت و با <IncidentCreator> به اشتراک گذاشته شد",
-    "10060": "Asante kwa jibu lako. Hali yako imerekodiwa na kushirikiwa na <IncidentCreator>",
-    "10061": "உங்கள் பதிலுக்கு நன்றி. உங்கள் நிலை பதிவு செய்யப்பட்டு <IncidentCreator> உடன் பகிரப்பட்டது",
-    "10062": "మీ స్పందనకు ధన్యవాదాలు. మీ స్థితి నమోదు చేయబడి <IncidentCreator>తో పంచుకోబడింది",
-    "10063": "آپ کے جواب کا شکریہ۔ آپ کی حیثیت درج کر دی گئی ہے اور <IncidentCreator> کے ساتھ شیئر کر دی گئی ہے",
-    "10064": "Javobingiz uchun rahmat. Holatingiz qayd etildi va <IncidentCreator> bilan ulashildi",
+    10000:
+      "Thank you for your response. Your status has been recorded and shared with <IncidentCreator>",
+    10001:
+      "Merci pour votre réponse. Votre statut a été enregistré et partagé avec <IncidentCreator>",
+    10002:
+      "Thank you for your response. Your status has been recorded and shared with <IncidentCreator>",
+    10003: "شكراً لردك. تم تسجيل حالتك ومشاركتها مع <IncidentCreator>",
+    10004:
+      "Благодарим ви за отговора. Вашият статус е записан и споделен с <IncidentCreator>",
+    10005:
+      "Gràcies per la vostra resposta. El vostre estat s'ha registrat i s'ha compartit amb <IncidentCreator>",
+    10006: "感谢您的回复。您的状态已记录并与 <IncidentCreator> 共享",
+    10007: "感謝您的回覆。您的狀態已記錄並與 <IncidentCreator> 共享",
+    10008:
+      "Hvala na odgovoru. Vaš status je zabilježen i podijeljen s <IncidentCreator>",
+    10009:
+      "Děkujeme za vaši odpověď. Váš stav byl zaznamenán a sdílen s uživatelem <IncidentCreator>",
+    10010:
+      "Tak for dit svar. Din status er blevet registreret og delt med <IncidentCreator>",
+    10011:
+      "Bedankt voor uw reactie. Uw status is geregistreerd en gedeeld met <IncidentCreator>",
+    10012:
+      "Täname vastuse eest. Teie staatus on salvestatud ja jagatud kasutajaga <IncidentCreator>",
+    10013:
+      "Kiitos vastauksestasi. Tilasi on tallennettu ja jaettu käyttäjän <IncidentCreator> kanssa",
+    10014:
+      "Merci pour votre réponse. Votre statut a été enregistré et partagé avec <IncidentCreator>",
+    10015:
+      "Vielen Dank für Ihre Antwort. Ihr Status wurde erfasst und mit <IncidentCreator> geteilt",
+    10016:
+      "Σας ευχαριστούμε για την απάντησή σας. Η κατάστασή σας έχει καταγραφεί και κοινοποιηθεί στον <IncidentCreator>",
+    10017: "תודה על תגובתך. הסטטוס שלך נרשם ושותף עם <IncidentCreator>",
+    10018:
+      "आपके जवाब के लिए धन्यवाद। आपकी स्थिति दर्ज की गई है और <IncidentCreator> के साथ साझा की गई है",
+    10019:
+      "Köszönjük a válaszát. Az állapota rögzítésre került és megosztásra került <IncidentCreator> felhasználóval",
+    10020:
+      "Terima kasih atas tanggapan Anda. Status Anda telah dicatat dan dibagikan dengan <IncidentCreator>",
+    10021:
+      "Grazie per la risposta. Il tuo stato è stato registrato e condiviso con <IncidentCreator>",
+    10022:
+      "ご回答ありがとうございます。あなたのステータスは記録され、<IncidentCreator> と共有されました",
+    10023:
+      "답변 감사합니다. 귀하의 상태가 기록되어 <IncidentCreator>와 공유되었습니다",
+    10024:
+      "Paldies par atbildi. Jūsu statuss ir reģistrēts un kopīgots ar lietotāju <IncidentCreator>",
+    10025:
+      "Dėkojame už atsakymą. Jūsų būsena užregistruota ir bendrinta su <IncidentCreator>",
+    10026:
+      "Terima kasih atas respons anda. Status anda telah direkodkan dan dikongsi dengan <IncidentCreator>",
+    10027:
+      "Takk for svaret. Statusen din er registrert og delt med <IncidentCreator>",
+    10028:
+      "Dziękujemy za odpowiedź. Twój status został zarejestrowany i udostępniony użytkownikowi <IncidentCreator>",
+    10029:
+      "Obrigado pela sua resposta. Seu status foi registrado e compartilhado com <IncidentCreator>",
+    10030:
+      "Obrigado pela sua resposta. O seu estado foi registado e partilhado com <IncidentCreator>",
+    10031:
+      "Vă mulțumim pentru răspuns. Starea dvs. a fost înregistrată și partajată cu <IncidentCreator>",
+    10032:
+      "Спасибо за ваш ответ. Ваш статус записан и передан пользователю <IncidentCreator>",
+    10033:
+      "Hvala na odgovoru. Vaš status je zabeležen i podeljen sa korisnikom <IncidentCreator>",
+    10034:
+      "Ďakujeme za vašu odpoveď. Váš stav bol zaznamenaný a zdieľaný s používateľom <IncidentCreator>",
+    10035:
+      "Hvala za odgovor. Vaš status je bil zabeležen in deljen z uporabnikom <IncidentCreator>",
+    10036:
+      "Gracias por su respuesta. Su estado ha sido registrado y compartido con <IncidentCreator>",
+    10037:
+      "Gracias por tu respuesta. Tu estado se registró y se compartió con <IncidentCreator>",
+    10038:
+      "Tack för ditt svar. Din status har registrerats och delats med <IncidentCreator>",
+    10039:
+      "ขอบคุณสำหรับการตอบกลับ สถานะของคุณได้รับการบันทึกและแชร์กับ <IncidentCreator> แล้ว",
+    10040:
+      "Yanıtınız için teşekkür ederiz. Durumunuz kaydedildi ve <IncidentCreator> ile paylaşıldı",
+    10041:
+      "Дякуємо за вашу відповідь. Ваш статус зафіксовано та передано користувачу <IncidentCreator>",
+    10042:
+      "Cảm ơn bạn đã phản hồi. Trạng thái của bạn đã được ghi nhận và chia sẻ với <IncidentCreator>",
+    10043:
+      "Diolch am eich ymateb. Mae eich statws wedi'i gofnodi a'i rannu gyda <IncidentCreator>",
+    10044:
+      "Eskerrik asko zure erantzunagatik. Zure egoera erregistratu eta <IncidentCreator> erabiltzailearekin partekatu da",
+    10045:
+      "Grazas pola súa resposta. O seu estado foi rexistrado e compartido con <IncidentCreator>",
+    10046:
+      "Dankie vir jou antwoord. Jou status is aangeteken en met <IncidentCreator> gedeel",
+    10047:
+      "Faleminderit për përgjigjen tuaj. Statusi juaj është regjistruar dhe ndarë me <IncidentCreator>",
+    10048:
+      "Շնորհակալություն պատասխանի համար: Ձեր կարգավիճակը գրանցվել է և համօգտագործվել է <IncidentCreator> հետ",
+    10049:
+      "Cavabınız üçün təşəkkür edirik. Statusunuz qeydə alınıb və <IncidentCreator> ilə paylaşılıb",
+    10050:
+      "Дзякуй за адказ. Ваш статус запісаны і перададзены <IncidentCreator>",
+    10051:
+      "Hvala na odgovoru. Vaš status je zabilježen i podijeljen sa <IncidentCreator>",
+    10052:
+      "Salamat sa iyong tugon. Naitala at naibahagi ang iyong status kay <IncidentCreator>",
+    10053:
+      "გმადლობთ პასუხისთვის. თქვენი სტატუსი ჩაიწერა და გაზიარდა <IncidentCreator>თან",
+    10054:
+      "Takk fyrir svaritið. Staða þín hefur verið skráð og deilt með <IncidentCreator>",
+    10055:
+      "Go raibh maith agat as do fhreagra. Tá do stádas taifeadta agus roinnte le <IncidentCreator>",
+    10056:
+      "Жауабыңызға рақмет. Статусыңыз тіркелді және <IncidentCreator> пайдаланушысымен бөлісілді",
+    10057:
+      "Ви благодариме за одговорот. Вашиот статус е евидентиран и споделен со <IncidentCreator>",
+    10058:
+      "Хариултаа өгсөнд баярлалаа. Таны төлөв бүртгэгдэж <IncidentCreator> хэрэглэгчтэй хуваалцсан",
+    10059:
+      "از پاسخ شما متشکریم. وضعیت شما ثبت و با <IncidentCreator> به اشتراک گذاشته شد",
+    10060:
+      "Asante kwa jibu lako. Hali yako imerekodiwa na kushirikiwa na <IncidentCreator>",
+    10061:
+      "உங்கள் பதிலுக்கு நன்றி. உங்கள் நிலை பதிவு செய்யப்பட்டு <IncidentCreator> உடன் பகிரப்பட்டது",
+    10062:
+      "మీ స్పందనకు ధన్యవాదాలు. మీ స్థితి నమోదు చేయబడి <IncidentCreator>తో పంచుకోబడింది",
+    10063:
+      "آپ کے جواب کا شکریہ۔ آپ کی حیثیت درج کر دی گئی ہے اور <IncidentCreator> کے ساتھ شیئر کر دی گئی ہے",
+    10064:
+      "Javobingiz uchun rahmat. Holatingiz qayd etildi va <IncidentCreator> bilan ulashildi",
   },
   additionalComments: {
-    "10000": "Additional Comments",
-    "10001": "Commentaires supplémentaires",
-    "10002": "Additional Comments",
-    "10003": "تعليقات إضافية",
-    "10004": "Допълнителни коментари",
-    "10005": "Comentaris addicionals",
-    "10006": "附加评论",
-    "10007": "附加評論",
-    "10008": "Dodatni komentari",
-    "10009": "Další komentáře",
-    "10010": "Yderligere kommentarer",
-    "10011": "Aanvullende opmerkingen",
-    "10012": "Lisamärkused",
-    "10013": "Lisäkommentit",
-    "10014": "Commentaires supplémentaires",
-    "10015": "Zusätzliche Kommentare",
-    "10016": "Πρόσθετα σχόλια",
-    "10017": "הערות נוספות",
-    "10018": "अतिरिक्त टिप्पणियाँ",
-    "10019": "További megjegyzések",
-    "10020": "Komentar tambahan",
-    "10021": "Commenti aggiuntivi",
-    "10022": "追加コメント",
-    "10023": "추가 의견",
-    "10024": "Papildu komentāri",
-    "10025": "Papildomi komentarai",
-    "10026": "Komen tambahan",
-    "10027": "Tilleggskommentarer",
-    "10028": "Dodatkowe komentarze",
-    "10029": "Comentários adicionais",
-    "10030": "Comentários adicionais",
-    "10031": "Comentarii suplimentare",
-    "10032": "Дополнительные комментарии",
-    "10033": "Dodatni komentari",
-    "10034": "Ďalšie komentáre",
-    "10035": "Dodatni komentarji",
-    "10036": "Comentarios adicionales",
-    "10037": "Comentarios adicionales",
-    "10038": "Ytterligare kommentarer",
-    "10039": "ความคิดเห็นเพิ่มเติม",
-    "10040": "Ek yorumlar",
-    "10041": "Додаткові коментарі",
-    "10042": "Bình luận bổ sung",
-    "10043": "Sylwadau ychwanegol",
-    "10044": "Iruzkin gehigarriak",
-    "10045": "Comentarios adicionais",
-    "10046": "Bykomende opmerkings",
-    "10047": "Komente shtesë",
-    "10048": "Լրացուցիչ մեկնաբանություններ",
-    "10049": "Əlavə şərhlər",
-    "10050": "Дадатковыя каментары",
-    "10051": "Dodatni komentari",
-    "10052": "Karagdagang komento",
-    "10053": "დამატებითი კომენტარები",
-    "10054": "Viðbótarathugasemdir",
-    "10055": "Tuairimí breise",
-    "10056": "Қосымша пікірлер",
-    "10057": "Дополнителни коментари",
-    "10058": "Нэмэлт сэтгэгдэл",
-    "10059": "نظرات اضافی",
-    "10060": "Maoni ya ziada",
-    "10061": "கூடுதல் கருத்துகள்",
-    "10062": "అదనపు వ్యాఖ్యలు",
-    "10063": "اضافی تبصرے",
-    "10064": "Qo'shimcha izohlar",
+    10000: "Additional Comments",
+    10001: "Commentaires supplémentaires",
+    10002: "Additional Comments",
+    10003: "تعليقات إضافية",
+    10004: "Допълнителни коментари",
+    10005: "Comentaris addicionals",
+    10006: "附加评论",
+    10007: "附加評論",
+    10008: "Dodatni komentari",
+    10009: "Další komentáře",
+    10010: "Yderligere kommentarer",
+    10011: "Aanvullende opmerkingen",
+    10012: "Lisamärkused",
+    10013: "Lisäkommentit",
+    10014: "Commentaires supplémentaires",
+    10015: "Zusätzliche Kommentare",
+    10016: "Πρόσθετα σχόλια",
+    10017: "הערות נוספות",
+    10018: "अतिरिक्त टिप्पणियाँ",
+    10019: "További megjegyzések",
+    10020: "Komentar tambahan",
+    10021: "Commenti aggiuntivi",
+    10022: "追加コメント",
+    10023: "추가 의견",
+    10024: "Papildu komentāri",
+    10025: "Papildomi komentarai",
+    10026: "Komen tambahan",
+    10027: "Tilleggskommentarer",
+    10028: "Dodatkowe komentarze",
+    10029: "Comentários adicionais",
+    10030: "Comentários adicionais",
+    10031: "Comentarii suplimentare",
+    10032: "Дополнительные комментарии",
+    10033: "Dodatni komentari",
+    10034: "Ďalšie komentáre",
+    10035: "Dodatni komentarji",
+    10036: "Comentarios adicionales",
+    10037: "Comentarios adicionales",
+    10038: "Ytterligare kommentarer",
+    10039: "ความคิดเห็นเพิ่มเติม",
+    10040: "Ek yorumlar",
+    10041: "Додаткові коментарі",
+    10042: "Bình luận bổ sung",
+    10043: "Sylwadau ychwanegol",
+    10044: "Iruzkin gehigarriak",
+    10045: "Comentarios adicionais",
+    10046: "Bykomende opmerkings",
+    10047: "Komente shtesë",
+    10048: "Լրացուցիչ մեկնաբանություններ",
+    10049: "Əlavə şərhlər",
+    10050: "Дадатковыя каментары",
+    10051: "Dodatni komentari",
+    10052: "Karagdagang komento",
+    10053: "დამატებითი კომენტარები",
+    10054: "Viðbótarathugasemdir",
+    10055: "Tuairimí breise",
+    10056: "Қосымша пікірлер",
+    10057: "Дополнителни коментари",
+    10058: "Нэмэлт сэтгэгдэл",
+    10059: "نظرات اضافی",
+    10060: "Maoni ya ziada",
+    10061: "கூடுதல் கருத்துகள்",
+    10062: "అదనపు వ్యాఖ్యలు",
+    10063: "اضافی تبصرے",
+    10064: "Qo'shimcha izohlar",
   },
   sendButton: {
-    "10000": "Send",
-    "10001": "Envoyer",
-    "10002": "Send",
-    "10003": "إرسال",
-    "10004": "Изпрати",
-    "10005": "Enviar",
-    "10006": "发送",
-    "10007": "傳送",
-    "10008": "Pošalji",
-    "10009": "Odeslat",
-    "10010": "Send",
-    "10011": "Verzenden",
-    "10012": "Saada",
-    "10013": "Lähetä",
-    "10014": "Envoyer",
-    "10015": "Senden",
-    "10016": "Αποστολή",
-    "10017": "שלח",
-    "10018": "भेजें",
-    "10019": "Küldés",
-    "10020": "Kirim",
-    "10021": "Invia",
-    "10022": "送信",
-    "10023": "보내기",
-    "10024": "Sūtīt",
-    "10025": "Siųsti",
-    "10026": "Hantar",
-    "10027": "Send",
-    "10028": "Wyślij",
-    "10029": "Enviar",
-    "10030": "Enviar",
-    "10031": "Trimite",
-    "10032": "Отправить",
-    "10033": "Pošalji",
-    "10034": "Odoslať",
-    "10035": "Pošlji",
-    "10036": "Enviar",
-    "10037": "Enviar",
-    "10038": "Skicka",
-    "10039": "ส่ง",
-    "10040": "Gönder",
-    "10041": "Надіслати",
-    "10042": "Gửi",
-    "10043": "Anfon",
-    "10044": "Bidali",
-    "10045": "Enviar",
-    "10046": "Stuur",
-    "10047": "Dërgo",
-    "10048": "Ուղարկել",
-    "10049": "Göndər",
-    "10050": "Адправіць",
-    "10051": "Pošalji",
-    "10052": "Ipadala",
-    "10053": "გაგზავნა",
-    "10054": "Senda",
-    "10055": "Seol",
-    "10056": "Жіберу",
-    "10057": "Испрати",
-    "10058": "Илгээх",
-    "10059": "ارسال",
-    "10060": "Tuma",
-    "10061": "அனுப்பு",
-    "10062": "పంపు",
-    "10063": "بھیجیں",
-    "10064": "Yuborish",
+    10000: "Send",
+    10001: "Envoyer",
+    10002: "Send",
+    10003: "إرسال",
+    10004: "Изпрати",
+    10005: "Enviar",
+    10006: "发送",
+    10007: "傳送",
+    10008: "Pošalji",
+    10009: "Odeslat",
+    10010: "Send",
+    10011: "Verzenden",
+    10012: "Saada",
+    10013: "Lähetä",
+    10014: "Envoyer",
+    10015: "Senden",
+    10016: "Αποστολή",
+    10017: "שלח",
+    10018: "भेजें",
+    10019: "Küldés",
+    10020: "Kirim",
+    10021: "Invia",
+    10022: "送信",
+    10023: "보내기",
+    10024: "Sūtīt",
+    10025: "Siųsti",
+    10026: "Hantar",
+    10027: "Send",
+    10028: "Wyślij",
+    10029: "Enviar",
+    10030: "Enviar",
+    10031: "Trimite",
+    10032: "Отправить",
+    10033: "Pošalji",
+    10034: "Odoslať",
+    10035: "Pošlji",
+    10036: "Enviar",
+    10037: "Enviar",
+    10038: "Skicka",
+    10039: "ส่ง",
+    10040: "Gönder",
+    10041: "Надіслати",
+    10042: "Gửi",
+    10043: "Anfon",
+    10044: "Bidali",
+    10045: "Enviar",
+    10046: "Stuur",
+    10047: "Dërgo",
+    10048: "Ուղարկել",
+    10049: "Göndər",
+    10050: "Адправіць",
+    10051: "Pošalji",
+    10052: "Ipadala",
+    10053: "გაგზავნა",
+    10054: "Senda",
+    10055: "Seol",
+    10056: "Жіберу",
+    10057: "Испрати",
+    10058: "Илгээх",
+    10059: "ارسال",
+    10060: "Tuma",
+    10061: "அனுப்பு",
+    10062: "పంపు",
+    10063: "بھیجیں",
+    10064: "Yuborish",
   },
   userRespondedNotification: {
-    "10000": "User **<at>{ResponderName}</at>** responded **{ResponseOption}** for Incident: **{IncidentTitle}** ",
-    "10001": "L'utilisateur **<at>{ResponderName}</at>** a répondu **{ResponseOption}** pour l'incident : **{IncidentTitle}** ",
-    "10002": "User **<at>{ResponderName}</at>** responded **{ResponseOption}** for Incident: **{IncidentTitle}** ",
-    "10003": "المستخدم **<at>{ResponderName}</at>** رد **{ResponseOption}** على الحادث: **{IncidentTitle}** ",
-    "10004": "Потребителят **<at>{ResponderName}</at>** отговори **{ResponseOption}** за инцидента: **{IncidentTitle}** ",
-    "10005": "L'usuari **<at>{ResponderName}</at>** ha respost **{ResponseOption}** per a l'incident: **{IncidentTitle}** ",
-    "10006": "用户 **<at>{ResponderName}</at>** 对事件 **{IncidentTitle}** 回复了 **{ResponseOption}** ",
-    "10007": "使用者 **<at>{ResponderName}</at>** 對事件 **{IncidentTitle}** 回覆了 **{ResponseOption}** ",
-    "10008": "Korisnik **<at>{ResponderName}</at>** je odgovorio **{ResponseOption}** za incident: **{IncidentTitle}** ",
-    "10009": "Uživatel **<at>{ResponderName}</at>** odpověděl **{ResponseOption}** na incident: **{IncidentTitle}** ",
-    "10010": "Brugeren **<at>{ResponderName}</at>** svarede **{ResponseOption}** for hændelsen: **{IncidentTitle}** ",
-    "10011": "Gebruiker **<at>{ResponderName}</at>** heeft **{ResponseOption}** geantwoord voor incident: **{IncidentTitle}** ",
-    "10012": "Kasutaja **<at>{ResponderName}</at>** vastas **{ResponseOption}** juhtumi kohta: **{IncidentTitle}** ",
-    "10013": "Käyttäjä **<at>{ResponderName}</at>** vastasi **{ResponseOption}** tapaukseen: **{IncidentTitle}** ",
-    "10014": "L'utilisateur **<at>{ResponderName}</at>** a répondu **{ResponseOption}** pour l'incident : **{IncidentTitle}** ",
-    "10015": "Benutzer **<at>{ResponderName}</at>** hat **{ResponseOption}** für Vorfall **{IncidentTitle}** geantwortet ",
-    "10016": "Ο χρήστης **<at>{ResponderName}</at>** απάντησε **{ResponseOption}** για το περιστατικό: **{IncidentTitle}** ",
-    "10017": "המשתמש **<at>{ResponderName}</at>** הגיב **{ResponseOption}** לאירוע: **{IncidentTitle}** ",
-    "10018": "उपयोगकर्ता **<at>{ResponderName}</at>** ने घटना **{IncidentTitle}** के लिए **{ResponseOption}** उत्तर दिया ",
-    "10019": "A felhasználó **<at>{ResponderName}</at>** **{ResponseOption}** választ adott az incidensre: **{IncidentTitle}** ",
-    "10020": "Pengguna **<at>{ResponderName}</at>** merespons **{ResponseOption}** untuk Insiden: **{IncidentTitle}** ",
-    "10021": "L'utente **<at>{ResponderName}</at>** ha risposto **{ResponseOption}** per l'incidente: **{IncidentTitle}** ",
-    "10022": "ユーザー **<at>{ResponderName}</at>** がインシデント **{IncidentTitle}** に **{ResponseOption}** と回答しました ",
-    "10023": "사용자 **<at>{ResponderName}</at>** 님이 사건 **{IncidentTitle}** 에 **{ResponseOption}** 으로 응답했습니다 ",
-    "10024": "Lietotājs **<at>{ResponderName}</at>** atbildēja **{ResponseOption}** incidentam: **{IncidentTitle}** ",
-    "10025": "Vartotojas **<at>{ResponderName}</at>** atsakė **{ResponseOption}** incidentui: **{IncidentTitle}** ",
-    "10026": "Pengguna **<at>{ResponderName}</at>** membalas **{ResponseOption}** untuk Insiden: **{IncidentTitle}** ",
-    "10027": "Brukeren **<at>{ResponderName}</at>** svarte **{ResponseOption}** for hendelsen: **{IncidentTitle}** ",
-    "10028": "Użytkownik **<at>{ResponderName}</at>** odpowiedział **{ResponseOption}** na incydent: **{IncidentTitle}** ",
-    "10029": "O usuário **<at>{ResponderName}</at>** respondeu **{ResponseOption}** para o incidente: **{IncidentTitle}** ",
-    "10030": "O utilizador **<at>{ResponderName}</at>** respondeu **{ResponseOption}** para o incidente: **{IncidentTitle}** ",
-    "10031": "Utilizatorul **<at>{ResponderName}</at>** a răspuns **{ResponseOption}** pentru incidentul: **{IncidentTitle}** ",
-    "10032": "Пользователь **<at>{ResponderName}</at>** ответил **{ResponseOption}** по инциденту: **{IncidentTitle}** ",
-    "10033": "Korisnik **<at>{ResponderName}</at>** je odgovorio **{ResponseOption}** za incident: **{IncidentTitle}** ",
-    "10034": "Používateľ **<at>{ResponderName}</at>** odpovedal **{ResponseOption}** na incident: **{IncidentTitle}** ",
-    "10035": "Uporabnik **<at>{ResponderName}</at>** je odgovoril **{ResponseOption}** na incident: **{IncidentTitle}** ",
-    "10036": "El usuario **<at>{ResponderName}</at>** respondió **{ResponseOption}** para el incidente: **{IncidentTitle}** ",
-    "10037": "El usuario **<at>{ResponderName}</at>** respondió **{ResponseOption}** para el incidente: **{IncidentTitle}** ",
-    "10038": "Användaren **<at>{ResponderName}</at>** svarade **{ResponseOption}** för incidenten: **{IncidentTitle}** ",
-    "10039": "ผู้ใช้ **<at>{ResponderName}</at>** ตอบกลับ **{ResponseOption}** สำหรับเหตุการณ์: **{IncidentTitle}** ",
-    "10040": "Kullanıcı **<at>{ResponderName}</at>** olay için **{ResponseOption}** yanıtı verdi: **{IncidentTitle}** ",
-    "10041": "Користувач **<at>{ResponderName}</at>** відповів **{ResponseOption}** на інцидент: **{IncidentTitle}** ",
-    "10042": "Người dùng **<at>{ResponderName}</at>** đã phản hồi **{ResponseOption}** cho sự cố: **{IncidentTitle}** ",
-    "10043": "Defnyddiwr **<at>{ResponderName}</at>** ymatebodd **{ResponseOption}** ar gyfer Digwyddiad: **{IncidentTitle}** ",
-    "10044": "Erabiltzaileak **<at>{ResponderName}</at>** erantzun du **{ResponseOption}** gertakari honetarako: **{IncidentTitle}** ",
-    "10045": "O usuario **<at>{ResponderName}</at>** respondeu **{ResponseOption}** para o incidente: **{IncidentTitle}** ",
-    "10046": "Gebruiker **<at>{ResponderName}</at>** het **{ResponseOption}** geantwoord vir Voorval: **{IncidentTitle}** ",
-    "10047": "Përdoruesi **<at>{ResponderName}</at>** përgjigjur **{ResponseOption}** për incidentin: **{IncidentTitle}** ",
-    "10048": "Օգտատերը **<at>{ResponderName}</at>** պատասխանել է **{ResponseOption}** դեպքի համար՝ **{IncidentTitle}** ",
-    "10049": "İstifadəçi **<at>{ResponderName}</at>** hadisə üçün **{ResponseOption}** cavab verdi: **{IncidentTitle}** ",
-    "10050": "Карыстальнік **<at>{ResponderName}</at>** адказаў **{ResponseOption}** на інцыдэнт: **{IncidentTitle}** ",
-    "10051": "Korisnik **<at>{ResponderName}</at>** je odgovorio **{ResponseOption}** za incident: **{IncidentTitle}** ",
-    "10052": "Ang user na **<at>{ResponderName}</at>** ay tumugon ng **{ResponseOption}** para sa Insidente: **{IncidentTitle}** ",
-    "10053": "მომხმარებელმა **<at>{ResponderName}</at>** უპასუხა **{ResponseOption}** ინციდენტზე: **{IncidentTitle}** ",
-    "10054": "Notandinn **<at>{ResponderName}</at>** svaraði **{ResponseOption}** fyrir atvik: **{IncidentTitle}** ",
-    "10055": "D'fhreagair an t-úsáideoir **<at>{ResponderName}</at>** **{ResponseOption}** don eachtra: **{IncidentTitle}** ",
-    "10056": "Пайдаланушы **<at>{ResponderName}</at>** оқиғаға **{ResponseOption}** жауап берді: **{IncidentTitle}** ",
-    "10057": "Корисникот **<at>{ResponderName}</at>** одговори **{ResponseOption}** за инцидентот: **{IncidentTitle}** ",
-    "10058": "Хэрэглэгч **<at>{ResponderName}</at>** **{IncidentTitle}** үйл явдалд **{ResponseOption}** гэж хариулсан ",
-    "10059": "کاربر **<at>{ResponderName}</at>** برای رویداد **{IncidentTitle}** پاسخ **{ResponseOption}** داد ",
-    "10060": "Mtumiaji **<at>{ResponderName}</at>** alijibu **{ResponseOption}** kwa Tukio: **{IncidentTitle}** ",
-    "10061": "பயனர் **<at>{ResponderName}</at>** சம்பவத்திற்கு **{ResponseOption}** என பதிலளித்தார்: **{IncidentTitle}** ",
-    "10062": "వినియోగదారు **<at>{ResponderName}</at>** సంఘటన **{IncidentTitle}** కు **{ResponseOption}** అని స్పందించారు ",
-    "10063": "صارف **<at>{ResponderName}</at>** نے واقعے **{IncidentTitle}** کے لیے **{ResponseOption}** جواب دیا ",
-    "10064": "Foydalanuvchi **<at>{ResponderName}</at>** hodisa uchun **{ResponseOption}** javob berdi: **{IncidentTitle}** ",
+    10000:
+      "User **<at>{ResponderName}</at>** responded **{ResponseOption}** for Incident: **{IncidentTitle}** ",
+    10001:
+      "L'utilisateur **<at>{ResponderName}</at>** a répondu **{ResponseOption}** pour l'incident : **{IncidentTitle}** ",
+    10002:
+      "User **<at>{ResponderName}</at>** responded **{ResponseOption}** for Incident: **{IncidentTitle}** ",
+    10003:
+      "المستخدم **<at>{ResponderName}</at>** رد **{ResponseOption}** على الحادث: **{IncidentTitle}** ",
+    10004:
+      "Потребителят **<at>{ResponderName}</at>** отговори **{ResponseOption}** за инцидента: **{IncidentTitle}** ",
+    10005:
+      "L'usuari **<at>{ResponderName}</at>** ha respost **{ResponseOption}** per a l'incident: **{IncidentTitle}** ",
+    10006:
+      "用户 **<at>{ResponderName}</at>** 对事件 **{IncidentTitle}** 回复了 **{ResponseOption}** ",
+    10007:
+      "使用者 **<at>{ResponderName}</at>** 對事件 **{IncidentTitle}** 回覆了 **{ResponseOption}** ",
+    10008:
+      "Korisnik **<at>{ResponderName}</at>** je odgovorio **{ResponseOption}** za incident: **{IncidentTitle}** ",
+    10009:
+      "Uživatel **<at>{ResponderName}</at>** odpověděl **{ResponseOption}** na incident: **{IncidentTitle}** ",
+    10010:
+      "Brugeren **<at>{ResponderName}</at>** svarede **{ResponseOption}** for hændelsen: **{IncidentTitle}** ",
+    10011:
+      "Gebruiker **<at>{ResponderName}</at>** heeft **{ResponseOption}** geantwoord voor incident: **{IncidentTitle}** ",
+    10012:
+      "Kasutaja **<at>{ResponderName}</at>** vastas **{ResponseOption}** juhtumi kohta: **{IncidentTitle}** ",
+    10013:
+      "Käyttäjä **<at>{ResponderName}</at>** vastasi **{ResponseOption}** tapaukseen: **{IncidentTitle}** ",
+    10014:
+      "L'utilisateur **<at>{ResponderName}</at>** a répondu **{ResponseOption}** pour l'incident : **{IncidentTitle}** ",
+    10015:
+      "Benutzer **<at>{ResponderName}</at>** hat **{ResponseOption}** für Vorfall **{IncidentTitle}** geantwortet ",
+    10016:
+      "Ο χρήστης **<at>{ResponderName}</at>** απάντησε **{ResponseOption}** για το περιστατικό: **{IncidentTitle}** ",
+    10017:
+      "המשתמש **<at>{ResponderName}</at>** הגיב **{ResponseOption}** לאירוע: **{IncidentTitle}** ",
+    10018:
+      "उपयोगकर्ता **<at>{ResponderName}</at>** ने घटना **{IncidentTitle}** के लिए **{ResponseOption}** उत्तर दिया ",
+    10019:
+      "A felhasználó **<at>{ResponderName}</at>** **{ResponseOption}** választ adott az incidensre: **{IncidentTitle}** ",
+    10020:
+      "Pengguna **<at>{ResponderName}</at>** merespons **{ResponseOption}** untuk Insiden: **{IncidentTitle}** ",
+    10021:
+      "L'utente **<at>{ResponderName}</at>** ha risposto **{ResponseOption}** per l'incidente: **{IncidentTitle}** ",
+    10022:
+      "ユーザー **<at>{ResponderName}</at>** がインシデント **{IncidentTitle}** に **{ResponseOption}** と回答しました ",
+    10023:
+      "사용자 **<at>{ResponderName}</at>** 님이 사건 **{IncidentTitle}** 에 **{ResponseOption}** 으로 응답했습니다 ",
+    10024:
+      "Lietotājs **<at>{ResponderName}</at>** atbildēja **{ResponseOption}** incidentam: **{IncidentTitle}** ",
+    10025:
+      "Vartotojas **<at>{ResponderName}</at>** atsakė **{ResponseOption}** incidentui: **{IncidentTitle}** ",
+    10026:
+      "Pengguna **<at>{ResponderName}</at>** membalas **{ResponseOption}** untuk Insiden: **{IncidentTitle}** ",
+    10027:
+      "Brukeren **<at>{ResponderName}</at>** svarte **{ResponseOption}** for hendelsen: **{IncidentTitle}** ",
+    10028:
+      "Użytkownik **<at>{ResponderName}</at>** odpowiedział **{ResponseOption}** na incydent: **{IncidentTitle}** ",
+    10029:
+      "O usuário **<at>{ResponderName}</at>** respondeu **{ResponseOption}** para o incidente: **{IncidentTitle}** ",
+    10030:
+      "O utilizador **<at>{ResponderName}</at>** respondeu **{ResponseOption}** para o incidente: **{IncidentTitle}** ",
+    10031:
+      "Utilizatorul **<at>{ResponderName}</at>** a răspuns **{ResponseOption}** pentru incidentul: **{IncidentTitle}** ",
+    10032:
+      "Пользователь **<at>{ResponderName}</at>** ответил **{ResponseOption}** по инциденту: **{IncidentTitle}** ",
+    10033:
+      "Korisnik **<at>{ResponderName}</at>** je odgovorio **{ResponseOption}** za incident: **{IncidentTitle}** ",
+    10034:
+      "Používateľ **<at>{ResponderName}</at>** odpovedal **{ResponseOption}** na incident: **{IncidentTitle}** ",
+    10035:
+      "Uporabnik **<at>{ResponderName}</at>** je odgovoril **{ResponseOption}** na incident: **{IncidentTitle}** ",
+    10036:
+      "El usuario **<at>{ResponderName}</at>** respondió **{ResponseOption}** para el incidente: **{IncidentTitle}** ",
+    10037:
+      "El usuario **<at>{ResponderName}</at>** respondió **{ResponseOption}** para el incidente: **{IncidentTitle}** ",
+    10038:
+      "Användaren **<at>{ResponderName}</at>** svarade **{ResponseOption}** för incidenten: **{IncidentTitle}** ",
+    10039:
+      "ผู้ใช้ **<at>{ResponderName}</at>** ตอบกลับ **{ResponseOption}** สำหรับเหตุการณ์: **{IncidentTitle}** ",
+    10040:
+      "Kullanıcı **<at>{ResponderName}</at>** olay için **{ResponseOption}** yanıtı verdi: **{IncidentTitle}** ",
+    10041:
+      "Користувач **<at>{ResponderName}</at>** відповів **{ResponseOption}** на інцидент: **{IncidentTitle}** ",
+    10042:
+      "Người dùng **<at>{ResponderName}</at>** đã phản hồi **{ResponseOption}** cho sự cố: **{IncidentTitle}** ",
+    10043:
+      "Defnyddiwr **<at>{ResponderName}</at>** ymatebodd **{ResponseOption}** ar gyfer Digwyddiad: **{IncidentTitle}** ",
+    10044:
+      "Erabiltzaileak **<at>{ResponderName}</at>** erantzun du **{ResponseOption}** gertakari honetarako: **{IncidentTitle}** ",
+    10045:
+      "O usuario **<at>{ResponderName}</at>** respondeu **{ResponseOption}** para o incidente: **{IncidentTitle}** ",
+    10046:
+      "Gebruiker **<at>{ResponderName}</at>** het **{ResponseOption}** geantwoord vir Voorval: **{IncidentTitle}** ",
+    10047:
+      "Përdoruesi **<at>{ResponderName}</at>** përgjigjur **{ResponseOption}** për incidentin: **{IncidentTitle}** ",
+    10048:
+      "Օգտատերը **<at>{ResponderName}</at>** պատասխանել է **{ResponseOption}** դեպքի համար՝ **{IncidentTitle}** ",
+    10049:
+      "İstifadəçi **<at>{ResponderName}</at>** hadisə üçün **{ResponseOption}** cavab verdi: **{IncidentTitle}** ",
+    10050:
+      "Карыстальнік **<at>{ResponderName}</at>** адказаў **{ResponseOption}** на інцыдэнт: **{IncidentTitle}** ",
+    10051:
+      "Korisnik **<at>{ResponderName}</at>** je odgovorio **{ResponseOption}** za incident: **{IncidentTitle}** ",
+    10052:
+      "Ang user na **<at>{ResponderName}</at>** ay tumugon ng **{ResponseOption}** para sa Insidente: **{IncidentTitle}** ",
+    10053:
+      "მომხმარებელმა **<at>{ResponderName}</at>** უპასუხა **{ResponseOption}** ინციდენტზე: **{IncidentTitle}** ",
+    10054:
+      "Notandinn **<at>{ResponderName}</at>** svaraði **{ResponseOption}** fyrir atvik: **{IncidentTitle}** ",
+    10055:
+      "D'fhreagair an t-úsáideoir **<at>{ResponderName}</at>** **{ResponseOption}** don eachtra: **{IncidentTitle}** ",
+    10056:
+      "Пайдаланушы **<at>{ResponderName}</at>** оқиғаға **{ResponseOption}** жауап берді: **{IncidentTitle}** ",
+    10057:
+      "Корисникот **<at>{ResponderName}</at>** одговори **{ResponseOption}** за инцидентот: **{IncidentTitle}** ",
+    10058:
+      "Хэрэглэгч **<at>{ResponderName}</at>** **{IncidentTitle}** үйл явдалд **{ResponseOption}** гэж хариулсан ",
+    10059:
+      "کاربر **<at>{ResponderName}</at>** برای رویداد **{IncidentTitle}** پاسخ **{ResponseOption}** داد ",
+    10060:
+      "Mtumiaji **<at>{ResponderName}</at>** alijibu **{ResponseOption}** kwa Tukio: **{IncidentTitle}** ",
+    10061:
+      "பயனர் **<at>{ResponderName}</at>** சம்பவத்திற்கு **{ResponseOption}** என பதிலளித்தார்: **{IncidentTitle}** ",
+    10062:
+      "వినియోగదారు **<at>{ResponderName}</at>** సంఘటన **{IncidentTitle}** కు **{ResponseOption}** అని స్పందించారు ",
+    10063:
+      "صارف **<at>{ResponderName}</at>** نے واقعے **{IncidentTitle}** کے لیے **{ResponseOption}** جواب دیا ",
+    10064:
+      "Foydalanuvchi **<at>{ResponderName}</at>** hodisa uchun **{ResponseOption}** javob berdi: **{IncidentTitle}** ",
   },
 };
 

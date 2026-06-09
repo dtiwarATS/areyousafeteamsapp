@@ -63,6 +63,7 @@ const { processSafetyBotError } = require("../models/processError");
 const {
   getBotStaticText,
   applyBotStaticPlaceholders,
+  buildSubmitCommentResponseText,
 } = require("../utils/botStaticTranslations");
 const dashboard = require("../models/dashboard");
 const {
@@ -1267,9 +1268,11 @@ WHEN NOT MATCHED THEN
         } = action.data;
         let incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance; //? incGuidance : "No details available";
-        let responseText = commentVal
-          ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible \n\n **Additional Comments**: ${commentVal}`
-          : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible.`;
+        const responseText = buildSubmitCommentResponseText(
+          commentVal,
+          incCreatedBy,
+          resolvedLanguageId,
+        );
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),
         );
@@ -1342,12 +1345,20 @@ WHEN NOT MATCHED THEN
           incCreatedBy,
           eventResponse,
           commentVal,
+          resolvedLanguageId,
         } = action.data;
         let incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance; //? incGuidance : "No details available";
-        let responseText = commentVal
-          ? `✔️ Your message has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`
-          : `✔️ Your safety status has been sent to <at>${incCreatedBy.name}</at>. Someone will be in touch with you as soon as possible`;
+        const languageId =
+          resolvedLanguageId ||
+          (await incidentService.getUserLanguageIdByAadObjId(
+            context.activity.from.aadObjectId,
+          ));
+        const responseText = buildSubmitCommentResponseText(
+          commentVal,
+          incCreatedBy,
+          languageId,
+        );
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),
         );
