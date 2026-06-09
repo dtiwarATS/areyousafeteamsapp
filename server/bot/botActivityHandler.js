@@ -60,6 +60,10 @@ const {
 } = require("../models/UpdateCards");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
+const {
+  getBotStaticText,
+  applyBotStaticPlaceholders,
+} = require("../utils/botStaticTranslations");
 const dashboard = require("../models/dashboard");
 const {
   getWelcomeMessageCard,
@@ -1352,7 +1356,7 @@ WHEN NOT MATCHED THEN
       } else if (uVerb === "send_response") {
         log.addLog("After Click On Im_Safte or need assistance start. ");
         const action = context.activity.value.action;
-        const { info: response, inc, companyData } = action.data;
+        const { info: response, inc, companyData, languageId } = action.data;
         const { incId, incTitle, incCreatedBy } = inc;
         log.addLog(
           `After Click On Im_Safte or need assistance start.:${incId} `,
@@ -1364,13 +1368,16 @@ WHEN NOT MATCHED THEN
             status: StatusCodes.OK,
           };
         }
-        let responseText = "";
-        if (response === "i_am_safe") {
-          responseText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
-        } else {
-          responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
-        }
-        responseText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
+
+        const defaultThankYouText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
+        let responseText = getBotStaticText(
+          "saferesponsebtntext1",
+          languageId,
+          defaultThankYouText,
+        );
+        responseText = applyBotStaticPlaceholders(responseText, {
+          incidentCreator: incCreatedBy,
+        });
         const entities = {
           type: "mention",
           text: `<at>${incCreatedBy.name}</at>`,
@@ -1401,6 +1408,7 @@ WHEN NOT MATCHED THEN
             companyData,
             inc,
             incGuidance,
+            languageId,
           ),
         );
         await context.sendActivity({

@@ -67,6 +67,12 @@ const {
   updateSafeMessageqestion2,
   updateSafeMessageqestion3,
 } = require("../models/UpdateCards");
+const {
+  getBotStaticText,
+  applyBotStaticPlaceholders,
+  buildUserRespondedCard,
+  DEFAULT_LANGUAGE_ID,
+} = require("../utils/botStaticTranslations");
 
 const newIncident = require("../view/newIncident");
 const { processSafetyBotError } = require("../models/processError");
@@ -1527,6 +1533,7 @@ const sendApprovalResponseToSelectedMembers = async (
   incId,
   context,
   approvalCardResponse,
+  notificationContext = null,
 ) => {
   //If user click on Need assistance, then send message to selected users
   try {
@@ -1542,9 +1549,19 @@ const sendApprovalResponseToSelectedMembers = async (
             name: incRespSelectedUsers[i].user_name,
           },
         ];
+        let card = approvalCardResponse;
+        if (notificationContext) {
+          const { user, responseText, incTitle } = notificationContext;
+          card = buildUserRespondedCard(
+            user,
+            responseText,
+            incTitle,
+            incRespSelectedUsers[i].LANGUAGE_ID || DEFAULT_LANGUAGE_ID,
+          );
+        }
         const result = await sendProactiveMessaageToUser(
           memberArr,
-          approvalCardResponse,
+          card,
           null,
           serviceUrl,
           tenantId,
@@ -2248,7 +2265,9 @@ const sendProactiveMessageAsync = async (
               insidesendProactiveMessaageToUserAsync: member.userAadObjId,
             });
             const conversationId = member.conversationId;
-            const memberActivity = await buildMemberActivity(member.LANGUAGE_ID);
+            const memberActivity = await buildMemberActivity(
+              member.LANGUAGE_ID,
+            );
             sendProactiveMessaageToUserAsync(
               memberArr,
               memberActivity,
@@ -5349,7 +5368,13 @@ const sendIncStatusValidation = async (context, incStatusId) => {
 const sendApprovalResponse = async (user, context) => {
   try {
     const action = context.activity.value.action;
-    const { info: response, inc, companyData, dropdownSelection } = action.data;
+    const {
+      info: response,
+      inc,
+      companyData,
+      dropdownSelection,
+      languageId,
+    } = action.data;
     const { incId, incTitle, incCreatedBy, responseOptionData } = inc;
     let respDate = new Date();
     if (
@@ -5395,42 +5420,18 @@ const sendApprovalResponse = async (user, context) => {
     let responseText = responseOptionData.responseOptions.filter(
       (option) => option.id == respToBeUpdated,
     )[0].option;
-    //if (response == "need_assistance" || response == "i_am_safe") {
-    const approvalCardResponse = {
-      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-      appId: process.env.MicrosoftAppId,
-      body: [
-        {
-          type: "TextBlock",
-          text: `User **<at>${
-            user.name
-          }</at>** responded **${responseText.trim()}** for Incident: **${incTitle}** `,
-          wrap: true,
-        },
-      ],
-      msteams: {
-        entities: [
-          {
-            type: "mention",
-            text: `<at>${user.name}</at>`,
-            mentioned: {
-              id: user.id,
-              name: user.name,
-            },
-          },
-        ],
-      },
-      type: "AdaptiveCard",
-      version: "1.4",
-    };
-    //send new msg just to emulate msg is being updated
-    //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
-    const serviceUrl = context?.activity?.serviceUrl;
-    await sendApprovalResponseToSelectedMembers(
-      incId,
-      context,
-      approvalCardResponse,
+    const approvalCardResponse = buildUserRespondedCard(
+      user,
+      responseText.trim(),
+      incTitle,
+      languageId,
     );
+    const serviceUrl = context?.activity?.serviceUrl;
+    await sendApprovalResponseToSelectedMembers(incId, context, null, {
+      user,
+      responseText,
+      incTitle,
+    });
     await sendApprovalResponseToSelectedTeams(
       incId,
       serviceUrl,
@@ -6999,13 +7000,18 @@ const onInvokeActivity = async (context) => {
         };
       }
 
-      let responseText = "";
-      if (response === "i_am_safe") {
-        responseText = `Glad you're safe! Your safety status has been sent to <at>${incCreatedBy.name}</at>`;
-      } else {
-        responseText = `Sorry to hear that! We have informed <at>${incCreatedBy.name}</at> of your situation and someone will be reaching out to you as soon as possible.`;
-      }
-      responseText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
+      const languageId = await incidentService.getUserLanguageIdByAadObjId(
+        context.activity.from.aadObjectId,
+      );
+      const defaultThankYouText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
+      let responseText = getBotStaticText(
+        "saferesponsebtntext1",
+        languageId,
+        defaultThankYouText,
+      );
+      responseText = applyBotStaticPlaceholders(responseText, {
+        incidentCreator: incCreatedBy,
+      });
 
       const entities = {
         type: "mention",
@@ -7039,6 +7045,7 @@ const onInvokeActivity = async (context) => {
           companyData,
           inc,
           incGuidance,
+          languageId,
         ),
       );
 

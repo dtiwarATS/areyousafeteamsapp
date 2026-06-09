@@ -774,6 +774,11 @@ const SafetyCheckCard = async (
         incGuidance,
         null,
         incTypeId,
+        null,
+        null,
+        null,
+        false,
+        languageId,
       );
       break;
     case 3: //Important Bulletin

@@ -1284,7 +1284,9 @@ const saveIncResponseUserTS = async (respUserTSquery, userAadObjId) => {
 const getIncResponseSelectedUsersList = async (incId, userAadObjId) => {
   try {
     console.log("inside getIncResponseSelectedUsersList", { incId });
-    const sql = `select id,inc_id,user_id, user_name from MSTeamsIncResponseSelectedUsers where inc_id = ${incId};`;
+    const sql = `select irsu.id, irsu.inc_id, irsu.user_id, irsu.user_name,
+      (select top 1 LANGUAGE_ID from MSTeamsTeamsUsers where user_id = irsu.user_id or user_aadobject_id=irsu.user_id) as LANGUAGE_ID
+      from MSTeamsIncResponseSelectedUsers irsu where irsu.inc_id = ${incId};`;
     const result = await db.getDataFromDB(sql, userAadObjId);
     console.log("after getIncResponseSelectedUsersList", { incId, sql });
     return Promise.resolve(result);
@@ -2863,6 +2865,29 @@ const setSuperAdmin = async (superAdmins, teamId, userAadObjId) => {
   }
   return Promise.resolve(result);
 };
+const getUserLanguageIdByAadObjId = async (userAadObjId) => {
+  const DEFAULT_LANGUAGE_ID = 10000;
+  try {
+    if (!userAadObjId) return DEFAULT_LANGUAGE_ID;
+    const sql = `SELECT TOP 1 LANGUAGE_ID FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${userAadObjId}' ORDER BY id DESC`;
+    const result = await db.getDataFromDB(sql, userAadObjId);
+    const languageId = result?.[0]?.LANGUAGE_ID;
+    return languageId != null && languageId !== ""
+      ? languageId
+      : DEFAULT_LANGUAGE_ID;
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in getUserLanguageIdByAadObjId",
+    );
+    return DEFAULT_LANGUAGE_ID;
+  }
+};
+
 const setLanguagePreference = async (
   language,
   teamId,
@@ -4619,6 +4644,7 @@ module.exports = {
   saveAllTypeQuerylogs,
   SosNotificationFor,
   setSuperAdmin,
+  getUserLanguageIdByAadObjId,
   setLanguagePreference,
   setDynamicLocation,
   getSosBeforeAcknowledgementSettings,

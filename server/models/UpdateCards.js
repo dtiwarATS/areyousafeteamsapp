@@ -1,4 +1,8 @@
 require("dotenv");
+const {
+  getBotStaticText,
+  DEFAULT_LANGUAGE_ID,
+} = require("../utils/botStaticTranslations");
 
 const getMobileDashboardMsgBlockJSON = (companyData) => {
   let { teamName, channelName } = companyData;
@@ -200,9 +204,21 @@ const updateSafeMessage = (
   companyData,
   inc,
   incGuidance,
+  languageId = null,
 ) => {
   var isVisi = false;
   if (incGuidance != "") isVisi = true;
+  const resolvedLanguageId = languageId || DEFAULT_LANGUAGE_ID;
+  const additionalCommentsLabel = getBotStaticText(
+    "additionalComments",
+    resolvedLanguageId,
+    "Additional Comments",
+  );
+  const sendButtonLabel = getBotStaticText(
+    "sendButton",
+    resolvedLanguageId,
+    "Send",
+  );
   var card = {
     type: "AdaptiveCard",
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -210,7 +226,7 @@ const updateSafeMessage = (
     body: [
       {
         type: "TextBlock",
-        text: `Additional Comments`,
+        text: additionalCommentsLabel,
         wrap: true,
       },
       {
@@ -226,7 +242,7 @@ const updateSafeMessage = (
           {
             type: "Action.Execute",
             verb: "submit_comment",
-            title: "Send",
+            title: sendButtonLabel,
             data: {
               eventResponse: response,
               userId: userId,
@@ -259,8 +275,6 @@ const updateSafeMessage = (
     //     },
     //   ],
     // },
-    type: "AdaptiveCard",
-    version: "1.4",
   };
   return card;
 };
