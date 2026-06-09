@@ -2,11 +2,49 @@ const incidentService = require("../services/incidentService");
 const dashboard = require("../models/dashboard");
 const {
   getBotStaticText,
+  applyBotStaticPlaceholders,
   DEFAULT_LANGUAGE_ID,
 } = require("../utils/botStaticTranslations");
 
+const resolveLanguageId = (languageId) =>
+  languageId != null && languageId !== ""
+    ? languageId
+    : DEFAULT_LANGUAGE_ID;
+
 const getHelloText = (languageId) =>
-  getBotStaticText("hello", languageId || DEFAULT_LANGUAGE_ID, "Hello!");
+  getBotStaticText("hello", resolveLanguageId(languageId), "Hello!");
+
+const getCardText = (key, languageId, fallback) =>
+  getBotStaticText(key, resolveLanguageId(languageId), fallback);
+
+const getCardIntroText = (key, languageId, incCreatedByName, fallback) =>
+  applyBotStaticPlaceholders(getCardText(key, languageId, fallback), {
+    incidentCreator: { name: incCreatedByName },
+  });
+
+const getCardTitleText = (key, languageId, incTitle, fallback) =>
+  applyBotStaticPlaceholders(getCardText(key, languageId, fallback), {
+    IncidentTitle: incTitle,
+  });
+
+const getLabeledSectionText = (labelKey, languageId, content, fallbackLabel) => {
+  const label = getCardText(labelKey, languageId, fallbackLabel);
+  return `**${label}:**\n\n` + content;
+};
+
+const getResponseDropdownStrings = (languageId) => ({
+  placeholder: getCardText(
+    "selectResponsePlaceholder",
+    languageId,
+    "Select response",
+  ),
+  errorMessage: getCardText(
+    "selectResponseError",
+    languageId,
+    "Please select a response.",
+  ),
+  confirmTitle: getCardText("confirmButton", languageId, "Confirm"),
+});
 
 const getSafetyCheckMessageText = async (
   incId,
@@ -259,7 +297,12 @@ const getSafetyCheckTypeCard = async (
       separator: true,
       wrap: true,
       isVisible: incGuidance ? true : false,
-      text: `**Guidance:**\n\n` + incGuidance,
+      text: getLabeledSectionText(
+        "guidanceLabel",
+        languageId,
+        incGuidance,
+        "Guidance",
+      ),
     });
   }
   if (incTypeId == 1 || incTypeId == 2) {
@@ -292,13 +335,14 @@ const getSafetyCheckTypeCard = async (
           }
         });
       } else {
+        const dropdownStrings = getResponseDropdownStrings(languageId);
         let dropdown = {
           type: "Input.ChoiceSet",
           id: "dropdownSelection",
           style: "compact", // Use "expanded" for always visible options
           isRequired: true,
-          placeholder: "Select response",
-          errorMessage: "Please select a response.",
+          placeholder: dropdownStrings.placeholder,
+          errorMessage: dropdownStrings.errorMessage,
           choices: [],
         };
         responseOptionData.responseOptions.map((option, index) => {
@@ -312,7 +356,7 @@ const getSafetyCheckTypeCard = async (
         cardBody.push(dropdown);
         let btnSafe = {
           type: "Action.Execute",
-          title: "Confirm",
+          title: dropdownStrings.confirmTitle,
           verb: "send_response",
           associatedInputs: "auto",
           data: {
@@ -356,7 +400,12 @@ const getSafetyCheckTypeCard = async (
       separator: true,
       wrap: true,
       isVisible: incGuidance ? true : false,
-      text: `**Guidance:**\n\n` + incGuidance,
+      text: getLabeledSectionText(
+        "guidanceLabel",
+        languageId,
+        incGuidance,
+        "Guidance",
+      ),
     });
   }
   // if (incTypeId == 2) {
@@ -402,26 +451,46 @@ const getImpBulletineTypeCard = async (
       type: "TextBlock",
       separator: true,
       wrap: true,
-      text: `This is an important bulletin from <at>${incCreatedByName}</at>.`,
+      text: getCardIntroText(
+        "importantBulletinIntro",
+        languageId,
+        incCreatedByName,
+        `This is an important bulletin from <IncidentCreator>.`,
+      ),
     },
     {
       type: "TextBlock",
       size: "Medium",
       weight: "Bolder",
       wrap: true,
-      text: `**Important Bulletin: ${incTitle}**`,
+      text: getCardTitleText(
+        "importantBulletinTitle",
+        languageId,
+        incTitle,
+        `**Important Bulletin: {IncidentTitle}**`,
+      ),
     },
     {
       type: "TextBlock",
       wrap: true,
       isVisible: incGuidance ? true : false,
-      text: `**Guidance:**\n\n` + incGuidance,
+      text: getLabeledSectionText(
+        "guidanceLabel",
+        languageId,
+        incGuidance,
+        "Guidance",
+      ),
     },
     {
       type: "TextBlock",
       wrap: true,
       isVisible: additionalInfo ? true : false,
-      text: `**Additional Information:**\n\n` + additionalInfo,
+      text: getLabeledSectionText(
+        "additionalInformationLabel",
+        languageId,
+        additionalInfo,
+        "Additional Information",
+      ),
     },
   ];
   let actions = [];
@@ -444,13 +513,14 @@ const getImpBulletineTypeCard = async (
       }
     });
   } else {
+    const dropdownStrings = getResponseDropdownStrings(languageId);
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",
       style: "compact", // Use "expanded" for always visible options
       isRequired: true,
-      placeholder: "Select response",
-      errorMessage: "Please select a response.",
+      placeholder: dropdownStrings.placeholder,
+      errorMessage: dropdownStrings.errorMessage,
       choices: [],
     };
     responseOptionData.responseOptions.map((option, index) => {
@@ -464,7 +534,7 @@ const getImpBulletineTypeCard = async (
     cardBody.push(dropdown);
     let btnSafe = {
       type: "Action.Execute",
-      title: "Confirm",
+      title: dropdownStrings.confirmTitle,
       verb: "send_response",
       associatedInputs: "auto",
       data: {
@@ -517,32 +587,57 @@ const getTravelAdvisoryTypeCard = async (
       type: "TextBlock",
       separator: true,
       wrap: true,
-      text: `This is a travel advisory from <at>${incCreatedByName}</at>.`,
+      text: getCardIntroText(
+        "travelAdvisoryIntro",
+        languageId,
+        incCreatedByName,
+        `This is a travel advisory from <IncidentCreator>.`,
+      ),
     },
     {
       type: "TextBlock",
       size: "Medium",
       weight: "Bolder",
       wrap: true,
-      text: `**Travel Advisory: ${incTitle}**`,
+      text: getCardTitleText(
+        "travelAdvisoryTitle",
+        languageId,
+        incTitle,
+        `**Travel Advisory: {IncidentTitle}**`,
+      ),
     },
     {
       type: "TextBlock",
       wrap: true,
       isVisible: travelUpdate ? true : false,
-      text: `**Travel Update:**\n\n` + travelUpdate,
+      text: getLabeledSectionText(
+        "travelUpdateLabel",
+        languageId,
+        travelUpdate,
+        "Travel Update",
+      ),
     },
     {
       type: "TextBlock",
       wrap: true,
       isVisible: incGuidance ? true : false,
-      text: `**Guidance:**\n\n` + incGuidance,
+      text: getLabeledSectionText(
+        "guidanceLabel",
+        languageId,
+        incGuidance,
+        "Guidance",
+      ),
     },
     {
       type: "TextBlock",
       wrap: true,
       isVisible: contactInfo ? true : false,
-      text: `**Contact Information:**\n\n` + contactInfo,
+      text: getLabeledSectionText(
+        "contactInformationLabel",
+        languageId,
+        contactInfo,
+        "Contact Information",
+      ),
     },
   ];
   let actions = [];
@@ -565,13 +660,14 @@ const getTravelAdvisoryTypeCard = async (
       }
     });
   } else {
+    const dropdownStrings = getResponseDropdownStrings(languageId);
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",
       style: "compact", // Use "expanded" for always visible options
       isRequired: true,
-      placeholder: "Select response",
-      errorMessage: "Please select a response.",
+      placeholder: dropdownStrings.placeholder,
+      errorMessage: dropdownStrings.errorMessage,
       choices: [],
     };
     responseOptionData.responseOptions.map((option, index) => {
@@ -585,13 +681,14 @@ const getTravelAdvisoryTypeCard = async (
     cardBody.push(dropdown);
     let btnSafe = {
       type: "Action.Execute",
-      title: "Confirm",
+      title: dropdownStrings.confirmTitle,
       verb: "send_response",
       associatedInputs: "auto",
       data: {
         info: "dropdown_selection",
         inc: incObj,
         companyData: companyData,
+        languageId: languageId,
       },
     };
     actions.push(btnSafe);
@@ -636,26 +733,46 @@ const getStakeholderNoticeTypeCard = async (
       type: "TextBlock",
       separator: true,
       wrap: true,
-      text: `This is a stakeholder notice from <at>${incCreatedByName}</at>.`,
+      text: getCardIntroText(
+        "stakeholderNoticeIntro",
+        languageId,
+        incCreatedByName,
+        `This is a stakeholder notice from <IncidentCreator>.`,
+      ),
     },
     {
       type: "TextBlock",
       size: "Medium",
       weight: "Bolder",
       wrap: true,
-      text: `**Stakeholder Notice: ${incTitle}**`,
+      text: getCardTitleText(
+        "stakeholderNoticeTitle",
+        languageId,
+        incTitle,
+        `**Stakeholder Notice: {IncidentTitle}**`,
+      ),
     },
     {
       type: "TextBlock",
       wrap: true,
       isVisible: situation ? true : false,
-      text: `**Situation:**\n\n` + situation,
+      text: getLabeledSectionText(
+        "situationLabel",
+        languageId,
+        situation,
+        "Situation",
+      ),
     },
     {
       type: "TextBlock",
       wrap: true,
       isVisible: additionalInfo ? true : false,
-      text: `**Additional Information:**\n\n` + additionalInfo,
+      text: getLabeledSectionText(
+        "additionalInformationLabel",
+        languageId,
+        additionalInfo,
+        "Additional Information",
+      ),
     },
   ];
   let actions = [];
@@ -678,13 +795,14 @@ const getStakeholderNoticeTypeCard = async (
       }
     });
   } else {
+    const dropdownStrings = getResponseDropdownStrings(languageId);
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",
       style: "compact", // Use "expanded" for always visible options
       isRequired: true,
-      placeholder: "Select response",
-      errorMessage: "Please select a response.",
+      placeholder: dropdownStrings.placeholder,
+      errorMessage: dropdownStrings.errorMessage,
       choices: [],
     };
     responseOptionData.responseOptions.map((option, index) => {
@@ -698,13 +816,14 @@ const getStakeholderNoticeTypeCard = async (
     cardBody.push(dropdown);
     let btnSafe = {
       type: "Action.Execute",
-      title: "Confirm",
+      title: dropdownStrings.confirmTitle,
       verb: "send_response",
       associatedInputs: "auto",
       data: {
         info: "dropdown_selection",
         inc: incObj,
         companyData: companyData,
+        languageId: languageId,
       },
     };
     actions.push(btnSafe);

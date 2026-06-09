@@ -3,11 +3,20 @@ const botStaticTranslations = require(path.join(
   __dirname,
   "../locales/botStaticTranslations.json",
 ));
+const cardStaticTranslations = require(path.join(
+  __dirname,
+  "../locales/cardStaticTranslations.json",
+));
+
+const mergedStaticTranslations = {
+  ...botStaticTranslations,
+  ...cardStaticTranslations,
+};
 
 const DEFAULT_LANGUAGE_ID = 10000;
 
 const getBotStaticText = (key, languageId, fallback) => {
-  const field = botStaticTranslations[key];
+  const field = mergedStaticTranslations[key];
   if (!field) return fallback;
   const langKey =
     languageId != null && languageId !== ""
@@ -50,7 +59,69 @@ const applyBotStaticPlaceholders = (text, placeholders = {}) => {
   if (placeholders.CommentVal != null) {
     result = result.replace(/\{CommentVal\}/g, placeholders.CommentVal);
   }
+  if (placeholders.IncidentTypeTitle != null) {
+    result = result.replace(
+      /\{IncidentTypeTitle\}/g,
+      placeholders.IncidentTypeTitle,
+    );
+  }
+  if (placeholders.NumberOfUsers != null) {
+    result = result.replace(/\{NumberOfUsers\}/g, placeholders.NumberOfUsers);
+  }
+  if (placeholders.TeamName != null) {
+    result = result.replace(/\{TeamName\}/g, placeholders.TeamName);
+  }
+  if (placeholders.ChannelName != null) {
+    result = result.replace(/\{ChannelName\}/g, placeholders.ChannelName);
+  }
   return result;
+};
+
+const getIncidentTypeTitle = (incTypeId, languageId) => {
+  const keyMap = {
+    1: "incidentTypeSafetyCheck",
+    2: "incidentTypeSafetyAlert",
+    3: "incidentTypeImportantBulletin",
+    4: "incidentTypeTravelAdvisory",
+    5: "incidentTypeStakeholderNotice",
+  };
+  const defaults = {
+    incidentTypeSafetyCheck: "Safety Check",
+    incidentTypeSafetyAlert: "Safety Alert",
+    incidentTypeImportantBulletin: "Important Bulletin",
+    incidentTypeTravelAdvisory: "Travel Advisory",
+    incidentTypeStakeholderNotice: "Stakeholder Notice",
+  };
+  const key = keyMap[incTypeId] || "incidentTypeSafetyCheck";
+  return getBotStaticText(key, languageId, defaults[key]);
+};
+
+const buildAcknowledgeMsgToCreator = (
+  incTypeId,
+  numberOfUsers,
+  teamName,
+  channelName,
+  languageId,
+) => {
+  const resolvedLanguageId = languageId || DEFAULT_LANGUAGE_ID;
+  const incidentTypeTitle = getIncidentTypeTitle(
+    incTypeId,
+    resolvedLanguageId,
+  );
+  const defaultTemplate = `Thanks! Your <b>{IncidentTypeTitle}</b> has been sent to {NumberOfUsers} users.<br />
+Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
+For mobile, navigate to the <b>{TeamName}</b> team -> <b>{ChannelName}</b> channel -> <b>Safety Check</b> tab`;
+  let text = getBotStaticText(
+    "acknowledgeMsgToCreator",
+    resolvedLanguageId,
+    defaultTemplate,
+  );
+  return applyBotStaticPlaceholders(text, {
+    IncidentTypeTitle: incidentTypeTitle,
+    NumberOfUsers: String(numberOfUsers),
+    TeamName: teamName,
+    ChannelName: channelName,
+  });
 };
 
 const buildSubmitCommentResponseText = (
@@ -168,6 +239,8 @@ module.exports = {
   DEFAULT_LANGUAGE_ID,
   getBotStaticText,
   applyBotStaticPlaceholders,
+  getIncidentTypeTitle,
+  buildAcknowledgeMsgToCreator,
   buildUserRespondedCard,
   buildUserCommentedCard,
   buildSubmitCommentResponseText,

@@ -70,6 +70,7 @@ const {
 const {
   getBotStaticText,
   applyBotStaticPlaceholders,
+  buildAcknowledgeMsgToCreator,
   buildUserRespondedCard,
   buildUserCommentedCard,
   buildSubmitCommentResponseText,
@@ -2420,14 +2421,20 @@ const getAcknowledgeMsgToCreatorAdaptiveCard = (
   numberOfUsers,
   teamName,
   channelName,
+  incTypeId = 1,
+  languageId = DEFAULT_LANGUAGE_ID,
 ) => {
-  let msgText = `Thanks! Your <b>safety check message</b> has been sent to ${numberOfUsers} users.<br />
-Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
-For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Safety Check</b> tab`;
+  const msgText = buildAcknowledgeMsgToCreator(
+    incTypeId,
+    numberOfUsers,
+    teamName,
+    channelName,
+    languageId,
+  );
   return MessageFactory.text(msgText);
 };
 
-const sendAcknowledgeMsgToCreator = (
+const sendAcknowledgeMsgToCreator = async (
   connectorClient,
   incData,
   serviceUrl,
@@ -2435,6 +2442,8 @@ const sendAcknowledgeMsgToCreator = (
   numberOfUsers,
   teamName,
   channelName,
+  userAadObjId,
+  languageId = DEFAULT_LANGUAGE_ID,
 ) => {
   if (connectorClient == null) {
     const appId = process.env.MicrosoftAppId;
@@ -2445,9 +2454,15 @@ const sendAcknowledgeMsgToCreator = (
       baseUri: serviceUrl,
     });
   }
-  let msgText = `Thanks! Your <b>${getTitleMessage(incData.incTypeId)}</b> has been sent to ${numberOfUsers} users.<br />
-Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
-For mobile, navigate to the <b>${teamName}</b> team -> <b>${channelName}</b> channel -> <b>Safety Check</b> tab`;
+  // const languageId =
+  //   await incidentService.getUserLanguageIdByAadObjId(userAadObjId);
+  const msgText = buildAcknowledgeMsgToCreator(
+    incData.incTypeId,
+    numberOfUsers,
+    teamName,
+    channelName,
+    languageId,
+  );
   let activity = MessageFactory.text(msgText);
   connectorClient.conversations.sendToConversation(conversationId, activity);
 };
@@ -4996,6 +5011,8 @@ const NewsendSafetyCheckMessageAsync = async (
               : allMembersArr.length,
             companyData.teamName,
             companyData.channelName,
+            userAadObjId,
+            createdByUserInfo.LANGUAGE_ID,
           );
         }
         let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
