@@ -27,6 +27,18 @@ const getCardTitleText = (key, languageId, incTitle, fallback) =>
     IncidentTitle: incTitle,
   });
 
+const getCardMessageWithCreatorAndTitle = (
+  key,
+  languageId,
+  createdByName,
+  incTitle,
+  fallback,
+) =>
+  applyBotStaticPlaceholders(getCardText(key, languageId, fallback), {
+    incidentCreator: { name: createdByName },
+    IncidentTitle: incTitle,
+  });
+
 const getLabeledSectionText = (labelKey, languageId, content, fallbackLabel) => {
   const label = getCardText(labelKey, languageId, fallbackLabel);
   return `**${label}:**\n\n` + content;
@@ -54,6 +66,7 @@ const getSafetyCheckMessageText = async (
   incRespSelectedUsers = null,
   incTypeId = 1,
   incGuidance,
+  languageId = null,
 ) => {
   let onBehalfOf = "",
     responseUsers = "";
@@ -91,7 +104,13 @@ const getSafetyCheckMessageText = async (
       msg = `This is a safety check from <at>${createdByName}</at>${onBehalfOf}. We think you may be affected by **${incTitle}**. Mark yourself as safe, or ask for assistance.`;
     }
   } else if (incTypeId == 2) {
-    msg = `This is a safety alert from <at>${createdByName}</at>. We think you may be affected by **${incTitle}**.`;
+    msg = getCardMessageWithCreatorAndTitle(
+      "safetyAlertMessage",
+      languageId,
+      createdByName,
+      incTitle,
+      "This is a safety alert from <IncidentCreator>. We think you may be affected by **{IncidentTitle}**.",
+    );
   }
   return msg;
 };
@@ -215,6 +234,7 @@ const getSafetyCheckTypeCard = async (
       incResponseSelectedUsersList,
       incTypeId,
       incGuidance,
+      languageId,
     );
   }
   if (!incCreatedById) {
