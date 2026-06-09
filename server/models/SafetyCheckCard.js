@@ -437,6 +437,7 @@ const getImpBulletineTypeCard = async (
             info: option.id,
             inc: incObj,
             companyData: companyData,
+            languageId: languageId,
           },
         };
         actions.push(btn);
@@ -470,6 +471,7 @@ const getImpBulletineTypeCard = async (
         info: "dropdown_selection",
         inc: incObj,
         companyData: companyData,
+        languageId: languageId,
       },
     };
     actions.push(btnSafe);
@@ -556,6 +558,7 @@ const getTravelAdvisoryTypeCard = async (
             info: option.id,
             inc: incObj,
             companyData: companyData,
+            languageId: languageId,
           },
         };
         actions.push(btn);
@@ -668,6 +671,7 @@ const getStakeholderNoticeTypeCard = async (
             info: option.id,
             inc: incObj,
             companyData: companyData,
+            languageId: languageId,
           },
         };
         actions.push(btn);
