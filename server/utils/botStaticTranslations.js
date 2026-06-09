@@ -84,6 +84,46 @@ const buildSubmitCommentResponseText = (
   return applyBotStaticPlaceholders(text, { incidentCreator: incCreatedBy });
 };
 
+const buildUserCommentedCard = (user, commentVal, incTitle, languageId) => {
+  const defaultTemplate =
+    "User **<at>{ResponderName}</at>** has commented for incident **{IncidentTitle}**: \n{CommentVal} ";
+  let text = getBotStaticText(
+    "userCommentedNotification",
+    languageId,
+    defaultTemplate,
+  );
+  text = applyBotStaticPlaceholders(text, {
+    ResponderName: user.name,
+    IncidentTitle: incTitle,
+    CommentVal: commentVal,
+  });
+  return {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    appId: process.env.MicrosoftAppId,
+    body: [
+      {
+        type: "TextBlock",
+        text,
+        wrap: true,
+      },
+    ],
+    msteams: {
+      entities: [
+        {
+          type: "mention",
+          text: `<at>${user.name}</at>`,
+          mentioned: {
+            id: user.id,
+            name: user.name,
+          },
+        },
+      ],
+    },
+    type: "AdaptiveCard",
+    version: "1.4",
+  };
+};
+
 const buildUserRespondedCard = (user, responseOption, incTitle, languageId) => {
   const defaultTemplate =
     "User **<at>{ResponderName}</at>** responded **{ResponseOption}** for Incident: **{IncidentTitle}** ";
@@ -129,5 +169,6 @@ module.exports = {
   getBotStaticText,
   applyBotStaticPlaceholders,
   buildUserRespondedCard,
+  buildUserCommentedCard,
   buildSubmitCommentResponseText,
 };

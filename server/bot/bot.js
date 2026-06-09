@@ -71,6 +71,7 @@ const {
   getBotStaticText,
   applyBotStaticPlaceholders,
   buildUserRespondedCard,
+  buildUserCommentedCard,
   buildSubmitCommentResponseText,
   DEFAULT_LANGUAGE_ID,
 } = require("../utils/botStaticTranslations");
@@ -1502,6 +1503,7 @@ const sendCommentToSelectedMembers = async (
   incId,
   context,
   approvalCardResponse,
+  commentNotificationContext = null,
 ) => {
   try {
     const serviceUrl = context?.activity?.serviceUrl;
@@ -1516,9 +1518,19 @@ const sendCommentToSelectedMembers = async (
             name: incRespSelectedUsers[i].user_name,
           },
         ];
+        let card = approvalCardResponse;
+        if (commentNotificationContext) {
+          const { user, commentVal, incTitle } = commentNotificationContext;
+          card = buildUserCommentedCard(
+            user,
+            commentVal,
+            incTitle,
+            incRespSelectedUsers[i].LANGUAGE_ID || DEFAULT_LANGUAGE_ID,
+          );
+        }
         const result = await sendProactiveMessaageToUser(
           memberArr,
-          approvalCardResponse,
+          card,
           null,
           serviceUrl,
           tenantId,
@@ -4084,33 +4096,19 @@ const processCommentViaLink = async (userId, incId, comment) => {
       };
       await incidentService.updateCommentViaSMSLink(userId, incId, comment);
 
-      const approvalCardResponse = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: [
-          {
-            type: "TextBlock",
-            text: `User **<at>${user.user_name}</at>** has commented for incident **${incData.incTitle}**: \n${comment} `,
-            wrap: true,
-          },
-        ],
-        msteams: {
-          entities: [
-            {
-              type: "mention",
-              text: `<at>${user.user_name}</at>`,
-              mentioned: {
-                id: user.user_id,
-                name: user.user_name,
-              },
-            },
-          ],
-        },
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
+      const commentUser = { id: user.user_id, name: user.user_name };
+      const approvalCardResponse = buildUserCommentedCard(
+        commentUser,
+        comment,
+        incData.incTitle,
+        DEFAULT_LANGUAGE_ID,
+      );
       const serviceUrl = context?.activity?.serviceUrl;
-      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
+      await sendCommentToSelectedMembers(incId, context, null, {
+        user: commentUser,
+        commentVal: comment,
+        incTitle: incData.incTitle,
+      });
       await sendApprovalResponseToSelectedTeams(
         incId,
         serviceUrl,
@@ -5586,35 +5584,19 @@ const submitComment = async (context, user, companyData) => {
     } = action.data;
 
     if (commentVal) {
-      const approvalCardResponse = {
-        $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-        appId: process.env.MicrosoftAppId,
-        body: [
-          {
-            type: "TextBlock",
-            text: `User **<at>${user.name}</at>** has commented for incident **${incTitle}**: \n${commentVal} `,
-            wrap: true,
-          },
-        ],
-        msteams: {
-          entities: [
-            {
-              type: "mention",
-              text: `<at>${user.name}</at>`,
-              mentioned: {
-                id: user.id,
-                name: user.name,
-              },
-            },
-          ],
-        },
-        type: "AdaptiveCard",
-        version: "1.4",
-      };
-      //send new msg just to emulate msg is being updated
-      //await sendDirectMessageCard(context, incCreatedBy, approvalCardResponse);
+      const commentUser = { id: user.id, name: user.name };
+      const approvalCardResponse = buildUserCommentedCard(
+        commentUser,
+        commentVal,
+        incTitle,
+        DEFAULT_LANGUAGE_ID,
+      );
       const serviceUrl = context?.activity?.serviceUrl;
-      await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
+      await sendCommentToSelectedMembers(incId, context, null, {
+        user: commentUser,
+        commentVal,
+        incTitle,
+      });
       await incidentService.updateIncResponseComment(
         incId,
         userId,
