@@ -134,7 +134,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
       runAt != "undefined" &&
       runAt != "null"
     ) {
-      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
+      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,inc.inc_type_id,
       inc.selected_members, inc.created_by, inc.CREATED_BY_NAME, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, mRecurr.is_message_delivered, 
@@ -148,7 +148,7 @@ const getInc = async (incId, runAt = null, userAadObjId = null) => {
       where inc.id = ${incId} and convert(datetime, runAt) = convert(datetime, '${runAt}')
       FOR JSON AUTO , INCLUDE_NULL_VALUES`;
     } else {
-      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,
+      selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.created_date,inc.inc_type_id,
       inc.selected_members, inc.created_by, inc.CREATED_BY_NAME, inc.GUIDANCE, inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation,
       inc.isTestRecord, inc.isSavedAsDraft, inc.updatedOn, inc.template_name,
       m.user_id, m.user_name, m.is_message_delivered, 
@@ -190,12 +190,12 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   let whereSql = "",
     userPrincipalleftJoin = "";
   if (teamId != null) {
-    whereSql = ` where inc.team_id = '${teamId}' `;
+    whereSql = ` where inc.team_id = '${teamId}' or inc.team_id='-1' `;
     //userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers where team_id = '${teamId}') tu on tu.user_id = m.user_id `;
   }
 
   if (aadObjuserId != null) {
-    whereSql = ` where  inc.team_id  in (select team_id from MSTeamsInstallationDetails where (user_obj_id = '${aadObjuserId}' OR super_users like '%${aadObjuserId}%' OR WHO_CAN_CREATE_INCIDENT like '%${aadObjuserId}%' ) AND uninstallation_date is null and team_id is not null and team_id <> '') `;
+    whereSql = ` where  inc.team_id  in (select team_id from MSTeamsInstallationDetails where (user_obj_id = '${aadObjuserId}' OR super_users like '%${aadObjuserId}%' OR WHO_CAN_CREATE_INCIDENT like '%${aadObjuserId}%' ) AND uninstallation_date is null and team_id is not null and team_id <> '') or inc.team_id='-1' `;
     //userPrincipalleftJoin = ` LEFT JOIN (select distinct userPrincipalName, user_id from MSTeamsTeamsUsers) tu on tu.user_id = m.user_id `;
   }
 
@@ -250,8 +250,119 @@ const getAllIncByTeamId = async (teamId, orderBy, userObjId) => {
   }
 };
 
+const getAllIncQueryByTenantId = (tenantId, orderBy, incidentId = null) => {
+  let orderBySql = "";
+  if (orderBy != null && orderBy == "desc") {
+    orderBySql =
+      " order by inc.INC_STATUS_ID, CAST(inc.created_date as datetime) desc, CAST(inc.updatedOn as datetime) desc, inc.id desc , m.[timestamp] desc, m.user_name ";
+  }
+
+  let whereSql = ` where inc.team_id in (
+    select team_id from MSTeamsInstallationDetails
+    where user_tenant_id = '${tenantId}'
+      and uninstallation_date is null
+      and team_id is not null and team_id <> ''
+  )`;
+
+  if (incidentId != null) {
+    whereSql += ` and inc.id = ${incidentId}`;
+  }
+
+  const selectQuery1 = `
+  SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.IS_DRILL as isDrill,
+  inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
+  inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime,
+  m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, m.response_via,
+  m.SafetyCheckVisitorsQuestion1Response,
+  m.SafetyCheckVisitorsQuestion2Response,
+  m.SafetyCheckVisitorsQuestion3Response ,
+
+  m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
+  
+  mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.response_via response_viaR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR,
+  mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
+  mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID,
+      tu.COUNTRY AS userCountry,
+      tu.CITY AS userCity,
+      tu.STATE AS userState,
+      tu.DEPARTMENT AS userDepartment,
+  inc.RESPONSE_TYPE, inc.RESPONSE_OPTIONS
+  FROM MSTeamsIncidents inc
+  LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+  LEFT JOIN MSTeamsTeamsUsers tu
+  ON tu.user_id = m.user_id
+  LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
+  Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
+  
+  ${whereSql} ${orderBySql}
+  FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+
+  return selectQuery1;
+};
+
+const getAllIncByTenantId = async (tenantId, orderBy) => {
+  try {
+    const selectQuery = getAllIncQueryByTenantId(tenantId, orderBy);
+    const result = await db.getDataFromDB(selectQuery);
+    const parsedResult = await parseEventData(result, true);
+    return Promise.resolve(parsedResult);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in getAllIncByTenantId tenantId=" +
+        tenantId +
+        " orderBy=" +
+        orderBy,
+    );
+  }
+};
+
+const getIncByTenantId = async (tenantId, incidentId, orderBy) => {
+  try {
+    const selectQuery = getAllIncQueryByTenantId(tenantId, orderBy, incidentId);
+    const result = await db.getDataFromDB(selectQuery);
+    const parsedResult = await parseEventData(result, true);
+    return Promise.resolve(parsedResult);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in getIncByTenantId tenantId=" +
+        tenantId +
+        " incidentId=" +
+        incidentId,
+    );
+  }
+};
+
+const getTeamInfoByTenantId = async (tenantId) => {
+  try {
+    const sqlTeamInfo = `SELECT team_id AS teamId, team_name AS teamName, user_id AS userid
+      FROM MSTeamsInstallationDetails
+      WHERE user_tenant_id = '${tenantId}' AND uninstallation_date IS NULL`;
+    const result = await db.getDataFromDB(sqlTeamInfo);
+    return Promise.resolve(result);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in getTeamInfoByTenantId tenantId=" + tenantId,
+    );
+  }
+};
+
 const getTemplateList = async (userId) => {
-  const sqlQuery = `select -1 as 'incId', 'None' as 'incTemplate' UNION select id incId,template_name 'incTemplate'  from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}'`;
+  const sqlQuery = `select -1 as 'incId', 'None' as 'incTemplate' UNION select id incId,template_name 'incTemplate'  from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}' or team_id='-1'`;
   const userResult = await db.getDataFromDB(sqlQuery, userId);
   return userResult;
 };
@@ -4555,6 +4666,9 @@ module.exports = {
   getIncGuidance,
   verifyDuplicateInc,
   getAllIncByTeamId,
+  getAllIncByTenantId,
+  getIncByTenantId,
+  getTeamInfoByTenantId,
   saveIncResponseSelectedUsers,
   saveIncResponseUserTS,
   getIncResponseSelectedUsersList,

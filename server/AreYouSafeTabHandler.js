@@ -19,6 +19,7 @@ const {
   sendPushNotification,
   getFcmTokensForUsers,
 } = require("./services/fcmService");
+const { decryptTenantIdFromApiKey } = require("./utils/apiKeyDecrypt");
 const { Sms } = require("twilio/lib/twiml/VoiceResponse");
 
 const UUID_REGEX =
@@ -666,6 +667,73 @@ const handlerForSafetyBotTab = (app) => {
         userObjId,
         "error in /areyousafetabhandler/getAllIncData",
       );
+    }
+  });
+
+  app.get("/areyousafetabhandler/getIncidentsByTenantId", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res
+        .status(401)
+        .json({ error: "Missing or invalid Authorization header" });
+    }
+    const apiKey = authHeader.slice("Bearer ".length).trim();
+    if (!apiKey) {
+      return res
+        .status(401)
+        .json({ error: "Missing or invalid Authorization header" });
+    }
+
+    let tenantId;
+    try {
+      tenantId = decryptTenantIdFromApiKey(apiKey);
+    } catch (err) {
+      console.log(err);
+      return res.status(500).json({ error: "API key decryption failed" });
+    }
+    if (!tenantId) {
+      return res.status(401).json({ error: "Invalid API key" });
+    }
+
+    try {
+      const tabObj = new tab.AreYouSafeTab(null);
+      const teamInfo = await incidentService.getTeamInfoByTenantId(tenantId);
+      const incidentId = req.query.incidentId;
+
+      if (incidentId != null && incidentId !== "null") {
+        const parsedId = parseInt(incidentId, 10);
+        if (!Number.isFinite(parsedId)) {
+          return res.status(400).json({ error: "Invalid incidentId" });
+        }
+        const incData = await incidentService.getIncByTenantId(
+          tenantId,
+          parsedId,
+          "desc",
+        );
+        if (!incData || incData.length === 0) {
+          return res.status(404).json({ error: "Incident not found" });
+        }
+        const formatted = tabObj.getFormatedIncData(incData, teamInfo, null);
+        return res.json(formatted[0]);
+      }
+
+      const incData = await incidentService.getAllIncByTenantId(
+        tenantId,
+        "desc",
+      );
+      const formatted = tabObj.getFormatedIncData(incData, teamInfo, null);
+      res.json(formatted);
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error in /areyousafetabhandler/getIncidentsByTenantId tenantId=" +
+          tenantId,
+      );
+      res.status(500).json({ error: "Failed to fetch incidents" });
     }
   });
 
