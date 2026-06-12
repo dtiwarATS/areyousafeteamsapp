@@ -20,6 +20,11 @@ const {
   getFcmTokensForUsers,
 } = require("./services/fcmService");
 const { decryptTenantIdFromApiKey } = require("./utils/apiKeyDecrypt");
+const {
+  buildTeamMap,
+  formatIncidentApiPayload,
+  shouldIncludeIncident,
+} = require("./utils/incidentApiFormat");
 const { Sms } = require("twilio/lib/twiml/VoiceResponse");
 
 const UUID_REGEX =
@@ -698,7 +703,19 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab(null);
       const teamInfo = await incidentService.getTeamInfoByTenantId(tenantId);
+      const teamMap = buildTeamMap(teamInfo);
       const incidentId = req.query.incidentId;
+
+      const buildPayload = async (inc) => {
+        const activityLog =
+          await incidentService.getMessageActivityLogByIncidentId(inc.incId);
+        return formatIncidentApiPayload(
+          inc,
+          activityLog,
+          teamMap[inc.teamId] || "",
+          tabObj,
+        );
+      };
 
       if (incidentId != null && incidentId !== "null") {
         const parsedId = parseInt(incidentId, 10);
@@ -713,16 +730,16 @@ const handlerForSafetyBotTab = (app) => {
         if (!incData || incData.length === 0) {
           return res.status(404).json({ error: "Incident not found" });
         }
-        const formatted = tabObj.getFormatedIncData(incData, teamInfo, null);
-        return res.json(formatted[0]);
+        return res.json(await buildPayload(incData[0]));
       }
 
       const incData = await incidentService.getAllIncByTenantId(
         tenantId,
         "desc",
       );
-      const formatted = tabObj.getFormatedIncData(incData, teamInfo, null);
-      res.json(formatted);
+      const filteredIncidents = (incData || []).filter(shouldIncludeIncident);
+      const payloads = await Promise.all(filteredIncidents.map(buildPayload));
+      res.json(payloads);
     } catch (err) {
       console.log(err);
       processSafetyBotError(

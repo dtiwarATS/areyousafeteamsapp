@@ -361,6 +361,32 @@ const getTeamInfoByTenantId = async (tenantId) => {
   }
 };
 
+const getMessageActivityLogByIncidentId = async (incidentId) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("incId", sql.Int, incidentId)
+      .query(
+        `SELECT *
+         FROM vw_MessageActivityLogWithUser
+         WHERE IncidentId = @incId
+         ORDER BY MessageSendDateTime DESC`,
+      );
+    return Promise.resolve(result?.recordset || []);
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in getMessageActivityLogByIncidentId incidentId=" + incidentId,
+    );
+    return Promise.resolve([]);
+  }
+};
+
 const getTemplateList = async (userId) => {
   const sqlQuery = `select -1 as 'incId', 'None' as 'incTemplate' UNION select id incId,template_name 'incTemplate'  from MSTeamsIncidents where isSaveAsTemplate=1 and created_by='${userId}' or team_id='-1'`;
   const userResult = await db.getDataFromDB(sqlQuery, userId);
@@ -4669,6 +4695,7 @@ module.exports = {
   getAllIncByTenantId,
   getIncByTenantId,
   getTeamInfoByTenantId,
+  getMessageActivityLogByIncidentId,
   saveIncResponseSelectedUsers,
   saveIncResponseUserTS,
   getIncResponseSelectedUsersList,
