@@ -2103,7 +2103,7 @@ const sendProactiveMessageAsync = async (
               }); `;
           } else {
             log.addLog(`For OneTime Incident`);
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error.replace(/'/g, "''")}', LastReminderSentAT = ${
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error ? error.replace(/'/g, "''") : error}', LastReminderSentAT = ${
               isMessageDelivered == 1 ? "GETDATE()" : "NULL"
             } where inc_id = ${incObj.incId} and user_id = '${
               msgResp.userId

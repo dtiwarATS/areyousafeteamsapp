@@ -227,7 +227,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 "",
                 "",
                 "error in onMessage - personal context=" +
-                JSON.stringify(context),
+                  JSON.stringify(context),
               );
             }
 
@@ -271,9 +271,9 @@ class BotActivityHandler extends TeamsActivityHandler {
             "",
             userAadObjectId,
             "error in insertData - " +
-            contextInfo +
-            " sqlQuery=" +
-            (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
+              contextInfo +
+              " sqlQuery=" +
+              (sqlInsertQuery ? sqlInsertQuery.substring(0, 200) : "null"),
           );
           throw err;
         }
@@ -511,7 +511,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                 null,
                 null,
               );
-            } catch (err) { }
+            } catch (err) {}
           }
         } else if (
           (acvtivityData &&
@@ -875,11 +875,11 @@ WHEN NOT MATCHED THEN
                       adminUserInfo?.name || "",
                       userAadObjectId,
                       "error in onConversationUpdate - personal scope context=" +
-                      JSON.stringify({
-                        conversationType: conversationType,
-                        userAadObjectId: userAadObjectId,
-                        tenantId: acvtivityData.channelData?.tenant?.id,
-                      }),
+                        JSON.stringify({
+                          conversationType: conversationType,
+                          userAadObjectId: userAadObjectId,
+                          tenantId: acvtivityData.channelData?.tenant?.id,
+                        }),
                     );
                     throw err;
                   }
@@ -1201,7 +1201,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async respond_to_assistance - requestAssistanceid: " +
-            requestAssistanceid,
+              requestAssistanceid,
           );
         });
 
@@ -1244,7 +1244,7 @@ WHEN NOT MATCHED THEN
             "",
             userAadObjId,
             "error in async after_acknowledgement_response - assistanceId: " +
-            assistanceId,
+              assistanceId,
           );
         });
 
@@ -2440,7 +2440,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleRespondToAssistanceAsync - requestAssistanceid: " +
-        requestAssistanceid,
+          requestAssistanceid,
       );
     }
   }
@@ -2545,9 +2545,9 @@ WHERE rn = 1;
       const sentToIds = assistance.sent_to_ids;
       const responderIds = sentToIds
         ? sentToIds
-          .split(",")
-          .map((id) => id.trim())
-          .filter((id) => id)
+            .split(",")
+            .map((id) => id.trim())
+            .filter((id) => id)
         : [];
 
       if (responderIds.length > 0) {
@@ -2671,7 +2671,7 @@ WHERE rn = 1;
         "",
         userAadObjId,
         "error in handleAfterAcknowledgementResponseAsync - assistanceId: " +
-        assistanceId,
+          assistanceId,
       );
     }
   }
@@ -2699,9 +2699,9 @@ WHERE rn = 1;
         "",
         "",
         "error in hanldeAdminOrSuperUserMsg context=" +
-        JSON.stringify(context) +
-        " companyData=" +
-        JSON.stringify(companyData),
+          JSON.stringify(context) +
+          " companyData=" +
+          JSON.stringify(companyData),
       );
     }
   }
@@ -2803,11 +2803,11 @@ WHERE rn = 1;
         "",
         from.aadObjectId,
         "error in sendSubscriptionSelectionCard context=" +
-        JSON.stringify(context) +
-        " userEmail=" +
-        userEmail +
-        " companyDataObj=" +
-        JSON.stringify(companyDataObj),
+          JSON.stringify(context) +
+          " userEmail=" +
+          userEmail +
+          " companyDataObj=" +
+          JSON.stringify(companyDataObj),
       );
     }
   }
@@ -2878,37 +2878,37 @@ WHERE rn = 1;
       //if (!isWelcomeMessageSent) {
       try {
         if (teamName != null) {
-          await this.sendWelcomeMessageToChannel(
-            context,
-            companyData.userName,
-            companyData.userId,
-          );
+          // await this.sendWelcomeMessageToChannel(
+          //   context,
+          //   companyData.userName,
+          //   companyData.userId,
+          // );
         }
-        const welcomeMessageCard = getWelcomeMessageCard(
-          teamMemberCount,
-          teamName,
-        );
-        const welcomeMessageCard2 = getWelcomeMessageCard2(
-          teamMemberCount,
-          teamName,
-        );
+        // const welcomeMessageCard = getWelcomeMessageCard(
+        //   teamMemberCount,
+        //   teamName,
+        // );
+        // const welcomeMessageCard2 = getWelcomeMessageCard2(
+        //   teamMemberCount,
+        //   teamName,
+        // );
         if (teamMemberCount > 0) {
           // const testIncPreviewCard = getTestIncPreviewCard(
           //   teamMemberCount,
           //   companyData,
           // );
-          await sendMultipleDirectMessageCard(
-            context,
-            acvtivityData.from,
-            welcomeMessageCard,
-            welcomeMessageCard2,
-          );
+          // await sendMultipleDirectMessageCard(
+          //   context,
+          //   acvtivityData.from,
+          //   welcomeMessageCard,
+          //   welcomeMessageCard2,
+          // );
         } else {
-          await sendDirectMessageCard(
-            context,
-            acvtivityData.from,
-            welcomeMessageCard,
-          );
+          // await sendDirectMessageCard(
+          //   context,
+          //   acvtivityData.from,
+          //   welcomeMessageCard,
+          // );
         }
       } catch (err) {
         processSafetyBotError(
@@ -2922,19 +2922,19 @@ WHERE rn = 1;
 
       new PersonalEmail.PersonalEmail()
         .sendWelcomEmail(companyData.userEmail, userAadObjId, process.env.build)
-        .then(() => { })
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
 
       if (teamMemberCount > 10) {
-        this.sendSubscriptionSelectionCard(
-          context,
-          acvtivityData.from,
-          teamMemberCount,
-          companyData.userEmail,
-          companyData,
-        );
+        // this.sendSubscriptionSelectionCard(
+        //   context,
+        //   acvtivityData.from,
+        //   teamMemberCount,
+        //   companyData.userEmail,
+        //   companyData,
+        // );
       }
 
       // let teamName = "";
@@ -2972,7 +2972,7 @@ WHERE rn = 1;
     if (userInfo && userInfo.length > 0) {
       new PersonalEmail.PersonalEmail()
         .sendUninstallationEmail(userEmailId, userAadObjId, process.env.build)
-        .then(() => { })
+        .then(() => {})
         .catch((err) => {
           console.log(err);
         });
