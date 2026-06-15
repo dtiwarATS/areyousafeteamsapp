@@ -68,7 +68,9 @@ function computeIncidentStats(inc, tabObj) {
       } else {
         const deliveredCount = memberObj.delivered?.length || 0;
         if (membersCount > 0) {
-          responseRatePercent = Math.round((deliveredCount * 100) / membersCount);
+          responseRatePercent = Math.round(
+            (deliveredCount * 100) / membersCount,
+          );
         }
       }
     }
@@ -107,12 +109,17 @@ function formatActivityLogResponse(row) {
     user_response: pickField(row, "UserResponse", "userResponse"),
     failure_reason: pickField(row, "FailureReason", "failureReason"),
     message_sent_at: toIsoDate(
-      pickField(row, "MessageSendDateTime", "EventDateTime", "messageSendDateTime"),
+      pickField(
+        row,
+        "MessageSendDateTime",
+        "EventDateTime",
+        "messageSendDateTime",
+      ),
     ),
     user_responded_at: toIsoDate(
       pickField(
         row,
-        "UserRespondedAt",
+        "UserRespondAt",
         "userRespondedAt",
         "ResponseDateTime",
         "responseDateTime",
