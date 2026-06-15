@@ -3442,7 +3442,8 @@ const handlerForSafetyBotTab = (app) => {
   app.post(
     "/areyousafetabhandler/trackSafetyCheckResponse/",
     async (req, res) => {
-      const { incId, teamId, userAadObjId, responseOption } = req.body ?? {};
+      const { incId, teamId, userAadObjId, responseOption, comment } =
+        req.body ?? {};
 
       try {
         const parsedIncId = Number(incId);
@@ -3484,7 +3485,7 @@ const handlerForSafetyBotTab = (app) => {
         // ✅ CASE 2: USER_AAD_OBJ_ID
 
         query = `
-      UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE inc_id = ${incId} AND user_id in (select  top 1 user_id from MSTeamsTeamsUsers where user_aadobject_id= '${userAadObjId}')
+      UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams',comment = '${comment ?? ""}' WHERE inc_id = ${incId} AND user_id in (select  top 1 user_id from MSTeamsTeamsUsers where user_aadobject_id= '${userAadObjId}')
 
 
       `;
