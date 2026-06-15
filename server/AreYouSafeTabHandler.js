@@ -675,7 +675,7 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  app.get("/areyousafetabhandler/getIncidentsByTenantId", async (req, res) => {
+  app.get("/incidents", async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res
@@ -747,8 +747,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "",
         "",
-        "error in /areyousafetabhandler/getIncidentsByTenantId tenantId=" +
-          tenantId,
+        "error in /incidents tenantId=" + tenantId,
       );
       res.status(500).json({ error: "Failed to fetch incidents" });
     }
