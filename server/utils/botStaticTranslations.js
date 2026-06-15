@@ -29,6 +29,46 @@ const getBotStaticText = (key, languageId, fallback) => {
   return fallback;
 };
 
+const getIncidentTranslatedText = (incObj) =>
+  incObj?.translatedtext || incObj?.TRANSLATED_TEXT_JSON;
+
+const hasIncidentTranslations = (translatedText) =>
+  translatedText != null &&
+  (typeof translatedText !== "string" || translatedText.trim() !== "");
+
+const getTranslatedField = (
+  translatedText,
+  fieldName,
+  languageId,
+  fallback,
+) => {
+  if (!translatedText || languageId == null || languageId === "")
+    return fallback;
+  try {
+    const parsed =
+      typeof translatedText === "string"
+        ? JSON.parse(translatedText)
+        : translatedText;
+    const value = parsed?.[fieldName]?.[String(languageId)];
+    return value != null && value !== "" ? value : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const getBotStaticTextWithIncident = (
+  key,
+  languageId,
+  translatedText,
+  fallback,
+) => {
+  if (!hasIncidentTranslations(translatedText)) {
+    return fallback;
+  }
+  const staticText = getBotStaticText(key, languageId, fallback);
+  return getTranslatedField(translatedText, key, languageId, staticText);
+};
+
 const applyBotStaticPlaceholders = (text, placeholders = {}) => {
   let result = text;
   const { incidentCreator, ResponderName, ResponseOption, IncidentTitle } =
@@ -124,21 +164,42 @@ For mobile, navigate to the <b>{TeamName}</b> team -> <b>{ChannelName}</b> chann
   });
 };
 
+const buildSafeResponseThankYouText = (
+  incCreatedBy,
+  languageId,
+  translatedText,
+) => {
+  const defaultThankYouText =
+    "Thank you for your response. Your status has been recorded and shared with <IncidentCreator>";
+  let responseText = getBotStaticTextWithIncident(
+    "saferesponsebtntext1",
+    languageId,
+    translatedText,
+    defaultThankYouText,
+  );
+  return applyBotStaticPlaceholders(responseText, {
+    incidentCreator: incCreatedBy,
+  });
+};
+
 const buildSubmitCommentResponseText = (
   commentVal,
   incCreatedBy,
   languageId,
+  translatedText,
 ) => {
   const resolvedLanguageId = languageId || DEFAULT_LANGUAGE_ID;
   if (commentVal) {
-    const additionalCommentsLabel = getBotStaticText(
+    const additionalCommentsLabel = getBotStaticTextWithIncident(
       "additionalComments",
       resolvedLanguageId,
+      translatedText,
       "Additional Comments",
     );
-    let text = getBotStaticText(
+    let text = getBotStaticTextWithIncident(
       "submitCommentWithMessage",
       resolvedLanguageId,
+      translatedText,
       "✔️ Your message has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
     );
     return applyBotStaticPlaceholders(text, {
@@ -147,20 +208,28 @@ const buildSubmitCommentResponseText = (
       CommentVal: commentVal,
     });
   }
-  let text = getBotStaticText(
+  let text = getBotStaticTextWithIncident(
     "submitCommentSafetyStatus",
     resolvedLanguageId,
+    translatedText,
     "✔️ Your safety status has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible.",
   );
   return applyBotStaticPlaceholders(text, { incidentCreator: incCreatedBy });
 };
 
-const buildUserCommentedCard = (user, commentVal, incTitle, languageId) => {
+const buildUserCommentedCard = (
+  user,
+  commentVal,
+  incTitle,
+  languageId,
+  translatedText,
+) => {
   const defaultTemplate =
     "User **<at>{ResponderName}</at>** has commented for incident **{IncidentTitle}**: \n{CommentVal} ";
-  let text = getBotStaticText(
+  let text = getBotStaticTextWithIncident(
     "userCommentedNotification",
     languageId,
+    translatedText,
     defaultTemplate,
   );
   text = applyBotStaticPlaceholders(text, {
@@ -195,12 +264,19 @@ const buildUserCommentedCard = (user, commentVal, incTitle, languageId) => {
   };
 };
 
-const buildUserRespondedCard = (user, responseOption, incTitle, languageId) => {
+const buildUserRespondedCard = (
+  user,
+  responseOption,
+  incTitle,
+  languageId,
+  translatedText,
+) => {
   const defaultTemplate =
     "User **<at>{ResponderName}</at>** responded **{ResponseOption}** for Incident: **{IncidentTitle}** ";
-  let text = getBotStaticText(
+  let text = getBotStaticTextWithIncident(
     "userRespondedNotification",
     languageId,
+    translatedText,
     defaultTemplate,
   );
   text = applyBotStaticPlaceholders(text, {
@@ -238,9 +314,14 @@ const buildUserRespondedCard = (user, responseOption, incTitle, languageId) => {
 module.exports = {
   DEFAULT_LANGUAGE_ID,
   getBotStaticText,
+  getBotStaticTextWithIncident,
+  getIncidentTranslatedText,
+  hasIncidentTranslations,
+  getTranslatedField,
   applyBotStaticPlaceholders,
   getIncidentTypeTitle,
   buildAcknowledgeMsgToCreator,
+  buildSafeResponseThankYouText,
   buildUserRespondedCard,
   buildUserCommentedCard,
   buildSubmitCommentResponseText,

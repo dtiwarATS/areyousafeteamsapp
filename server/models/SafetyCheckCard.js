@@ -1,7 +1,9 @@
 const incidentService = require("../services/incidentService");
 const dashboard = require("../models/dashboard");
 const {
-  getBotStaticText,
+  getBotStaticTextWithIncident,
+  getIncidentTranslatedText,
+  getTranslatedField,
   applyBotStaticPlaceholders,
   DEFAULT_LANGUAGE_ID,
 } = require("../utils/botStaticTranslations");
@@ -11,51 +13,87 @@ const resolveLanguageId = (languageId) =>
     ? languageId
     : DEFAULT_LANGUAGE_ID;
 
-const getHelloText = (languageId) =>
-  getBotStaticText("hello", resolveLanguageId(languageId), "Hello!");
+const getCardText = (key, languageId, translatedText, fallback) =>
+  getBotStaticTextWithIncident(
+    key,
+    resolveLanguageId(languageId),
+    translatedText,
+    fallback,
+  );
 
-const getCardText = (key, languageId, fallback) =>
-  getBotStaticText(key, resolveLanguageId(languageId), fallback);
+const getCardIntroText = (
+  key,
+  languageId,
+  translatedText,
+  incCreatedByName,
+  fallback,
+) =>
+  applyBotStaticPlaceholders(
+    getCardText(key, languageId, translatedText, fallback),
+    {
+      incidentCreator: { name: incCreatedByName },
+    },
+  );
 
-const getCardIntroText = (key, languageId, incCreatedByName, fallback) =>
-  applyBotStaticPlaceholders(getCardText(key, languageId, fallback), {
-    incidentCreator: { name: incCreatedByName },
-  });
-
-const getCardTitleText = (key, languageId, incTitle, fallback) =>
-  applyBotStaticPlaceholders(getCardText(key, languageId, fallback), {
-    IncidentTitle: incTitle,
-  });
+const getCardTitleText = (key, languageId, translatedText, incTitle, fallback) =>
+  applyBotStaticPlaceholders(
+    getCardText(key, languageId, translatedText, fallback),
+    {
+      IncidentTitle: incTitle,
+    },
+  );
 
 const getCardMessageWithCreatorAndTitle = (
   key,
   languageId,
+  translatedText,
   createdByName,
   incTitle,
   fallback,
 ) =>
-  applyBotStaticPlaceholders(getCardText(key, languageId, fallback), {
-    incidentCreator: { name: createdByName },
-    IncidentTitle: incTitle,
-  });
+  applyBotStaticPlaceholders(
+    getCardText(key, languageId, translatedText, fallback),
+    {
+      incidentCreator: { name: createdByName },
+      IncidentTitle: incTitle,
+    },
+  );
 
-const getLabeledSectionText = (labelKey, languageId, content, fallbackLabel) => {
-  const label = getCardText(labelKey, languageId, fallbackLabel);
+const getLabeledSectionText = (
+  labelKey,
+  languageId,
+  translatedText,
+  content,
+  fallbackLabel,
+) => {
+  const label = getCardText(
+    labelKey,
+    languageId,
+    translatedText,
+    fallbackLabel,
+  );
   return `**${label}:**\n\n` + content;
 };
 
-const getResponseDropdownStrings = (languageId) => ({
+const getResponseDropdownStrings = (languageId, translatedText) => ({
   placeholder: getCardText(
     "selectResponsePlaceholder",
     languageId,
+    translatedText,
     "Select response",
   ),
   errorMessage: getCardText(
     "selectResponseError",
     languageId,
+    translatedText,
     "Please select a response.",
   ),
-  confirmTitle: getCardText("confirmButton", languageId, "Confirm"),
+  confirmTitle: getCardText(
+    "confirmButton",
+    languageId,
+    translatedText,
+    "Confirm",
+  ),
 });
 
 const getSafetyCheckMessageText = async (
@@ -67,6 +105,7 @@ const getSafetyCheckMessageText = async (
   incTypeId = 1,
   incGuidance,
   languageId = null,
+  translatedText = null,
 ) => {
   let onBehalfOf = "",
     responseUsers = "";
@@ -107,6 +146,7 @@ const getSafetyCheckMessageText = async (
     msg = getCardMessageWithCreatorAndTitle(
       "safetyAlertMessage",
       languageId,
+      translatedText,
       createdByName,
       incTitle,
       "This is a safety alert from <IncidentCreator>. We think you may be affected by **{IncidentTitle}**.",
@@ -118,25 +158,13 @@ const escapeRegex = (text) => {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
-const getTranslatedField = (
-  translatedText,
-  fieldName,
-  languageId,
-  fallback,
-) => {
-  if (!translatedText || languageId == null || languageId === "")
-    return fallback;
-  try {
-    const parsed =
-      typeof translatedText === "string"
-        ? JSON.parse(translatedText)
-        : translatedText;
-    const value = parsed?.[fieldName]?.[String(languageId)];
-    return value != null && value !== "" ? value : fallback;
-  } catch {
-    return fallback;
-  }
-};
+const getHelloText = (languageId, translatedText) =>
+  getBotStaticTextWithIncident(
+    "hello",
+    resolveLanguageId(languageId),
+    translatedText,
+    "Hello!",
+  );
 
 const resolveTranslatedIncidentFields = (
   translatedText,
@@ -225,6 +253,7 @@ const getSafetyCheckTypeCard = async (
   languageId = null,
 ) => {
   const mentionUserEntities = [];
+  const translatedText = getIncidentTranslatedText(incObj);
   if (!safetyCheckMessageText) {
     safetyCheckMessageText = await getSafetyCheckMessageText(
       incObj.incId,
@@ -235,6 +264,7 @@ const getSafetyCheckTypeCard = async (
       incTypeId,
       incGuidance,
       languageId,
+      translatedText,
     );
   }
   if (!incCreatedById) {
@@ -261,7 +291,7 @@ const getSafetyCheckTypeCard = async (
       type: "TextBlock",
       size: "Large",
       weight: "Bolder",
-      text: getHelloText(languageId),
+      text: getHelloText(languageId, translatedText),
     },
     {
       type: "TextBlock",
@@ -320,6 +350,7 @@ const getSafetyCheckTypeCard = async (
       text: getLabeledSectionText(
         "guidanceLabel",
         languageId,
+        translatedText,
         incGuidance,
         "Guidance",
       ),
@@ -355,7 +386,10 @@ const getSafetyCheckTypeCard = async (
           }
         });
       } else {
-        const dropdownStrings = getResponseDropdownStrings(languageId);
+        const dropdownStrings = getResponseDropdownStrings(
+          languageId,
+          translatedText,
+        );
         let dropdown = {
           type: "Input.ChoiceSet",
           id: "dropdownSelection",
@@ -423,6 +457,7 @@ const getSafetyCheckTypeCard = async (
       text: getLabeledSectionText(
         "guidanceLabel",
         languageId,
+        translatedText,
         incGuidance,
         "Guidance",
       ),
@@ -460,12 +495,13 @@ const getImpBulletineTypeCard = async (
   companyData,
   languageId = null,
 ) => {
+  const translatedText = getIncidentTranslatedText(incObj);
   const cardBody = [
     {
       type: "TextBlock",
       size: "Large",
       weight: "Bolder",
-      text: getHelloText(languageId),
+      text: getHelloText(languageId, translatedText),
     },
     {
       type: "TextBlock",
@@ -474,6 +510,7 @@ const getImpBulletineTypeCard = async (
       text: getCardIntroText(
         "importantBulletinIntro",
         languageId,
+        translatedText,
         incCreatedByName,
         `This is an important bulletin from <IncidentCreator>.`,
       ),
@@ -486,6 +523,7 @@ const getImpBulletineTypeCard = async (
       text: getCardTitleText(
         "importantBulletinTitle",
         languageId,
+        translatedText,
         incTitle,
         `**Important Bulletin: {IncidentTitle}**`,
       ),
@@ -497,6 +535,7 @@ const getImpBulletineTypeCard = async (
       text: getLabeledSectionText(
         "guidanceLabel",
         languageId,
+        translatedText,
         incGuidance,
         "Guidance",
       ),
@@ -508,6 +547,7 @@ const getImpBulletineTypeCard = async (
       text: getLabeledSectionText(
         "additionalInformationLabel",
         languageId,
+        translatedText,
         additionalInfo,
         "Additional Information",
       ),
@@ -533,7 +573,7 @@ const getImpBulletineTypeCard = async (
       }
     });
   } else {
-    const dropdownStrings = getResponseDropdownStrings(languageId);
+    const dropdownStrings = getResponseDropdownStrings(languageId, translatedText);
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",
@@ -596,12 +636,13 @@ const getTravelAdvisoryTypeCard = async (
   companyData,
   languageId = null,
 ) => {
+  const translatedText = getIncidentTranslatedText(incObj);
   const cardBody = [
     {
       type: "TextBlock",
       size: "Large",
       weight: "Bolder",
-      text: getHelloText(languageId),
+      text: getHelloText(languageId, translatedText),
     },
     {
       type: "TextBlock",
@@ -610,6 +651,7 @@ const getTravelAdvisoryTypeCard = async (
       text: getCardIntroText(
         "travelAdvisoryIntro",
         languageId,
+        translatedText,
         incCreatedByName,
         `This is a travel advisory from <IncidentCreator>.`,
       ),
@@ -622,6 +664,7 @@ const getTravelAdvisoryTypeCard = async (
       text: getCardTitleText(
         "travelAdvisoryTitle",
         languageId,
+        translatedText,
         incTitle,
         `**Travel Advisory: {IncidentTitle}**`,
       ),
@@ -633,6 +676,7 @@ const getTravelAdvisoryTypeCard = async (
       text: getLabeledSectionText(
         "travelUpdateLabel",
         languageId,
+        translatedText,
         travelUpdate,
         "Travel Update",
       ),
@@ -644,6 +688,7 @@ const getTravelAdvisoryTypeCard = async (
       text: getLabeledSectionText(
         "guidanceLabel",
         languageId,
+        translatedText,
         incGuidance,
         "Guidance",
       ),
@@ -655,6 +700,7 @@ const getTravelAdvisoryTypeCard = async (
       text: getLabeledSectionText(
         "contactInformationLabel",
         languageId,
+        translatedText,
         contactInfo,
         "Contact Information",
       ),
@@ -680,7 +726,7 @@ const getTravelAdvisoryTypeCard = async (
       }
     });
   } else {
-    const dropdownStrings = getResponseDropdownStrings(languageId);
+    const dropdownStrings = getResponseDropdownStrings(languageId, translatedText);
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",
@@ -742,12 +788,13 @@ const getStakeholderNoticeTypeCard = async (
   companyData,
   languageId = null,
 ) => {
+  const translatedText = getIncidentTranslatedText(incObj);
   const cardBody = [
     {
       type: "TextBlock",
       size: "Large",
       weight: "Bolder",
-      text: getHelloText(languageId),
+      text: getHelloText(languageId, translatedText),
     },
     {
       type: "TextBlock",
@@ -756,6 +803,7 @@ const getStakeholderNoticeTypeCard = async (
       text: getCardIntroText(
         "stakeholderNoticeIntro",
         languageId,
+        translatedText,
         incCreatedByName,
         `This is a stakeholder notice from <IncidentCreator>.`,
       ),
@@ -768,6 +816,7 @@ const getStakeholderNoticeTypeCard = async (
       text: getCardTitleText(
         "stakeholderNoticeTitle",
         languageId,
+        translatedText,
         incTitle,
         `**Stakeholder Notice: {IncidentTitle}**`,
       ),
@@ -779,6 +828,7 @@ const getStakeholderNoticeTypeCard = async (
       text: getLabeledSectionText(
         "situationLabel",
         languageId,
+        translatedText,
         situation,
         "Situation",
       ),
@@ -790,6 +840,7 @@ const getStakeholderNoticeTypeCard = async (
       text: getLabeledSectionText(
         "additionalInformationLabel",
         languageId,
+        translatedText,
         additionalInfo,
         "Additional Information",
       ),
@@ -815,7 +866,7 @@ const getStakeholderNoticeTypeCard = async (
       }
     });
   } else {
-    const dropdownStrings = getResponseDropdownStrings(languageId);
+    const dropdownStrings = getResponseDropdownStrings(languageId, translatedText);
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",

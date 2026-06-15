@@ -61,9 +61,9 @@ const {
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const {
-  getBotStaticText,
-  applyBotStaticPlaceholders,
+  buildSafeResponseThankYouText,
   buildSubmitCommentResponseText,
+  getIncidentTranslatedText,
 } = require("../utils/botStaticTranslations");
 const dashboard = require("../models/dashboard");
 const {
@@ -1265,6 +1265,7 @@ WHEN NOT MATCHED THEN
           eventResponse,
           commentVal,
           resolvedLanguageId,
+          inc,
         } = action.data;
         let incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance; //? incGuidance : "No details available";
@@ -1272,6 +1273,7 @@ WHEN NOT MATCHED THEN
           commentVal,
           incCreatedBy,
           resolvedLanguageId,
+          getIncidentTranslatedText(inc),
         );
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),
@@ -1346,6 +1348,7 @@ WHEN NOT MATCHED THEN
           eventResponse,
           commentVal,
           resolvedLanguageId,
+          inc,
         } = action.data;
         let incGuidance = await incidentService.getIncGuidance(incId);
         incGuidance = incGuidance; //? incGuidance : "No details available";
@@ -1358,6 +1361,7 @@ WHEN NOT MATCHED THEN
           commentVal,
           incCreatedBy,
           languageId,
+          getIncidentTranslatedText(inc),
         );
         const cards = CardFactory.adaptiveCard(
           updateSubmitCommentCard(responseText, incCreatedBy, incGuidance),
@@ -1381,15 +1385,11 @@ WHEN NOT MATCHED THEN
           };
         }
 
-        const defaultThankYouText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
-        let responseText = getBotStaticText(
-          "saferesponsebtntext1",
+        const responseText = buildSafeResponseThankYouText(
+          incCreatedBy,
           languageId,
-          defaultThankYouText,
+          getIncidentTranslatedText(inc),
         );
-        responseText = applyBotStaticPlaceholders(responseText, {
-          incidentCreator: incCreatedBy,
-        });
         const entities = {
           type: "mention",
           text: `<at>${incCreatedBy.name}</at>`,

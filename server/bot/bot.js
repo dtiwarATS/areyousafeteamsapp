@@ -68,12 +68,12 @@ const {
   updateSafeMessageqestion3,
 } = require("../models/UpdateCards");
 const {
-  getBotStaticText,
-  applyBotStaticPlaceholders,
   buildAcknowledgeMsgToCreator,
+  buildSafeResponseThankYouText,
   buildUserRespondedCard,
   buildUserCommentedCard,
   buildSubmitCommentResponseText,
+  getIncidentTranslatedText,
   DEFAULT_LANGUAGE_ID,
 } = require("../utils/botStaticTranslations");
 
@@ -1521,12 +1521,14 @@ const sendCommentToSelectedMembers = async (
         ];
         let card = approvalCardResponse;
         if (commentNotificationContext) {
-          const { user, commentVal, incTitle } = commentNotificationContext;
+          const { user, commentVal, incTitle, translatedText } =
+            commentNotificationContext;
           card = buildUserCommentedCard(
             user,
             commentVal,
             incTitle,
             incRespSelectedUsers[i].LANGUAGE_ID || DEFAULT_LANGUAGE_ID,
+            translatedText,
           );
         }
         const result = await sendProactiveMessaageToUser(
@@ -1565,12 +1567,14 @@ const sendApprovalResponseToSelectedMembers = async (
         ];
         let card = approvalCardResponse;
         if (notificationContext) {
-          const { user, responseText, incTitle } = notificationContext;
+          const { user, responseText, incTitle, translatedText } =
+            notificationContext;
           card = buildUserRespondedCard(
             user,
             responseText,
             incTitle,
             incRespSelectedUsers[i].LANGUAGE_ID || DEFAULT_LANGUAGE_ID,
+            translatedText,
           );
         }
         const result = await sendProactiveMessaageToUser(
@@ -4112,17 +4116,20 @@ const processCommentViaLink = async (userId, incId, comment) => {
       await incidentService.updateCommentViaSMSLink(userId, incId, comment);
 
       const commentUser = { id: user.user_id, name: user.user_name };
+      const translatedText = getIncidentTranslatedText(incData);
       const approvalCardResponse = buildUserCommentedCard(
         commentUser,
         comment,
         incData.incTitle,
         DEFAULT_LANGUAGE_ID,
+        translatedText,
       );
       const serviceUrl = context?.activity?.serviceUrl;
       await sendCommentToSelectedMembers(incId, context, null, {
         user: commentUser,
         commentVal: comment,
         incTitle: incData.incTitle,
+        translatedText,
       });
       await sendApprovalResponseToSelectedTeams(
         incId,
@@ -5436,17 +5443,20 @@ const sendApprovalResponse = async (user, context) => {
     let responseText = responseOptionData.responseOptions.filter(
       (option) => option.id == respToBeUpdated,
     )[0].option;
+    const translatedText = getIncidentTranslatedText(inc);
     const approvalCardResponse = buildUserRespondedCard(
       user,
       responseText.trim(),
       incTitle,
       languageId,
+      translatedText,
     );
     const serviceUrl = context?.activity?.serviceUrl;
     await sendApprovalResponseToSelectedMembers(incId, context, null, {
       user,
       responseText,
       incTitle,
+      translatedText,
     });
     await sendApprovalResponseToSelectedTeams(
       incId,
@@ -5602,17 +5612,20 @@ const submitComment = async (context, user, companyData) => {
 
     if (commentVal) {
       const commentUser = { id: user.id, name: user.name };
+      const translatedText = getIncidentTranslatedText(inc);
       const approvalCardResponse = buildUserCommentedCard(
         commentUser,
         commentVal,
         incTitle,
         DEFAULT_LANGUAGE_ID,
+        translatedText,
       );
       const serviceUrl = context?.activity?.serviceUrl;
       await sendCommentToSelectedMembers(incId, context, null, {
         user: commentUser,
         commentVal,
         incTitle,
+        translatedText,
       });
       await incidentService.updateIncResponseComment(
         incId,
@@ -6888,6 +6901,7 @@ const onInvokeActivity = async (context) => {
         eventResponse,
         commentVal,
         resolvedLanguageId,
+        inc,
       } = action.data;
       let incGuidance = await incidentService.getIncGuidance(incId);
       incGuidance = incGuidance; //? incGuidance : "";
@@ -6895,6 +6909,7 @@ const onInvokeActivity = async (context) => {
         commentVal,
         incCreatedBy,
         resolvedLanguageId,
+        getIncidentTranslatedText(inc),
       );
 
       const cards = CardFactory.adaptiveCard(
@@ -6975,6 +6990,7 @@ const onInvokeActivity = async (context) => {
         eventResponse,
         commentVal,
         resolvedLanguageId,
+        inc,
       } = action.data;
       let incGuidance = await incidentService.getIncGuidance(incId);
       incGuidance = incGuidance; //? incGuidance : "";
@@ -6987,6 +7003,7 @@ const onInvokeActivity = async (context) => {
         commentVal,
         incCreatedBy,
         languageId,
+        getIncidentTranslatedText(inc),
       );
 
       const cards = CardFactory.adaptiveCard(
@@ -7014,15 +7031,11 @@ const onInvokeActivity = async (context) => {
       const languageId = await incidentService.getUserLanguageIdByAadObjId(
         context.activity.from.aadObjectId,
       );
-      const defaultThankYouText = `Thank you for your response. Your status has been recorded and shared with <at>${incCreatedBy.name}</at>`;
-      let responseText = getBotStaticText(
-        "saferesponsebtntext1",
+      const responseText = buildSafeResponseThankYouText(
+        incCreatedBy,
         languageId,
-        defaultThankYouText,
+        getIncidentTranslatedText(inc),
       );
-      responseText = applyBotStaticPlaceholders(responseText, {
-        incidentCreator: incCreatedBy,
-      });
 
       const entities = {
         type: "mention",

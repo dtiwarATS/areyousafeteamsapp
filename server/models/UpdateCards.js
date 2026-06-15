@@ -1,6 +1,7 @@
 require("dotenv");
 const {
-  getBotStaticText,
+  getBotStaticTextWithIncident,
+  getIncidentTranslatedText,
   DEFAULT_LANGUAGE_ID,
 } = require("../utils/botStaticTranslations");
 
@@ -209,14 +210,17 @@ const updateSafeMessage = (
   var isVisi = false;
   if (incGuidance != "") isVisi = true;
   const resolvedLanguageId = languageId || DEFAULT_LANGUAGE_ID;
-  const additionalCommentsLabel = getBotStaticText(
+  const translatedText = getIncidentTranslatedText(inc);
+  const additionalCommentsLabel = getBotStaticTextWithIncident(
     "additionalComments",
     resolvedLanguageId,
+    translatedText,
     "Additional Comments",
   );
-  const sendButtonLabel = getBotStaticText(
+  const sendButtonLabel = getBotStaticTextWithIncident(
     "sendButton",
     resolvedLanguageId,
+    translatedText,
     "Send",
   );
   var card = {
