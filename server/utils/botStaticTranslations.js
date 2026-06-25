@@ -117,7 +117,7 @@ const applyBotStaticPlaceholders = (text, placeholders = {}) => {
   return result;
 };
 
-const getIncidentTypeTitle = (incTypeId, languageId) => {
+const getIncidentTypeTitle = (incTypeId, languageId, translatedText) => {
   const keyMap = {
     1: "incidentTypeSafetyCheck",
     2: "incidentTypeSafetyAlert",
@@ -133,7 +133,12 @@ const getIncidentTypeTitle = (incTypeId, languageId) => {
     incidentTypeStakeholderNotice: "Stakeholder Notice",
   };
   const key = keyMap[incTypeId] || "incidentTypeSafetyCheck";
-  return getBotStaticText(key, languageId, defaults[key]);
+  return getBotStaticTextWithIncident(
+    key,
+    languageId,
+    translatedText,
+    defaults[key],
+  );
 };
 
 const buildAcknowledgeMsgToCreator = (
@@ -142,18 +147,21 @@ const buildAcknowledgeMsgToCreator = (
   teamName,
   channelName,
   languageId,
+  translatedText,
 ) => {
   const resolvedLanguageId = languageId || DEFAULT_LANGUAGE_ID;
   const incidentTypeTitle = getIncidentTypeTitle(
     incTypeId,
     resolvedLanguageId,
+    translatedText,
   );
   const defaultTemplate = `Thanks! Your <b>{IncidentTypeTitle}</b> has been sent to {NumberOfUsers} users.<br />
 Click on the <b>Dashboard tab</b> above to view the real-time safety status and access all features.<br />
 For mobile, navigate to the <b>{TeamName}</b> team -> <b>{ChannelName}</b> channel -> <b>Safety Check</b> tab`;
-  let text = getBotStaticText(
+  let text = getBotStaticTextWithIncident(
     "acknowledgeMsgToCreator",
     resolvedLanguageId,
+    translatedText,
     defaultTemplate,
   );
   return applyBotStaticPlaceholders(text, {

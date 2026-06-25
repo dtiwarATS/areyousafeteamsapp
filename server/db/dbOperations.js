@@ -831,13 +831,16 @@ const deleteCompanyData = async (teamId, userObjId) => {
   let isDelete = false;
   try {
     pool = await poolPromise;
-    let updateQuery = `update msteamsinstallationdetails set super_users = null, uninstallation_date = '${new Date(
-      Date.now(),
-    ).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where team_id = '${teamId}'`;
-    await pool.request().query(updateQuery);
+    // let updateQuery = `delete from MSTeamsInstallationDetails where team_id = '${teamId}'`;
+    // await pool.request().query(updateQuery);
 
-    let deleteIncQuery = `delete from MSTeamsIncidents where team_id = '${teamId}'; 
-                          delete from MSTeamsNAResponseSelectedTeams where teamId = '${teamId}'; `;
+    let deleteIncQuery = `delete from MSTeamsInstallationDetails where team_id = '${teamId}';
+    delete from MSTeamsTeamsUsers where team_id=''${teamId}';
+                          delete from MSTeamsIncidents where team_id = '${teamId}'; 
+                          delete from MSTeamsNAResponseSelectedTeams where teamId = '${teamId}';
+                          delete from [dbo].[SETTINGS] where team_id = '${teamId}';
+                          delete from [dbo].[UserActivityLogs] where TeamId = '${teamId}';
+                          delete from [dbo].[MSTeamsSOSResponder] where TEAM_ID = '${teamId}';`;
     await pool.request().query(deleteIncQuery);
 
     isDelete = true;

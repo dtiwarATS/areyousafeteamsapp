@@ -2427,6 +2427,7 @@ const getAcknowledgeMsgToCreatorAdaptiveCard = (
   channelName,
   incTypeId = 1,
   languageId = DEFAULT_LANGUAGE_ID,
+  translatedText = null,
 ) => {
   const msgText = buildAcknowledgeMsgToCreator(
     incTypeId,
@@ -2434,6 +2435,7 @@ const getAcknowledgeMsgToCreatorAdaptiveCard = (
     teamName,
     channelName,
     languageId,
+    translatedText,
   );
   return MessageFactory.text(msgText);
 };
@@ -2466,6 +2468,7 @@ const sendAcknowledgeMsgToCreator = async (
     teamName,
     channelName,
     languageId,
+    getIncidentTranslatedText(incData),
   );
   let activity = MessageFactory.text(msgText);
   connectorClient.conversations.sendToConversation(conversationId, activity);
