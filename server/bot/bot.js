@@ -47,6 +47,7 @@ const accountSid = process.env.TWILIO_ACCOUNT_ID;
 const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
 const tClient = require("twilio")(accountSid, authToken);
 const dashboard = require("../models/dashboard");
+const { buildIncFilesCardBody } = require("../utils/incidentAttachmentCard");
 
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
@@ -1893,41 +1894,7 @@ const sendProactiveMessageAsync = async (
       );
       log.addLog(`Card Create Successfully `);
       if (incFilesData != null && incFilesData.length > 0) {
-        const cardBody = [];
-        if (incFilesData.length == 1) {
-          cardBody.push({
-            type: "Image",
-            url: incFilesData[0].Blob,
-            msTeams: {
-              allowExpand: true,
-            },
-          });
-        } else {
-          let columns = [];
-          incFilesData.forEach((incFile, index) => {
-            if (index % 2 == 0) {
-              columns = [];
-              let cs = {
-                type: "ColumnSet",
-                columns: columns,
-              };
-              cardBody.push(cs);
-            }
-            let columnItems = [];
-            columnItems.push({
-              type: "Image",
-              url: incFile.Blob,
-              msTeams: {
-                allowExpand: true,
-              },
-            });
-            let column = {
-              type: "Column",
-              items: columnItems,
-            };
-            columns.push(column);
-          });
-        }
+        const cardBody = buildIncFilesCardBody(incFilesData);
         let card = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
@@ -2655,6 +2622,7 @@ const sendSafetyCheckMsgViaSMS = async (
           smsType: "SAFETY_CHECK",
         };
         const sanitizedBody = sanitizeSmsText(body);
+        let twiliosend;
         try {
           SaveSmsLog(
             user.id,
@@ -2679,7 +2647,7 @@ const sendSafetyCheckMsgViaSMS = async (
             "",
           );
 
-          const { result: twiliosend } = await sendTwilioMessage(tClient, {
+          const sendResult = await sendTwilioMessage(tClient, {
             body,
             logContext,
             from: "+18023277232",
@@ -2688,6 +2656,7 @@ const sendSafetyCheckMsgViaSMS = async (
             to: phone,
             statusCallback: `${process.env.serviceUrl}/twilio-status?eventId=${incId}&userId=${user.id}`,
           });
+          twiliosend = sendResult.result;
         } catch (err) {
           console.error("Error sending SMS:", err.message);
           SaveSmsLog(
