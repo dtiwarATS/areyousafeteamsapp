@@ -835,7 +835,7 @@ const deleteCompanyData = async (teamId, userObjId) => {
     // await pool.request().query(updateQuery);
 
     let deleteIncQuery = `delete from MSTeamsInstallationDetails where team_id = '${teamId}';
-    delete from MSTeamsTeamsUsers where team_id=''${teamId}';
+    delete from MSTeamsTeamsUsers where team_id='${teamId}';
                           delete from MSTeamsIncidents where team_id = '${teamId}'; 
                           delete from MSTeamsNAResponseSelectedTeams where teamId = '${teamId}';
                           delete from [dbo].[SETTINGS] where team_id = '${teamId}';
