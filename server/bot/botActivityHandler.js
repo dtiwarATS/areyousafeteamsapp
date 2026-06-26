@@ -5,6 +5,7 @@ const path = require("path");
 const ENV_FILE = path.join(__dirname, "../../.env");
 require("dotenv").config({ path: ENV_FILE });
 const { AYSLog } = require("../utils/log");
+const { sendTwilioMessage } = require("../utils/smsText");
 const poolPromise = require("../db/dbConn");
 const {
   TeamsActivityHandler,
@@ -2302,9 +2303,16 @@ WHERE rn = 1;
                     const accountSid = process.env.TWILIO_ACCOUNT_ID;
                     const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
                     const tClient = require("twilio")(accountSid, authToken);
+                    const maskedNum = num.slice(-4).padStart(num.length, "x");
 
-                    await tClient.messages.create({
+                    const { sanitizedBody } = await sendTwilioMessage(tClient, {
                       body: notificationMessage,
+                      logContext: {
+                        eventId: requestAssistanceid,
+                        userId: userToNotify.user_aadobject_id,
+                        phone: maskedNum,
+                        smsType: "SOS_RESPONSE",
+                      },
                       from: "+18023277232",
                       shortenUrls: true,
                       messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
@@ -2315,13 +2323,13 @@ WHERE rn = 1;
                       userToNotify.user_aadobject_id,
                       "",
                       "SOS_RESPONSE_SMS",
-                      num.slice(-4).padStart(num.length, "x"),
+                      maskedNum,
                       requestAssistanceid,
                       "SEND_SUCCESS",
                       "",
                       "",
                       "",
-                      notificationMessage,
+                      sanitizedBody,
                       "",
                     );
                   } catch (smsErr) {

@@ -54,6 +54,7 @@ const ALL_USERS = "allusers";
 const SELECTED_USERS = "selectedusers";
 const db = require("../db");
 const { AYSLog } = require("../utils/log");
+const { sendTwilioMessage, sanitizeSmsText } = require("../utils/smsText");
 const {
   updateMainCard,
   updateCard,
@@ -2644,14 +2645,21 @@ const sendSafetyCheckMsgViaSMS = async (
               "&eventId=" +
               encodeURIComponent(incId);
             body += `\n\nClick here to acknowledge ${safeUrl}`;
-            console.log("Final SMS body:", body);
           }
         }
+        const maskedPhone = phone.slice(-4).padStart(phone.length, "x");
+        const logContext = {
+          eventId: incId,
+          userId: user.id,
+          phone: maskedPhone,
+          smsType: "SAFETY_CHECK",
+        };
+        const sanitizedBody = sanitizeSmsText(body);
         try {
           SaveSmsLog(
             user.id,
             "SENT_TO_TWILIO",
-            body,
+            sanitizedBody,
             JSON.stringify({ eventId: incId, userId: user.id }),
             null,
             null,
@@ -2661,18 +2669,19 @@ const sendSafetyCheckMsgViaSMS = async (
             user.id,
             user.displayName,
             "SMS",
-            phone.slice(-4).padStart(phone.length, "x"),
+            maskedPhone,
             incId,
             "SENT_TO_TWILIO",
             isfrominctype,
             "",
-            JSON.stringify(body),
+            JSON.stringify(sanitizedBody),
             "",
             "",
           );
 
-          var twiliosend = await tClient.messages.create({
-            body: body,
+          const { result: twiliosend } = await sendTwilioMessage(tClient, {
+            body,
+            logContext,
             from: "+18023277232",
             shortenUrls: true,
             messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
@@ -2684,7 +2693,7 @@ const sendSafetyCheckMsgViaSMS = async (
           SaveSmsLog(
             user.id,
             "SEND_FAILED",
-            body,
+            sanitizedBody,
             JSON.stringify({ eventId: incId, userId: user.id }),
             null,
             err.message,
@@ -2694,12 +2703,12 @@ const sendSafetyCheckMsgViaSMS = async (
             user.id,
             user.displayName,
             "SMS",
-            phone.slice(-4).padStart(phone.length, "x"),
+            maskedPhone,
             incId,
             "SEND_FAILED",
             isfrominctype,
             "",
-            JSON.stringify(body),
+            JSON.stringify(sanitizedBody),
             "",
             JSON.stringify(err.message),
           );
@@ -2722,7 +2731,7 @@ const sendSafetyCheckMsgViaSMS = async (
         SaveSmsLog(
           user.id,
           "SEND_SUCCESS",
-          body,
+          sanitizedBody,
           JSON.stringify({ eventId: incId, userId: user.id }),
           twiliosend.sid,
           null,
@@ -2732,12 +2741,12 @@ const sendSafetyCheckMsgViaSMS = async (
           user.id,
           user.displayName,
           "SMS",
-          phone.slice(-4).padStart(phone.length, "x"),
+          maskedPhone,
           incId,
           "SEND_SUCCESS",
           isfrominctype,
           "",
-          JSON.stringify(body),
+          JSON.stringify(sanitizedBody),
           "",
           "",
           JSON.stringify(voiceInitiatePayload),
@@ -5543,8 +5552,14 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
           }
 
           let body = `Your safety status has been recorded as ${text} and ${companyData.teamName} team has been notified`;
-          await tClient.messages.create({
-            body: body,
+          const maskedPhone = phone.slice(-4).padStart(phone.length, "x");
+          await sendTwilioMessage(tClient, {
+            body,
+            logContext: {
+              userId: user.id,
+              phone: maskedPhone,
+              smsType: "ACKNOWLEDGEMENT",
+            },
             from: "+18023277232",
             shortenUrls: true,
             messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",

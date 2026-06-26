@@ -33,6 +33,7 @@ const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
 const tClient = require("twilio")(accountSid, authToken);
 const { Promise } = require("mssql/lib/base");
 const { AYSLog } = require("../utils/log");
+const { sendTwilioMessage } = require("../utils/smsText");
 const {
   processSafetyBotError,
   processBotError,
@@ -811,32 +812,37 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                         process.env.serviceUrl?.replace("/api/messages", "") ||
                         "http://localhost:3978";
                       const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
+                      const sosBody = `SOS Alert: ${user.user_name} needs assistance. Accept and respond: ${acceptLink}`;
+                      const maskedNum = num.slice(-4).padStart(num.length, "x");
 
-                      var twiliosend = await tClient.messages
-                        .create({
-                          body: `SOS Alert: ${user.user_name} needs assistance. Accept and respond: ${acceptLink}`,
-                          from: "+18023277232",
-                          shortenUrls: true,
-                          messagingServiceSid:
-                            "MGdf47b6f3eb771ed026921c6e71017771",
-                          to: num,
-                        })
-                        .then((res) => {
-                          console.log({ res });
-                          incidentService.saveAllTypeQuerylogs(
-                            admins[i].user_aadobject_id,
-                            "",
-                            "SOS_SMS",
-                            num.slice(-4).padStart(num.length, "x"),
-                            requestAssistanceid,
-                            "SEND_SUCCESS",
-                            "",
-                            "",
-                            "",
-                            "",
-                            "",
-                          );
-                        });
+                      await sendTwilioMessage(tClient, {
+                        body: sosBody,
+                        logContext: {
+                          eventId: requestAssistanceid,
+                          userId: admins[i].user_aadobject_id,
+                          phone: maskedNum,
+                          smsType: "SOS_ALERT",
+                        },
+                        from: "+18023277232",
+                        shortenUrls: true,
+                        messagingServiceSid:
+                          "MGdf47b6f3eb771ed026921c6e71017771",
+                        to: num,
+                      }).then(() => {
+                        incidentService.saveAllTypeQuerylogs(
+                          admins[i].user_aadobject_id,
+                          "",
+                          "SOS_SMS",
+                          maskedNum,
+                          requestAssistanceid,
+                          "SEND_SUCCESS",
+                          "",
+                          "",
+                          "",
+                          "",
+                          "",
+                        );
+                      });
                     } catch (err) {
                       console.log({ err });
                       incidentService.saveAllTypeQuerylogs(
@@ -1402,31 +1408,37 @@ WHERE id = ${res[0].id}`;
                         userComment,
                         "",
                       );
-                      var twiliosend = await tClient.messages
-                        .create({
-                          body: `${user.user_name} added a comment - ${userComment}`,
-                          from: "+18023277232",
-                          shortenUrls: true,
-                          messagingServiceSid:
-                            "MGdf47b6f3eb771ed026921c6e71017771",
-                          to: num,
-                        })
-                        .then((res) => {
-                          console.log({ res });
-                          incidentService.saveAllTypeQuerylogs(
-                            admins[i].user_aadobject_id,
-                            "",
-                            "SOS_COMMENTS_SMS",
-                            num.slice(-4).padStart(num.length, "x"),
-                            requestAssistanceid,
-                            "SEND_SUCCESS",
-                            "",
-                            "",
-                            "",
-                            userComment,
-                            "",
-                          );
-                        });
+                      const commentBody = `${user.user_name} added a comment - ${userComment}`;
+                      const maskedNum = num.slice(-4).padStart(num.length, "x");
+
+                      await sendTwilioMessage(tClient, {
+                        body: commentBody,
+                        logContext: {
+                          eventId: requestAssistanceid,
+                          userId: admins[i].user_aadobject_id,
+                          phone: maskedNum,
+                          smsType: "SOS_COMMENT",
+                        },
+                        from: "+18023277232",
+                        shortenUrls: true,
+                        messagingServiceSid:
+                          "MGdf47b6f3eb771ed026921c6e71017771",
+                        to: num,
+                      }).then(() => {
+                        incidentService.saveAllTypeQuerylogs(
+                          admins[i].user_aadobject_id,
+                          "",
+                          "SOS_COMMENTS_SMS",
+                          maskedNum,
+                          requestAssistanceid,
+                          "SEND_SUCCESS",
+                          "",
+                          "",
+                          "",
+                          userComment,
+                          "",
+                        );
+                      });
                     } catch (err) {
                       console.log({ err });
                       incidentService.saveAllTypeQuerylogs(
