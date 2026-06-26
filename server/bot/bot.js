@@ -2655,6 +2655,7 @@ const sendSafetyCheckMsgViaSMS = async (
           smsType: "SAFETY_CHECK",
         };
         const sanitizedBody = sanitizeSmsText(body);
+        let twiliosend;
         try {
           SaveSmsLog(
             user.id,
@@ -2679,7 +2680,7 @@ const sendSafetyCheckMsgViaSMS = async (
             "",
           );
 
-          const { result: twiliosend } = await sendTwilioMessage(tClient, {
+          const sendResult = await sendTwilioMessage(tClient, {
             body,
             logContext,
             from: "+18023277232",
@@ -2688,6 +2689,7 @@ const sendSafetyCheckMsgViaSMS = async (
             to: phone,
             statusCallback: `${process.env.serviceUrl}/twilio-status?eventId=${incId}&userId=${user.id}`,
           });
+          twiliosend = sendResult.result;
         } catch (err) {
           console.error("Error sending SMS:", err.message);
           SaveSmsLog(
