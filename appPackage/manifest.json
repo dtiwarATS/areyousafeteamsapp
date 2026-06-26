@@ -52,5 +52,10 @@
         "identity",
         "messageTeamMembers"
     ],
-    "validDomains": []
+    "validDomains": [
+        "*.azurewebsites.net",
+        "areyousafe.in",
+        "safetycheck.in",
+        "res.cdn.office.net"
+    ]
 }

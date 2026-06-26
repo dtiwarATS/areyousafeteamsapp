@@ -75,7 +75,10 @@ const {
   getTestIncPreviewCard,
   getWelcomeMessageCardForChannel,
 } = require("./subscriptionCard");
-const PersonalEmail = require("../Email/personalEmail");
+const {
+  buildIncFileTaskModuleInvokeResponse,
+  extractIncFileRequest,
+} = require("../utils/incidentFileViewer");
 const { json } = require("body-parser");
 
 class BotActivityHandler extends TeamsActivityHandler {
@@ -1176,8 +1179,41 @@ WHEN NOT MATCHED THEN
     }
   }
 
+  async onTeamsTaskModuleFetch(context, taskModuleRequest) {
+    try {
+      const fileRequest = extractIncFileRequest(taskModuleRequest);
+      if (fileRequest?.verb === "download_inc_file") {
+        return buildIncFileTaskModuleInvokeResponse(
+          fileRequest.fileUrl,
+          fileRequest.fileName,
+        );
+      }
+    } catch (err) {
+      processSafetyBotError(err, "", "", "", "onTeamsTaskModuleFetch");
+    }
+    return {
+      status: StatusCodes.OK,
+      body: {
+        task: {
+          type: "message",
+          value: "Unable to download file. Please try again.",
+        },
+      },
+    };
+  }
+
   async onInvokeActivity(context) {
     try {
+      if (context.activity.name === "task/fetch") {
+        const fileRequest = extractIncFileRequest(context.activity.value);
+        if (fileRequest?.verb === "download_inc_file") {
+          return buildIncFileTaskModuleInvokeResponse(
+            fileRequest.fileUrl,
+            fileRequest.fileName,
+          );
+        }
+      }
+
       let log = new AYSLog();
       const companyData = context.activity?.value?.action?.data?.companyData;
       const uVerb = context.activity?.value?.action?.verb;

@@ -1,3 +1,8 @@
+const {
+  buildIncFileAutoDownloadUrl,
+  buildIncFileContentUrl,
+} = require("./incidentFileViewer");
+
 const IMAGE_EXTENSIONS = new Set([
   ".jpg",
   ".jpeg",
@@ -85,6 +90,24 @@ const getDocumentStyle = (extension) => {
   return DOCUMENT_STYLES[extension] || DEFAULT_DOCUMENT_STYLE;
 };
 
+const buildDownloadAction = (incFile, fileName) => {
+  const downloadUrl =
+    buildIncFileAutoDownloadUrl(incFile.Blob, fileName) ||
+    buildIncFileContentUrl(incFile.Blob, fileName, true) ||
+    incFile.Blob;
+
+  return {
+    type: "Action.OpenUrl",
+    title: "Download",
+    url: downloadUrl,
+    msTeams: {
+      openUrl: {
+        type: "openExternal",
+      },
+    },
+  };
+};
+
 const buildDocumentIconDataUri = (label, iconColor) => {
   const safeLabel = label.slice(0, 4).toUpperCase();
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='48' viewBox='0 0 40 48'><path d='M8 2h18l10 10v34a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z' fill='${iconColor}'/><path d='M26 2v10h10' fill='none' stroke='white' stroke-width='1.5' opacity='0.7'/><text x='20' y='31' text-anchor='middle' fill='white' font-size='9' font-weight='bold' font-family='Segoe UI, Arial, sans-serif'>${safeLabel}</text></svg>`;
@@ -100,6 +123,7 @@ const buildDocumentCardItem = (incFile, fileName) => {
     title: style.actionTitle,
     url: incFile.Blob,
   };
+  const downloadAction = buildDownloadAction(incFile, fileName);
 
   const detailsColumnItems = [
     {
@@ -162,7 +186,7 @@ const buildDocumentCardItem = (incFile, fileName) => {
       {
         type: "ActionSet",
         spacing: "Small",
-        actions: [openAction],
+        actions: [openAction, downloadAction],
       },
     ],
   };
