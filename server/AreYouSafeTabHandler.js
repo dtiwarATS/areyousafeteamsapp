@@ -5984,8 +5984,8 @@ ORDER BY
       </svg>
     </div>
 
-    <h1>Your download is starting...</h1>
-    <p class="subtitle">Thank you! Your file should download automatically.</p>
+    <h1>Your file is ready</h1>
+    
 
     <div class="file-card">
       ${fileIconSvg}
