@@ -119,11 +119,6 @@ const buildDocumentCardItem = (incFile, fileName) => {
   const extension = getFileExtension(fileName);
   const style = getDocumentStyle(extension);
   const fileSize = incFile.File_size || incFile.file_size || null;
-  const openAction = {
-    type: "Action.OpenUrl",
-    title: style.actionTitle,
-    url: incFile.Blob,
-  };
   const downloadAction = buildDownloadAction(incFile, fileName);
 
   const detailsColumnItems = [
@@ -159,7 +154,6 @@ const buildDocumentCardItem = (incFile, fileName) => {
     style: "emphasis",
     bleed: true,
     spacing: "Medium",
-    selectAction: openAction,
     items: [
       {
         type: "ColumnSet",
@@ -187,7 +181,7 @@ const buildDocumentCardItem = (incFile, fileName) => {
       {
         type: "ActionSet",
         spacing: "Small",
-        actions: [openAction, downloadAction],
+        actions: [downloadAction],
       },
     ],
   };
