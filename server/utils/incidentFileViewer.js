@@ -29,7 +29,7 @@ const buildIncFileContentUrl = (fileUrl, fileName, download = false) => {
   return `${baseUrl}/viewfile/content?${params.toString()}`;
 };
 
-const buildIncFileAutoDownloadUrl = (fileUrl, fileName) => {
+const buildIncFileAutoDownloadUrl = (fileUrl, fileName, fileSize) => {
   const baseUrl = getBaseUrl();
   if (!baseUrl) {
     return null;
@@ -38,6 +38,9 @@ const buildIncFileAutoDownloadUrl = (fileUrl, fileName) => {
     url: fileUrl,
     name: fileName || "file",
   });
+  if (fileSize != null && String(fileSize).trim() !== "") {
+    params.set("size", String(fileSize).trim());
+  }
   return `${baseUrl}/viewfile/autodownload?${params.toString()}`;
 };
 
