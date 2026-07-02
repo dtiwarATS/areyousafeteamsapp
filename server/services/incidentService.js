@@ -4807,55 +4807,49 @@ const buildTenantUserPhoneLookup = async (tenantId) => {
   return { byEmail, byAadId };
 };
 
-const PHONE_IMPORT_DB_BATCH_SIZE = 400;
+const PHONE_IMPORT_DB_BATCH_SIZE = 100;
+
+const extractUpdatedRowCount = (result) => {
+  for (const recordset of result.recordsets || []) {
+    const row = recordset?.[0];
+    if (row && row.updatedCount != null) {
+      return Number(row.updatedCount) || 0;
+    }
+  }
+  return Number(result.recordset?.[0]?.updatedCount || 0);
+};
 
 const bulkUpdateUserPhones = async (pool, tenantId, updates) => {
+  if (!updates.length) {
+    return 0;
+  }
+
   let totalUpdated = 0;
 
   for (let i = 0; i < updates.length; i += PHONE_IMPORT_DB_BATCH_SIZE) {
     const batch = updates.slice(i, i + PHONE_IMPORT_DB_BATCH_SIZE);
-    const transaction = new sql.Transaction(pool);
-    await transaction.begin();
+    const request = pool.request();
+    request.input("tenantId", sql.NVarChar, tenantId);
 
-    try {
-      const setupRequest = new sql.Request(transaction);
-      await setupRequest.query(`
-        CREATE TABLE #PhoneImport (
-          user_aadobject_id NVARCHAR(64) NOT NULL,
-          phone_number NVARCHAR(32) NOT NULL
-        );
-      `);
+    const sourceSelects = batch.map((item, idx) => {
+      request.input(`aad${idx}`, sql.NVarChar(64), item.aadId);
+      request.input(`phone${idx}`, sql.NVarChar(50), item.phoneNumber);
+      return `SELECT @aad${idx} AS user_aadobject_id, @phone${idx} AS phone_number`;
+    });
 
-      const insertRequest = new sql.Request(transaction);
-      const valueClauses = batch.map((item, idx) => {
-        insertRequest.input(`aad${idx}`, sql.NVarChar(64), item.aadId);
-        insertRequest.input(`phone${idx}`, sql.NVarChar(32), item.phoneNumber);
-        return `(@aad${idx}, @phone${idx})`;
-      });
+    const result = await request.query(`
+      UPDATE u
+      SET u.PHONE_NUMBER = src.phone_number
+      FROM MSTeamsTeamsUsers u
+      INNER JOIN (
+        ${sourceSelects.join(" UNION ALL ")}
+      ) AS src ON u.user_aadobject_id = src.user_aadobject_id
+      WHERE u.tenantid = @tenantId;
 
-      await insertRequest.query(`
-        INSERT INTO #PhoneImport (user_aadobject_id, phone_number)
-        VALUES ${valueClauses.join(", ")}
-      `);
+      SELECT @@ROWCOUNT AS updatedCount;
+    `);
 
-      const updateRequest = new sql.Request(transaction);
-      updateRequest.input("tenantId", sql.NVarChar, tenantId);
-      const result = await updateRequest.query(`
-        UPDATE u
-        SET u.PHONE_NUMBER = p.phone_number
-        FROM MSTeamsTeamsUsers u
-        INNER JOIN #PhoneImport p ON u.user_aadobject_id = p.user_aadobject_id
-        WHERE u.tenantid = @tenantId;
-
-        SELECT @@ROWCOUNT AS updatedCount;
-      `);
-
-      totalUpdated += Number(result.recordset?.[0]?.updatedCount || 0);
-      await transaction.commit();
-    } catch (batchErr) {
-      await transaction.rollback();
-      throw batchErr;
-    }
+    totalUpdated += extractUpdatedRowCount(result);
   }
 
   return totalUpdated;

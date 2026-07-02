@@ -1010,7 +1010,18 @@ const handlerForSafetyBotTab = (app) => {
         req.body?.userAadObjId || "",
         "error in /areyousafetabhandler/ImportUserPhones",
       );
-      res.status(500).json({ success: false, error: "Failed to import user phones" });
+      const sqlMessage = String(
+        err?.originalError?.info?.message ||
+          err?.originalError?.message ||
+          err?.message ||
+          "",
+      ).trim();
+      const errorMessage =
+        sqlMessage.includes("PHONE_NUMBER") &&
+        sqlMessage.toLowerCase().includes("invalid column")
+          ? "Phone import is not set up on this database. Run add-phone-number-column.sql on staging."
+          : sqlMessage || "Failed to import user phones";
+      res.status(500).json({ success: false, error: errorMessage });
     }
   };
   app.post("/areyousafetabhandler/ImportUserPhones", importUserPhonesHandler);
