@@ -15,6 +15,7 @@ const {
 } = require("botframework-connector");
 const { AYSLog } = require("../utils/log");
 const { processSafetyBotError } = require("../models/processError");
+const { buildIncFilesCardBody } = require("../utils/incidentAttachmentCard");
 
 const getAllTeamMembers = async (context, teamId) => {
   console.log({ teamId });
@@ -498,41 +499,7 @@ const sendProactiveMessaageToUser = async (
       activity = MessageFactory.text(msgText);
     }
     if (filesData != null && filesData.length > 0) {
-      const cardBody = [];
-      if (filesData.length == 1) {
-        cardBody.push({
-          type: "Image",
-          url: filesData[0].Blob,
-          msTeams: {
-            allowExpand: true,
-          },
-        });
-      } else {
-        let columns = [];
-        filesData.forEach((incFile, index) => {
-          if (index % 2 == 0) {
-            columns = [];
-            let cs = {
-              type: "ColumnSet",
-              columns: columns,
-            };
-            cardBody.push(cs);
-          }
-          let columnItems = [];
-          columnItems.push({
-            type: "Image",
-            url: incFile.Blob,
-            msTeams: {
-              allowExpand: true,
-            },
-          });
-          let column = {
-            type: "Column",
-            items: columnItems,
-          };
-          columns.push(column);
-        });
-      }
+      const cardBody = buildIncFilesCardBody(filesData);
       let card = {
         $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
         appId: process.env.MicrosoftAppId,

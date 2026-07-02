@@ -25,6 +25,10 @@ const {
   formatIncidentApiPayload,
   shouldIncludeIncident,
 } = require("./utils/incidentApiFormat");
+const {
+  buildIncFileContentUrl,
+  isAllowedFileViewUrl,
+} = require("./utils/incidentFileViewer");
 const { Sms } = require("twilio/lib/twiml/VoiceResponse");
 
 const UUID_REGEX =
@@ -64,6 +68,95 @@ async function resolveTeamsIdToAadObjectId(teamsId) {
 }
 
 const SEND_NOTIFICATION_TIMEOUT_MS = 15000;
+
+const escapeViewFileHtml = (value) => {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+};
+
+const AUTODOWNLOAD_DOC_STYLES = {
+  ".pdf": { label: "PDF", iconColor: "#D93831", typeLabel: "PDF Document" },
+  ".doc": { label: "Word", iconColor: "#2B579A", typeLabel: "Word Document" },
+  ".docx": { label: "Word", iconColor: "#2B579A", typeLabel: "Word Document" },
+  ".txt": { label: "Text", iconColor: "#606770", typeLabel: "Text Document" },
+  ".xls": {
+    label: "Excel",
+    iconColor: "#1D6F42",
+    typeLabel: "Excel Spreadsheet",
+  },
+  ".xlsx": {
+    label: "Excel",
+    iconColor: "#1D6F42",
+    typeLabel: "Excel Spreadsheet",
+  },
+  ".ppt": {
+    label: "PPT",
+    iconColor: "#D24726",
+    typeLabel: "PowerPoint Presentation",
+  },
+  ".pptx": {
+    label: "PPT",
+    iconColor: "#D24726",
+    typeLabel: "PowerPoint Presentation",
+  },
+};
+
+const DEFAULT_AUTODOWNLOAD_DOC_STYLE = {
+  label: "File",
+  iconColor: "#606770",
+  typeLabel: "File",
+};
+
+const getAutodownloadFileExtension = (fileName) => {
+  const dotIndex = fileName.lastIndexOf(".");
+  if (dotIndex === -1) {
+    return "";
+  }
+  return fileName.slice(dotIndex).toLowerCase();
+};
+
+const getAutodownloadDocStyle = (extension) => {
+  return AUTODOWNLOAD_DOC_STYLES[extension] || DEFAULT_AUTODOWNLOAD_DOC_STYLE;
+};
+
+const formatAutodownloadFileSize = (size) => {
+  if (size == null || size === "") {
+    return "";
+  }
+  const raw = String(size).trim();
+  if (/[a-zA-Z]/.test(raw)) {
+    return raw;
+  }
+  const bytes = Number(raw);
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return raw;
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const buildAutodownloadIconSvg = (label, iconColor) => {
+  const safeLabel = escapeViewFileHtml(label.slice(0, 4).toUpperCase());
+  const safeColor = escapeViewFileHtml(iconColor);
+  return `<svg class="file-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="48" viewBox="0 0 40 48" aria-hidden="true"><path d="M8 2h18l10 10v34a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="${safeColor}"/><path d="M26 2v10h10" fill="none" stroke="white" stroke-width="1.5" opacity="0.7"/><text x="20" y="31" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="Segoe UI, Arial, sans-serif">${safeLabel}</text></svg>`;
+};
+
+const buildAutodownloadMetadataLine = (fileSize, typeLabel) => {
+  const formattedSize = formatAutodownloadFileSize(fileSize);
+  if (formattedSize) {
+    return `${formattedSize} \u2022 ${typeLabel}`;
+  }
+  return typeLabel;
+};
 
 const handlerForSafetyBotTab = (app) => {
   const tabObj = new tab.AreYouSafeTab();
@@ -5329,6 +5422,154 @@ WHERE
         });
     }
   });
+  app.get("/areyousafetabhandler/getLicenseAlert", async (req, res) => {
+    const userId = req.query.userId || "";
+    const teamId =
+      req.query.teamId && req.query.teamId !== "null" ? req.query.teamId : "";
+
+    const noBanner = { showBanner: false };
+
+    const licenseCountsSubquery = `
+        LEFT JOIN (
+            SELECT
+                ID2.user_tenant_id,
+                SUM(CASE WHEN TU.hasLicense = 1 THEN 1 ELSE 0 END) AS LICENSED_USERS,
+                SUM(CASE WHEN TU.hasLicense = 0 OR TU.hasLicense IS NULL THEN 1 ELSE 0 END) AS UNLICENSED_COUNT
+            FROM MSTeamsInstallationDetails ID2
+            LEFT JOIN MSTeamsTeamsUsers TU
+                ON TU.TEAM_ID = ID2.TEAM_ID
+            GROUP BY ID2.user_tenant_id
+        ) U
+            ON U.user_tenant_id = ID.user_tenant_id`;
+
+    const buildResponse = (row) => {
+      const purchasedLicenses = Number(row.UserLimit) || 0;
+      const licensedUsers = Number(row.LICENSED_USERS) || 0;
+      const unlicensedCount = Number(row.UNLICENSED_COUNT) || 0;
+
+      const showBanner =
+        unlicensedCount > 0 &&
+        licensedUsers >= purchasedLicenses &&
+        purchasedLicenses > 0;
+
+      const userEmailId = row.UserEmailId || "";
+      const buyLicensesUrl = `https://admin.cloud.microsoft/?#/subscriptions`;
+      const manageLicensesUrl = userEmailId
+        ? `https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${encodeURIComponent(userEmailId)}`
+        : "https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true";
+      return {
+        showBanner,
+        unlicensedCount: showBanner ? unlicensedCount : 0,
+        purchasedLicenses: showBanner ? purchasedLicenses : 0,
+        buyLicensesUrl,
+        manageLicensesUrl,
+      };
+    };
+
+    try {
+      if (!teamId && !userId) {
+        return res.status(400).json({
+          success: false,
+          error: "teamId or userId is required",
+        });
+      }
+
+      const safetyInitiatorObj =
+        await dbOperation.verifyAdminUserForDashboardTab(
+          userId,
+          teamId || null,
+        );
+      if (!safetyInitiatorObj?.isAdmin) {
+        return res.json({ success: true, data: noBanner });
+      }
+
+      const pool = await poolPromise;
+      let query = "";
+
+      if (teamId) {
+        query = `
+          SELECT
+    SD.UserLimit,
+    SD.UserEmailId,
+    SD.SubscriptionType,
+    U.LICENSED_USERS,
+    U.UNLICENSED_COUNT
+FROM MSTeamsInstallationDetails ID
+INNER JOIN MSTeamsSubscriptionDetails SD
+    ON ID.SubscriptionDetailsId = SD.ID
+LEFT JOIN (
+    SELECT
+        TEAM_ID,
+        SUM(CASE WHEN hasLicense = 1 THEN 1 ELSE 0 END) AS LICENSED_USERS,
+        SUM(CASE WHEN hasLicense = 0 OR hasLicense IS NULL THEN 1 ELSE 0 END) AS UNLICENSED_COUNT
+    FROM MSTeamsTeamsUsers
+    GROUP BY TEAM_ID
+) U
+    ON U.TEAM_ID = ID.TEAM_ID
+WHERE ID.TEAM_ID = @teamId
+  AND SD.SubscriptionType = 3;
+      `;
+      } else {
+        query = `
+           SELECT DISTINCT
+    SD.UserLimit,
+    SD.UserEmailId,
+    SD.SubscriptionType,
+    C.LICENSED_USERS,
+    C.UNLICENSED_COUNT
+FROM MSTeamsInstallationDetails ID
+INNER JOIN MSTeamsSubscriptionDetails SD
+    ON SD.ID = ID.SubscriptionDetailsId
+CROSS APPLY
+(
+    SELECT
+        SUM(CASE WHEN TU.hasLicense = 1 THEN 1 ELSE 0 END) AS LICENSED_USERS,
+        SUM(CASE WHEN TU.hasLicense = 0 OR TU.hasLicense IS NULL THEN 1 ELSE 0 END) AS UNLICENSED_COUNT
+    FROM MSTeamsTeamsUsers TU
+    WHERE TU.TEAM_ID IN
+    (
+        SELECT DISTINCT TEAM_ID
+        FROM MSTeamsInstallationDetails
+        WHERE user_obj_id = ID.user_obj_id
+    )
+) C
+WHERE ID.user_obj_id = @userAadObjId;
+      `;
+      }
+
+      const request = pool.request();
+      if (teamId) {
+        request.input("teamId", sql.NVarChar, teamId);
+      }
+      if (userId) {
+        request.input("userAadObjId", sql.NVarChar, userId);
+      }
+
+      const result = await request.query(query);
+
+      if (!result.recordset || result.recordset.length === 0) {
+        return res.json({ success: true, data: noBanner });
+      }
+
+      res.json({
+        success: true,
+        data: buildResponse(result.recordset[0]),
+      });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userId,
+        "error in /areyousafetabhandler/getLicenseAlert",
+      );
+      res
+        .status(500)
+        .json({ success: false, error: "Error fetching license alert" });
+    }
+  });
+
   app.get("/areyousafetabhandler/getSubscription", async (req, res) => {
     const userAadObjId = req.query.userId || "";
     const teamId = req.query.teamId || "";
@@ -5481,6 +5722,323 @@ ORDER BY
       );
       res.status(500).json({ error: "Error fetching subscription data" });
     }
+  });
+
+  app.get("/viewfile/content", async (req, res) => {
+    try {
+      const fileUrl = req.query.url;
+      const fileName = req.query.name || "file";
+      const isDownload = req.query.download === "1";
+
+      if (!fileUrl || !isAllowedFileViewUrl(fileUrl)) {
+        return res.status(400).send("Invalid file URL");
+      }
+
+      const response = await axios.get(fileUrl, {
+        responseType: "stream",
+        maxRedirects: 5,
+        timeout: 120000,
+      });
+
+      const contentType =
+        response.headers["content-type"] || "application/octet-stream";
+      res.setHeader("Content-Type", contentType);
+
+      if (isDownload) {
+        const safeFileName = fileName.replace(/["\\]/g, "_");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${safeFileName}"`,
+        );
+      } else {
+        res.setHeader("Content-Disposition", "inline");
+      }
+
+      response.data.pipe(res);
+    } catch (err) {
+      console.error("viewfile/content error:", err.message);
+      res.status(500).send("Unable to fetch file");
+    }
+  });
+
+  app.get("/viewfile/autodownload", (req, res) => {
+    const fileUrl = req.query.url;
+    const fileName = req.query.name || "file";
+    const fileSize = req.query.size;
+
+    if (!fileUrl || !isAllowedFileViewUrl(fileUrl)) {
+      return res.status(400).send("Invalid file URL");
+    }
+
+    const downloadUrl = buildIncFileContentUrl(fileUrl, fileName, true);
+    if (!downloadUrl) {
+      return res.status(500).send("Download URL is not configured");
+    }
+
+    const extension = getAutodownloadFileExtension(fileName);
+    const docStyle = getAutodownloadDocStyle(extension);
+    const metadataLine = buildAutodownloadMetadataLine(
+      fileSize,
+      docStyle.typeLabel,
+    );
+    const fileIconSvg = buildAutodownloadIconSvg(
+      docStyle.label,
+      docStyle.iconColor,
+    );
+
+    const safeDownloadUrl = escapeViewFileHtml(downloadUrl);
+    const safeFileName = escapeViewFileHtml(fileName);
+    const safeMetadataLine = escapeViewFileHtml(metadataLine);
+
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Downloading ${safeFileName}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 24px 16px;
+      background: #f3f2f1;
+      color: #242424;
+    }
+    .page {
+      width: 100%;
+      max-width: 560px;
+      text-align: center;
+      position: relative;
+    }
+    .decor {
+      position: absolute;
+      color: #e1dfdd;
+      font-size: 18px;
+      font-weight: 300;
+      pointer-events: none;
+      user-select: none;
+    }
+    .decor-1 { top: 8px; left: 18%; }
+    .decor-2 { top: 28px; right: 16%; font-size: 22px; }
+    .decor-3 { top: 72px; left: 8%; width: 10px; height: 10px; border: 2px solid #e1dfdd; border-radius: 50%; }
+    .decor-4 { top: 54px; right: 10%; font-size: 14px; }
+    .hero-icon {
+      width: 88px;
+      height: 88px;
+      margin: 0 auto 20px;
+      border-radius: 50%;
+      background: #dff6dd;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .hero-icon svg { display: block; }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.25;
+      font-weight: 700;
+      color: #201f1e;
+    }
+    .subtitle {
+      margin: 0 0 28px;
+      font-size: 15px;
+      color: #605e5c;
+    }
+    .file-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: #fff;
+      border: 1px solid #edebe9;
+      border-radius: 12px;
+      padding: 16px 18px;
+      text-align: left;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+      margin-bottom: 16px;
+    }
+    .file-icon {
+      width: 40px;
+      height: 48px;
+      flex: 0 0 auto;
+    }
+    .file-details {
+      flex: 1;
+      min-width: 0;
+    }
+    .file-name {
+      margin: 0 0 4px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #201f1e;
+      word-break: break-word;
+    }
+    .file-meta {
+      margin: 0;
+      font-size: 13px;
+      color: #605e5c;
+    }
+    .fallback-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      background: #f3faf2;
+      border: 1px solid #c7eac5;
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-align: left;
+      margin-bottom: 20px;
+    }
+    .fallback-copy {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      min-width: 0;
+    }
+    .info-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #107c10;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex: 0 0 auto;
+      margin-top: 1px;
+    }
+    .fallback-title {
+      margin: 0 0 2px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #201f1e;
+    }
+    .fallback-text {
+      margin: 0;
+      font-size: 12px;
+      color: #605e5c;
+    }
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      flex: 0 0 auto;
+      border: 1px solid #107c10;
+      background: #fff;
+      color: #107c10;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .download-btn:hover { background: #f3faf2; }
+    .footer-secure {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin: 0 0 8px;
+      font-size: 13px;
+      color: #107c10;
+      font-weight: 600;
+    }
+    .footer-note {
+      margin: 0;
+      font-size: 12px;
+      color: #8a8886;
+    }
+    @media (max-width: 520px) {
+      h1 { font-size: 24px; }
+      .fallback-banner {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .download-btn { justify-content: center; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <span class="decor decor-1">+</span>
+    <span class="decor decor-2">+</span>
+    <span class="decor decor-3"></span>
+    <span class="decor decor-4">+</span>
+
+    <div class="hero-icon" aria-hidden="true">
+      <svg width="42" height="42" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="10" y="5" width="22" height="28" rx="2" stroke="#107C10" stroke-width="2" fill="#fff"/>
+        <path d="M15 18h12M15 22h12M15 26h8" stroke="#107C10" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M21 30v8M17 34l4 4 4-4" stroke="#107C10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+
+    <h1>Your file is ready</h1>
+    
+
+    <div class="file-card">
+      ${fileIconSvg}
+      <div class="file-details">
+        <p class="file-name">${safeFileName}</p>
+        <p class="file-meta">${safeMetadataLine}</p>
+      </div>
+    </div>
+
+    <div class="fallback-banner">
+      <div class="fallback-copy">
+        <span class="info-icon" aria-hidden="true">i</span>
+        <div>
+          <p class="fallback-title">If the download doesn't start automatically</p>
+          <p class="fallback-text">It may take a few seconds depending on your connection.</p>
+        </div>
+      </div>
+      <a class="download-btn" id="manual-download" href="${safeDownloadUrl}">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M7 2v7M4.5 6.5L7 9l2.5-2.5" stroke="#107C10" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2.5 11.5h9" stroke="#107C10" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Download File
+      </a>
+    </div>
+
+   
+    <p class="footer-note">You can close this tab once your download begins.</p>
+  </div>
+  <script>
+    (function () {
+      const downloadUrl = ${JSON.stringify(downloadUrl)};
+      const manualDownloadEl = document.getElementById("manual-download");
+
+      manualDownloadEl.addEventListener("click", function (event) {
+        event.preventDefault();
+        window.location.href = downloadUrl;
+      });
+
+      try {
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = ${JSON.stringify(fileName)};
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+      } catch (err) {
+        window.location.href = downloadUrl;
+      }
+    })();
+  </script>
+</body>
+</html>`);
   });
 };
 
