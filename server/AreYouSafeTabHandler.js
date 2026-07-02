@@ -144,10 +144,10 @@ const formatAutodownloadFileSize = (size) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const buildAutodownloadIconDataUri = (label, iconColor) => {
-  const safeLabel = label.slice(0, 4).toUpperCase();
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='40' height='48' viewBox='0 0 40 48'><path d='M8 2h18l10 10v34a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z' fill='${iconColor}'/><path d='M26 2v10h10' fill='none' stroke='white' stroke-width='1.5' opacity='0.7'/><text x='20' y='31' text-anchor='middle' fill='white' font-size='9' font-weight='bold' font-family='Segoe UI, Arial, sans-serif'>${safeLabel}</text></svg>`;
-  return `data:image/svg+xml;utf8,${svg}`;
+const buildAutodownloadIconSvg = (label, iconColor) => {
+  const safeLabel = escapeViewFileHtml(label.slice(0, 4).toUpperCase());
+  const safeColor = escapeViewFileHtml(iconColor);
+  return `<svg class="file-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="48" viewBox="0 0 40 48" aria-hidden="true"><path d="M8 2h18l10 10v34a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" fill="${safeColor}"/><path d="M26 2v10h10" fill="none" stroke="white" stroke-width="1.5" opacity="0.7"/><text x="20" y="31" text-anchor="middle" fill="white" font-size="9" font-weight="bold" font-family="Segoe UI, Arial, sans-serif">${safeLabel}</text></svg>`;
 };
 
 const buildAutodownloadMetadataLine = (fileSize, typeLabel) => {
@@ -5781,7 +5781,7 @@ ORDER BY
       fileSize,
       docStyle.typeLabel,
     );
-    const iconDataUri = buildAutodownloadIconDataUri(
+    const fileIconSvg = buildAutodownloadIconSvg(
       docStyle.label,
       docStyle.iconColor,
     );
@@ -5789,7 +5789,6 @@ ORDER BY
     const safeDownloadUrl = escapeViewFileHtml(downloadUrl);
     const safeFileName = escapeViewFileHtml(fileName);
     const safeMetadataLine = escapeViewFileHtml(metadataLine);
-    const safeIconDataUri = escapeViewFileHtml(iconDataUri);
 
     res.setHeader("Content-Type", "text/html; charset=utf-8");
     res.send(`<!DOCTYPE html>
@@ -5885,17 +5884,6 @@ ORDER BY
       font-size: 13px;
       color: #605e5c;
     }
-    .status-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex: 0 0 auto;
-      font-size: 13px;
-      font-weight: 600;
-      color: #107c10;
-      white-space: nowrap;
-    }
-    .status-badge svg { flex: 0 0 auto; }
     .fallback-banner {
       display: flex;
       align-items: center;
@@ -5978,7 +5966,6 @@ ORDER BY
         align-items: stretch;
       }
       .download-btn { justify-content: center; }
-      .status-badge { display: none; }
     }
   </style>
 </head>
@@ -6001,17 +5988,10 @@ ORDER BY
     <p class="subtitle">Thank you! Your file should download automatically.</p>
 
     <div class="file-card">
-      <img class="file-icon" src="${safeIconDataUri}" alt="" />
+      ${fileIconSvg}
       <div class="file-details">
         <p class="file-name">${safeFileName}</p>
         <p class="file-meta">${safeMetadataLine}</p>
-      </div>
-      <div class="status-badge" id="status-badge">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="8" cy="8" r="7" stroke="#107C10" stroke-width="1.5"/>
-          <path d="M5 8l2 2 4-4" stroke="#107C10" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <span id="status-text">Preparing</span>
       </div>
     </div>
 
@@ -6038,7 +6018,6 @@ ORDER BY
   <script>
     (function () {
       const downloadUrl = ${JSON.stringify(downloadUrl)};
-      const statusTextEl = document.getElementById("status-text");
       const manualDownloadEl = document.getElementById("manual-download");
 
       manualDownloadEl.addEventListener("click", function (event) {
@@ -6053,9 +6032,7 @@ ORDER BY
         link.style.display = "none";
         document.body.appendChild(link);
         link.click();
-        statusTextEl.textContent = "Started";
       } catch (err) {
-        statusTextEl.textContent = "Preparing";
         window.location.href = downloadUrl;
       }
     })();
