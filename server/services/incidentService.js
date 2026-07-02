@@ -4761,12 +4761,14 @@ const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
 
     return (result.recordset || []).map((row) => {
       const phone = row.PHONE_NUMBER ? String(row.PHONE_NUMBER).trim() : "";
+      const validation = validatePhoneNumber(phone);
+      const normalizedPhone = validation.valid ? validation.normalized : phone;
       return {
         id: row.id,
         user_id: row.user_id,
         displayName: row.displayName,
-        mobilePhone: phone,
-        businessPhones: phone ? [phone] : [],
+        mobilePhone: normalizedPhone,
+        businessPhones: normalizedPhone ? [normalizedPhone] : [],
       };
     });
   } catch (err) {
@@ -4805,6 +4807,60 @@ const buildTenantUserPhoneLookup = async (tenantId) => {
   return { byEmail, byAadId };
 };
 
+const PHONE_IMPORT_DB_BATCH_SIZE = 400;
+
+const bulkUpdateUserPhones = async (pool, tenantId, updates) => {
+  let totalUpdated = 0;
+
+  for (let i = 0; i < updates.length; i += PHONE_IMPORT_DB_BATCH_SIZE) {
+    const batch = updates.slice(i, i + PHONE_IMPORT_DB_BATCH_SIZE);
+    const transaction = new sql.Transaction(pool);
+    await transaction.begin();
+
+    try {
+      const setupRequest = new sql.Request(transaction);
+      await setupRequest.query(`
+        CREATE TABLE #PhoneImport (
+          user_aadobject_id NVARCHAR(64) NOT NULL,
+          phone_number NVARCHAR(32) NOT NULL
+        );
+      `);
+
+      const insertRequest = new sql.Request(transaction);
+      const valueClauses = batch.map((item, idx) => {
+        insertRequest.input(`aad${idx}`, sql.NVarChar(64), item.aadId);
+        insertRequest.input(`phone${idx}`, sql.NVarChar(32), item.phoneNumber);
+        return `(@aad${idx}, @phone${idx})`;
+      });
+
+      await insertRequest.query(`
+        INSERT INTO #PhoneImport (user_aadobject_id, phone_number)
+        VALUES ${valueClauses.join(", ")}
+      `);
+
+      const updateRequest = new sql.Request(transaction);
+      updateRequest.input("tenantId", sql.NVarChar, tenantId);
+      const result = await updateRequest.query(`
+        UPDATE u
+        SET u.PHONE_NUMBER = p.phone_number
+        FROM MSTeamsTeamsUsers u
+        INNER JOIN #PhoneImport p ON u.user_aadobject_id = p.user_aadobject_id
+        WHERE u.tenantid = @tenantId;
+
+        SELECT @@ROWCOUNT AS updatedCount;
+      `);
+
+      totalUpdated += Number(result.recordset?.[0]?.updatedCount || 0);
+      await transaction.commit();
+    } catch (batchErr) {
+      await transaction.rollback();
+      throw batchErr;
+    }
+  }
+
+  return totalUpdated;
+};
+
 const importUserPhones = async (tenantId, rows = []) => {
   const summary = {
     updated: 0,
@@ -4820,89 +4876,70 @@ const importUserPhones = async (tenantId, rows = []) => {
 
   try {
     const { byEmail, byAadId } = await buildTenantUserPhoneLookup(tenantId);
-    const pool = await poolPromise;
-    const batchSize = 50;
+    const updatesByAadId = new Map();
 
-    for (let i = 0; i < rows.length; i += batchSize) {
-      const batch = rows.slice(i, i + batchSize);
-      const transaction = new sql.Transaction(pool);
-      await transaction.begin();
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      const rowNumber = rowIndex + 1;
+      const email = String(row?.email || "")
+        .trim()
+        .toLowerCase();
+      const userAadObjId = String(
+        row?.userAadObjId || row?.user_aadobject_id || "",
+      ).trim();
+      const phoneRaw = row?.phoneNumber ?? row?.phone ?? "";
 
-      try {
-        for (let rowIndex = 0; rowIndex < batch.length; rowIndex++) {
-          const row = batch[rowIndex];
-          const rowNumber = i + rowIndex + 1;
-          const email = String(row?.email || "")
-            .trim()
-            .toLowerCase();
-          const userAadObjId = String(
-            row?.userAadObjId || row?.user_aadobject_id || "",
-          ).trim();
-          const phoneRaw = row?.phoneNumber ?? row?.phone ?? "";
-
-          let matchedAadId = null;
-          if (email && byEmail.has(email)) {
-            matchedAadId = byEmail.get(email);
-          } else if (userAadObjId) {
-            const normalizedAad = userAadObjId.toLowerCase();
-            if (byAadId.has(normalizedAad)) {
-              matchedAadId = byAadId.get(normalizedAad);
-            }
-          }
-
-          if (!matchedAadId) {
-            summary.notFound += 1;
-            summary.errors.push({
-              row: rowNumber,
-              email: row?.email || "",
-              userAadObjId,
-              error: "User not found in tenant",
-            });
-            continue;
-          }
-
-          if (isPhoneNumberEmpty(phoneRaw)) {
-            await new sql.Request(transaction)
-              .input("tenantId", sql.NVarChar, tenantId)
-              .input("aadId", sql.NVarChar, matchedAadId)
-              .query(`
-                UPDATE MSTeamsTeamsUsers
-                SET PHONE_NUMBER = NULL
-                WHERE tenantid = @tenantId AND user_aadobject_id = @aadId
-              `);
-            summary.cleared += 1;
-            continue;
-          }
-
-          const validation = validatePhoneNumber(phoneRaw);
-          if (!validation.valid) {
-            summary.invalid += 1;
-            summary.errors.push({
-              row: rowNumber,
-              email: row?.email || "",
-              userAadObjId: matchedAadId,
-              error: validation.error,
-            });
-            continue;
-          }
-
-          await new sql.Request(transaction)
-            .input("tenantId", sql.NVarChar, tenantId)
-            .input("aadId", sql.NVarChar, matchedAadId)
-            .input("phoneNumber", sql.NVarChar, validation.normalized)
-            .query(`
-              UPDATE MSTeamsTeamsUsers
-              SET PHONE_NUMBER = @phoneNumber
-              WHERE tenantid = @tenantId AND user_aadobject_id = @aadId
-            `);
-          summary.updated += 1;
+      let matchedAadId = null;
+      if (email && byEmail.has(email)) {
+        matchedAadId = byEmail.get(email);
+      } else if (userAadObjId) {
+        const normalizedAad = userAadObjId.toLowerCase();
+        if (byAadId.has(normalizedAad)) {
+          matchedAadId = byAadId.get(normalizedAad);
         }
-
-        await transaction.commit();
-      } catch (batchErr) {
-        await transaction.rollback();
-        throw batchErr;
       }
+
+      if (!matchedAadId) {
+        summary.notFound += 1;
+        if (summary.errors.length < 100) {
+          summary.errors.push({
+            row: rowNumber,
+            email: row?.email || "",
+            userAadObjId,
+            error: "User not found in tenant",
+          });
+        }
+        continue;
+      }
+
+      if (isPhoneNumberEmpty(phoneRaw)) {
+        continue;
+      }
+
+      const validation = validatePhoneNumber(phoneRaw);
+      if (!validation.valid) {
+        summary.invalid += 1;
+        if (summary.errors.length < 100) {
+          summary.errors.push({
+            row: rowNumber,
+            email: row?.email || "",
+            userAadObjId: matchedAadId,
+            error: validation.error,
+          });
+        }
+        continue;
+      }
+
+      updatesByAadId.set(matchedAadId.toLowerCase(), {
+        aadId: matchedAadId,
+        phoneNumber: validation.normalized,
+      });
+    }
+
+    const updates = Array.from(updatesByAadId.values());
+    if (updates.length > 0) {
+      const pool = await poolPromise;
+      summary.updated = await bulkUpdateUserPhones(pool, tenantId, updates);
     }
   } catch (err) {
     processSafetyBotError(

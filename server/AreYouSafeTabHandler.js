@@ -990,7 +990,7 @@ const handlerForSafetyBotTab = (app) => {
       res.status(500).json({ success: false, error: "Failed to export user phones" });
     }
   });
-  app.post("/areyousafetabhandler/ImportUserPhones", async (req, res) => {
+  const importUserPhonesHandler = async (req, res) => {
     const tenantId = req.body?.tenantId || "";
     const rows = req.body?.rows || [];
     try {
@@ -1012,7 +1012,9 @@ const handlerForSafetyBotTab = (app) => {
       );
       res.status(500).json({ success: false, error: "Failed to import user phones" });
     }
-  });
+  };
+  app.post("/areyousafetabhandler/ImportUserPhones", importUserPhonesHandler);
+  app.post("/areyousafetabhandler/ImportUserPhones/", importUserPhonesHandler);
   app.get("/areyousafetabhandler/getEnableSafetyCheck", async (req, res) => {
     const teamId = req.query.teamId;
     const userAadObjId = req.query.userAadObjId;

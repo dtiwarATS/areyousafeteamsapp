@@ -17,6 +17,37 @@ const {
 } = require("../bot/subscriptionCard");
 const { processSafetyBotError } = require("../models/processError");
 (async () => {
+  const trackTrialNotification = (job, subcriptionMessage, sendResp, err = null) => {
+    try {
+      const deliveryStatus =
+        sendResp && sendResp.status && Number(sendResp.status) >= 200 && Number(sendResp.status) < 300
+          ? "SEND_SUCCESS"
+          : "SEND_FAILED";
+
+      const errorMessage =
+        err?.message ||
+        sendResp?.error ||
+        (deliveryStatus === "SEND_FAILED" ? `Send failed (status=${sendResp?.status ?? "unknown"})` : "");
+
+      incidentService.saveAllTypeQuerylogs(
+        job?.user_aadobject_id || job?.userAadObjId || "",
+        job?.user_name || "",
+        "TEAMS",
+        "",
+        String(job?.ID ?? ""),
+        deliveryStatus,
+        job?.SubscriptionType === 2 ? "TRIAL_SUBSCRIPTION" : "SUBSCRIPTION",
+        subcriptionMessage,
+        "",
+        "",
+        errorMessage || "",
+      );
+    } catch (trackingErr) {
+      // Never fail the job due to tracking
+      console.error("Trial notification tracking error:", trackingErr);
+    }
+  };
+
   const sendProactiveMessage = async (sqlQuery, subcriptionMessage) => {
     const log = new AYSLog();
     let saveLog = false;
@@ -80,7 +111,7 @@ const { processSafetyBotError } = require("../models/processError");
               log.addLog(
                 `send  ${subcriptionMessage} type-${subscriptionType} to ${job.user_id} start`
               );
-              await sendProactiveMessaageToUser(
+              const sendResp = await sendProactiveMessaageToUser(
                 member,
                 card,
                 null,
@@ -89,6 +120,7 @@ const { processSafetyBotError } = require("../models/processError");
                 log,
                 userAadObjId
               );
+              trackTrialNotification(job, subcriptionMessage, sendResp);
               log.addLog(
                 `send  ${subcriptionMessage} type-${subscriptionType} proactive messaage to ${job.user_id} successfully`
               );
@@ -124,6 +156,7 @@ const { processSafetyBotError } = require("../models/processError");
             } catch (err) {
               console.log(err);
               log.addLog(`Error occured: ${err}`);
+              trackTrialNotification(job, subcriptionMessage, null, err);
               processSafetyBotError(
                 err,
                 "",
