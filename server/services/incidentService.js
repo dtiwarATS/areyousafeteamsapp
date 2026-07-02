@@ -21,6 +21,10 @@ const {
   getUsersConversationId,
   getConversationParameters,
 } = require("../api/apiMethods");
+const {
+  validatePhoneNumber,
+  isPhoneNumberEmpty,
+} = require("../utils/phoneValidation");
 
 const parseEventData = (
   result,
@@ -4676,6 +4680,244 @@ where team_id = '${team_id}'`;
   }
 };
 
+const parsePhoneSourceFromIntegrationConfig = (raw) => {
+  try {
+    if (raw == null) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const source = parsed?.phone?.source;
+    if (source === "office365" || source === "spreadsheet") return source;
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const getUsersForPhoneExport = async (tenantId) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("tenantId", sql.NVarChar, tenantId)
+      .query(`
+        WITH ranked AS (
+          SELECT
+            user_name,
+            email,
+            user_aadobject_id,
+            PHONE_NUMBER,
+            ROW_NUMBER() OVER (
+              PARTITION BY user_aadobject_id
+              ORDER BY id
+            ) AS rn
+          FROM MSTeamsTeamsUsers
+          WHERE tenantid = @tenantId AND hasLicense = 1
+        )
+        SELECT
+          user_name AS userName,
+          email,
+          user_aadobject_id AS userAadObjId,
+          PHONE_NUMBER AS phoneNumber
+        FROM ranked
+        WHERE rn = 1
+        ORDER BY user_name
+      `);
+    return result.recordset || [];
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      tenantId,
+      "",
+      "",
+      "error in getUsersForPhoneExport",
+    );
+    return [];
+  }
+};
+
+const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
+  try {
+    if (!tenantId || !Array.isArray(userAadObjIds) || userAadObjIds.length === 0) {
+      return [];
+    }
+
+    const pool = await poolPromise;
+    const request = pool.request().input("tenantId", sql.NVarChar, tenantId);
+    const placeholders = userAadObjIds.map((id, index) => {
+      const paramName = `aadId${index}`;
+      request.input(paramName, sql.NVarChar, id);
+      return `@${paramName}`;
+    });
+
+    const result = await request.query(`
+      SELECT DISTINCT
+        user_aadobject_id AS id,
+        user_id,
+        user_name AS displayName,
+        PHONE_NUMBER
+      FROM MSTeamsTeamsUsers
+      WHERE tenantid = @tenantId
+        AND user_aadobject_id IN (${placeholders.join(", ")})
+    `);
+
+    return (result.recordset || []).map((row) => {
+      const phone = row.PHONE_NUMBER ? String(row.PHONE_NUMBER).trim() : "";
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        displayName: row.displayName,
+        mobilePhone: phone,
+        businessPhones: phone ? [phone] : [],
+      };
+    });
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      tenantId,
+      "",
+      "",
+      "error in getUserPhonesFromDb",
+    );
+    return [];
+  }
+};
+
+const buildTenantUserPhoneLookup = async (tenantId) => {
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("tenantId", sql.NVarChar, tenantId)
+    .query(`
+      SELECT DISTINCT user_aadobject_id, email
+      FROM MSTeamsTeamsUsers
+      WHERE tenantid = @tenantId AND hasLicense = 1
+    `);
+
+  const byEmail = new Map();
+  const byAadId = new Map();
+  for (const row of result.recordset || []) {
+    const aadId = String(row.user_aadobject_id || "").trim();
+    const email = String(row.email || "")
+      .trim()
+      .toLowerCase();
+    if (aadId) byAadId.set(aadId.toLowerCase(), aadId);
+    if (email && aadId) byEmail.set(email, aadId);
+  }
+  return { byEmail, byAadId };
+};
+
+const importUserPhones = async (tenantId, rows = []) => {
+  const summary = {
+    updated: 0,
+    cleared: 0,
+    notFound: 0,
+    invalid: 0,
+    errors: [],
+  };
+
+  if (!tenantId || !Array.isArray(rows) || rows.length === 0) {
+    return summary;
+  }
+
+  try {
+    const { byEmail, byAadId } = await buildTenantUserPhoneLookup(tenantId);
+    const pool = await poolPromise;
+    const batchSize = 50;
+
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize);
+      const transaction = new sql.Transaction(pool);
+      await transaction.begin();
+
+      try {
+        for (let rowIndex = 0; rowIndex < batch.length; rowIndex++) {
+          const row = batch[rowIndex];
+          const rowNumber = i + rowIndex + 1;
+          const email = String(row?.email || "")
+            .trim()
+            .toLowerCase();
+          const userAadObjId = String(
+            row?.userAadObjId || row?.user_aadobject_id || "",
+          ).trim();
+          const phoneRaw = row?.phoneNumber ?? row?.phone ?? "";
+
+          let matchedAadId = null;
+          if (email && byEmail.has(email)) {
+            matchedAadId = byEmail.get(email);
+          } else if (userAadObjId) {
+            const normalizedAad = userAadObjId.toLowerCase();
+            if (byAadId.has(normalizedAad)) {
+              matchedAadId = byAadId.get(normalizedAad);
+            }
+          }
+
+          if (!matchedAadId) {
+            summary.notFound += 1;
+            summary.errors.push({
+              row: rowNumber,
+              email: row?.email || "",
+              userAadObjId,
+              error: "User not found in tenant",
+            });
+            continue;
+          }
+
+          if (isPhoneNumberEmpty(phoneRaw)) {
+            await new sql.Request(transaction)
+              .input("tenantId", sql.NVarChar, tenantId)
+              .input("aadId", sql.NVarChar, matchedAadId)
+              .query(`
+                UPDATE MSTeamsTeamsUsers
+                SET PHONE_NUMBER = NULL
+                WHERE tenantid = @tenantId AND user_aadobject_id = @aadId
+              `);
+            summary.cleared += 1;
+            continue;
+          }
+
+          const validation = validatePhoneNumber(phoneRaw);
+          if (!validation.valid) {
+            summary.invalid += 1;
+            summary.errors.push({
+              row: rowNumber,
+              email: row?.email || "",
+              userAadObjId: matchedAadId,
+              error: validation.error,
+            });
+            continue;
+          }
+
+          await new sql.Request(transaction)
+            .input("tenantId", sql.NVarChar, tenantId)
+            .input("aadId", sql.NVarChar, matchedAadId)
+            .input("phoneNumber", sql.NVarChar, validation.normalized)
+            .query(`
+              UPDATE MSTeamsTeamsUsers
+              SET PHONE_NUMBER = @phoneNumber
+              WHERE tenantid = @tenantId AND user_aadobject_id = @aadId
+            `);
+          summary.updated += 1;
+        }
+
+        await transaction.commit();
+      } catch (batchErr) {
+        await transaction.rollback();
+        throw batchErr;
+      }
+    }
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      tenantId,
+      "",
+      "",
+      "error in importUserPhones",
+    );
+    throw err;
+  }
+
+  return summary;
+};
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -4798,4 +5040,8 @@ module.exports = {
   followUpIncidentNotificationFor,
   IncidentMessagesNotificationFor,
   SaveAiTotalToken,
+  getUsersForPhoneExport,
+  getUserPhonesFromDb,
+  importUserPhones,
+  parsePhoneSourceFromIntegrationConfig,
 };

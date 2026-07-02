@@ -488,6 +488,26 @@ const handlerForSafetyBotTab = (app) => {
       let userAadObjIds = teamsMembers.map((x) => x.user_aadobject_id);
       if (teamInfo[0]?.length && teamInfo) {
         const phoneDataPromises = teamInfo[0].map(async (team) => {
+          const phoneSource = incidentService.parsePhoneSourceFromIntegrationConfig(
+            team.INTEGRATION_CONFIGURE,
+          );
+
+          if (phoneSource === "spreadsheet") {
+            const dbPhones = await incidentService.getUserPhonesFromDb(
+              team.tenant_id,
+              userAadObjIds,
+            );
+            return dbPhones.map((item) => {
+              const match = teamsMembers.find(
+                (u) => u.user_aadobject_id === item.id,
+              );
+              return {
+                ...item,
+                user_id: match ? match.user_id : item.user_id || null,
+              };
+            });
+          }
+
           if (team.IS_APP_PERMISSION_GRANTED) {
             try {
               let phonedata = await getUserPhone(
@@ -869,6 +889,48 @@ const handlerForSafetyBotTab = (app) => {
         userAadObjId,
         "error in /areyousafetabhandler/getTeamsMembers",
       );
+    }
+  });
+  app.get("/areyousafetabhandler/ExportUserPhones", async (req, res) => {
+    const tenantId = req.query.tenantId || "";
+    try {
+      if (!tenantId) {
+        return res.status(400).json({ success: false, error: "tenantId is required" });
+      }
+      const users = await incidentService.getUsersForPhoneExport(tenantId);
+      res.json({ success: true, users });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        tenantId,
+        "",
+        "",
+        "error in /areyousafetabhandler/ExportUserPhones",
+      );
+      res.status(500).json({ success: false, error: "Failed to export user phones" });
+    }
+  });
+  app.post("/areyousafetabhandler/ImportUserPhones", async (req, res) => {
+    const tenantId = req.body?.tenantId || "";
+    const rows = req.body?.rows || [];
+    try {
+      if (!tenantId) {
+        return res.status(400).json({ success: false, error: "tenantId is required" });
+      }
+      if (!Array.isArray(rows) || rows.length === 0) {
+        return res.status(400).json({ success: false, error: "No rows to import" });
+      }
+      const summary = await incidentService.importUserPhones(tenantId, rows);
+      res.json({ success: true, summary });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        tenantId,
+        "",
+        req.body?.userAadObjId || "",
+        "error in /areyousafetabhandler/ImportUserPhones",
+      );
+      res.status(500).json({ success: false, error: "Failed to import user phones" });
     }
   });
   app.get("/areyousafetabhandler/getEnableSafetyCheck", async (req, res) => {
