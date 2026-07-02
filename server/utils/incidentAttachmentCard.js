@@ -91,8 +91,9 @@ const getDocumentStyle = (extension) => {
 };
 
 const buildDownloadAction = (incFile, fileName) => {
+  const fileSize = incFile.File_size || incFile.file_size || null;
   const downloadUrl =
-    buildIncFileAutoDownloadUrl(incFile.Blob, fileName) ||
+    buildIncFileAutoDownloadUrl(incFile.Blob, fileName, fileSize) ||
     buildIncFileContentUrl(incFile.Blob, fileName, true) ||
     incFile.Blob;
 
