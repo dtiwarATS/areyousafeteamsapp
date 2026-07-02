@@ -5404,6 +5404,154 @@ WHERE
         });
     }
   });
+  app.get("/areyousafetabhandler/getLicenseAlert", async (req, res) => {
+    const userId = req.query.userId || "";
+    const teamId =
+      req.query.teamId && req.query.teamId !== "null" ? req.query.teamId : "";
+
+    const noBanner = { showBanner: false };
+
+    const licenseCountsSubquery = `
+        LEFT JOIN (
+            SELECT
+                ID2.user_tenant_id,
+                SUM(CASE WHEN TU.hasLicense = 1 THEN 1 ELSE 0 END) AS LICENSED_USERS,
+                SUM(CASE WHEN TU.hasLicense = 0 OR TU.hasLicense IS NULL THEN 1 ELSE 0 END) AS UNLICENSED_COUNT
+            FROM MSTeamsInstallationDetails ID2
+            LEFT JOIN MSTeamsTeamsUsers TU
+                ON TU.TEAM_ID = ID2.TEAM_ID
+            GROUP BY ID2.user_tenant_id
+        ) U
+            ON U.user_tenant_id = ID.user_tenant_id`;
+
+    const buildResponse = (row) => {
+      const purchasedLicenses = Number(row.UserLimit) || 0;
+      const licensedUsers = Number(row.LICENSED_USERS) || 0;
+      const unlicensedCount = Number(row.UNLICENSED_COUNT) || 0;
+
+      const showBanner =
+        unlicensedCount > 0 &&
+        licensedUsers >= purchasedLicenses &&
+        purchasedLicenses > 0;
+
+      const userEmailId = row.UserEmailId || "";
+      const buyLicensesUrl = `https://admin.cloud.microsoft/?#/subscriptions`;
+      const manageLicensesUrl = userEmailId
+        ? `https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${encodeURIComponent(userEmailId)}`
+        : "https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true";
+      return {
+        showBanner,
+        unlicensedCount: showBanner ? unlicensedCount : 0,
+        purchasedLicenses: showBanner ? purchasedLicenses : 0,
+        buyLicensesUrl,
+        manageLicensesUrl,
+      };
+    };
+
+    try {
+      if (!teamId && !userId) {
+        return res.status(400).json({
+          success: false,
+          error: "teamId or userId is required",
+        });
+      }
+
+      const safetyInitiatorObj =
+        await dbOperation.verifyAdminUserForDashboardTab(
+          userId,
+          teamId || null,
+        );
+      if (!safetyInitiatorObj?.isAdmin) {
+        return res.json({ success: true, data: noBanner });
+      }
+
+      const pool = await poolPromise;
+      let query = "";
+
+      if (teamId) {
+        query = `
+          SELECT
+    SD.UserLimit,
+    SD.UserEmailId,
+    SD.SubscriptionType,
+    U.LICENSED_USERS,
+    U.UNLICENSED_COUNT
+FROM MSTeamsInstallationDetails ID
+INNER JOIN MSTeamsSubscriptionDetails SD
+    ON ID.SubscriptionDetailsId = SD.ID
+LEFT JOIN (
+    SELECT
+        TEAM_ID,
+        SUM(CASE WHEN hasLicense = 1 THEN 1 ELSE 0 END) AS LICENSED_USERS,
+        SUM(CASE WHEN hasLicense = 0 OR hasLicense IS NULL THEN 1 ELSE 0 END) AS UNLICENSED_COUNT
+    FROM MSTeamsTeamsUsers
+    GROUP BY TEAM_ID
+) U
+    ON U.TEAM_ID = ID.TEAM_ID
+WHERE ID.TEAM_ID = @teamId
+  AND SD.SubscriptionType = 3;
+      `;
+      } else {
+        query = `
+           SELECT DISTINCT
+    SD.UserLimit,
+    SD.UserEmailId,
+    SD.SubscriptionType,
+    C.LICENSED_USERS,
+    C.UNLICENSED_COUNT
+FROM MSTeamsInstallationDetails ID
+INNER JOIN MSTeamsSubscriptionDetails SD
+    ON SD.ID = ID.SubscriptionDetailsId
+CROSS APPLY
+(
+    SELECT
+        SUM(CASE WHEN TU.hasLicense = 1 THEN 1 ELSE 0 END) AS LICENSED_USERS,
+        SUM(CASE WHEN TU.hasLicense = 0 OR TU.hasLicense IS NULL THEN 1 ELSE 0 END) AS UNLICENSED_COUNT
+    FROM MSTeamsTeamsUsers TU
+    WHERE TU.TEAM_ID IN
+    (
+        SELECT DISTINCT TEAM_ID
+        FROM MSTeamsInstallationDetails
+        WHERE user_obj_id = ID.user_obj_id
+    )
+) C
+WHERE ID.user_obj_id = @userAadObjId;
+      `;
+      }
+
+      const request = pool.request();
+      if (teamId) {
+        request.input("teamId", sql.NVarChar, teamId);
+      }
+      if (userId) {
+        request.input("userAadObjId", sql.NVarChar, userId);
+      }
+
+      const result = await request.query(query);
+
+      if (!result.recordset || result.recordset.length === 0) {
+        return res.json({ success: true, data: noBanner });
+      }
+
+      res.json({
+        success: true,
+        data: buildResponse(result.recordset[0]),
+      });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userId,
+        "error in /areyousafetabhandler/getLicenseAlert",
+      );
+      res
+        .status(500)
+        .json({ success: false, error: "Error fetching license alert" });
+    }
+  });
+
   app.get("/areyousafetabhandler/getSubscription", async (req, res) => {
     const userAadObjId = req.query.userId || "";
     const teamId = req.query.teamId || "";
