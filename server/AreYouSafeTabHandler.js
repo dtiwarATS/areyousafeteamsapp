@@ -1016,12 +1016,20 @@ const handlerForSafetyBotTab = (app) => {
           err?.message ||
           "",
       ).trim();
-      const errorMessage =
+      const isMissingPhoneColumn =
         sqlMessage.includes("PHONE_NUMBER") &&
-        sqlMessage.toLowerCase().includes("invalid column")
-          ? "Phone import is not set up on this database. Run add-phone-number-column.sql on staging."
-          : sqlMessage || "Failed to import user phones";
-      res.status(500).json({ success: false, error: errorMessage });
+        sqlMessage.toLowerCase().includes("invalid column");
+      const errorCode = isMissingPhoneColumn
+        ? "PHONE_COLUMN_MISSING"
+        : sqlMessage
+          ? "SQL_ERROR"
+          : "GENERIC";
+      const errorMessage = isMissingPhoneColumn
+        ? "Phone import is not set up on this database. Run add-phone-number-column.sql on staging."
+        : sqlMessage || "Failed to import user phones";
+      res
+        .status(500)
+        .json({ success: false, error: errorMessage, code: errorCode });
     }
   };
   app.post("/areyousafetabhandler/ImportUserPhones", importUserPhonesHandler);
