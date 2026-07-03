@@ -4,6 +4,12 @@ const Company = require("../models/Company");
 const { processSafetyBotError } = require("../models/processError");
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 
+/** SQL Server requires N-prefixed literals for Unicode (Korean, etc.). */
+function toSqlNVarChar(value) {
+  if (value == null || value === undefined) return "NULL";
+  return `N'${String(value).replace(/'/g, "''")}'`;
+}
+
 const parseCompanyData = (result) => {
   let parsedCompanyObj = {};
   // console.log("result >>", result);
@@ -918,19 +924,19 @@ const updateSuperUserDataByUserAadObjId = async (
         ? currentResult.recordset[0].super_users || ""
         : "";
 
-    let updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}',WHO_CAN_CREATE_INCIDENT='${iscreateIncidentUser}',EnableSafetycheckForVisitors=${
+    let updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = ${toSqlNVarChar(selectedUserStr)},WHO_CAN_CREATE_INCIDENT=${toSqlNVarChar(iscreateIncidentUser)},EnableSafetycheckForVisitors=${
       EnableSafetycheckForVisitors ? 1 : 0
-    } ,SafetycheckForVisitorsQuestion1='${SafetycheckForVisitorsQuestion1}',SafetycheckForVisitorsQuestion2='${SafetycheckForVisitorsQuestion2}',SafetycheckForVisitorsQuestion3='${SafetycheckForVisitorsQuestion3}' 
-,EMERGENCY_CONTACTS='${emergencyContactsStr}'
+    } ,SafetycheckForVisitorsQuestion1=${toSqlNVarChar(SafetycheckForVisitorsQuestion1)},SafetycheckForVisitorsQuestion2=${toSqlNVarChar(SafetycheckForVisitorsQuestion2)},SafetycheckForVisitorsQuestion3=${toSqlNVarChar(SafetycheckForVisitorsQuestion3)} 
+,EMERGENCY_CONTACTS=${toSqlNVarChar(emergencyContactsStr)}
     WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
 
     updateQuery += `; UPDATE MSTeamsInstallationDetails SET IsReminderEnabledBeforeAcknowledgement = ${EnableSOSFollowUps ? 1 : 0}, MaxReminderCountBeforeAcknowledgement = ${SOSFollowUpCount}, ReminderIntervalMinutesBeforeAcknowledgement = ${SOSFollowUpInterval}, NotifyInitiatorIfNoResponseBeforeAcknowledgement = ${NotifyInitiatorIfNoResponse ? 1 : 0},
-MaxReminderCountAfterAcknowledgement = ${SOSFollowUpCountSection2}, NotifyNoResponseBeforeAcknowledgementMessage='${SOSInitiatorMessage.replace(/'/g, "''")}',
-ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2},NotifyNoResponseAfterAcknowledgementMessage='${SOSAllRespondersMessage.replace(/'/g, "''")}',
+MaxReminderCountAfterAcknowledgement = ${SOSFollowUpCountSection2}, NotifyNoResponseBeforeAcknowledgementMessage=${toSqlNVarChar(SOSInitiatorMessage)},
+ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2},NotifyNoResponseAfterAcknowledgementMessage=${toSqlNVarChar(SOSAllRespondersMessage)},
  NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement = ${NotifyAllRespondersIfNoResponse ? 1 : 0},IsReminderEnabledAfterAcknowledgement=${enableSOSFollowUpsSection2 ? 1 : 0}
 WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
 
-    updateQuery += `; UPDATE MSTeamsInstallationDetails SET INTEGRATION_CONFIGURE = '${integrationPanelDraft ? integrationPanelDraft : null}', SHOW_SOS_BUTTON = ${AllowUsersToSendSosRequest ? 1 : 0} WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
+    updateQuery += `; UPDATE MSTeamsInstallationDetails SET INTEGRATION_CONFIGURE = ${toSqlNVarChar(integrationPanelDraft)}, SHOW_SOS_BUTTON = ${AllowUsersToSendSosRequest ? 1 : 0} WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
     updateQuery += `; UPDATE MSTeamsInstallationDetails SET LAST_UPDATED_BY = '${userId}' WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
     const result = await pool.request().query(updateQuery);
     isUpdated = true;
