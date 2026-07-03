@@ -4749,14 +4749,14 @@ const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
     });
 
     const result = await request.query(`
-      SELECT DISTINCT
+      SELECT
         user_aadobject_id AS id,
-        user_id,
-        user_name AS displayName,
-        PHONE_NUMBER
+        MAX(user_name) AS displayName,
+        MAX(PHONE_NUMBER) AS PHONE_NUMBER
       FROM MSTeamsTeamsUsers
       WHERE tenantid = @tenantId
         AND user_aadobject_id IN (${placeholders.join(", ")})
+      GROUP BY user_aadobject_id
     `);
 
     return (result.recordset || []).map((row) => {
@@ -4765,7 +4765,6 @@ const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
       const normalizedPhone = validation.valid ? validation.normalized : phone;
       return {
         id: row.id,
-        user_id: row.user_id,
         displayName: row.displayName,
         mobilePhone: normalizedPhone,
         businessPhones: normalizedPhone ? [normalizedPhone] : [],
