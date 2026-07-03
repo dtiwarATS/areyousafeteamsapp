@@ -4453,7 +4453,6 @@ const saveSMSlogs = async (
 ) => {
   try {
     const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data,TWILIO_ID,ERROR_DETAILS,EVENT_ID) 
-          OUTPUT INSERTED.SMS_LOG_ID
           values('${userid}', '${status}', '${SMS_TEXT.replaceAll(
             "'",
             "''",
@@ -4461,29 +4460,12 @@ const saveSMSlogs = async (
             error ? error.replaceAll("'", "''") : error
           }','${eventid}')`;
     pool = await poolPromise;
-    const result = await pool.request().query(recurrRespQuery);
-    return result.recordset[0]?.SMS_LOG_ID ?? null;
+    //console.log("insert query => ", recurrRespQuery);
+    await pool.request().query(recurrRespQuery);
   } catch (err) {
-    console.log(err);
-    return null;
+    console.log();
   }
 };
-const updateSMSlog = async (logId, status, sid = null, error = null) => {
-  try {
-    const sidVal = sid ? sid.replaceAll("'", "''") : null;
-    const errVal = error ? error.replaceAll("'", "''") : null;
-    const query = `UPDATE MSTeamsSMSlogs SET
-      status = '${status}',
-      TWILIO_ID = ${sidVal ? `'${sidVal}'` : "NULL"},
-      ERROR_DETAILS = ${errVal ? `'${errVal}'` : "NULL"}
-      WHERE SMS_LOG_ID = ${logId}`;
-    pool = await poolPromise;
-    await pool.request().query(query);
-  } catch (err) {
-    console.log(err);
-  }
-};
-
 const saveAllTypelogs = async (
   USER_ID,
   USER_NAME,
@@ -5066,7 +5048,6 @@ module.exports = {
   getremaindercheck,
   updateSafetyCheckStatusViaSMSLink,
   saveSMSlogs,
-  updateSMSlog,
   updateSentSMSCount,
   updateCommentViaSMSLink,
   getEmergencyContacts,
