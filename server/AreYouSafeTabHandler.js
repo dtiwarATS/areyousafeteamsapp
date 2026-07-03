@@ -1003,6 +1003,7 @@ const handlerForSafetyBotTab = (app) => {
       const summary = await incidentService.importUserPhones(tenantId, rows);
       res.json({ success: true, summary });
     } catch (err) {
+      console.error("error in /areyousafetabhandler/ImportUserPhones", err);
       processSafetyBotError(
         err,
         tenantId,
@@ -1027,9 +1028,18 @@ const handlerForSafetyBotTab = (app) => {
       const errorMessage = isMissingPhoneColumn
         ? "Phone import is not set up on this database. Run add-phone-number-column.sql on staging."
         : sqlMessage || "Failed to import user phones";
+      // Include the exception's type/name even when there's no message, so the
+      // real cause is visible in the Network tab without needing server log access.
+      const debug =
+        errorCode === "GENERIC"
+          ? {
+              name: err?.name || err?.constructor?.name || typeof err,
+              code: err?.code,
+            }
+          : undefined;
       res
         .status(500)
-        .json({ success: false, error: errorMessage, code: errorCode });
+        .json({ success: false, error: errorMessage, code: errorCode, debug });
     }
   };
   app.post("/areyousafetabhandler/ImportUserPhones", importUserPhonesHandler);

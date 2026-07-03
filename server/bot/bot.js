@@ -2635,30 +2635,19 @@ const sendSafetyCheckMsgViaSMS = async (
         };
         const sanitizedBody = sanitizeSmsText(body);
         let twiliosend;
-        try {
-          SaveSmsLog(
-            user.id,
-            "SENT_TO_TWILIO",
-            sanitizedBody,
-            JSON.stringify({ eventId: incId, userId: user.id }),
-            null,
-            null,
-            incId,
-          );
-          incidentService.saveAllTypeQuerylogs(
-            user.id,
-            user.displayName,
-            "SMS",
-            maskedPhone,
-            incId,
-            "SENT_TO_TWILIO",
-            isfrominctype,
-            "",
-            JSON.stringify(sanitizedBody),
-            "",
-            "",
-          );
 
+        // Insert a single QUEUED record before attempting the Twilio call
+        const smsLogId = await SaveSmsLog(
+          user.id,
+          "QUEUED",
+          sanitizedBody,
+          JSON.stringify({ eventId: incId, userId: user.id }),
+          null,
+          null,
+          incId,
+        );
+
+        try {
           const sendResult = await sendTwilioMessage(tClient, {
             body,
             logContext,
@@ -2671,15 +2660,8 @@ const sendSafetyCheckMsgViaSMS = async (
           twiliosend = sendResult.result;
         } catch (err) {
           console.error("Error sending SMS:", err.message);
-          SaveSmsLog(
-            user.id,
-            "SEND_FAILED",
-            sanitizedBody,
-            JSON.stringify({ eventId: incId, userId: user.id }),
-            null,
-            err.message,
-            incId,
-          );
+          // Update the existing QUEUED row to SEND_FAILED
+          await UpdateSmsLog(smsLogId, "SEND_FAILED", null, err.message);
           incidentService.saveAllTypeQuerylogs(
             user.id,
             user.displayName,
@@ -2707,17 +2689,9 @@ const sendSafetyCheckMsgViaSMS = async (
           twiliosend.sid,
           twiliosend.errorMessage,
         );
-        // Save SMS log
         counter++;
-        SaveSmsLog(
-          user.id,
-          "SEND_SUCCESS",
-          sanitizedBody,
-          JSON.stringify({ eventId: incId, userId: user.id }),
-          twiliosend.sid,
-          null,
-          incId,
-        );
+        // Update the existing QUEUED row to SEND_SUCCESS
+        await UpdateSmsLog(smsLogId, "SEND_SUCCESS", twiliosend.sid, null);
         incidentService.saveAllTypeQuerylogs(
           user.id,
           user.displayName,
@@ -4047,6 +4021,14 @@ const SaveSmsLog = async (
     processSafetyBotError(err, "", "", null, "error in saveSMSLog");
   }
   return Promise.resolve(superUsers);
+};
+
+const UpdateSmsLog = async (logId, status, sid = null, errormessage = null) => {
+  try {
+    await incidentService.updateSMSlog(logId, status, sid, errormessage);
+  } catch (err) {
+    processSafetyBotError(err, "", "", null, "error in UpdateSmsLog");
+  }
 };
 const saveAllTypelogs = async (
   USER_ID,
