@@ -79,6 +79,7 @@ const {
   buildIncFileTaskModuleInvokeResponse,
   extractIncFileRequest,
 } = require("../utils/incidentFileViewer");
+const PersonalEmail = require("../Email/personalEmail");
 const { json } = require("body-parser");
 
 class BotActivityHandler extends TeamsActivityHandler {
