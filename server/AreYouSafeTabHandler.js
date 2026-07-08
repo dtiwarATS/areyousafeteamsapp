@@ -568,9 +568,10 @@ const handlerForSafetyBotTab = (app) => {
       let userAadObjIds = teamsMembers.map((x) => x.user_aadobject_id);
       if (teamInfo[0]?.length && teamInfo) {
         const phoneDataPromises = teamInfo[0].map(async (team) => {
-          const phoneSource = incidentService.parsePhoneSourceFromIntegrationConfig(
-            team.INTEGRATION_CONFIGURE,
-          );
+          const phoneSource =
+            incidentService.parsePhoneSourceFromIntegrationConfig(
+              team.INTEGRATION_CONFIGURE,
+            );
 
           if (phoneSource === "spreadsheet") {
             const dbPhones = await incidentService.getUserPhonesFromDb(
@@ -975,7 +976,9 @@ const handlerForSafetyBotTab = (app) => {
     const tenantId = req.query.tenantId || "";
     try {
       if (!tenantId) {
-        return res.status(400).json({ success: false, error: "tenantId is required" });
+        return res
+          .status(400)
+          .json({ success: false, error: "tenantId is required" });
       }
       const users = await incidentService.getUsersForPhoneExport(tenantId);
       res.json({ success: true, users });
@@ -987,7 +990,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         "error in /areyousafetabhandler/ExportUserPhones",
       );
-      res.status(500).json({ success: false, error: "Failed to export user phones" });
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to export user phones" });
     }
   });
   const importUserPhonesHandler = async (req, res) => {
@@ -995,10 +1000,14 @@ const handlerForSafetyBotTab = (app) => {
     const rows = req.body?.rows || [];
     try {
       if (!tenantId) {
-        return res.status(400).json({ success: false, error: "tenantId is required" });
+        return res
+          .status(400)
+          .json({ success: false, error: "tenantId is required" });
       }
       if (!Array.isArray(rows) || rows.length === 0) {
-        return res.status(400).json({ success: false, error: "No rows to import" });
+        return res
+          .status(400)
+          .json({ success: false, error: "No rows to import" });
       }
       const summary = await incidentService.importUserPhones(tenantId, rows);
       res.json({ success: true, summary });
@@ -5650,6 +5659,130 @@ WHERE ID.user_obj_id = @userAadObjId;
       res
         .status(500)
         .json({ success: false, error: "Error fetching license alert" });
+    }
+  });
+
+  app.get("/areyousafetabhandler/getSubscriptionBanners", async (req, res) => {
+    const userId = req.query.userId || "";
+    const teamId =
+      req.query.teamId && req.query.teamId !== "null" ? req.query.teamId : "";
+
+    const noBanner = {
+      bannerType: null,
+      daysRemaining: 0,
+      expiryDate: null,
+      renewUrl:
+        "https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true",
+    };
+
+    const buildResponse = (row) => {
+      const subscriptionType = Number(row.SubscriptionType);
+      const daysRemaining = Number(row.DAYS_REMAINING);
+      const userEmailId = row.UserEmailId || "";
+      const renewUrl =
+        "https://teams.microsoft.com/l/app/884e521a-dadc-41e9-a8af-fcaa907e783e?source=agent-details-page";
+
+      if (subscriptionType === 2 && !Number.isNaN(daysRemaining)) {
+        return {
+          bannerType: "trial",
+          daysRemaining,
+          expiryDate: row.ExpiryDate
+            ? new Date(row.ExpiryDate).toISOString()
+            : null,
+          renewUrl,
+        };
+      }
+
+      if (
+        subscriptionType === 3 &&
+        !Number.isNaN(daysRemaining) &&
+        daysRemaining <= 30
+      ) {
+        return {
+          bannerType: "renewal",
+          daysRemaining,
+          expiryDate: row.ExpiryDate
+            ? new Date(row.ExpiryDate).toISOString()
+            : null,
+          renewUrl,
+        };
+      }
+
+      return noBanner;
+    };
+
+    try {
+      if (!teamId && !userId) {
+        return res.status(400).json({
+          success: false,
+          error: "teamId or userId is required",
+        });
+      }
+
+      const pool = await poolPromise;
+      let query = "";
+
+      if (teamId) {
+        query = `
+          SELECT
+            SD.SubscriptionType,
+            SD.ExpiryDate,
+            SD.UserEmailId,
+            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING
+          FROM MSTeamsInstallationDetails ID
+          INNER JOIN MSTeamsSubscriptionDetails SD
+            ON ID.SubscriptionDetailsId = SD.ID
+          WHERE ID.TEAM_ID = @teamId
+            AND ID.uninstallation_date IS NULL;
+        `;
+      } else {
+        query = `
+          SELECT TOP 1
+            SD.SubscriptionType,
+            SD.ExpiryDate,
+            SD.UserEmailId,
+            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING
+          FROM MSTeamsTeamsUsers TU
+          INNER JOIN MSTeamsInstallationDetails ID
+            ON TU.TEAM_ID = ID.TEAM_ID
+          INNER JOIN MSTeamsSubscriptionDetails SD
+            ON ID.SubscriptionDetailsId = SD.ID
+          WHERE TU.user_aadobject_id = @userAadObjId
+            AND ID.uninstallation_date IS NULL
+          ORDER BY ID.created_date DESC;
+        `;
+      }
+
+      const request = pool.request();
+      if (teamId) {
+        request.input("teamId", sql.NVarChar, teamId);
+      }
+      if (userId) {
+        request.input("userAadObjId", sql.NVarChar, userId);
+      }
+
+      const result = await request.query(query);
+
+      if (!result.recordset || result.recordset.length === 0) {
+        return res.json({ success: true, data: noBanner });
+      }
+
+      res.json({
+        success: true,
+        data: buildResponse(result.recordset[0]),
+      });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        teamId,
+        "",
+        userId,
+        "error in /areyousafetabhandler/getSubscriptionBanners",
+      );
+      res
+        .status(500)
+        .json({ success: false, error: "Error fetching subscription banners" });
     }
   });
 
