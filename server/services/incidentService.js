@@ -21,6 +21,10 @@ const {
   getUsersConversationId,
   getConversationParameters,
 } = require("../api/apiMethods");
+const {
+  validatePhoneNumber,
+  isPhoneNumberEmpty,
+} = require("../utils/phoneValidation");
 
 const parseEventData = (
   result,
@@ -4676,6 +4680,274 @@ where team_id = '${team_id}'`;
   }
 };
 
+const parsePhoneSourceFromIntegrationConfig = (raw) => {
+  try {
+    if (raw == null) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const source = parsed?.phone?.source;
+    if (source === "office365" || source === "spreadsheet") return source;
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+const getUsersForPhoneExport = async (tenantId) => {
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("tenantId", sql.NVarChar, tenantId)
+      .query(`
+        WITH ranked AS (
+          SELECT
+            user_name,
+            email,
+            user_aadobject_id,
+            PHONE_NUMBER,
+            ROW_NUMBER() OVER (
+              PARTITION BY user_aadobject_id
+              ORDER BY id
+            ) AS rn
+          FROM MSTeamsTeamsUsers
+          WHERE tenantid = @tenantId AND hasLicense = 1
+        )
+        SELECT
+          user_name AS userName,
+          email,
+          user_aadobject_id AS userAadObjId,
+          PHONE_NUMBER AS phoneNumber
+        FROM ranked
+        WHERE rn = 1
+        ORDER BY user_name
+      `);
+    return result.recordset || [];
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      tenantId,
+      "",
+      "",
+      "error in getUsersForPhoneExport",
+    );
+    return [];
+  }
+};
+
+const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
+  try {
+    if (!tenantId || !Array.isArray(userAadObjIds) || userAadObjIds.length === 0) {
+      return [];
+    }
+
+    const pool = await poolPromise;
+    const request = pool.request().input("tenantId", sql.NVarChar, tenantId);
+    const placeholders = userAadObjIds.map((id, index) => {
+      const paramName = `aadId${index}`;
+      request.input(paramName, sql.NVarChar, id);
+      return `@${paramName}`;
+    });
+
+    const result = await request.query(`
+      SELECT
+        user_aadobject_id AS id,
+        MAX(user_name) AS displayName,
+        MAX(PHONE_NUMBER) AS PHONE_NUMBER
+      FROM MSTeamsTeamsUsers
+      WHERE tenantid = @tenantId
+        AND user_aadobject_id IN (${placeholders.join(", ")})
+      GROUP BY user_aadobject_id
+    `);
+
+    return (result.recordset || []).map((row) => {
+      const phone = row.PHONE_NUMBER ? String(row.PHONE_NUMBER).trim() : "";
+      const validation = validatePhoneNumber(phone);
+      const normalizedPhone = validation.valid ? validation.normalized : phone;
+      return {
+        id: row.id,
+        displayName: row.displayName,
+        mobilePhone: normalizedPhone,
+        businessPhones: normalizedPhone ? [normalizedPhone] : [],
+      };
+    });
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      tenantId,
+      "",
+      "",
+      "error in getUserPhonesFromDb",
+    );
+    return [];
+  }
+};
+
+const buildTenantUserPhoneLookup = async (tenantId) => {
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("tenantId", sql.NVarChar, tenantId)
+    .query(`
+      SELECT DISTINCT user_aadobject_id, email
+      FROM MSTeamsTeamsUsers
+      WHERE tenantid = @tenantId AND hasLicense = 1
+    `);
+
+  const byEmail = new Map();
+  const byAadId = new Map();
+  for (const row of result.recordset || []) {
+    const aadId = String(row.user_aadobject_id || "").trim();
+    const email = String(row.email || "")
+      .trim()
+      .toLowerCase();
+    if (aadId) byAadId.set(aadId.toLowerCase(), aadId);
+    if (email && aadId) byEmail.set(email, aadId);
+  }
+  return { byEmail, byAadId };
+};
+
+const PHONE_IMPORT_DB_BATCH_SIZE = 100;
+
+const extractUpdatedRowCount = (result) => {
+  for (const recordset of result.recordsets || []) {
+    const row = recordset?.[0];
+    if (row && row.updatedCount != null) {
+      return Number(row.updatedCount) || 0;
+    }
+  }
+  return Number(result.recordset?.[0]?.updatedCount || 0);
+};
+
+const bulkUpdateUserPhones = async (pool, tenantId, updates) => {
+  if (!updates.length) {
+    return 0;
+  }
+
+  let totalUpdated = 0;
+
+  for (let i = 0; i < updates.length; i += PHONE_IMPORT_DB_BATCH_SIZE) {
+    const batch = updates.slice(i, i + PHONE_IMPORT_DB_BATCH_SIZE);
+    const request = pool.request();
+    request.input("tenantId", sql.NVarChar, tenantId);
+
+    const sourceSelects = batch.map((item, idx) => {
+      request.input(`aad${idx}`, sql.NVarChar(64), item.aadId);
+      request.input(`phone${idx}`, sql.NVarChar(50), item.phoneNumber);
+      return `SELECT @aad${idx} AS user_aadobject_id, @phone${idx} AS phone_number`;
+    });
+
+    const result = await request.query(`
+      UPDATE u
+      SET u.PHONE_NUMBER = src.phone_number
+      FROM MSTeamsTeamsUsers u
+      INNER JOIN (
+        ${sourceSelects.join(" UNION ALL ")}
+      ) AS src ON u.user_aadobject_id = src.user_aadobject_id
+      WHERE u.tenantid = @tenantId;
+
+      SELECT @@ROWCOUNT AS updatedCount;
+    `);
+
+    totalUpdated += extractUpdatedRowCount(result);
+  }
+
+  return totalUpdated;
+};
+
+const importUserPhones = async (tenantId, rows = []) => {
+  const summary = {
+    updated: 0,
+    cleared: 0,
+    notFound: 0,
+    invalid: 0,
+    errors: [],
+  };
+
+  if (!tenantId || !Array.isArray(rows) || rows.length === 0) {
+    return summary;
+  }
+
+  try {
+    const { byEmail, byAadId } = await buildTenantUserPhoneLookup(tenantId);
+    const updatesByAadId = new Map();
+
+    for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+      const row = rows[rowIndex];
+      const rowNumber = rowIndex + 1;
+      const email = String(row?.email || "")
+        .trim()
+        .toLowerCase();
+      const userAadObjId = String(
+        row?.userAadObjId || row?.user_aadobject_id || "",
+      ).trim();
+      const phoneRaw = row?.phoneNumber ?? row?.phone ?? "";
+
+      let matchedAadId = null;
+      if (email && byEmail.has(email)) {
+        matchedAadId = byEmail.get(email);
+      } else if (userAadObjId) {
+        const normalizedAad = userAadObjId.toLowerCase();
+        if (byAadId.has(normalizedAad)) {
+          matchedAadId = byAadId.get(normalizedAad);
+        }
+      }
+
+      if (!matchedAadId) {
+        summary.notFound += 1;
+        if (summary.errors.length < 100) {
+          summary.errors.push({
+            row: rowNumber,
+            email: row?.email || "",
+            userAadObjId,
+            error: "User not found in tenant",
+          });
+        }
+        continue;
+      }
+
+      if (isPhoneNumberEmpty(phoneRaw)) {
+        continue;
+      }
+
+      const validation = validatePhoneNumber(phoneRaw);
+      if (!validation.valid) {
+        summary.invalid += 1;
+        if (summary.errors.length < 100) {
+          summary.errors.push({
+            row: rowNumber,
+            email: row?.email || "",
+            userAadObjId: matchedAadId,
+            error: validation.error,
+          });
+        }
+        continue;
+      }
+
+      updatesByAadId.set(matchedAadId.toLowerCase(), {
+        aadId: matchedAadId,
+        phoneNumber: validation.normalized,
+      });
+    }
+
+    const updates = Array.from(updatesByAadId.values());
+    if (updates.length > 0) {
+      const pool = await poolPromise;
+      summary.updated = await bulkUpdateUserPhones(pool, tenantId, updates);
+    }
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      tenantId,
+      "",
+      "",
+      "error in importUserPhones",
+    );
+    throw err;
+  }
+
+  return summary;
+};
+
 module.exports = {
   saveInc,
   deleteInc,
@@ -4798,4 +5070,8 @@ module.exports = {
   followUpIncidentNotificationFor,
   IncidentMessagesNotificationFor,
   SaveAiTotalToken,
+  getUsersForPhoneExport,
+  getUserPhonesFromDb,
+  importUserPhones,
+  parsePhoneSourceFromIntegrationConfig,
 };

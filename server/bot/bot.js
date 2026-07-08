@@ -2442,6 +2442,22 @@ const sendAcknowledgeMsgToCreator = async (
   connectorClient.conversations.sendToConversation(conversationId, activity);
 };
 
+const resolveUserPhonesForMessaging = async (companyData, userAadObjIds) => {
+  const tenantId =
+    companyData?.userTenantId || companyData?.user_tenant_id || "";
+  const phoneSource = incidentService.parsePhoneSourceFromIntegrationConfig(
+    companyData?.INTEGRATION_CONFIGURE,
+  );
+  if (phoneSource === "spreadsheet") {
+    return incidentService.getUserPhonesFromDb(tenantId, userAadObjIds);
+  }
+  return getUserPhone(
+    companyData.IS_APP_PERMISSION_GRANTED,
+    tenantId,
+    userAadObjIds,
+  );
+};
+
 const sendSafetyCheckMsgViaSMS = async (
   companyData,
   users,
@@ -2452,11 +2468,7 @@ const sendSafetyCheckMsgViaSMS = async (
 ) => {
   let tenantId = companyData.userTenantId;
   let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
-  let usrPhones = await getUserPhone(
-    IS_APP_PERMISSION_GRANTED,
-    tenantId,
-    users,
-  );
+  let usrPhones = await resolveUserPhonesForMessaging(companyData, users);
   let counter = Number(
     companyData.sent_sms_count && companyData.sent_sms_count != ""
       ? companyData.sent_sms_count
@@ -2748,11 +2760,7 @@ const sendSafetyCheckMsgViaVoice = async (
   const tenantId = companyData.userTenantId;
   const IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
 
-  const usrPhones = await getUserPhone(
-    IS_APP_PERMISSION_GRANTED,
-    tenantId,
-    users,
-  );
+  const usrPhones = await resolveUserPhonesForMessaging(companyData, users);
 
   for (const user of usrPhones) {
     let phone =
@@ -2950,12 +2958,11 @@ const sendSafetyCheckMsgViaWhatsapp = async (
 ) => {
   let tenantId = companyData.userTenantId;
   let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
-  if (IS_APP_PERMISSION_GRANTED) {
-    let usrPhones = await getUserPhone(
-      IS_APP_PERMISSION_GRANTED,
-      tenantId,
-      users,
-    );
+  const phoneSource = incidentService.parsePhoneSourceFromIntegrationConfig(
+    companyData?.INTEGRATION_CONFIGURE,
+  );
+  if (IS_APP_PERMISSION_GRANTED || phoneSource === "spreadsheet") {
+    let usrPhones = await resolveUserPhonesForMessaging(companyData, users);
     for (let user of usrPhones) {
       try {
         let phone =
@@ -5495,12 +5502,11 @@ const sendApprovalResponse = async (user, context) => {
 const sendAcknowledmentinSMS = async (companyData, users, text) => {
   let tenantId = companyData.userTenantId;
   let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
-  if (IS_APP_PERMISSION_GRANTED) {
-    let usrPhones = await getUserPhone(
-      IS_APP_PERMISSION_GRANTED,
-      tenantId,
-      users,
-    );
+  const phoneSource = incidentService.parsePhoneSourceFromIntegrationConfig(
+    companyData?.INTEGRATION_CONFIGURE,
+  );
+  if (IS_APP_PERMISSION_GRANTED || phoneSource === "spreadsheet") {
+    let usrPhones = await resolveUserPhonesForMessaging(companyData, users);
     let counter = 0;
     for (let user of usrPhones) {
       try {
@@ -7208,6 +7214,7 @@ module.exports = {
   processCommentViaLink,
   proccessWhatsappClick,
   getUserPhone,
+  resolveUserPhonesForMessaging,
   sendSafetyCheckMsgViaWhatsapp,
   getUserDetails,
   sendWhatsappMessage,

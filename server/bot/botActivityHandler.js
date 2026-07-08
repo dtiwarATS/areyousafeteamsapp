@@ -79,6 +79,7 @@ const {
   buildIncFileTaskModuleInvokeResponse,
   extractIncFileRequest,
 } = require("../utils/incidentFileViewer");
+const PersonalEmail = require("../Email/personalEmail");
 const { json } = require("body-parser");
 
 class BotActivityHandler extends TeamsActivityHandler {
@@ -2177,6 +2178,7 @@ WHERE rn = 1;
               t.PHONE_FIELD,
               t.IS_APP_PERMISSION_GRANTED,
               t.user_tenant_id,
+              t.INTEGRATION_CONFIGURE,
               s.SubscriptionType,
               t.sent_sms_count,
               s.UserLimit
@@ -2256,9 +2258,8 @@ WHERE rn = 1;
           if (firstTeam || fallbackCompanyData) {
             const companyDataToUse = firstTeam || fallbackCompanyData;
             const userAadObjIds = usersToNotify.map((u) => u.user_aadobject_id);
-            const usrPhones = await bot.getUserPhone(
-              companyDataToUse.IS_APP_PERMISSION_GRANTED,
-              companyDataToUse.user_tenant_id,
+            const usrPhones = await bot.resolveUserPhonesForMessaging(
+              companyDataToUse,
               userAadObjIds,
             );
 

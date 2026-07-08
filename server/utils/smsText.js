@@ -1,3 +1,5 @@
+const { formatPhoneForTwilio } = require("./phoneValidation");
+
 const sanitizeSmsText = (text) => {
   if (text == null || text === "") {
     return "";
@@ -15,17 +17,20 @@ const sanitizeSmsText = (text) => {
 };
 
 const sendTwilioMessage = async (tClient, options) => {
-  const { body, logContext = {}, ...twilioCreateParams } = options;
+  const { body, logContext = {}, to, ...twilioCreateParams } = options;
   const sanitizedBody = sanitizeSmsText(body);
+  const formattedTo = formatPhoneForTwilio(to);
 
   console.log("[SMS] Final body to Twilio:", {
     ...logContext,
     length: sanitizedBody.length,
     body: sanitizedBody,
+    to: formattedTo,
   });
 
   const result = await tClient.messages.create({
     ...twilioCreateParams,
+    to: formattedTo,
     body: sanitizedBody,
   });
 
