@@ -87,6 +87,9 @@ const {
 } = require("./subscriptionCard");
 const axios = require("axios");
 const https = require("https");
+const crypto = require("crypto");
+const desktopDeviceStore = require("../store/desktopDeviceStore");
+const socketService = require("../socket/socketService");
 
 const {
   getSafetyCheckMessageText,
@@ -3161,6 +3164,163 @@ const sendSafetyCheckMsgViaEmail = async (
   }
 };
 
+const getDesktopNotificationLevel = (incTypeId) => {
+  const typeId = Number(incTypeId);
+  if (typeId === 1) {
+    return "warning";
+  }
+  if (typeId === 2) {
+    return "critical";
+  }
+  return "reminder";
+};
+
+function extractUserAadObjIds(members) {
+  return (members || [])
+    .map((member) => member?.userAadObjId || member?.user_aadobject_id || member?.id)
+    .filter((id) => typeof id === "string" && id.trim() !== "");
+}
+
+function stripTeamsMarkupForDesktop(text, incTitle = "") {
+  if (!text || typeof text !== "string") {
+    return "";
+  }
+
+  return text
+    .replace(/<at>(.*?)<\/at>/gi, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\{IncidentTitle\}/g, incTitle || "")
+    .replace(/<IncidentCreator>/gi, "")
+    .replace(/<IncidentTitle>/gi, incTitle || "")
+    .trim();
+}
+
+function resolveDesktopCreatorName(incData) {
+  if (!incData || typeof incData !== "object") {
+    return "";
+  }
+
+  return (
+    incData.CREATED_BY_NAME ||
+    incData.incCreatedByName ||
+    (typeof incData.incCreatedBy === "object" && incData.incCreatedBy?.name) ||
+    (typeof incData.incCreatedBy === "string" ? incData.incCreatedBy : "") ||
+    ""
+  );
+}
+
+const sendSafetyCheckMsgViaDesktop = async (
+  companyData,
+  userAadObjIds,
+  incId,
+  incTitle,
+  incData,
+  responseOptions,
+) => {
+  try {
+    const normalizedUserAadObjIds = (userAadObjIds || []).filter(
+      (id) => typeof id === "string" && id.trim() !== "",
+    );
+    if (!normalizedUserAadObjIds.length) {
+      return;
+    }
+
+    const pairedDevices =
+      await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(
+        normalizedUserAadObjIds,
+      );
+    const registeredDevices = pairedDevices.filter((device) =>
+      socketService.isDeviceSocketConnected(String(device.device_id)),
+    );
+
+    console.log("[DESKTOP] device lookup for incident", {
+      incId,
+      recipientCount: normalizedUserAadObjIds.length,
+      pairedDeviceCount: pairedDevices.length,
+      registeredDeviceCount: registeredDevices.length,
+    });
+
+    if (!registeredDevices.length) {
+      console.log("[DESKTOP] No socket-registered devices for incident recipients", {
+        incId,
+        userCount: normalizedUserAadObjIds.length,
+        pairedDeviceCount: pairedDevices.length,
+      });
+      return;
+    }
+
+    const organizationId = companyData?.userTenantId || "";
+    const incTypeId = Number(incData?.incTypeId || incData?.inc_type_id || 1);
+    const level = getDesktopNotificationLevel(incTypeId);
+    const rawGuidance =
+      incData?.incGuidance || incData?.GUIDANCE || incData?.guidance || "";
+    const createdByName = resolveDesktopCreatorName(incData);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+
+    let helloText = "Hello!";
+    let messageBody = "";
+    let resolvedGuidance = rawGuidance;
+
+    if (incTypeId === 1) {
+      const safetyCheckMessageText = await getSafetyCheckMessageText(
+        incId,
+        createdByName,
+        incTitle,
+        [],
+        null,
+        incTypeId,
+        rawGuidance,
+      );
+      messageBody = stripTeamsMarkupForDesktop(safetyCheckMessageText, incTitle);
+      resolvedGuidance = messageBody;
+    } else {
+      messageBody = stripTeamsMarkupForDesktop(rawGuidance, incTitle);
+      resolvedGuidance = messageBody || rawGuidance;
+    }
+
+    for (const device of registeredDevices) {
+      const deviceId = String(device.device_id).toLowerCase();
+      const commandType = incTypeId === 2 ? "showEmergencyOverlay" : "showPopup";
+      const command = {
+        protocolVersion: 1,
+        commandId: crypto.randomUUID(),
+        organizationId,
+        deviceId,
+        type: commandType,
+        priority: incTypeId === 2 ? "critical" : "high",
+        requiresAck: true,
+        expiresAt,
+        payload: {
+          incId: String(incId),
+          incTitle,
+          incGuidance: resolvedGuidance,
+          helloText,
+          messageBody,
+          level,
+          teamId: companyData?.teamId || "",
+          responseOptions: responseOptions || [
+            { id: 1, option: "I am safe", color: "#4CAF50" },
+            { id: 2, option: "I need assistance", color: "#F44336" },
+          ],
+          responseType: "buttons",
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      socketService.emitCommandToDevice(deviceId, command);
+
+      console.log("[DESKTOP] command emitted for incident", {
+        incId,
+        deviceId,
+        userAadObjectId: device.user_aadobject_id,
+        commandId: command.commandId,
+      });
+    }
+  } catch (err) {
+    console.error("[DESKTOP] sendSafetyCheckMsgViaDesktop error:", err?.message);
+  }
+};
+
 function getSafetyCheckEmailHtml(senderName, incidentName, incid, user) {
   let safeUrl =
     process.env.serviceUrl +
@@ -4564,7 +4724,7 @@ const sendSafetyCheckMessageAsync = async (
           createdByUserInfo.conversationId,
           resendSafetyCheck,
         );
-        let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
+        let userAadObjIds = extractUserAadObjIds(allMembersArr);
         if (
           companyData.send_sms &&
           (companyData.SubscriptionType == 3 ||
@@ -4602,6 +4762,18 @@ const sendSafetyCheckMessageAsync = async (
             incData,
           );
         }
+        incData.incCreatedByName =
+          incData.incCreatedByName || incCreatedByUserObj.name;
+        incData.CREATED_BY_NAME =
+          incData.CREATED_BY_NAME || incCreatedByUserObj.name;
+        sendSafetyCheckMsgViaDesktop(
+          companyData,
+          extractUserAadObjIds(allMembersArr),
+          incId,
+          incTitle,
+          incData,
+          responseOptionData.responseOptions,
+        );
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
@@ -5015,7 +5187,7 @@ const NewsendSafetyCheckMessageAsync = async (
           : null;
         console.log({ IntegrationConfigure });
         // Voice calls to all users (similar to sendSafetyCheckMsgViaSMS)
-        const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
+        const userAadObjIds = extractUserAadObjIds(allMembersArr);
         if (
           incData.incTypeId == 1 &&
           IntegrationConfigure?.channels.voice.enabled &&
@@ -5072,6 +5244,18 @@ const NewsendSafetyCheckMessageAsync = async (
             incData,
           );
         }
+        incData.incCreatedByName =
+          incData.incCreatedByName || createdByUserInfo.user_name;
+        incData.CREATED_BY_NAME =
+          incData.CREATED_BY_NAME || createdByUserInfo.user_name;
+        sendSafetyCheckMsgViaDesktop(
+          companyData,
+          userAadObjIds,
+          incId,
+          incTitle,
+          incData,
+          responseOptionData.responseOptions,
+        );
       }
     } catch (err) {
       console.log(`sendSafetyCheckMessage error: ${err} `);
@@ -6249,7 +6433,7 @@ const sendRecurrEventMsgAsync = async (
       subEventObj.runAt,
       subEventObj.filesData,
     );
-    let userAadObjIds = subEventObj.eventMembers?.map((x) => x.userAadObjId);
+    let userAadObjIds = extractUserAadObjIds(subEventObj.eventMembers);
 
     if (
       subEventObj.incType == 1 &&
@@ -6306,6 +6490,21 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
+    sendSafetyCheckMsgViaDesktop(
+      companyData,
+      extractUserAadObjIds(subEventObj.eventMembers),
+      incId,
+      incTitle,
+      {
+        ...subEventObj,
+        incGuidance,
+        incTypeId: subEventObj.incTypeId || subEventObj.inc_type_id || 1,
+        CREATED_BY_NAME: incCreatedByUserObj?.name || subEventObj.CREATED_BY_NAME,
+        incCreatedByName: incCreatedByUserObj?.name || subEventObj.incCreatedByName,
+        incCreatedBy: incCreatedByUserObj,
+      },
+      responseOptionData.responseOptions,
+    );
   });
 };
 
@@ -7220,4 +7419,5 @@ module.exports = {
   getUserDetails,
   sendWhatsappMessage,
   sendSafetyCheckMsgViaEmail,
+  sendSafetyCheckMsgViaDesktop,
 };
