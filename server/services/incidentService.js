@@ -1131,21 +1131,19 @@ const updateIncResponseData = async (
   incData,
   respTimestamp,
   userAadObjId = "",
-  responseVia = "Teams",
 ) => {
   pool = await poolPromise;
-  const safeResponseVia = (responseVia || "Teams").replace(/'/g, "''");
   let updateRespRecurrQuery = null;
   if (
     incData != null &&
     (incData.incType == "recurringIncident" || incData.runAt != null)
   ) {
     updateRespRecurrQuery =
-      `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = '${safeResponseVia}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
+      `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}'))`;
   } else {
-    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = '${safeResponseVia}' WHERE inc_id = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}')`;
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE inc_id = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}')`;
   }
 
   if (updateRespRecurrQuery != null) {

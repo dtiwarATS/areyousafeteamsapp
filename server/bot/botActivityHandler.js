@@ -1900,16 +1900,6 @@ WHEN NOT MATCHED THEN
           },
         });
 
-        socketService.emitSosAssistanceUpdateToUser(userAadObjId, {
-          requestAssistanceid,
-          userAadObjId,
-        }).catch((err) => {
-          console.error(
-            "[DESKTOP] emitSosAssistanceUpdateToUser failed:",
-            err?.message,
-          );
-        });
-
         // Get all admins from MSTeamsAssistance and send them notification
         let otherAdminNames = []; // Store other admin names for acknowledgment message
         let adminInfo = null; // Declare outside try-catch so it's accessible later

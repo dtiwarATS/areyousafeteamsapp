@@ -255,18 +255,6 @@ const { processSafetyBotError } = require("../models/processError");
                   "Follow-up",
                 );
               }
-              await bot.sendSafetyCheckMsgViaDesktop(
-                companyData,
-                [member.user_aadobj_id],
-                inc_id,
-                inc_name,
-                {
-                  incTypeId: inc_type_id,
-                  incGuidance: GUIDANCE,
-                  CREATED_BY_NAME,
-                },
-                responseOptionData.responseOptions,
-              );
             }
           }),
         );
