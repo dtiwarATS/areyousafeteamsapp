@@ -1130,6 +1130,7 @@ const updateIncResponseData = async (
   responseValue,
   incData,
   respTimestamp,
+  userAadObjId = "",
 ) => {
   pool = await poolPromise;
   let updateRespRecurrQuery = null;
@@ -1140,9 +1141,9 @@ const updateIncResponseData = async (
     updateRespRecurrQuery =
       `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
-      `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
+      `WHERE INC_ID = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}'))`;
   } else {
-    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams' WHERE inc_id = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}')`;
   }
 
   if (updateRespRecurrQuery != null) {
@@ -4406,7 +4407,7 @@ const updateSafetyCheckStatusViaSMSLink = async (
        where runat = '${runat}' and 
       memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
       (select id from MSTeamsMemberResponses where inc_id = ${incId} and 
-      user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}' and team_id = '${team_id}')))`;
+      (user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}' and team_id = '${team_id}')or user_id='${user_aadobject_id}')))`;
     } else {
       sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
         "yyyy-MM-dd hh:mm:ss",
@@ -4420,8 +4421,8 @@ const updateSafetyCheckStatusViaSMSLink = async (
               ? "VoiceCall"
               : "whatsapp"
       }'
-      where inc_id = ${incId} and user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
-      and team_id = '${team_id}')`;
+      where inc_id = ${incId} and (user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
+      and team_id = '${team_id}') or user_id='${user_aadobject_id}')`;
     }
     const result = await db.updateDataIntoDB(sql, user_aadobject_id);
     return result?.rowsAffected?.length > 0;
@@ -4697,8 +4698,7 @@ const getUsersForPhoneExport = async (tenantId) => {
     const pool = await poolPromise;
     const result = await pool
       .request()
-      .input("tenantId", sql.NVarChar, tenantId)
-      .query(`
+      .input("tenantId", sql.NVarChar, tenantId).query(`
         WITH ranked AS (
           SELECT
             user_name,
@@ -4736,7 +4736,11 @@ const getUsersForPhoneExport = async (tenantId) => {
 
 const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
   try {
-    if (!tenantId || !Array.isArray(userAadObjIds) || userAadObjIds.length === 0) {
+    if (
+      !tenantId ||
+      !Array.isArray(userAadObjIds) ||
+      userAadObjIds.length === 0
+    ) {
       return [];
     }
 
@@ -4784,9 +4788,7 @@ const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
 
 const buildTenantUserPhoneLookup = async (tenantId) => {
   const pool = await poolPromise;
-  const result = await pool
-    .request()
-    .input("tenantId", sql.NVarChar, tenantId)
+  const result = await pool.request().input("tenantId", sql.NVarChar, tenantId)
     .query(`
       SELECT DISTINCT user_aadobject_id, email
       FROM MSTeamsTeamsUsers
@@ -4935,13 +4937,7 @@ const importUserPhones = async (tenantId, rows = []) => {
       summary.updated = await bulkUpdateUserPhones(pool, tenantId, updates);
     }
   } catch (err) {
-    processSafetyBotError(
-      err,
-      tenantId,
-      "",
-      "",
-      "error in importUserPhones",
-    );
+    processSafetyBotError(err, tenantId, "", "", "error in importUserPhones");
     throw err;
   }
 

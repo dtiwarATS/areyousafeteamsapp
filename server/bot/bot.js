@@ -5410,6 +5410,7 @@ const sendApprovalResponse = async (user, context) => {
       Number(respToBeUpdated) ?? 0,
       inc,
       respTimestamp,
+      user.aadObjectId,
     );
     // if (response === "i_am_safe") {
     //   incidentService.updateIncResponseData(
