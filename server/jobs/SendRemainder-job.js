@@ -266,6 +266,7 @@ const { processSafetyBotError } = require("../models/processError");
                   CREATED_BY_NAME,
                 },
                 responseOptionData.responseOptions,
+                CREATED_BY_NAME,
               );
             }
           }),

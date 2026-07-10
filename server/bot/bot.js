@@ -3195,18 +3195,34 @@ function stripTeamsMarkupForDesktop(text, incTitle = "") {
     .trim();
 }
 
-function resolveDesktopCreatorName(incData) {
+function resolveDesktopCreatorName(incData, explicitCreatedByName = "") {
+  const explicit =
+    typeof explicitCreatedByName === "string"
+      ? explicitCreatedByName.trim()
+      : "";
+  if (explicit) {
+    return explicit;
+  }
+
   if (!incData || typeof incData !== "object") {
     return "";
   }
 
-  return (
-    incData.CREATED_BY_NAME ||
-    incData.incCreatedByName ||
-    (typeof incData.incCreatedBy === "object" && incData.incCreatedBy?.name) ||
-    (typeof incData.incCreatedBy === "string" ? incData.incCreatedBy : "") ||
-    ""
-  );
+  const candidates = [
+    incData.CREATED_BY_NAME,
+    incData.incCreatedByName,
+    typeof incData.incCreatedBy === "object" ? incData.incCreatedBy?.name : "",
+    typeof incData.incCreatedBy === "string" ? incData.incCreatedBy : "",
+    incData.createdByName,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
 }
 
 const sendSafetyCheckMsgViaDesktop = async (
@@ -3216,6 +3232,7 @@ const sendSafetyCheckMsgViaDesktop = async (
   incTitle,
   incData,
   responseOptions,
+  createdByNameArg = "",
 ) => {
   try {
     const normalizedUserAadObjIds = (userAadObjIds || []).filter(
@@ -3254,7 +3271,7 @@ const sendSafetyCheckMsgViaDesktop = async (
     const level = getDesktopNotificationLevel(incTypeId);
     const rawGuidance =
       incData?.incGuidance || incData?.GUIDANCE || incData?.guidance || "";
-    const createdByName = resolveDesktopCreatorName(incData);
+    const createdByName = resolveDesktopCreatorName(incData, createdByNameArg);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
     let helloText = "Hello!";
@@ -4773,6 +4790,7 @@ const sendSafetyCheckMessageAsync = async (
           incTitle,
           incData,
           responseOptionData.responseOptions,
+          incCreatedByUserObj.name || createdByUserInfo.user_name,
         );
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
@@ -5255,6 +5273,7 @@ const NewsendSafetyCheckMessageAsync = async (
           incTitle,
           incData,
           responseOptionData.responseOptions,
+          createdByUserInfo.user_name || incCreatedByUserObj.name,
         );
       }
     } catch (err) {
@@ -6504,6 +6523,7 @@ const sendRecurrEventMsgAsync = async (
         incCreatedBy: incCreatedByUserObj,
       },
       responseOptionData.responseOptions,
+      incCreatedByUserObj?.name || subEventObj.createdByName || subEventObj.CREATED_BY_NAME,
     );
   });
 };
