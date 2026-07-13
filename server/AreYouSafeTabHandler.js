@@ -31,10 +31,91 @@ const {
   buildIncFileContentUrl,
   isAllowedFileViewUrl,
 } = require("./utils/incidentFileViewer");
+const {
+  buildDesktopSafeResponseFollowUp,
+  buildDesktopSubmitCommentFollowUp,
+  getIncidentTranslatedText,
+} = require("./utils/botStaticTranslations");
+const { buildDesktopSosChatSnapshot } = require("./utils/desktopSosChatCopy");
 const { Sms } = require("twilio/lib/twiml/VoiceResponse");
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function loadIncidentFollowUpContext(incId, userAadObjectId) {
+  const pool = await poolPromise;
+  const incResult = await pool
+    .request()
+    .input("inc_id", sql.Int, Number(incId))
+    .query(`
+      SELECT TOP 1
+        i.id,
+        i.created_by,
+        i.CREATED_BY_NAME,
+        i.RESPONSE_OPTIONS,
+        i.TRANSLATED_TEXT_JSON,
+        i.inc_name,
+        u.user_aadobject_id AS creator_aadobject_id,
+        u.email AS creator_email,
+        u.user_name AS creator_user_name
+      FROM MSTeamsIncidents i
+      LEFT JOIN MSTeamsTeamsUsers u
+        ON (
+          u.user_id = i.created_by
+          OR LOWER(u.user_aadobject_id) = LOWER(CAST(i.created_by AS NVARCHAR(256)))
+        )
+      WHERE i.id = @inc_id
+      ORDER BY CASE WHEN u.email IS NOT NULL AND LTRIM(RTRIM(u.email)) <> '' THEN 0 ELSE 1 END
+    `);
+
+  const incRow = incResult?.recordset?.[0] || null;
+  const languageId =
+    await incidentService.getUserLanguageIdByAadObjId(userAadObjectId);
+  const creatorName =
+    incRow?.CREATED_BY_NAME || incRow?.creator_user_name || "";
+  const creatorId =
+    incRow?.creator_aadobject_id || incRow?.created_by || "";
+  const creatorEmail =
+    typeof incRow?.creator_email === "string" ? incRow.creator_email.trim() : "";
+
+  const incCreatedBy = {
+    id: creatorId,
+    name: creatorName,
+  };
+  const translatedText = getIncidentTranslatedText({
+    TRANSLATED_TEXT_JSON: incRow?.TRANSLATED_TEXT_JSON,
+  });
+
+  let responseLabel = null;
+  if (incRow?.RESPONSE_OPTIONS) {
+    try {
+      const options =
+        typeof incRow.RESPONSE_OPTIONS === "string"
+          ? JSON.parse(incRow.RESPONSE_OPTIONS)
+          : incRow.RESPONSE_OPTIONS;
+      if (Array.isArray(options)) {
+        responseLabel = options;
+      }
+    } catch {
+      responseLabel = null;
+    }
+  }
+
+  return {
+    languageId,
+    incCreatedBy,
+    translatedText,
+    responseOptions: responseLabel,
+    incTitle: incRow?.inc_name || "",
+    creator: creatorName
+      ? {
+          name: creatorName,
+          id: creatorId || "",
+          email: creatorEmail || "",
+        }
+      : null,
+  };
+}
 
 /**
  * Resolve Teams ID (29:1xxx) to AAD Object ID (UUID).
@@ -742,6 +823,26 @@ const handlerForSafetyBotTab = (app) => {
           "",
         );
 
+        const followUpCtx = await loadIncidentFollowUpContext(
+          parsedIncId,
+          normalizedUserAadObjectId,
+        );
+        const followUp = buildDesktopSafeResponseFollowUp(
+          followUpCtx.incCreatedBy,
+          followUpCtx.languageId,
+          followUpCtx.translatedText,
+        );
+
+        let responseLabel = String(parsedResponseOptionId);
+        if (Array.isArray(followUpCtx.responseOptions)) {
+          const matched = followUpCtx.responseOptions.find(
+            (option) => Number(option.id) === parsedResponseOptionId,
+          );
+          if (matched?.option) {
+            responseLabel = matched.option;
+          }
+        }
+
         console.log("[DESKTOP] incident response submitted", {
           incId: parsedIncId,
           deviceId: normalizedDeviceId,
@@ -753,7 +854,10 @@ const handlerForSafetyBotTab = (app) => {
         return res.status(200).json({
           success: true,
           responseOptionId: parsedResponseOptionId,
-          responseLabel: String(parsedResponseOptionId),
+          responseLabel,
+          confirmationMessage: followUp.confirmationMessage,
+          ui: followUp.ui,
+          creator: followUpCtx.creator,
         });
       } catch (err) {
         console.error("Error in submit-desktop-incident-response:", err);
@@ -880,6 +984,17 @@ const handlerForSafetyBotTab = (app) => {
           "",
         );
 
+        const followUpCtx = await loadIncidentFollowUpContext(
+          parsedIncId,
+          normalizedUserAadObjectId,
+        );
+        const followUp = buildDesktopSubmitCommentFollowUp(
+          normalizedComment,
+          followUpCtx.incCreatedBy,
+          followUpCtx.languageId,
+          followUpCtx.translatedText,
+        );
+
         console.log("[DESKTOP] incident comment submitted", {
           incId: parsedIncId,
           deviceId: normalizedDeviceId,
@@ -889,6 +1004,8 @@ const handlerForSafetyBotTab = (app) => {
 
         return res.status(200).json({
           success: true,
+          confirmationMessage: followUp.confirmationMessage,
+          creator: followUpCtx.creator,
         });
       } catch (err) {
         console.error("Error in submit-desktop-incident-comment:", err);
@@ -2382,6 +2499,61 @@ const handlerForSafetyBotTab = (app) => {
         userAadObjId,
         "error in /areyousafetabhandler/getAssistanceData",
       );
+    }
+  });
+
+  /**
+   * One-shot desktop SOS chat snapshot: assistance record + translated UI copy
+   * + firstResponder/Chat/Call when already accepted. Accept updates arrive via
+   * websocket (sos_assistance_update), not by polling this endpoint.
+   */
+  app.get("/areyousafetabhandler/get-desktop-sos-chat", async (req, res) => {
+    const userAadObjectId =
+      req.query.userAadObjectId || req.query.userId || "";
+    const assistId = Number(req.query.assistId || req.query.requestAssistanceid);
+
+    try {
+      if (!userAadObjectId || !Number.isFinite(assistId) || assistId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "userAadObjectId and assistId are required",
+        });
+      }
+
+      const records = await incidentService.getAssistanceData(userAadObjectId);
+      const assist =
+        Array.isArray(records) &&
+        records.find((row) => Number(row.id) === assistId);
+
+      if (!assist) {
+        return res.status(404).json({
+          success: false,
+          message: "Assistance record not found",
+        });
+      }
+
+      const snapshot = await buildDesktopSosChatSnapshot(
+        userAadObjectId,
+        assist,
+      );
+
+      return res.status(200).json({
+        success: true,
+        ...snapshot,
+      });
+    } catch (err) {
+      console.error("Error in get-desktop-sos-chat:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjectId,
+        "error in /areyousafetabhandler/get-desktop-sos-chat",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Failed to load desktop SOS chat",
+      });
     }
   });
   app.get("/areyousafetabhandler/getAllUserAssistanceData", (req, res) => {

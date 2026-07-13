@@ -19,6 +19,9 @@ const bot = require("../bot/bot");
 const incidentService = require("../services/incidentService");
 const socketService = require("../socket/socketService");
 const {
+  buildDesktopSosAcceptPayload,
+} = require("../utils/desktopSosChatCopy");
+const {
   getCompaniesData,
   insertCompanyData,
   deleteCompanyData,
@@ -1860,14 +1863,39 @@ WHEN NOT MATCHED THEN
           WHERE id = ${requestAssistanceid}`;
         await db.updateDataIntoDB(updateQuery, userAadObjId);
 
-        // Create message card
+        let desktopAcceptPayload = null;
+        try {
+          desktopAcceptPayload = await buildDesktopSosAcceptPayload({
+            userAadObjId,
+            requestAssistanceid,
+            responder: {
+              name: user.name,
+              aadObjectId: user.aadObjectId,
+              id: user.id,
+            },
+          });
+        } catch (err) {
+          console.error(
+            "[DESKTOP] buildDesktopSosAcceptPayload failed:",
+            err?.message,
+          );
+        }
+
+        const confirmationMessageCard =
+          desktopAcceptPayload?.confirmationMessageCard ||
+          `**<at>${user.name}</at>** is your first responder and is handling your SOS.`;
+        const confirmationMessagePlain =
+          desktopAcceptPayload?.confirmationMessage ||
+          `${user.name} is your first responder and is handling your SOS.`;
+
+        // Create message card (same copy pushed to desktop via websocket)
         const messageCard = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
           appId: process.env.MicrosoftAppId,
           body: [
             {
               type: "TextBlock",
-              text: `**<at>${user.name}</at>** is your first responder and is handling your SOS.`,
+              text: confirmationMessageCard,
               wrap: true,
             },
           ],
@@ -1900,15 +1928,30 @@ WHEN NOT MATCHED THEN
           },
         });
 
-        socketService.emitSosAssistanceUpdateToUser(userAadObjId, {
-          requestAssistanceid,
-          userAadObjId,
-        }).catch((err) => {
-          console.error(
-            "[DESKTOP] emitSosAssistanceUpdateToUser failed:",
-            err?.message,
-          );
-        });
+        socketService
+          .emitSosAssistanceUpdateToUser(
+            userAadObjId,
+            desktopAcceptPayload || {
+              requestAssistanceid,
+              userAadObjId,
+              confirmationMessage: confirmationMessagePlain,
+              FIRST_RESPONDER: user.aadObjectId,
+              FIRST_RESPONDER_RESPONDED_AT: new Date().toISOString(),
+              firstResponder: {
+                name: user.name,
+                id: user.aadObjectId,
+                email: "",
+                chatUrl: null,
+                callUrl: null,
+              },
+            },
+          )
+          .catch((err) => {
+            console.error(
+              "[DESKTOP] emitSosAssistanceUpdateToUser failed:",
+              err?.message,
+            );
+          });
 
         // Get all admins from MSTeamsAssistance and send them notification
         let otherAdminNames = []; // Store other admin names for acknowledgment message
@@ -2331,7 +2374,9 @@ WHERE rn = 1;
               // Determine message based on user role
               let notificationMessage = "";
               if (userToNotify.isRequester) {
-                notificationMessage = `${user.name} is your first responder and is handling your SOS.`;
+                notificationMessage =
+                  confirmationMessagePlain ||
+                  `${user.name} is your first responder and is handling your SOS.`;
               } else if (userToNotify.isResponder) {
                 notificationMessage = `You are now the first responder for ${requesterUser.user_name}'s SOS request.`;
               } else {

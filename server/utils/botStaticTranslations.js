@@ -190,6 +190,52 @@ const buildSafeResponseThankYouText = (
   });
 };
 
+/** Strip Teams Adaptive Card / mention markup for desktop plain text. */
+const stripTeamsMarkupForPlainText = (text) => {
+  if (!text || typeof text !== "string") {
+    return "";
+  }
+
+  return text
+    .replace(/<at>(.*?)<\/at>/gi, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .trim();
+};
+
+/**
+ * Same follow-up copy the bot sends after Safe / Need assistance:
+ * thank-you DM + Additional Comments card labels.
+ */
+const buildDesktopSafeResponseFollowUp = (
+  incCreatedBy,
+  languageId,
+  translatedText,
+) => {
+  const confirmationMessage = stripTeamsMarkupForPlainText(
+    buildSafeResponseThankYouText(incCreatedBy, languageId, translatedText),
+  );
+  const additionalCommentsLabel = getBotStaticTextWithIncident(
+    "additionalComments",
+    languageId,
+    translatedText,
+    "Additional Comments",
+  );
+  const sendButtonLabel = getBotStaticTextWithIncident(
+    "sendButton",
+    languageId,
+    translatedText,
+    "Send",
+  );
+
+  return {
+    confirmationMessage,
+    ui: {
+      additionalCommentsLabel,
+      sendButtonLabel,
+    },
+  };
+};
+
 const buildSubmitCommentResponseText = (
   commentVal,
   incCreatedBy,
@@ -224,6 +270,25 @@ const buildSubmitCommentResponseText = (
   );
   return applyBotStaticPlaceholders(text, { incidentCreator: incCreatedBy });
 };
+
+/**
+ * Same confirmation text the bot shows after submit_comment.
+ */
+const buildDesktopSubmitCommentFollowUp = (
+  commentVal,
+  incCreatedBy,
+  languageId,
+  translatedText,
+) => ({
+  confirmationMessage: stripTeamsMarkupForPlainText(
+    buildSubmitCommentResponseText(
+      commentVal,
+      incCreatedBy,
+      languageId,
+      translatedText,
+    ),
+  ),
+});
 
 const buildUserCommentedCard = (
   user,
@@ -330,6 +395,9 @@ module.exports = {
   getIncidentTypeTitle,
   buildAcknowledgeMsgToCreator,
   buildSafeResponseThankYouText,
+  buildDesktopSafeResponseFollowUp,
+  buildDesktopSubmitCommentFollowUp,
+  stripTeamsMarkupForPlainText,
   buildUserRespondedCard,
   buildUserCommentedCard,
   buildSubmitCommentResponseText,
