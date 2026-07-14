@@ -11,6 +11,7 @@ const {
   ConnectorClient,
 } = require("botframework-connector");
 const incidentService = require("../services/incidentService");
+const fcmService = require("../services/fcmService");
 const path = require("path");
 const FormData = require("form-data");
 const mail = require("../utils/mail");
@@ -4915,6 +4916,32 @@ const NewsendSafetyCheckMessageAsync = async (
           translatedtext: incData.TRANSLATED_TEXT_JSON,
         };
         const batchSize = 100;
+
+        // FCM push once per Safety Check (tab UI may call this endpoint in member batches)
+        const isBatchedRequest =
+          isFirstBatch != null || isLastBatch != null;
+        const isExplicitFirstBatch =
+          isFirstBatch === "true" || isFirstBatch === true;
+        const shouldSendFcmPush =
+          (Number(incTypeId) === 1 || Number(incTypeId) === 2) &&
+          (!isBatchedRequest || isExplicitFirstBatch) &&
+          fcmService.shouldSendSafetyCheckPush(incId);
+        if (shouldSendFcmPush) {
+          fcmService
+            .sendSafetyCheckPushToMembers(allMembersArr, {
+              incId,
+              teamId,
+              incTitle,
+              createdByName: createdByUserInfo?.user_name || "",
+              incTypeId,
+            })
+            .catch((err) => {
+              console.error(
+                "[NewsendSafetyCheckMessageAsync] FCM push error:",
+                err?.message || err,
+              );
+            });
+        }
 
         if (allMembersArr.length > 100) {
           const batchPromises = [];

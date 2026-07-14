@@ -56,9 +56,12 @@ function getFirebaseApp() {
  * @param {string} title - Notification title
  * @param {string} body - Notification body
  * @param {object} data - Optional key-value data payload (string values only for FCM data)
+ * @param {object} [options]
+ * @param {boolean} [options.dataOnly] - If true, omit notification payload so the app
+ *   can display a custom Notifee notification with action buttons (Android).
  * @returns {Promise<void>}
  */
-async function sendPushNotification(fcmToken, title, body, data = {}) {
+async function sendPushNotification(fcmToken, title, body, data = {}, options = {}) {
   const fb = getFirebaseApp();
   const messaging = fb.messaging();
   const dataPayload = {};
@@ -67,11 +70,21 @@ async function sendPushNotification(fcmToken, title, body, data = {}) {
       dataPayload[k] = String(v);
     }
   }
+  // Include title/body in data so client can display when using data-only messages
+  if (options.dataOnly) {
+    if (title) dataPayload.title = String(title);
+    if (body) dataPayload.body = String(body);
+  }
   const message = {
     token: fcmToken,
-    notification: { title, body },
-    data: dataPayload
+    data: dataPayload,
   };
+  if (!options.dataOnly) {
+    message.notification = { title, body };
+  } else {
+    // High priority so Android wakes the app for data-only messages
+    message.android = { priority: 'high' };
+  }
   await messaging.send(message);
 }
 
@@ -175,4 +188,155 @@ async function sendSosPushToAdmins(admins, user, userAadObjId, requestAssistance
   await Promise.allSettled(pushTasks);
 }
 
-module.exports = { sendPushNotification, getFcmTokensForUsers, sendSosPushToAdmins };
+const UUID_LIKE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Prevent duplicate FCM fan-out when the tab sends the same incident in multiple batches. */
+const recentSafetyCheckPushAt = new Map();
+const SAFETY_CHECK_PUSH_DEBOUNCE_MS = 90 * 1000;
+
+/**
+ * Returns true once per incId within the debounce window (also records the send).
+ * @param {string|number} incId
+ * @returns {boolean}
+ */
+function shouldSendSafetyCheckPush(incId) {
+  if (incId == null || incId === '') return false;
+  const key = String(incId);
+  const now = Date.now();
+  const last = recentSafetyCheckPushAt.get(key);
+  if (last != null && now - last < SAFETY_CHECK_PUSH_DEBOUNCE_MS) {
+    console.log(
+      '[shouldSendSafetyCheckPush] skip duplicate FCM for incId=',
+      key,
+      'msSinceLast=',
+      now - last,
+    );
+    return false;
+  }
+  recentSafetyCheckPushAt.set(key, now);
+  // light cleanup
+  if (recentSafetyCheckPushAt.size > 500) {
+    for (const [k, t] of recentSafetyCheckPushAt) {
+      if (now - t > SAFETY_CHECK_PUSH_DEBOUNCE_MS) recentSafetyCheckPushAt.delete(k);
+    }
+  }
+  return true;
+}
+
+/**
+ * Collect unique AAD object IDs from member rows used in Safety Check fan-out.
+ * @param {object[]} members
+ * @returns {string[]}
+ */
+function collectMemberAadIds(members) {
+  if (!members || members.length === 0) return [];
+  const ids = new Set();
+  for (const member of members) {
+    if (!member) continue;
+    const candidates = [
+      member.userAadObjId,
+      member.user_aadobject_id,
+      member.aadObjectId,
+    ];
+    for (const c of candidates) {
+      if (c && typeof c === 'string' && c.trim()) {
+        ids.add(c.trim());
+      }
+    }
+    // Some member lists store AAD UUID in `id` instead of Teams conversation id
+    if (member.id && typeof member.id === 'string' && UUID_LIKE.test(member.id.trim())) {
+      ids.add(member.id.trim());
+    }
+  }
+  return [...ids];
+}
+
+/**
+ * Send Safety Check / Safety Alert FCM pushes to members with stored device tokens.
+ * Never throws — callers should fire-and-forget so Teams delivery is unaffected.
+ * @param {object[]} members - Same recipient list as Teams proactive send
+ * @param {object} opts
+ * @param {string|number} opts.incId
+ * @param {string} opts.incTitle
+ * @param {string} opts.createdByName
+ * @param {string} opts.teamId
+ * @param {string|number} opts.incTypeId - 1 = Safety Check, 2 = Safety Alert
+ */
+async function sendSafetyCheckPushToMembers(members, opts = {}) {
+  try {
+    const {
+      incId,
+      incTitle = '',
+      createdByName = '',
+      teamId = '',
+      incTypeId,
+    } = opts;
+    const typeId = Number(incTypeId);
+    if (typeId !== 1 && typeId !== 2) return;
+    if (!incId) return;
+
+    const userIds = collectMemberAadIds(members);
+    if (userIds.length === 0) return;
+
+    let tokens = [];
+    try {
+      const [androidTokens, iosTokens] = await Promise.all([
+        getFcmTokensForUsers(userIds, 'android'),
+        getFcmTokensForUsers(userIds, 'ios'),
+      ]);
+      tokens = [...(androidTokens || []), ...(iosTokens || [])];
+    } catch (err) {
+      console.error('[sendSafetyCheckPushToMembers] getFcmTokensForUsers error:', err);
+      return;
+    }
+    if (!tokens.length) return;
+
+    // Deduplicate by token in case the same device appears twice
+    const seen = new Set();
+    const uniqueTokens = tokens.filter((row) => {
+      if (!row?.fcm_token || seen.has(row.fcm_token)) return false;
+      seen.add(row.fcm_token);
+      return true;
+    });
+
+    const kindLabel = typeId === 2 ? 'Safety Alert' : 'Safety Check';
+    const title = `${kindLabel} - ${incTitle}`;
+    const body = `This is a safety check from ${createdByName || 'your admin'}. Mark yourself as safe, or ask for assistance.`;
+    const data = {
+      type: 'SAFETY_CHECK',
+      incId: String(incId),
+      teamId: String(teamId || ''),
+      incTitle: String(incTitle || ''),
+      createdByName: String(createdByName || ''),
+      incTypeId: String(typeId),
+    };
+
+    const pushTasks = uniqueTokens.map(async (row) => {
+      try {
+        // dataOnly so Android background handler can show Notifee actions
+        // (I am safe / I need assistance) instead of a plain system tray notification.
+        await sendPushNotification(row.fcm_token, title, body, data, {
+          dataOnly: true,
+        });
+      } catch (err) {
+        console.error(
+          '[sendSafetyCheckPushToMembers] sendPushNotification error for user',
+          row.user_id,
+          err?.message || err,
+        );
+      }
+    });
+    await Promise.allSettled(pushTasks);
+  } catch (err) {
+    console.error('[sendSafetyCheckPushToMembers] unexpected error:', err?.message || err);
+  }
+}
+
+module.exports = {
+  sendPushNotification,
+  getFcmTokensForUsers,
+  sendSosPushToAdmins,
+  sendSafetyCheckPushToMembers,
+  shouldSendSafetyCheckPush,
+};

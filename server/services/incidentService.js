@@ -4402,7 +4402,9 @@ const updateSafetyCheckStatusViaSMSLink = async (
             ? "Email"
             : viaSMS == "VoiceCall"
               ? "VoiceCall"
-              : "whatsapp"
+              : viaSMS == "Mobile"
+                ? "Mobile"
+                : "whatsapp"
       }' 
        where runat = '${runat}' and 
       memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
@@ -4419,7 +4421,9 @@ const updateSafetyCheckStatusViaSMSLink = async (
             ? "Email"
             : viaSMS == "VoiceCall"
               ? "VoiceCall"
-              : "whatsapp"
+              : viaSMS == "Mobile"
+                ? "Mobile"
+                : "whatsapp"
       }'
       where inc_id = ${incId} and (user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}') or user_id='${user_aadobject_id}')`;
