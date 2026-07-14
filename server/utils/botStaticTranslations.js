@@ -62,10 +62,10 @@ const getBotStaticTextWithIncident = (
   translatedText,
   fallback,
 ) => {
-  if (!hasIncidentTranslations(translatedText)) {
-    return fallback;
-  }
   const staticText = getBotStaticText(key, languageId, fallback);
+  if (!hasIncidentTranslations(translatedText)) {
+    return staticText;
+  }
   return getTranslatedField(translatedText, key, languageId, staticText);
 };
 

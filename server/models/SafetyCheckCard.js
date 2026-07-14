@@ -1034,4 +1034,5 @@ module.exports = {
   resolveTranslatedIncidentFields,
   getTranslatedOptionText,
   resolveTranslatedResponseOptionData,
+  getHelloText,
 };

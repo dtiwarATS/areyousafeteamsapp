@@ -95,6 +95,7 @@ const {
   getSafetyCheckMessageText,
   SafetyCheckCard,
   getSafetyCheckTypeCard,
+  getHelloText,
 } = require("../models/SafetyCheckCard");
 const { json } = require("body-parser");
 const { count } = require("console");
@@ -3247,6 +3248,162 @@ function resolveDesktopCreatorPayload(incData, createdByName) {
   };
 }
 
+function pickIncField(incData, ...keys) {
+  if (!incData || typeof incData !== "object") {
+    return "";
+  }
+  for (const key of keys) {
+    const value = incData[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function appendLabeledDesktopSection(parts, label, value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text) {
+    return;
+  }
+  parts.push(`${label}:\n${text}`);
+}
+
+/**
+ * Plain-text message body for desktop types 2–5 (mirrors Teams Adaptive Card sections).
+ */
+async function buildDesktopIncidentMessageBody({
+  incTypeId,
+  incId,
+  incTitle,
+  createdByName,
+  rawGuidance,
+  responseSelectedUsersList,
+  incData,
+}) {
+  const typeId = Number(incTypeId) || 1;
+  const creatorName = createdByName || "the safety team";
+  const guidance = stripTeamsMarkupForDesktop(rawGuidance, incTitle);
+  const additionalInfo = pickIncField(
+    incData,
+    "additionalInfo",
+    "ADDITIONAL_INFO",
+    "additional_info",
+  );
+  const travelUpdate = pickIncField(
+    incData,
+    "travelUpdate",
+    "TRAVEL_UPDATE",
+    "travel_update",
+  );
+  const contactInfo = pickIncField(
+    incData,
+    "contactInfo",
+    "CONTACT_INFO",
+    "contact_info",
+  );
+  const situation = pickIncField(incData, "situation", "SITUATION");
+
+  if (typeId === 1) {
+    const safetyCheckMessageText = await getSafetyCheckMessageText(
+      incId,
+      creatorName,
+      incTitle,
+      [],
+      responseSelectedUsersList,
+      typeId,
+      rawGuidance,
+    );
+    return stripTeamsMarkupForDesktop(safetyCheckMessageText, incTitle);
+  }
+
+  const parts = [];
+
+  if (typeId === 2) {
+    const safetyAlertText = await getSafetyCheckMessageText(
+      incId,
+      creatorName,
+      incTitle,
+      [],
+      responseSelectedUsersList,
+      typeId,
+      rawGuidance,
+    );
+    const intro = stripTeamsMarkupForDesktop(safetyAlertText, incTitle);
+    if (intro) {
+      parts.push(intro);
+    }
+    if (incTitle) {
+      parts.push(`Safety Alert: ${incTitle}`);
+    }
+    appendLabeledDesktopSection(parts, "Guidance", guidance);
+    return parts.join("\n\n");
+  }
+
+  if (typeId === 3) {
+    parts.push(`This is an important bulletin from ${creatorName}.`);
+    if (incTitle) {
+      parts.push(`Important Bulletin: ${incTitle}`);
+    }
+    appendLabeledDesktopSection(parts, "Guidance", guidance);
+    appendLabeledDesktopSection(parts, "Additional Information", additionalInfo);
+    return parts.join("\n\n");
+  }
+
+  if (typeId === 4) {
+    parts.push(`This is a travel advisory from ${creatorName}.`);
+    if (incTitle) {
+      parts.push(`Travel Advisory: ${incTitle}`);
+    }
+    appendLabeledDesktopSection(parts, "Travel Update", travelUpdate);
+    appendLabeledDesktopSection(parts, "Guidance", guidance);
+    appendLabeledDesktopSection(parts, "Contact Information", contactInfo);
+    return parts.join("\n\n");
+  }
+
+  if (typeId === 5) {
+    parts.push(`This is a stakeholder notice from ${creatorName}.`);
+    if (incTitle) {
+      parts.push(`Stakeholder Notice: ${incTitle}`);
+    }
+    appendLabeledDesktopSection(parts, "Situation", situation);
+    appendLabeledDesktopSection(parts, "Additional Information", additionalInfo);
+    return parts.join("\n\n");
+  }
+
+  return guidance || stripTeamsMarkupForDesktop(rawGuidance, incTitle);
+}
+
+function normalizeDesktopResponseOptions(responseOptions, incTypeId) {
+  const typeId = Number(incTypeId) || 1;
+  const filtered = (Array.isArray(responseOptions) ? responseOptions : [])
+    .filter(
+      (option) =>
+        option &&
+        Number.isFinite(Number(option.id)) &&
+        typeof option.option === "string" &&
+        option.option.trim() !== "",
+    )
+    .map((option) => ({
+      id: Number(option.id),
+      option: option.option.trim(),
+      color: option.color || undefined,
+    }));
+
+  if (filtered.length > 0) {
+    return filtered;
+  }
+
+  if (typeId === 1) {
+    return [
+      { id: 1, option: "I am safe", color: "#4CAF50" },
+      { id: 2, option: "I need assistance", color: "#F44336" },
+    ];
+  }
+
+  return [];
+}
+
 const sendSafetyCheckMsgViaDesktop = async (
   companyData,
   userAadObjIds,
@@ -3295,53 +3452,66 @@ const sendSafetyCheckMsgViaDesktop = async (
       incData?.incGuidance || incData?.GUIDANCE || incData?.guidance || "";
     const createdByName = resolveDesktopCreatorName(incData, createdByNameArg);
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const responseSelectedUsersList =
+      incData?.incResponseSelectedUsersList ||
+      incData?.responseSelectedUsersList ||
+      [];
+    const translatedText = getIncidentTranslatedText(incData);
 
-    let helloText = "Hello!";
-    let messageBody = "";
-    let resolvedGuidance = rawGuidance;
-
-    if (incTypeId === 1) {
-      const safetyCheckMessageText = await getSafetyCheckMessageText(
-        incId,
-        createdByName,
-        incTitle,
-        [],
-        null,
-        incTypeId,
-        rawGuidance,
-      );
-      messageBody = stripTeamsMarkupForDesktop(safetyCheckMessageText, incTitle);
-      resolvedGuidance = messageBody;
-    } else {
-      messageBody = stripTeamsMarkupForDesktop(rawGuidance, incTitle);
-      resolvedGuidance = messageBody || rawGuidance;
-    }
+    const messageBody = await buildDesktopIncidentMessageBody({
+      incTypeId,
+      incId,
+      incTitle,
+      createdByName,
+      rawGuidance,
+      responseSelectedUsersList,
+      incData,
+    });
+    const resolvedGuidance = messageBody || rawGuidance;
+    const desktopResponseOptions = normalizeDesktopResponseOptions(
+      responseOptions,
+      incTypeId,
+    );
 
     for (const device of registeredDevices) {
       const deviceId = String(device.device_id).toLowerCase();
-      const commandType = incTypeId === 2 ? "showEmergencyOverlay" : "showPopup";
+      const recipientAadObjectId = String(device.user_aadobject_id || "").trim();
+      let languageId = DEFAULT_LANGUAGE_ID;
+      try {
+        if (recipientAadObjectId) {
+          languageId =
+            (await incidentService.getUserLanguageIdByAadObjId(
+              recipientAadObjectId,
+            )) || DEFAULT_LANGUAGE_ID;
+        }
+      } catch (langErr) {
+        console.warn(
+          "[DESKTOP] getUserLanguageIdByAadObjId failed; using default",
+          langErr?.message || langErr,
+        );
+      }
+      const helloText = getHelloText(languageId, translatedText);
+
       const command = {
         protocolVersion: 1,
         commandId: crypto.randomUUID(),
         organizationId,
         deviceId,
-        type: commandType,
+        type: "showPopup",
         priority: incTypeId === 2 ? "critical" : "high",
         requiresAck: true,
         expiresAt,
         payload: {
           incId: String(incId),
           incTitle,
+          incTypeId,
           incGuidance: resolvedGuidance,
           helloText,
           messageBody,
           level,
           teamId: companyData?.teamId || "",
           creator: resolveDesktopCreatorPayload(incData, createdByName),
-          responseOptions: responseOptions || [
-            { id: 1, option: "I am safe", color: "#4CAF50" },
-            { id: 2, option: "I need assistance", color: "#F44336" },
-          ],
+          responseOptions: desktopResponseOptions,
           responseType: "buttons",
           sentAt: new Date().toISOString(),
         },
@@ -3355,6 +3525,8 @@ const sendSafetyCheckMsgViaDesktop = async (
         deviceId,
         userAadObjectId: device.user_aadobject_id,
         commandId: command.commandId,
+        incTypeId,
+        languageId,
       });
     }
   } catch (err) {

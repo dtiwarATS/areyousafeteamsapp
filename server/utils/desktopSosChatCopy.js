@@ -287,12 +287,53 @@ async function buildDesktopSosChatSnapshot(userAadObjId, assistRecord) {
   };
 }
 
+/**
+ * Desktop payload when an SOS request is marked Closed (mirrors Teams Adaptive Card copy).
+ */
+function buildDesktopSosClosedPayload({
+  requestAssistanceid,
+  userAadObjId,
+  closedByName,
+  comment,
+  closedAt,
+}) {
+  const closedAtDate = closedAt ? new Date(closedAt) : new Date();
+  const dateLabel = closedAtDate.toLocaleString("en-US", {
+    month: "short",
+    day: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  const closer = (closedByName || "a safety officer").trim();
+  const commentText =
+    typeof comment === "string" && comment.trim() ? comment.trim() : "";
+
+  const message = `Your SOS request raised on ${dateLabel} has been marked as closed by ${closer}.`;
+  const footerMessage =
+    "If this was closed by mistake, please go to the Dashboard tab and click I Need Assistance again.";
+
+  return {
+    requestAssistanceid: requestAssistanceid ?? null,
+    userAadObjId: userAadObjId || null,
+    status: "Closed",
+    closedByName: closer,
+    closedAt: closedAtDate.toISOString(),
+    comment: commentText || null,
+    title: "SOS Request Closed",
+    message,
+    footerMessage,
+  };
+}
+
 module.exports = {
   SOS_UI_FALLBACKS,
   SOS_ATTRIBUTE_KEYS,
   loadAttributeTranslations,
   buildDesktopSosAcceptPayload,
   buildDesktopSosChatSnapshot,
+  buildDesktopSosClosedPayload,
   teamsChatUrl,
   teamsCallUrl,
 };

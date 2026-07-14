@@ -36,8 +36,13 @@ const {
   buildDesktopSubmitCommentFollowUp,
   buildDesktopIncStatusClosedMessage,
   getIncidentTranslatedText,
+  DEFAULT_LANGUAGE_ID,
 } = require("./utils/botStaticTranslations");
-const { buildDesktopSosChatSnapshot } = require("./utils/desktopSosChatCopy");
+const {
+  buildDesktopSosChatSnapshot,
+  buildDesktopSosClosedPayload,
+} = require("./utils/desktopSosChatCopy");
+const { getHelloText } = require("./models/SafetyCheckCard");
 const { Sms } = require("twilio/lib/twiml/VoiceResponse");
 
 const UUID_REGEX =
@@ -691,6 +696,17 @@ const handlerForSafetyBotTab = (app) => {
 
         const device = devices[0];
         const deviceId = String(device.device_id).toLowerCase();
+        let languageId = DEFAULT_LANGUAGE_ID;
+        try {
+          languageId =
+            (await incidentService.getUserLanguageIdByAadObjId(
+              userAadObjectId,
+            )) || DEFAULT_LANGUAGE_ID;
+        } catch {
+          languageId = DEFAULT_LANGUAGE_ID;
+        }
+        const helloText = getHelloText(languageId, null);
+
         const command = {
           protocolVersion: 1,
           commandId: crypto.randomUUID(),
@@ -704,7 +720,7 @@ const handlerForSafetyBotTab = (app) => {
             incId: "test",
             incTitle,
             incGuidance,
-            helloText: "Hello!",
+            helloText,
             messageBody: incGuidance,
             level: "warning",
             creator,
@@ -2775,6 +2791,26 @@ const handlerForSafetyBotTab = (app) => {
               assistanceuseraadobjectid,
               comment,
             );
+
+            try {
+              const closedPayload = buildDesktopSosClosedPayload({
+                requestAssistanceid: assistId,
+                userAadObjId: assistanceuseraadobjectid,
+                closedByName: closedByUserName,
+                comment,
+                closedAt: new Date().toISOString(),
+              });
+              await socketService.emitSosAssistanceUpdateToUser(
+                assistanceuseraadobjectid,
+                closedPayload,
+              );
+            } catch (desktopErr) {
+              console.error(
+                "[DESKTOP] emit SOS closed update failed:",
+                desktopErr?.message || desktopErr,
+              );
+            }
+
             res.send(true);
           })
           .catch((err) => {
