@@ -3225,6 +3225,28 @@ function resolveDesktopCreatorName(incData, explicitCreatedByName = "") {
   return "";
 }
 
+function resolveDesktopCreatorPayload(incData, createdByName) {
+  const name =
+    typeof createdByName === "string" ? createdByName.trim() : "";
+  if (!name) {
+    return null;
+  }
+
+  const id =
+    (typeof incData?.incCreatedBy === "object" && incData.incCreatedBy?.id) ||
+    incData?.created_by ||
+    "";
+  const email =
+    (typeof incData?.incCreatedBy === "object" && incData.incCreatedBy?.email) ||
+    "";
+
+  return {
+    name,
+    id: typeof id === "string" ? id : String(id || ""),
+    email: typeof email === "string" ? email.trim() : "",
+  };
+}
+
 const sendSafetyCheckMsgViaDesktop = async (
   companyData,
   userAadObjIds,
@@ -3315,11 +3337,13 @@ const sendSafetyCheckMsgViaDesktop = async (
           messageBody,
           level,
           teamId: companyData?.teamId || "",
+          creator: resolveDesktopCreatorPayload(incData, createdByName),
           responseOptions: responseOptions || [
             { id: 1, option: "I am safe", color: "#4CAF50" },
             { id: 2, option: "I need assistance", color: "#F44336" },
           ],
           responseType: "buttons",
+          sentAt: new Date().toISOString(),
         },
         timestamp: new Date().toISOString(),
       };

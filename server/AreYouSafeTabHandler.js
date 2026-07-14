@@ -624,6 +624,22 @@ const handlerForSafetyBotTab = (app) => {
         typeof req.body?.incGuidance === "string" && req.body.incGuidance.trim()
           ? req.body.incGuidance.trim()
           : "This is a test notification from the desktop agent dev endpoint.";
+      const creatorBody = req.body?.creator;
+      const creator =
+        creatorBody &&
+        typeof creatorBody === "object" &&
+        typeof creatorBody.name === "string" &&
+        creatorBody.name.trim()
+          ? {
+              name: creatorBody.name.trim(),
+              id:
+                typeof creatorBody.id === "string" ? creatorBody.id.trim() : "",
+              email:
+                typeof creatorBody.email === "string"
+                  ? creatorBody.email.trim()
+                  : "",
+            }
+          : null;
 
       if (!userAadObjectId) {
         return res.status(400).json({
@@ -668,11 +684,13 @@ const handlerForSafetyBotTab = (app) => {
             helloText: "Hello!",
             messageBody: incGuidance,
             level: "warning",
+            creator,
             responseOptions: [
               { id: 1, option: "I am safe", color: "#4CAF50" },
               { id: 2, option: "I need assistance", color: "#F44336" },
             ],
             responseType: "buttons",
+            sentAt: new Date().toISOString(),
           },
           timestamp: new Date().toISOString(),
         };
