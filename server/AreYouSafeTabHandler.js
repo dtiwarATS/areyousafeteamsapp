@@ -34,6 +34,7 @@ const {
 const {
   buildDesktopSafeResponseFollowUp,
   buildDesktopSubmitCommentFollowUp,
+  buildDesktopIncStatusClosedMessage,
   getIncidentTranslatedText,
 } = require("./utils/botStaticTranslations");
 const { buildDesktopSosChatSnapshot } = require("./utils/desktopSosChatCopy");
@@ -115,6 +116,28 @@ async function loadIncidentFollowUpContext(incId, userAadObjectId) {
         }
       : null,
   };
+}
+
+async function getDesktopIncStatusClosedResponse(parsedIncId, userAadObjectId) {
+  const incStatusId = await incidentService.getIncStatus(parsedIncId);
+  if (incStatusId === -1 || incStatusId === 2) {
+    const followUpCtx = await loadIncidentFollowUpContext(
+      parsedIncId,
+      userAadObjectId,
+    );
+    const message = buildDesktopIncStatusClosedMessage(incStatusId, {
+      incTitle: followUpCtx.incTitle,
+      incCreatedBy: followUpCtx.incCreatedBy,
+      languageId: followUpCtx.languageId,
+      translatedText: followUpCtx.translatedText,
+    });
+    return {
+      blocked: true,
+      message:
+        message || "Incident is closed or no longer accepting responses",
+    };
+  }
+  return { blocked: false };
 }
 
 /**
@@ -788,11 +811,14 @@ const handlerForSafetyBotTab = (app) => {
           });
         }
 
-        const incStatusId = await incidentService.getIncStatus(parsedIncId);
-        if (incStatusId === -1 || incStatusId === 2) {
+        const incStatusCheck = await getDesktopIncStatusClosedResponse(
+          parsedIncId,
+          normalizedUserAadObjectId,
+        );
+        if (incStatusCheck.blocked) {
           return res.status(409).json({
             success: false,
-            message: "Incident is closed or no longer accepting responses",
+            message: incStatusCheck.message,
           });
         }
 
@@ -958,6 +984,17 @@ const handlerForSafetyBotTab = (app) => {
           return res.status(403).json({
             success: false,
             message: "Device not found or does not match user",
+          });
+        }
+
+        const incStatusCheck = await getDesktopIncStatusClosedResponse(
+          parsedIncId,
+          normalizedUserAadObjectId,
+        );
+        if (incStatusCheck.blocked) {
+          return res.status(409).json({
+            success: false,
+            message: incStatusCheck.message,
           });
         }
 

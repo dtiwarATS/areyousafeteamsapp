@@ -290,6 +290,46 @@ const buildDesktopSubmitCommentFollowUp = (
   ),
 });
 
+/**
+ * Plain-text closed/unavailable incident message for desktop API 409 responses.
+ * Mirrors Teams bot sendIncStatusValidation copy (with optional incident translations).
+ */
+const buildDesktopIncStatusClosedMessage = (
+  incStatusId,
+  { incTitle, incCreatedBy, languageId, translatedText },
+) => {
+  if (incStatusId === -1) {
+    return stripTeamsMarkupForPlainText(
+      getBotStaticTextWithIncident(
+        "incidentNoLongerAvailable",
+        languageId,
+        translatedText,
+        "This incident is no longer available.",
+      ),
+    );
+  }
+  if (incStatusId === 2) {
+    const title = incTitle || "incident";
+    const creatorName = incCreatedBy?.name || "";
+    const fallback = creatorName
+      ? `The ${title} is closed. Please contact ${creatorName}`
+      : `The ${title} is closed.`;
+    const template = getBotStaticTextWithIncident(
+      "incidentClosedContactCreator",
+      languageId,
+      translatedText,
+      fallback,
+    );
+    return stripTeamsMarkupForPlainText(
+      applyBotStaticPlaceholders(template, {
+        incidentCreator: incCreatedBy,
+        IncidentTitle: title,
+      }),
+    );
+  }
+  return null;
+};
+
 const buildUserCommentedCard = (
   user,
   commentVal,
@@ -397,6 +437,7 @@ module.exports = {
   buildSafeResponseThankYouText,
   buildDesktopSafeResponseFollowUp,
   buildDesktopSubmitCommentFollowUp,
+  buildDesktopIncStatusClosedMessage,
   stripTeamsMarkupForPlainText,
   buildUserRespondedCard,
   buildUserCommentedCard,
