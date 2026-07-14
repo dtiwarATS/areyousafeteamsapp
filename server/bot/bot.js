@@ -4917,13 +4917,12 @@ const NewsendSafetyCheckMessageAsync = async (
         };
         const batchSize = 100;
 
-        // FCM push once per Safety Check (tab UI may call this endpoint in member batches)
+        // FCM push once per incident (tab UI may call this endpoint in member batches)
         const isBatchedRequest =
           isFirstBatch != null || isLastBatch != null;
         const isExplicitFirstBatch =
           isFirstBatch === "true" || isFirstBatch === true;
         const shouldSendFcmPush =
-          (Number(incTypeId) === 1 || Number(incTypeId) === 2) &&
           (!isBatchedRequest || isExplicitFirstBatch) &&
           fcmService.shouldSendSafetyCheckPush(incId);
         if (shouldSendFcmPush) {
@@ -4934,6 +4933,14 @@ const NewsendSafetyCheckMessageAsync = async (
               incTitle,
               createdByName: createdByUserInfo?.user_name || "",
               incTypeId,
+              incGuidance: incGuidance || incData?.incGuidance || "",
+              additionalInfo: incData?.additionalInfo || "",
+              travelUpdate: incData?.travelUpdate || "",
+              contactInfo: incData?.contactInfo || "",
+              situation: incData?.situation || "",
+              responseOptionData,
+              translatedtext: incData?.TRANSLATED_TEXT_JSON || null,
+              isDrill: !!(incData?.isDrill || incData?.IS_DRILL),
             })
             .catch((err) => {
               console.error(

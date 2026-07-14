@@ -253,15 +253,92 @@ function collectMemberAadIds(members) {
 }
 
 /**
- * Send Safety Check / Safety Alert FCM pushes to members with stored device tokens.
+ * Build FCM title + body to match Teams proactive activity summary
+ * (same copy as sendProactiveMessageAsync / getSafetyCheckMessageText).
+ */
+function buildTeamsStylePushCopy({
+  incTypeId,
+  incTitle = '',
+  createdByName = '',
+  incGuidance = '',
+  cardSnapshot = null,
+}) {
+  const typeId = Number(incTypeId);
+  const creator = createdByName || 'your admin';
+  const titleMap = {
+    1: `Safety Check - ${incTitle}`,
+    2: `Safety Alert - ${incTitle}`,
+    3: `Important Bulletin - ${incTitle}`,
+    4: `Travel Advisory - ${incTitle}`,
+    5: `Stakeholder Notice - ${incTitle}`,
+  };
+  const title = titleMap[typeId] || `Safety Check - ${incTitle}`;
+
+  // Prefer localized intro from Teams card snapshot when available
+  let body = cardSnapshot?.intro || '';
+  if (!body) {
+    if (typeId === 1) {
+      if (incGuidance) {
+        body = String(incGuidance)
+          .replace(/<IncidentCreator>/g, creator)
+          .replace(/<IncidentTitle>/g, incTitle);
+      } else {
+        body = `This is a safety check from ${creator}. We think you may be affected by ${incTitle}. Mark yourself as safe, or ask for assistance.`;
+      }
+    } else if (typeId === 2) {
+      body = `This is a safety alert from ${creator}. We think you may be affected by ${incTitle}.`;
+    } else if (typeId === 3) {
+      body = `This is an important bulletin from ${creator}`;
+    } else if (typeId === 4) {
+      body = `This is a travel advisory from ${creator}`;
+    } else if (typeId === 5) {
+      body = `This is a stakeholder notice from ${creator}`;
+    } else {
+      body = `This is a safety check from ${creator}. We think you may be affected by ${incTitle}. Mark yourself as safe, or ask for assistance.`;
+    }
+  }
+
+  // Notification tray is plain text (no Adaptive Card markdown / @mentions)
+  body = body
+    .replace(/<\/?at>/gi, '')
+    .replace(/\*\*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  return { title, body, typeId: Number.isFinite(typeId) ? typeId : 1 };
+}
+
+/**
+ * Map member AAD id → LANGUAGE_ID (same field Teams uses for Adaptive Cards).
+ */
+function collectMemberLanguageMap(members) {
+  const map = new Map();
+  if (!members || members.length === 0) return map;
+  for (const member of members) {
+    if (!member) continue;
+    const lang =
+      member.LANGUAGE_ID ?? member.languageId ?? member.language_id ?? null;
+    const candidates = [
+      member.userAadObjId,
+      member.user_aadobject_id,
+      member.aadObjectId,
+      member.id && UUID_LIKE.test(String(member.id).trim())
+        ? String(member.id).trim()
+        : null,
+    ];
+    for (const c of candidates) {
+      if (c && typeof c === 'string' && c.trim()) {
+        map.set(c.trim(), lang != null && lang !== '' ? lang : 10000);
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Send incident FCM pushes to members with stored device tokens (all inc types).
+ * Builds the same card content as SafetyCheckCard, per member LANGUAGE_ID when known.
  * Never throws — callers should fire-and-forget so Teams delivery is unaffected.
- * @param {object[]} members - Same recipient list as Teams proactive send
- * @param {object} opts
- * @param {string|number} opts.incId
- * @param {string} opts.incTitle
- * @param {string} opts.createdByName
- * @param {string} opts.teamId
- * @param {string|number} opts.incTypeId - 1 = Safety Check, 2 = Safety Alert
  */
 async function sendSafetyCheckPushToMembers(members, opts = {}) {
   try {
@@ -271,9 +348,15 @@ async function sendSafetyCheckPushToMembers(members, opts = {}) {
       createdByName = '',
       teamId = '',
       incTypeId,
+      incGuidance = '',
+      additionalInfo = '',
+      travelUpdate = '',
+      contactInfo = '',
+      situation = '',
+      responseOptionData = null,
+      translatedtext = null,
+      isDrill = false,
     } = opts;
-    const typeId = Number(incTypeId);
-    if (typeId !== 1 && typeId !== 2) return;
     if (!incId) return;
 
     const userIds = collectMemberAadIds(members);
@@ -300,33 +383,104 @@ async function sendSafetyCheckPushToMembers(members, opts = {}) {
       return true;
     });
 
-    const kindLabel = typeId === 2 ? 'Safety Alert' : 'Safety Check';
-    const title = `${kindLabel} - ${incTitle}`;
-    const body = `This is a safety check from ${createdByName || 'your admin'}. Mark yourself as safe, or ask for assistance.`;
-    const data = {
-      type: 'SAFETY_CHECK',
-      incId: String(incId),
-      teamId: String(teamId || ''),
-      incTitle: String(incTitle || ''),
-      createdByName: String(createdByName || ''),
-      incTypeId: String(typeId),
+    const langByUser = collectMemberLanguageMap(members);
+    const { buildMobileCardSnapshot } = require('../models/mobileSafetyCheckCard');
+
+    // Group tokens by language so each user gets the same localized card as Teams
+    const tokensByLang = new Map();
+    for (const row of uniqueTokens) {
+      const lang = langByUser.get(row.user_id) ?? 10000;
+      const key = String(lang);
+      if (!tokensByLang.has(key)) tokensByLang.set(key, []);
+      tokensByLang.get(key).push(row);
+    }
+
+    const incObj = {
+      incId,
+      incCreatedBy: { name: createdByName },
+      responseOptionData: responseOptionData || {
+        responseOptions: [
+          { id: 1, option: 'I am safe', color: '#4CAF50' },
+          { id: 2, option: 'I need assistance', color: '#F44336' },
+        ],
+        responseType: 'buttons',
+      },
+      isDrill: !!isDrill,
+      translatedtext,
+      TRANSLATED_TEXT_JSON: translatedtext,
     };
 
-    const pushTasks = uniqueTokens.map(async (row) => {
-      try {
-        // dataOnly so Android background handler can show Notifee actions
-        // (I am safe / I need assistance) instead of a plain system tray notification.
-        await sendPushNotification(row.fcm_token, title, body, data, {
-          dataOnly: true,
+    const pushTasks = [];
+    for (const [langKey, langTokens] of tokensByLang) {
+      const cardSnapshot = buildMobileCardSnapshot(
+        incTitle,
+        incObj,
+        incGuidance,
+        incTypeId,
+        additionalInfo,
+        travelUpdate,
+        contactInfo,
+        situation,
+        langKey,
+      );
+      const { title, body, typeId } = buildTeamsStylePushCopy({
+        incTypeId,
+        incTitle,
+        createdByName,
+        incGuidance: cardSnapshot.incGuidance || incGuidance,
+        cardSnapshot,
+      });
+
+      // Keep FCM data under size limits — card JSON is the in-app source of truth
+      let cardJson = JSON.stringify(cardSnapshot);
+      if (cardJson.length > 3500) {
+        cardJson = JSON.stringify({
+          ...cardSnapshot,
+          sections: (cardSnapshot.sections || []).map((s) => ({
+            label: s.label,
+            text: String(s.text || '').slice(0, 400),
+          })),
+          intro: String(cardSnapshot.intro || '').slice(0, 500),
+          incGuidance: String(cardSnapshot.incGuidance || '').slice(0, 400),
+          additionalInfo: String(cardSnapshot.additionalInfo || '').slice(0, 400),
+          travelUpdate: String(cardSnapshot.travelUpdate || '').slice(0, 400),
+          contactInfo: String(cardSnapshot.contactInfo || '').slice(0, 400),
+          situation: String(cardSnapshot.situation || '').slice(0, 400),
         });
-      } catch (err) {
-        console.error(
-          '[sendSafetyCheckPushToMembers] sendPushNotification error for user',
-          row.user_id,
-          err?.message || err,
+      }
+
+      const data = {
+        type: 'SAFETY_CHECK',
+        incId: String(incId),
+        teamId: String(teamId || ''),
+        incTitle: String(incTitle || ''),
+        createdByName: String(createdByName || ''),
+        incTypeId: String(typeId),
+        languageId: String(langKey),
+        title: String(title),
+        body: String(body),
+        cardJson,
+        isDrill: cardSnapshot.isDrill ? '1' : '0',
+      };
+
+      for (const row of langTokens) {
+        pushTasks.push(
+          (async () => {
+            try {
+              await sendPushNotification(row.fcm_token, title, body, data, {
+                dataOnly: true,
+              });
+            } catch (err) {
+              console.error(
+                '[sendSafetyCheckPushToMembers] sendPushNotification error for user',
+                row.user_id,
+                err?.message || err,
+              );
+            }
+          })(),
         );
       }
-    });
+    }
     await Promise.allSettled(pushTasks);
   } catch (err) {
     console.error('[sendSafetyCheckPushToMembers] unexpected error:', err?.message || err);
@@ -339,4 +493,5 @@ module.exports = {
   sendSosPushToAdmins,
   sendSafetyCheckPushToMembers,
   shouldSendSafetyCheckPush,
+  buildTeamsStylePushCopy,
 };

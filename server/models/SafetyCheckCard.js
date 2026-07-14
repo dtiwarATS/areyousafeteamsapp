@@ -918,6 +918,12 @@ const getStakeholderNoticeTypeCard = async (
   };
 };
 
+/**
+ * Plain JSON snapshot of what Teams Adaptive Cards show — for mobile FCM / in-app UI.
+ * Implemented in mobileSafetyCheckCard.js (no circular deps with FCM).
+ */
+const { buildMobileCardSnapshot } = require("./mobileSafetyCheckCard");
+
 const SafetyCheckCard = async (
   incTitle,
   incObj,
@@ -1034,4 +1040,5 @@ module.exports = {
   resolveTranslatedIncidentFields,
   getTranslatedOptionText,
   resolveTranslatedResponseOptionData,
+  buildMobileCardSnapshot,
 };

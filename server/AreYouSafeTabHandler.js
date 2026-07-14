@@ -3638,8 +3638,7 @@ const handlerForSafetyBotTab = (app) => {
           return res.send({ success: false, error: "Missing userAadObjId" });
         }
 
-        // Map UI text to the existing DB convention:
-        // response_value=1 (safe) or 2 (need assistance)
+        // Map UI text / option id to response_value (same as Teams Action.Execute info)
         const raw = (responseOption ?? "").toString().trim();
         const lower = raw.toLowerCase();
         let responseValue = Number.parseInt(raw, 10);
@@ -3652,19 +3651,39 @@ const handlerForSafetyBotTab = (app) => {
             responseValue = 2;
         }
 
-        if (responseValue !== 1 && responseValue !== 2) {
+        if (!Number.isFinite(responseValue) || responseValue < 1) {
           return res.send({
             success: false,
             error: "Invalid responseOption",
           });
         }
 
-        await bot.proccessSMSLinkClick(
-          userAadObjId,
-          String(parsedIncId),
-          responseValue === 1 ? "YES" : "NO",
-          "Mobile",
-        );
+        if (responseValue === 1 || responseValue === 2) {
+          await bot.proccessSMSLinkClick(
+            userAadObjId,
+            String(parsedIncId),
+            responseValue === 1 ? "YES" : "NO",
+            "Mobile",
+          );
+        } else {
+          // Custom option ids (types 3–5) — same response_value column Teams uses
+          let teamIdForUpdate = teamId;
+          if (!teamIdForUpdate) {
+            const incRow = await incidentService.getInc(
+              parsedIncId,
+              null,
+              userAadObjId,
+            );
+            teamIdForUpdate = incRow?.teamId || "";
+          }
+          await incidentService.updateSafetyCheckStatusViaSMSLink(
+            parsedIncId,
+            responseValue,
+            userAadObjId,
+            teamIdForUpdate,
+            "Mobile",
+          );
+        }
 
         if (comment && typeof comment === "string" && comment.trim()) {
           await bot.processCommentViaLink(
