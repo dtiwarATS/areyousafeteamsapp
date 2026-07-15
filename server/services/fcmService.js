@@ -16,7 +16,12 @@ function getFirebaseApp() {
   } catch (e) {
     throw new Error('FCM not configured: firebase-admin not available');
   }
-  const credPath = process.env.FCM_SERVICE_ACCOUNT_PATH || process.env.GOOGLE_APPLICATION_CREDENTIALS;
+  // Trim — .env values often pick up leading/trailing spaces
+  const credPathRaw =
+    process.env.FCM_SERVICE_ACCOUNT_PATH ||
+    process.env.GOOGLE_APPLICATION_CREDENTIALS ||
+    '';
+  const credPath = String(credPathRaw).trim();
   const credJson = process.env.FCM_SERVICE_ACCOUNT_JSON;
   if (credJson) {
     try {
@@ -29,25 +34,53 @@ function getFirebaseApp() {
   }
   if (credPath) {
     let serviceAccount;
-    const trimmed = String(credPath).trim();
-    if (trimmed.startsWith('{')) {
+    if (credPath.startsWith('{')) {
       try {
-        serviceAccount = JSON.parse(trimmed);
+        serviceAccount = JSON.parse(credPath);
       } catch (parseErr) {
         throw new Error('FCM not configured: FCM_SERVICE_ACCOUNT_PATH contains invalid JSON');
       }
     } else {
-      const resolvedPath = path.isAbsolute(credPath) ? credPath : path.join(process.cwd(), credPath);
+      const resolvedPath = path.isAbsolute(credPath)
+        ? credPath
+        : path.join(process.cwd(), credPath);
       try {
         serviceAccount = JSON.parse(fs.readFileSync(resolvedPath, 'utf8'));
       } catch (readErr) {
-        throw new Error('FCM not configured: could not read credentials from ' + credPath + ' - ' + (readErr && readErr.message));
+        throw new Error(
+          'FCM not configured: could not read credentials from ' +
+            resolvedPath +
+            ' - ' +
+            (readErr && readErr.message),
+        );
       }
     }
+    if (!serviceAccount?.private_key || !serviceAccount?.client_email) {
+      throw new Error(
+        'FCM not configured: service account JSON missing private_key or client_email',
+      );
+    }
+    // Normalize PEM newlines if the key was pasted with literal \\n
+    if (
+      typeof serviceAccount.private_key === 'string' &&
+      serviceAccount.private_key.includes('\\n')
+    ) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+    console.log(
+      '[fcmService] using service account',
+      serviceAccount.client_email,
+      'keyId=',
+      serviceAccount.private_key_id,
+      'from',
+      credPath,
+    );
     app = admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     return app;
   }
-  throw new Error('FCM not configured: set GOOGLE_APPLICATION_CREDENTIALS, FCM_SERVICE_ACCOUNT_PATH, or FCM_SERVICE_ACCOUNT_JSON');
+  throw new Error(
+    'FCM not configured: set GOOGLE_APPLICATION_CREDENTIALS, FCM_SERVICE_ACCOUNT_PATH, or FCM_SERVICE_ACCOUNT_JSON',
+  );
 }
 
 /**
