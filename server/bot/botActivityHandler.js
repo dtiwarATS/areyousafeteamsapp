@@ -18,9 +18,7 @@ const {
 const bot = require("../bot/bot");
 const incidentService = require("../services/incidentService");
 const socketService = require("../socket/socketService");
-const {
-  buildDesktopSosAcceptPayload,
-} = require("../utils/desktopSosChatCopy");
+const { buildDesktopSosAcceptPayload } = require("../utils/desktopSosChatCopy");
 const {
   getCompaniesData,
   insertCompanyData,

@@ -87,9 +87,6 @@ const {
 } = require("./subscriptionCard");
 const axios = require("axios");
 const https = require("https");
-const crypto = require("crypto");
-const desktopDeviceStore = require("../store/desktopDeviceStore");
-const socketService = require("../socket/socketService");
 
 const {
   getSafetyCheckMessageText,
@@ -3178,7 +3175,10 @@ const getDesktopNotificationLevel = (incTypeId) => {
 
 function extractUserAadObjIds(members) {
   return (members || [])
-    .map((member) => member?.userAadObjId || member?.user_aadobject_id || member?.id)
+    .map(
+      (member) =>
+        member?.userAadObjId || member?.user_aadobject_id || member?.id,
+    )
     .filter((id) => typeof id === "string" && id.trim() !== "");
 }
 
@@ -3227,8 +3227,7 @@ function resolveDesktopCreatorName(incData, explicitCreatedByName = "") {
 }
 
 function resolveDesktopCreatorPayload(incData, createdByName) {
-  const name =
-    typeof createdByName === "string" ? createdByName.trim() : "";
+  const name = typeof createdByName === "string" ? createdByName.trim() : "";
   if (!name) {
     return null;
   }
@@ -3238,7 +3237,8 @@ function resolveDesktopCreatorPayload(incData, createdByName) {
     incData?.created_by ||
     "";
   const email =
-    (typeof incData?.incCreatedBy === "object" && incData.incCreatedBy?.email) ||
+    (typeof incData?.incCreatedBy === "object" &&
+      incData.incCreatedBy?.email) ||
     "";
 
   return {
@@ -3346,7 +3346,11 @@ async function buildDesktopIncidentMessageBody({
       parts.push(`Important Bulletin: ${incTitle}`);
     }
     appendLabeledDesktopSection(parts, "Guidance", guidance);
-    appendLabeledDesktopSection(parts, "Additional Information", additionalInfo);
+    appendLabeledDesktopSection(
+      parts,
+      "Additional Information",
+      additionalInfo,
+    );
     return parts.join("\n\n");
   }
 
@@ -3367,7 +3371,11 @@ async function buildDesktopIncidentMessageBody({
       parts.push(`Stakeholder Notice: ${incTitle}`);
     }
     appendLabeledDesktopSection(parts, "Situation", situation);
-    appendLabeledDesktopSection(parts, "Additional Information", additionalInfo);
+    appendLabeledDesktopSection(
+      parts,
+      "Additional Information",
+      additionalInfo,
+    );
     return parts.join("\n\n");
   }
 
@@ -3437,11 +3445,14 @@ const sendSafetyCheckMsgViaDesktop = async (
     });
 
     if (!registeredDevices.length) {
-      console.log("[DESKTOP] No socket-registered devices for incident recipients", {
-        incId,
-        userCount: normalizedUserAadObjIds.length,
-        pairedDeviceCount: pairedDevices.length,
-      });
+      console.log(
+        "[DESKTOP] No socket-registered devices for incident recipients",
+        {
+          incId,
+          userCount: normalizedUserAadObjIds.length,
+          pairedDeviceCount: pairedDevices.length,
+        },
+      );
       return;
     }
 
@@ -3475,7 +3486,9 @@ const sendSafetyCheckMsgViaDesktop = async (
 
     for (const device of registeredDevices) {
       const deviceId = String(device.device_id).toLowerCase();
-      const recipientAadObjectId = String(device.user_aadobject_id || "").trim();
+      const recipientAadObjectId = String(
+        device.user_aadobject_id || "",
+      ).trim();
       let languageId = DEFAULT_LANGUAGE_ID;
       try {
         if (recipientAadObjectId) {
@@ -3530,7 +3543,10 @@ const sendSafetyCheckMsgViaDesktop = async (
       });
     }
   } catch (err) {
-    console.error("[DESKTOP] sendSafetyCheckMsgViaDesktop error:", err?.message);
+    console.error(
+      "[DESKTOP] sendSafetyCheckMsgViaDesktop error:",
+      err?.message,
+    );
   }
 };
 
@@ -4937,7 +4953,7 @@ const sendSafetyCheckMessageAsync = async (
           createdByUserInfo.conversationId,
           resendSafetyCheck,
         );
-        let userAadObjIds = extractUserAadObjIds(allMembersArr);
+        let userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
           companyData.send_sms &&
           (companyData.SubscriptionType == 3 ||
@@ -5401,7 +5417,7 @@ const NewsendSafetyCheckMessageAsync = async (
           : null;
         console.log({ IntegrationConfigure });
         // Voice calls to all users (similar to sendSafetyCheckMsgViaSMS)
-        const userAadObjIds = extractUserAadObjIds(allMembersArr);
+        const userAadObjIds = allMembersArr.map((x) => x.userAadObjId);
         if (
           incData.incTypeId == 1 &&
           IntegrationConfigure?.channels.voice.enabled &&
@@ -6648,7 +6664,7 @@ const sendRecurrEventMsgAsync = async (
       subEventObj.runAt,
       subEventObj.filesData,
     );
-    let userAadObjIds = extractUserAadObjIds(subEventObj.eventMembers);
+    let userAadObjIds = subEventObj.eventMembers?.map((x) => x.userAadObjId);
 
     if (
       subEventObj.incType == 1 &&
@@ -6714,12 +6730,16 @@ const sendRecurrEventMsgAsync = async (
         ...subEventObj,
         incGuidance,
         incTypeId: subEventObj.incTypeId || subEventObj.inc_type_id || 1,
-        CREATED_BY_NAME: incCreatedByUserObj?.name || subEventObj.CREATED_BY_NAME,
-        incCreatedByName: incCreatedByUserObj?.name || subEventObj.incCreatedByName,
+        CREATED_BY_NAME:
+          incCreatedByUserObj?.name || subEventObj.CREATED_BY_NAME,
+        incCreatedByName:
+          incCreatedByUserObj?.name || subEventObj.incCreatedByName,
         incCreatedBy: incCreatedByUserObj,
       },
       responseOptionData.responseOptions,
-      incCreatedByUserObj?.name || subEventObj.createdByName || subEventObj.CREATED_BY_NAME,
+      incCreatedByUserObj?.name ||
+        subEventObj.createdByName ||
+        subEventObj.CREATED_BY_NAME,
     );
   });
 };
@@ -7635,5 +7655,4 @@ module.exports = {
   getUserDetails,
   sendWhatsappMessage,
   sendSafetyCheckMsgViaEmail,
-  sendSafetyCheckMsgViaDesktop,
 };

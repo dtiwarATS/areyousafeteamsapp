@@ -111,6 +111,15 @@ END
 async function ensureAdvisoryTable() {
   const pool = await poolPromise;
   await pool.request().query(ENSURE_ADVISORY_TABLE_SQL);
+  await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'Advisory' AND COLUMN_NAME = 'SelectedLocationsJson'
+    )
+    BEGIN
+      ALTER TABLE [dbo].[Advisory] ADD [SelectedLocationsJson] NVARCHAR(MAX) NULL;
+    END
+  `);
 }
 
 /**
@@ -179,34 +188,269 @@ async function deleteAdvisoryForTenantNotInCountryCodes(
 
 /**
  * Save travel advisory selections for a tenant: delete selections not in list, then MERGE (update/insert) into Advisory.
- * One record per (TenantId, CountryCode, AdvisoryType). Uses CountryCode directly (no resolution to CountryId).
+ * Weather: one row per tenant — merge new countries/cities onto the existing row; remove only when explicitly listed.
+ * Travel: one record per (TenantId, CountryCode, AdvisoryType) via comma-joined CountryCode update.
  * @param {string} tenantId
  * @param {string} teamId - kept for API backward compatibility, ignored
  * @param {string} userId - CreatedByUserId
  * @param {string[]} countryCodes
  * @param {string} [advisoryType]
+ * @param {Array} [locationSelections] - Weather: country+city selections stored as SelectedLocationsJson
+ * @param {{ removedLocationKeys?: string[], removedCountryCodes?: string[], replaceSelections?: boolean }} [opts]
  * @returns {Promise<{ savedCount: number, skipped: number, invalidCodes: string[], deletedCount: number }>}
  */
+function weatherLocationKey(loc) {
+  return `${String(loc.countryCode || "")
+    .trim()
+    .toUpperCase()}|${String(loc.cityName || "").trim()}|${loc.state != null ? String(loc.state).trim() : ""}`;
+}
+
 async function saveTravelAdvisorySelections(
   tenantId,
   teamId,
   userId,
   countryCodes,
   advisoryType,
+  locationSelections,
+  opts = {},
 ) {
   await ensureAdvisoryTable();
   const pool = await poolPromise;
-  const codes = Array.isArray(countryCodes)
+
+  const locations = Array.isArray(locationSelections)
+    ? locationSelections
+        .filter((l) => l && String(l.cityName || "").trim())
+        .map((l) => ({
+          countryCode: String(l.countryCode || "")
+            .trim()
+            .toUpperCase(),
+          countryName: String(l.countryName || "").trim(),
+          cityName: String(l.cityName || "").trim(),
+          state: l.state != null ? String(l.state).trim() : null,
+          latitude:
+            l.latitude != null && !Number.isNaN(Number(l.latitude))
+              ? Number(l.latitude)
+              : null,
+          longitude:
+            l.longitude != null && !Number.isNaN(Number(l.longitude))
+              ? Number(l.longitude)
+              : null,
+        }))
+    : [];
+
+  let codes = Array.isArray(countryCodes)
     ? countryCodes.filter((c) => c != null && String(c).trim() !== "")
     : [];
+  if (locations.length > 0) {
+    codes = [
+      ...new Set([
+        ...codes.map((c) => String(c).trim().toUpperCase()),
+        ...locations.map((l) => l.countryCode).filter(Boolean),
+      ]),
+    ];
+  }
   const uniqueCodes = [
     ...new Set(codes.map((c) => String(c).trim().toUpperCase())),
   ];
 
-  const validCodes = [];
+  // Flatten comma-joined codes (legacy "US,IN" in a single cell)
+  let validCodes = [
+    ...new Set(
+      uniqueCodes.flatMap((code) =>
+        String(code)
+          .split(",")
+          .map((c) => c.trim().toUpperCase())
+          .filter(Boolean),
+      ),
+    ),
+  ];
   const invalidCodes = [];
-  for (const code of uniqueCodes) {
-    validCodes.push(String(code).trim().toUpperCase());
+  const removedLocationKeys = new Set(
+    Array.isArray(opts.removedLocationKeys)
+      ? opts.removedLocationKeys.map((k) => String(k))
+      : [],
+  );
+  const removedCountryCodes = new Set(
+    Array.isArray(opts.removedCountryCodes)
+      ? opts.removedCountryCodes.map((c) => String(c).trim().toUpperCase())
+      : [],
+  );
+
+  // Weather: exactly one Advisory row per tenant.
+  // Always MERGE new countries/cities onto existing; remove only when explicitly listed.
+  if (advisoryType === "Weather") {
+    let deletedCount = 0;
+
+    const existingResult = await pool
+      .request()
+      .input("TenantId", sql.NVarChar(256), tenantId || "")
+      .input("AdvisoryType", sql.NVarChar(50), advisoryType).query(`
+        SELECT TOP 1 Id, CountryCode, SelectedLocationsJson
+        FROM dbo.Advisory
+        WHERE TenantId = @TenantId AND AdvisoryType = @AdvisoryType
+        ORDER BY Id ASC
+      `);
+    const existingRow =
+      existingResult.recordset && existingResult.recordset[0]
+        ? existingResult.recordset[0]
+        : null;
+
+    let existingLocs = [];
+    if (existingRow && existingRow.SelectedLocationsJson) {
+      try {
+        const parsed = JSON.parse(existingRow.SelectedLocationsJson);
+        if (Array.isArray(parsed)) existingLocs = parsed;
+      } catch {
+        existingLocs = [];
+      }
+    }
+    const existingCodes = existingRow
+      ? String(existingRow.CountryCode || "")
+          .split(",")
+          .map((c) => c.trim().toUpperCase())
+          .filter(Boolean)
+      : [];
+
+    // Merge: keep old + add new; drop only explicit removals
+    const locMap = new Map();
+    for (const loc of existingLocs) {
+      const key = weatherLocationKey(loc);
+      if (!key.startsWith("|")) locMap.set(key, loc);
+    }
+    for (const loc of locations) {
+      locMap.set(weatherLocationKey(loc), loc);
+    }
+    for (const key of removedLocationKeys) {
+      locMap.delete(key);
+    }
+    for (const [key, loc] of [...locMap.entries()]) {
+      const code = String(loc.countryCode || "")
+        .trim()
+        .toUpperCase();
+      if (removedCountryCodes.has(code)) locMap.delete(key);
+    }
+    const mergedLocations = Array.from(locMap.values()).map((l) => ({
+      countryCode: String(l.countryCode || "")
+        .trim()
+        .toUpperCase(),
+      countryName: String(l.countryName || "").trim(),
+      cityName: String(l.cityName || "").trim(),
+      state: l.state != null ? String(l.state).trim() : null,
+      latitude:
+        l.latitude != null && !Number.isNaN(Number(l.latitude))
+          ? Number(l.latitude)
+          : null,
+      longitude:
+        l.longitude != null && !Number.isNaN(Number(l.longitude))
+          ? Number(l.longitude)
+          : null,
+    }));
+
+    const codeSet = new Set([
+      ...existingCodes,
+      ...validCodes,
+      ...mergedLocations.map((l) => l.countryCode).filter(Boolean),
+    ]);
+    for (const c of removedCountryCodes) {
+      codeSet.delete(c);
+    }
+    validCodes = [...codeSet];
+
+    if (validCodes.length === 0 && mergedLocations.length === 0) {
+      const del = await pool
+        .request()
+        .input("TenantId", sql.NVarChar(256), tenantId || "")
+        .input("AdvisoryType", sql.NVarChar(50), advisoryType).query(`
+          DELETE FROM dbo.Advisory
+          WHERE TenantId = @TenantId AND AdvisoryType = @AdvisoryType
+        `);
+      deletedCount =
+        del.rowsAffected && del.rowsAffected[0] != null
+          ? del.rowsAffected[0]
+          : 0;
+      return { savedCount: 0, skipped: 0, invalidCodes, deletedCount };
+    }
+
+    const allCountryCodes = validCodes.join(",");
+    const locationsJson = JSON.stringify(mergedLocations);
+    const keepId = existingRow ? existingRow.Id : null;
+
+    if (keepId != null) {
+      const extras = await pool
+        .request()
+        .input("TenantId", sql.NVarChar(256), tenantId || "")
+        .input("AdvisoryType", sql.NVarChar(50), advisoryType)
+        .input("KeepId", sql.Int, keepId).query(`
+          DELETE FROM dbo.Advisory
+          WHERE TenantId = @TenantId
+            AND AdvisoryType = @AdvisoryType
+            AND Id <> @KeepId
+        `);
+      deletedCount =
+        extras.rowsAffected && extras.rowsAffected[0] != null
+          ? extras.rowsAffected[0]
+          : 0;
+
+      await pool
+        .request()
+        .input("KeepId", sql.Int, keepId)
+        .input("CountryCode", sql.NVarChar(sql.MAX), allCountryCodes)
+        .input("CreatedByUserId", sql.NVarChar(256), userId || "")
+        .input(
+          "SelectedLocationsJson",
+          sql.NVarChar(sql.MAX),
+          locationsJson,
+        ).query(`
+          UPDATE dbo.Advisory
+          SET
+            CountryCode = @CountryCode,
+            SelectedLocationsJson = @SelectedLocationsJson,
+            IsActive = 1,
+            UpdatedByUserId = @CreatedByUserId,
+            UpdatedAtUtc = GETUTCDATE()
+          WHERE Id = @KeepId
+        `);
+
+      // Drop stale AdvisoryDetail rows for countries no longer selected
+      const codesJson = JSON.stringify(validCodes);
+      await pool
+        .request()
+        .input("KeepId", sql.Int, keepId)
+        .input("countryCodesJson", sql.NVarChar(sql.MAX), codesJson).query(`
+          DELETE FROM dbo.AdvisoryDetail
+          WHERE TravelAdvisorySelectionId = @KeepId
+            AND UPPER(LTRIM(RTRIM(CountryCode))) NOT IN (
+              SELECT UPPER(LTRIM(RTRIM(value))) FROM OPENJSON(@countryCodesJson)
+            )
+        `);
+    } else {
+      await pool
+        .request()
+        .input("TenantId", sql.NVarChar(256), tenantId || "")
+        .input("CountryCode", sql.NVarChar(sql.MAX), allCountryCodes)
+        .input("AdvisoryType", sql.NVarChar(50), advisoryType)
+        .input("CreatedByUserId", sql.NVarChar(256), userId || "")
+        .input(
+          "SelectedLocationsJson",
+          sql.NVarChar(sql.MAX),
+          locationsJson,
+        ).query(`
+          INSERT INTO dbo.Advisory
+          (TenantId, CountryCode, AdvisoryType, IsActive, CreatedByUserId, SelectedLocationsJson)
+          VALUES
+          (@TenantId, @CountryCode, @AdvisoryType, 1, @CreatedByUserId, @SelectedLocationsJson)
+        `);
+    }
+
+    return {
+      savedCount: 1,
+      skipped: 0,
+      invalidCodes,
+      deletedCount,
+      mergedLocationCount: mergedLocations.length,
+      countryCodes: validCodes,
+      locationSelections: mergedLocations,
+    };
   }
 
   const { deletedCount } = await deleteAdvisoryForTenantNotInCountryCodes(
@@ -218,14 +462,16 @@ async function saveTravelAdvisorySelections(
   let savedCount = 0;
   let skipped = 0;
   const allCountryCodes = validCodes.join(",");
+
   const req = pool
     .request()
     .input("TenantId", sql.NVarChar(256), tenantId || "")
     .input("CountryCode", sql.NVarChar(sql.MAX), allCountryCodes)
     .input("AdvisoryType", sql.NVarChar(50), advisoryType)
-    .input("CreatedByUserId", sql.NVarChar(256), userId || "");
+    .input("CreatedByUserId", sql.NVarChar(256), userId || "")
+    .input("SelectedLocationsJson", sql.NVarChar(sql.MAX), null);
 
-  const result = await req.query(`
+  await req.query(`
 IF EXISTS (
     SELECT 1 
     FROM dbo.Advisory
@@ -246,12 +492,12 @@ END
 ELSE
 BEGIN
     INSERT INTO dbo.Advisory
-    (TenantId, CountryCode, AdvisoryType, IsActive, CreatedByUserId)
+    (TenantId, CountryCode, AdvisoryType, IsActive, CreatedByUserId, SelectedLocationsJson)
     VALUES
-    (@TenantId, @CountryCode, @AdvisoryType, 1, @CreatedByUserId);
+    (@TenantId, @CountryCode, @AdvisoryType, 1, @CreatedByUserId, @SelectedLocationsJson);
 END
 `);
-  console.log(result);
+  savedCount = validCodes.length > 0 ? 1 : 0;
   return { savedCount, skipped, invalidCodes, deletedCount };
 }
 
@@ -290,7 +536,7 @@ async function getActiveSelectedCountriesForTenantTeam(
     .input("AdvisoryType", sql.NVarChar(50), advisorytype || "").query(`
     SELECT s.Id AS TravelAdvisorySelectedCountriesId, s.TenantId, s.CountryCode
     FROM [dbo].[Advisory] s
-    WHERE s.TenantId = @TenantId AND s.IsActive = 1 and AdvisoryType=@advisorytype
+    WHERE s.TenantId = @TenantId AND s.IsActive = 1 and AdvisoryType=@AdvisoryType
     ORDER BY s.Id
   `);
   return result.recordset || [];
@@ -564,6 +810,7 @@ async function insertSelectedCountryLog(
  * @returns {Promise<{ advisories: Array<Object>, countryCodes: string[] }>}
  */
 async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
+  await ensureAdvisoryTable();
   const pool = await poolPromise;
 
   const tenantIdTrimmed =
@@ -572,7 +819,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
       : "";
 
   if (!tenantIdTrimmed) {
-    return { advisories: [], countryCodes: [] };
+    return { advisories: [], countryCodes: [], locationSelections: [] };
   }
 
   const advPromise = pool
@@ -595,7 +842,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     .input("TenantId", sql.NVarChar(256), tenantIdTrimmed)
     .input("AdvisoryType", sql.NVarChar(256), AdvisoryType)
     .query(`
-    SELECT CountryCode
+    SELECT CountryCode, SelectedLocationsJson
     FROM [dbo].[Advisory]
     WHERE TenantId = @TenantId AND AdvisoryType = @AdvisoryType AND IsActive = 1
     ORDER BY CountryCode
@@ -607,9 +854,28 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
   ]);
 
   const rows = advResult.recordset || [];
-  const countryCodes = (countryCodesResult.recordset || [])
-    .map((r) => (r.CountryCode || "").trim())
+  const selectionRows = countryCodesResult.recordset || [];
+  const countryCodes = selectionRows
+    .flatMap((r) =>
+      String(r.CountryCode || "")
+        .split(",")
+        .map((c) => c.trim())
+        .filter(Boolean),
+    )
     .filter(Boolean);
+
+  let locationSelections = [];
+  for (const r of selectionRows) {
+    if (!r.SelectedLocationsJson) continue;
+    try {
+      const parsed = JSON.parse(r.SelectedLocationsJson);
+      if (Array.isArray(parsed)) {
+        locationSelections = locationSelections.concat(parsed);
+      }
+    } catch {
+      // ignore invalid JSON
+    }
+  }
   const advisories = rows.map((r) => {
     const restrictions =
       r.Restrictions != null
@@ -644,7 +910,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     };
   });
 
-  return { advisories, countryCodes };
+  return { advisories, countryCodes, locationSelections };
 }
 
 /**
