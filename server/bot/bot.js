@@ -96,6 +96,8 @@ const {
   SafetyCheckCard,
   getSafetyCheckTypeCard,
   getHelloText,
+  getTranslatedOptionText,
+  resolveTranslatedResponseOptionData,
 } = require("../models/SafetyCheckCard");
 const { json } = require("body-parser");
 const { count } = require("console");
@@ -3374,7 +3376,12 @@ async function buildDesktopIncidentMessageBody({
   return guidance || stripTeamsMarkupForDesktop(rawGuidance, incTitle);
 }
 
-function normalizeDesktopResponseOptions(responseOptions, incTypeId) {
+function normalizeDesktopResponseOptions(
+  responseOptions,
+  incTypeId,
+  translatedText = null,
+  languageId = null,
+) {
   const typeId = Number(incTypeId) || 1;
   const filtered = (Array.isArray(responseOptions) ? responseOptions : [])
     .filter(
@@ -3396,12 +3403,41 @@ function normalizeDesktopResponseOptions(responseOptions, incTypeId) {
 
   if (typeId === 1) {
     return [
-      { id: 1, option: "I am safe", color: "#4CAF50" },
-      { id: 2, option: "I need assistance", color: "#F44336" },
+      {
+        id: 1,
+        option: getTranslatedOptionText(
+          translatedText,
+          "I am safe",
+          languageId,
+          "I am safe",
+        ),
+        color: "#4CAF50",
+      },
+      {
+        id: 2,
+        option: getTranslatedOptionText(
+          translatedText,
+          "I need assistance",
+          languageId,
+          "I need assistance",
+        ),
+        color: "#F44336",
+      },
     ];
   }
 
-  return [];
+  // Types 2–5: single Acknowledge when incident has no response options
+  return [
+    {
+      id: 1,
+      option: getTranslatedOptionText(
+        translatedText,
+        "Acknowledged",
+        languageId,
+        "Acknowledged",
+      ),
+    },
+  ];
 }
 
 const sendSafetyCheckMsgViaDesktop = async (
@@ -3468,10 +3504,6 @@ const sendSafetyCheckMsgViaDesktop = async (
       incData,
     });
     const resolvedGuidance = messageBody || rawGuidance;
-    const desktopResponseOptions = normalizeDesktopResponseOptions(
-      responseOptions,
-      incTypeId,
-    );
 
     for (const device of registeredDevices) {
       const deviceId = String(device.device_id).toLowerCase();
@@ -3491,6 +3523,21 @@ const sendSafetyCheckMsgViaDesktop = async (
         );
       }
       const helloText = getHelloText(languageId, translatedText);
+
+      const translatedOptionData = resolveTranslatedResponseOptionData(
+        translatedText,
+        languageId,
+        {
+          responseOptions: Array.isArray(responseOptions) ? responseOptions : [],
+          responseType: "buttons",
+        },
+      );
+      const desktopResponseOptions = normalizeDesktopResponseOptions(
+        translatedOptionData?.responseOptions,
+        incTypeId,
+        translatedText,
+        languageId,
+      );
 
       const command = {
         protocolVersion: 1,
@@ -3527,6 +3574,7 @@ const sendSafetyCheckMsgViaDesktop = async (
         commandId: command.commandId,
         incTypeId,
         languageId,
+        responseOptionCount: desktopResponseOptions.length,
       });
     }
   } catch (err) {
