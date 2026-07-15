@@ -4713,8 +4713,10 @@ ORDER BY ACL.EventDateTime DESC;
       const weatherLocationsDb = require("./travelServices/weather-alert-locations-db");
       const source = req.query.source || "all";
       const teamId = req.query.teamId || "";
+      const tenantId = req.query.tenantId || "";
       const data = await weatherLocationsDb.getWeatherAlertLocations(source, {
         teamId,
+        tenantId,
       });
       res.json({ success: true, data });
     } catch (err) {
@@ -4896,84 +4898,58 @@ ORDER BY ACL.EventDateTime DESC;
                 ? result.locationSelections
                 : locationSelections;
 
-            const coordsByCountry = {};
-            for (const loc of effectiveLocations) {
-              const code = String(loc.countryCode || "")
-                .trim()
-                .toUpperCase();
-              if (!code || coordsByCountry[code]) continue;
-              const lat = Number(loc.latitude);
-              const lon = Number(loc.longitude);
-              if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
-                coordsByCountry[code] = { lat, lon };
-              }
-            }
-
-            const pipeParts = String(coordsStr)
-              .trim()
-              .split("|")
-              .map((p) => p.trim())
-              .filter(Boolean);
-            const codesForFetch =
-              Array.isArray(result.countryCodes) && result.countryCodes.length > 0
-                ? result.countryCodes
-                : countryCodes || [];
-            for (const code of codesForFetch.map((c) =>
-              String(c).trim().toUpperCase(),
-            )) {
-              if (!code || coordsByCountry[code]) continue;
-              const first = pipeParts[0];
-              if (!first) continue;
-              const [latStr, lonStr] = first.split(",");
-              const lat = parseFloat(latStr);
-              const lon = parseFloat(lonStr);
-              if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
-                coordsByCountry[code] = { lat, lon };
-              }
-            }
-
-            const alertsByCode = {};
-            for (const code of Object.keys(coordsByCountry)) {
-              try {
-                const { lat, lon } = coordsByCountry[code];
-                alertsByCode[code] = await weatherAdvisory.getWeatherAlerts(
-                  lat,
-                  lon,
-                );
-              } catch (err) {
-                console.error(
-                  `saveTravelAdvisorySelection weather fetch failed for ${code}:`,
-                  err && err.message,
-                );
-                alertsByCode[code] = [];
-              }
-            }
-
             const now = new Date();
+            const weatherLocationKey =
+              travelSelectedDb.weatherLocationKey ||
+              ((loc) =>
+                `${String(loc.countryCode || "")
+                  .trim()
+                  .toUpperCase()}|${String(loc.cityName || "").trim()}|${
+                  loc.state != null ? String(loc.state).trim() : ""
+                }`);
 
-            // One Weather Advisory row per tenant — upsert detail per country under that row
+            // One AdvisoryDetail row per city LocationKey (not one per country)
             for (const row of selections) {
               const advisoryId = row.TravelAdvisorySelectedCountriesId;
-              const rowCodes = String(row.CountryCode || "")
-                .split(",")
-                .map((c) => c.trim().toUpperCase())
-                .filter(Boolean);
-              const codesToSave =
-                rowCodes.length > 0
-                  ? rowCodes
-                  : Object.keys(alertsByCode);
 
-              for (const code of codesToSave) {
-                const alerts = alertsByCode[code] || [];
+              for (const loc of effectiveLocations) {
+                const code = String(loc.countryCode || "")
+                  .trim()
+                  .toUpperCase();
+                const lat = Number(loc.latitude);
+                const lon = Number(loc.longitude);
+                if (!code || Number.isNaN(lat) || Number.isNaN(lon)) continue;
+
+                const locKey = weatherLocationKey(loc);
+                let alerts = [];
+                try {
+                  alerts = await weatherAdvisory.getWeatherAlerts(lat, lon);
+                } catch (err) {
+                  console.error(
+                    `saveTravelAdvisorySelection weather fetch failed for ${locKey}:`,
+                    err && err.message,
+                  );
+                  alerts = [];
+                }
+
                 await travelSelectedDb.upsertSavedAdvisory(
                   advisoryId,
                   code,
                   alerts,
                   now,
                   "Weather",
+                  locKey,
                 );
                 detailSavedCount++;
               }
+
+              const keepKeys = effectiveLocations
+                .map((l) => weatherLocationKey(l))
+                .filter(Boolean);
+              await travelSelectedDb.deleteWeatherAdvisoryDetailsNotInLocationKeys(
+                advisoryId,
+                keepKeys,
+              );
             }
           }
         }

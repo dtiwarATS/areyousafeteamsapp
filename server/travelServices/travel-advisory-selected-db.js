@@ -124,11 +124,85 @@ async function ensureAdvisoryTable() {
 
 /**
  * Ensure AdvisoryDetail table exists (create if not).
+ * Adds LocationKey for Weather (one detail row per city) without breaking Travel
+ * (Travel rows keep LocationKey NULL and stay keyed by country).
  * @returns {Promise<void>}
  */
 async function ensureAdvisoryDetailTable() {
   const pool = await poolPromise;
   await pool.request().query(ENSURE_ADVISORY_DETAIL_TABLE_SQL);
+  // Production schemas use TravelAdvisorySelectionId; fresh create uses AdvisoryId.
+  await pool.request().query(`
+    IF COL_LENGTH('dbo.AdvisoryDetail', 'LocationKey') IS NULL
+    BEGIN
+      ALTER TABLE [dbo].[AdvisoryDetail] ADD [LocationKey] NVARCHAR(256) NULL;
+    END
+  `);
+  // Allow multiple detail rows per Advisory (one per country / city).
+  // Note: NVARCHAR(MAX) CountryCode cannot be an index key — skip Travel unique in that case.
+  await pool.request().query(`
+    IF EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE name = N'UX_AdvisoryDetail_Advisory'
+        AND object_id = OBJECT_ID(N'[dbo].[AdvisoryDetail]')
+    )
+      DROP INDEX [UX_AdvisoryDetail_Advisory] ON [dbo].[AdvisoryDetail];
+
+    IF COL_LENGTH('dbo.AdvisoryDetail', 'TravelAdvisorySelectionId') IS NOT NULL
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name = N'UX_AdvisoryDetail_Weather_LocationKey'
+          AND object_id = OBJECT_ID(N'[dbo].[AdvisoryDetail]')
+      )
+        CREATE UNIQUE NONCLUSTERED INDEX [UX_AdvisoryDetail_Weather_LocationKey]
+          ON [dbo].[AdvisoryDetail] ([TravelAdvisorySelectionId], [LocationKey])
+          WHERE [LocationKey] IS NOT NULL;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name = N'UX_AdvisoryDetail_Travel_Country'
+          AND object_id = OBJECT_ID(N'[dbo].[AdvisoryDetail]')
+      )
+      AND EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'AdvisoryDetail'
+          AND COLUMN_NAME = 'CountryCode'
+          AND CHARACTER_MAXIMUM_LENGTH > 0
+          AND CHARACTER_MAXIMUM_LENGTH <= 450
+      )
+        CREATE UNIQUE NONCLUSTERED INDEX [UX_AdvisoryDetail_Travel_Country]
+          ON [dbo].[AdvisoryDetail] ([TravelAdvisorySelectionId], [CountryCode])
+          WHERE [LocationKey] IS NULL;
+    END
+    ELSE IF COL_LENGTH('dbo.AdvisoryDetail', 'AdvisoryId') IS NOT NULL
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name = N'UX_AdvisoryDetail_Weather_LocationKey'
+          AND object_id = OBJECT_ID(N'[dbo].[AdvisoryDetail]')
+      )
+        CREATE UNIQUE NONCLUSTERED INDEX [UX_AdvisoryDetail_Weather_LocationKey]
+          ON [dbo].[AdvisoryDetail] ([AdvisoryId], [LocationKey])
+          WHERE [LocationKey] IS NOT NULL;
+
+      IF NOT EXISTS (
+        SELECT 1 FROM sys.indexes
+        WHERE name = N'UX_AdvisoryDetail_Travel_Country'
+          AND object_id = OBJECT_ID(N'[dbo].[AdvisoryDetail]')
+      )
+      AND EXISTS (
+        SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'AdvisoryDetail'
+          AND COLUMN_NAME = 'CountryCode'
+          AND CHARACTER_MAXIMUM_LENGTH > 0
+          AND CHARACTER_MAXIMUM_LENGTH <= 450
+      )
+        CREATE UNIQUE NONCLUSTERED INDEX [UX_AdvisoryDetail_Travel_Country]
+          ON [dbo].[AdvisoryDetail] ([AdvisoryId], [CountryCode])
+          WHERE [LocationKey] IS NULL;
+    END
+  `);
 }
 
 /**
@@ -312,10 +386,13 @@ async function saveTravelAdvisorySelections(
       : [];
 
     // Merge: keep old + add new; drop only explicit removals
+    // replaceSelections=true: authority is the incoming list (full monitor list from client)
     const locMap = new Map();
-    for (const loc of existingLocs) {
-      const key = weatherLocationKey(loc);
-      if (!key.startsWith("|")) locMap.set(key, loc);
+    if (!opts.replaceSelections) {
+      for (const loc of existingLocs) {
+        const key = weatherLocationKey(loc);
+        if (!key.startsWith("|")) locMap.set(key, loc);
+      }
     }
     for (const loc of locations) {
       locMap.set(weatherLocationKey(loc), loc);
@@ -346,8 +423,9 @@ async function saveTravelAdvisorySelections(
           : null,
     }));
 
+    const mergedLocationKeys = mergedLocations.map((l) => weatherLocationKey(l));
     const codeSet = new Set([
-      ...existingCodes,
+      ...(opts.replaceSelections ? [] : existingCodes),
       ...validCodes,
       ...mergedLocations.map((l) => l.countryCode).filter(Boolean),
     ]);
@@ -411,18 +489,11 @@ async function saveTravelAdvisorySelections(
           WHERE Id = @KeepId
         `);
 
-      // Drop stale AdvisoryDetail rows for countries no longer selected
-      const codesJson = JSON.stringify(validCodes);
-      await pool
-        .request()
-        .input("KeepId", sql.Int, keepId)
-        .input("countryCodesJson", sql.NVarChar(sql.MAX), codesJson).query(`
-          DELETE FROM dbo.AdvisoryDetail
-          WHERE TravelAdvisorySelectionId = @KeepId
-            AND UPPER(LTRIM(RTRIM(CountryCode))) NOT IN (
-              SELECT UPPER(LTRIM(RTRIM(value))) FROM OPENJSON(@countryCodesJson)
-            )
-        `);
+      // Drop stale Weather AdvisoryDetail rows (by LocationKey, not country alone)
+      await deleteWeatherAdvisoryDetailsNotInLocationKeys(
+        keepId,
+        mergedLocationKeys,
+      );
     } else {
       await pool
         .request()
@@ -450,6 +521,7 @@ async function saveTravelAdvisorySelections(
       mergedLocationCount: mergedLocations.length,
       countryCodes: validCodes,
       locationSelections: mergedLocations,
+      locationKeys: mergedLocationKeys,
     };
   }
 
@@ -636,6 +708,8 @@ function snapshotsEqual(a, b) {
  * @param {string} countryCode - Country code (e.g. 'US')
  * @param {Object} advisory - Feed shape: id, title, level, levelNumber, link, pubDate, summary, description, restrictions, recommendations, lastUpdated
  * @param {Date} jobRunAt
+ * @param {string} AdvisoryType
+ * @param {string} [locationKey] - Weather: COUNTRY|cityName|state — one detail row per city
  * @returns {Promise<number>} AdvisoryDetail.Id
  */
 async function upsertSavedAdvisory(
@@ -644,10 +718,15 @@ async function upsertSavedAdvisory(
   advisory,
   jobRunAt,
   AdvisoryType,
+  locationKey,
 ) {
   await ensureAllTravelAdvisoryTables();
   const pool = await poolPromise;
   const code = countryCode != null ? String(countryCode).trim() : "";
+  const locKey =
+    locationKey != null && String(locationKey).trim() !== ""
+      ? String(locationKey).trim()
+      : null;
 
   // Common
   const syncedAtUtc = jobRunAt instanceof Date ? jobRunAt : new Date(jobRunAt);
@@ -715,6 +794,7 @@ async function upsertSavedAdvisory(
     .input("TravelAdvisorySelectionId", sql.Int, selectedId)
     .input("FeedId", sql.NVarChar(50), feedId)
     .input("CountryCode", sql.NVarChar(sql.MAX), code)
+    .input("LocationKey", sql.NVarChar(256), locKey)
     .input("Title", sql.NVarChar(500), title)
     .input("Level", sql.NVarChar(100), level)
     .input("LevelNumber", sql.Int, levelNumber)
@@ -729,21 +809,99 @@ async function upsertSavedAdvisory(
     .input("SyncedAtUtc", sql.DateTime, syncedAtUtc)
     .input("ApiResponseJson", sql.NVarChar(sql.MAX), ApiResponseJson);
 
-  const result = await req.query(`
+  // Weather: match by LocationKey so same-country cities get separate rows.
+  // Travel: match by CountryCode; LocationKey stays NULL.
+  const mergeSql = isWeather && locKey
+    ? `
     MERGE [dbo].[AdvisoryDetail] AS t
-    USING (SELECT @TravelAdvisorySelectionId AS TravelAdvisorySelectionId ,  @CountryCode AS CountryCode) AS s
-    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId AND t.CountryCode = s.CountryCode
+    USING (
+      SELECT @TravelAdvisorySelectionId AS TravelAdvisorySelectionId,
+             @LocationKey AS LocationKey
+    ) AS s
+    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId
+      AND t.LocationKey = s.LocationKey
     WHEN MATCHED THEN
-      UPDATE SET FeedId = @FeedId, CountryCode = @CountryCode, Title = @Title, Level = @Level, LevelNumber = @LevelNumber,
-        Link = @Link, PublishedDate = @PublishedDate, Description = @Description, Summary = @Summary,ApiResponseJson=@ApiResponseJson,
-        Restrictions = @Restrictions, Recommendations = @Recommendations, LastUpdatedAtUtc = @LastUpdatedAtUtc, SyncedAtUtc = @SyncedAtUtc,AdvisoryType=@AdvisoryType
+      UPDATE SET FeedId = @FeedId, CountryCode = @CountryCode, LocationKey = @LocationKey,
+        Title = @Title, Level = @Level, LevelNumber = @LevelNumber,
+        Link = @Link, PublishedDate = @PublishedDate, Description = @Description,
+        Summary = @Summary, ApiResponseJson = @ApiResponseJson,
+        Restrictions = @Restrictions, Recommendations = @Recommendations,
+        LastUpdatedAtUtc = @LastUpdatedAtUtc, SyncedAtUtc = @SyncedAtUtc,
+        AdvisoryType = @AdvisoryType
     WHEN NOT MATCHED THEN
-      INSERT (TravelAdvisorySelectionId, FeedId, CountryCode, Title, Level, LevelNumber, Link, PublishedDate, ApiResponseJson,Description, Summary,AdvisoryType, Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
-      VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryCode, @Title, @Level, @LevelNumber, @Link, @PublishedDate,@ApiResponseJson ,@Description, @Summary,@AdvisoryType, @Restrictions, @Recommendations, @LastUpdatedAtUtc, @SyncedAtUtc)
+      INSERT (TravelAdvisorySelectionId, FeedId, CountryCode, LocationKey, Title, Level, LevelNumber,
+        Link, PublishedDate, ApiResponseJson, Description, Summary, AdvisoryType,
+        Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
+      VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryCode, @LocationKey, @Title, @Level, @LevelNumber,
+        @Link, @PublishedDate, @ApiResponseJson, @Description, @Summary, @AdvisoryType,
+        @Restrictions, @Recommendations, @LastUpdatedAtUtc, @SyncedAtUtc)
     OUTPUT INSERTED.Id;
-  `);
+  `
+    : `
+    MERGE [dbo].[AdvisoryDetail] AS t
+    USING (
+      SELECT @TravelAdvisorySelectionId AS TravelAdvisorySelectionId,
+             @CountryCode AS CountryCode
+    ) AS s
+    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId
+      AND t.CountryCode = s.CountryCode
+      AND t.LocationKey IS NULL
+    WHEN MATCHED THEN
+      UPDATE SET FeedId = @FeedId, CountryCode = @CountryCode, Title = @Title, Level = @Level,
+        LevelNumber = @LevelNumber, Link = @Link, PublishedDate = @PublishedDate,
+        Description = @Description, Summary = @Summary, ApiResponseJson = @ApiResponseJson,
+        Restrictions = @Restrictions, Recommendations = @Recommendations,
+        LastUpdatedAtUtc = @LastUpdatedAtUtc, SyncedAtUtc = @SyncedAtUtc,
+        AdvisoryType = @AdvisoryType
+    WHEN NOT MATCHED THEN
+      INSERT (TravelAdvisorySelectionId, FeedId, CountryCode, LocationKey, Title, Level, LevelNumber,
+        Link, PublishedDate, ApiResponseJson, Description, Summary, AdvisoryType,
+        Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
+      VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryCode, NULL, @Title, @Level, @LevelNumber,
+        @Link, @PublishedDate, @ApiResponseJson, @Description, @Summary, @AdvisoryType,
+        @Restrictions, @Recommendations, @LastUpdatedAtUtc, @SyncedAtUtc)
+    OUTPUT INSERTED.Id;
+  `;
+
+  const result = await req.query(mergeSql);
   const rows = result.recordset || [];
   return rows.length > 0 ? rows[0].Id : null;
+}
+
+/**
+ * Delete Weather AdvisoryDetail rows for an Advisory whose LocationKey is not in the keep set.
+ * Also removes legacy Weather rows that have no LocationKey (pre-migration country-only rows).
+ * @param {number} advisoryId
+ * @param {string[]} locationKeys
+ * @returns {Promise<number>} deleted count
+ */
+async function deleteWeatherAdvisoryDetailsNotInLocationKeys(
+  advisoryId,
+  locationKeys,
+) {
+  if (advisoryId == null) return 0;
+  await ensureAdvisoryDetailTable();
+  const pool = await poolPromise;
+  const keys = Array.isArray(locationKeys)
+    ? locationKeys.map((k) => String(k)).filter(Boolean)
+    : [];
+  const keysJson = JSON.stringify(keys);
+  const result = await pool
+    .request()
+    .input("AdvisoryId", sql.Int, advisoryId)
+    .input("keysJson", sql.NVarChar(sql.MAX), keysJson).query(`
+      DELETE FROM [dbo].[AdvisoryDetail]
+      WHERE TravelAdvisorySelectionId = @AdvisoryId
+        AND (
+          LocationKey IS NULL
+          OR LocationKey NOT IN (
+            SELECT value FROM OPENJSON(@keysJson)
+          )
+        )
+    `);
+  return result.rowsAffected && result.rowsAffected[0] != null
+    ? result.rowsAffected[0]
+    : 0;
 }
 
 /**
@@ -1097,25 +1255,96 @@ async function getCountriesForByTeamResponse() {
 }
 
 /**
- * Get all active Weather-type selections with coordinates from Countries table.
- * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string, latitude: number|null, longitude: number|null }>>}
+ * Get all active Weather selections expanded to one row per city from SelectedLocationsJson.
+ * Falls back to country-level coords from Countries when a city has no lat/lon.
+ * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string, LocationKey: string|null, cityName: string|null, state: string|null, latitude: number|null, longitude: number|null }>>}
  */
-async function getActiveWeatherSelectedCountries() {
+async function getActiveWeatherSelectedLocations() {
+  await ensureAdvisoryTable();
   const pool = await poolPromise;
   const result = await pool.request().query(`
     SELECT
       s.Id AS TravelAdvisorySelectedCountriesId,
       s.TenantId,
       s.CountryCode,
-      c.latitude,
-      c.longitude
+      s.SelectedLocationsJson,
+      c.latitude AS CountryLatitude,
+      c.longitude AS CountryLongitude
     FROM [dbo].[Advisory] s
     LEFT JOIN [dbo].[Countries] c
       ON UPPER(LTRIM(RTRIM(s.CountryCode))) = UPPER(LTRIM(RTRIM(c.code)))
     WHERE s.AdvisoryType = 'Weather' AND s.IsActive = 1
     ORDER BY s.Id
   `);
-  return result.recordset || [];
+  const rows = result.recordset || [];
+  const expanded = [];
+
+  for (const row of rows) {
+    let locs = [];
+    if (row.SelectedLocationsJson) {
+      try {
+        const parsed = JSON.parse(row.SelectedLocationsJson);
+        if (Array.isArray(parsed)) locs = parsed;
+      } catch {
+        locs = [];
+      }
+    }
+
+    if (locs.length === 0) {
+      const code = String(row.CountryCode || "")
+        .split(",")
+        .map((c) => c.trim().toUpperCase())
+        .filter(Boolean)[0];
+      if (!code) continue;
+      expanded.push({
+        TravelAdvisorySelectedCountriesId: row.TravelAdvisorySelectedCountriesId,
+        TenantId: row.TenantId,
+        CountryCode: code,
+        LocationKey: null,
+        cityName: null,
+        state: null,
+        latitude: row.CountryLatitude ?? null,
+        longitude: row.CountryLongitude ?? null,
+      });
+      continue;
+    }
+
+    for (const loc of locs) {
+      const countryCode = String(loc.countryCode || "")
+        .trim()
+        .toUpperCase();
+      if (!countryCode) continue;
+      const lat =
+        loc.latitude != null && !Number.isNaN(Number(loc.latitude))
+          ? Number(loc.latitude)
+          : null;
+      const lon =
+        loc.longitude != null && !Number.isNaN(Number(loc.longitude))
+          ? Number(loc.longitude)
+          : null;
+      expanded.push({
+        TravelAdvisorySelectedCountriesId: row.TravelAdvisorySelectedCountriesId,
+        TenantId: row.TenantId,
+        CountryCode: countryCode,
+        LocationKey: weatherLocationKey(loc),
+        cityName: loc.cityName != null ? String(loc.cityName) : null,
+        state: loc.state != null ? String(loc.state) : null,
+        latitude: lat,
+        longitude: lon,
+      });
+    }
+  }
+
+  return expanded;
+}
+
+/**
+ * Get all active Weather-type selections with coordinates from Countries table.
+ * @deprecated Prefer getActiveWeatherSelectedLocations for per-city coords.
+ * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string, latitude: number|null, longitude: number|null }>>}
+ */
+async function getActiveWeatherSelectedCountries() {
+  return getActiveWeatherSelectedLocations();
 }
 
 module.exports = {
@@ -1130,6 +1359,7 @@ module.exports = {
   ensureTravelAdvisoryChangeLogTable: ensureAdvisoryChangeLogTable,
   ensureAllTravelAdvisoryTables,
   saveTravelAdvisorySelections,
+  weatherLocationKey,
   getActiveSelectedCountries,
   getActiveSelectedCountriesForTenantTeam,
   getSelectedCountriesForTenantTeam,
@@ -1141,7 +1371,9 @@ module.exports = {
   advisoryToSnapshot,
   snapshotsEqual,
   upsertSavedAdvisory,
+  deleteWeatherAdvisoryDetailsNotInLocationKeys,
   insertSelectedCountryLog,
   getTravelAdvisoryByTeamData,
   getActiveWeatherSelectedCountries,
+  getActiveWeatherSelectedLocations,
 };

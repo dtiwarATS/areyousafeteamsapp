@@ -1,26 +1,27 @@
 /**
- * Sync weather advisories for selected countries.
- * For each active Weather-type selection, fetches severe alerts from Azure Maps
- * by country coordinates and upserts into AdvisoryDetail.
+ * Sync weather advisories for selected cities.
+ * For each active Weather selection, expands SelectedLocationsJson and fetches
+ * severe alerts from Azure Maps per city coordinates, upserting one AdvisoryDetail
+ * row per LocationKey (COUNTRY|city|state).
  * No change logging for weather.
  * Used by travelAdvisorySelectedCountries-job (cron).
  */
 
 const weatherAdvisory = require("./weather-advisory-feed");
 const {
-  getActiveWeatherSelectedCountries,
+  getActiveWeatherSelectedLocations,
   upsertSavedAdvisory,
+  deleteWeatherAdvisoryDetailsNotInLocationKeys,
 } = require("./travel-advisory-selected-db");
 
 /**
- * Sync weather alerts for all active Weather-type selections.
- * Groups by country code to avoid duplicate API calls, then upserts each selection.
+ * Sync weather alerts for all active Weather-type city selections.
  * @returns {{ success: boolean, count: number, insertCount: number, updateCount: number, jobRunAt: Date, error?: string }}
  */
 async function runWeatherSync() {
   const jobRunAt = new Date();
   try {
-    const selected = await getActiveWeatherSelectedCountries();
+    const selected = await getActiveWeatherSelectedLocations();
 
     if (!selected || selected.length === 0) {
       console.log(
@@ -35,58 +36,70 @@ async function runWeatherSync() {
       };
     }
 
-    const alertsByCode = {};
-    const coordsByCode = {};
-    for (const row of selected) {
-      const code = (row.CountryCode || "").toUpperCase();
-      if (code && row.latitude != null && row.longitude != null) {
-        coordsByCode[code] = { lat: row.latitude, lon: row.longitude };
-      }
-    }
-
-    for (const code of Object.keys(coordsByCode)) {
-      try {
-        const { lat, lon } = coordsByCode[code];
-        alertsByCode[code] = await weatherAdvisory.getWeatherAlerts(lat, lon);
-      } catch (err) {
-        console.error(
-          `weatherAdvisorySync: failed to fetch alerts for ${code}:`,
-          err && err.message,
-        );
-        alertsByCode[code] = [];
-      }
-    }
-
-    let insertCount = 0;
+    // Cache alerts by lat,lon to avoid duplicate API calls for identical coords
+    const alertsByCoord = {};
     let updateCount = 0;
+    const keysByAdvisory = new Map();
 
     for (const row of selected) {
       const {
         TravelAdvisorySelectedCountriesId: selectedId,
         CountryCode: countryCode,
+        LocationKey: locationKey,
+        latitude,
+        longitude,
       } = row;
 
-      const code = (countryCode || "").toUpperCase();
-      const alerts = alertsByCode[code];
-      if (!alerts) continue;
+      const lat = latitude != null ? Number(latitude) : NaN;
+      const lon = longitude != null ? Number(longitude) : NaN;
+      if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
 
+      const coordKey = `${lat},${lon}`;
+      if (!Object.prototype.hasOwnProperty.call(alertsByCoord, coordKey)) {
+        try {
+          alertsByCoord[coordKey] = await weatherAdvisory.getWeatherAlerts(
+            lat,
+            lon,
+          );
+        } catch (err) {
+          console.error(
+            `weatherAdvisorySync: failed to fetch alerts for ${locationKey || countryCode}:`,
+            err && err.message,
+          );
+          alertsByCoord[coordKey] = [];
+        }
+      }
+
+      const alerts = alertsByCoord[coordKey] || [];
       await upsertSavedAdvisory(
         selectedId,
         countryCode,
         alerts,
         jobRunAt,
         "Weather",
+        locationKey || undefined,
       );
       updateCount++;
+
+      if (locationKey) {
+        if (!keysByAdvisory.has(selectedId)) {
+          keysByAdvisory.set(selectedId, []);
+        }
+        keysByAdvisory.get(selectedId).push(locationKey);
+      }
+    }
+
+    for (const [advisoryId, keys] of keysByAdvisory.entries()) {
+      await deleteWeatherAdvisoryDetailsNotInLocationKeys(advisoryId, keys);
     }
 
     console.log(
-      `weatherAdvisorySync: at ${jobRunAt.toISOString()} processed ${selected.length} selected, updates=${updateCount}`,
+      `weatherAdvisorySync: at ${jobRunAt.toISOString()} processed ${selected.length} city selections, updates=${updateCount}`,
     );
     return {
       success: true,
       count: selected.length,
-      insertCount,
+      insertCount: 0,
       updateCount,
       jobRunAt,
     };
