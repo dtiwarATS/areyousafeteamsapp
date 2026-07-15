@@ -4713,8 +4713,10 @@ ORDER BY ACL.EventDateTime DESC;
       const weatherLocationsDb = require("./travelServices/weather-alert-locations-db");
       const source = req.query.source || "all";
       const teamId = req.query.teamId || "";
+      const tenantId = req.query.tenantId || "";
       const data = await weatherLocationsDb.getWeatherAlertLocations(source, {
         teamId,
+        tenantId,
       });
       res.json({ success: true, data });
     } catch (err) {
