@@ -15,6 +15,7 @@ const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
 const { saveToken, getToken } = require("./store");
+const desktopDeviceStore = require("./store/desktopDeviceStore");
 const {
   sendPushNotification,
   getFcmTokensForUsers,
