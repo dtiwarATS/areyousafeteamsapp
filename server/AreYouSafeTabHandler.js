@@ -50,9 +50,7 @@ const UUID_REGEX =
 
 async function loadIncidentFollowUpContext(incId, userAadObjectId) {
   const pool = await poolPromise;
-  const incResult = await pool
-    .request()
-    .input("inc_id", sql.Int, Number(incId))
+  const incResult = await pool.request().input("inc_id", sql.Int, Number(incId))
     .query(`
       SELECT TOP 1
         i.id,
@@ -79,10 +77,11 @@ async function loadIncidentFollowUpContext(incId, userAadObjectId) {
     await incidentService.getUserLanguageIdByAadObjId(userAadObjectId);
   const creatorName =
     incRow?.CREATED_BY_NAME || incRow?.creator_user_name || "";
-  const creatorId =
-    incRow?.creator_aadobject_id || incRow?.created_by || "";
+  const creatorId = incRow?.creator_aadobject_id || incRow?.created_by || "";
   const creatorEmail =
-    typeof incRow?.creator_email === "string" ? incRow.creator_email.trim() : "";
+    typeof incRow?.creator_email === "string"
+      ? incRow.creator_email.trim()
+      : "";
 
   const incCreatedBy = {
     id: creatorId,
@@ -560,7 +559,8 @@ const handlerForSafetyBotTab = (app) => {
 
         await pool
           .request()
-          .input("user_aadobject_id", sql.NVarChar(256), userAadObjectId).query(`
+          .input("user_aadobject_id", sql.NVarChar(256), userAadObjectId)
+          .query(`
             UPDATE MSTeamsTeamsUsers
             SET Generated_code = NULL, Generated_code_expires_at = NULL
             WHERE user_aadobject_id = @user_aadobject_id
@@ -774,15 +774,17 @@ const handlerForSafetyBotTab = (app) => {
         const normalizedDeviceId =
           typeof deviceId === "string" ? deviceId.trim().toLowerCase() : "";
         const normalizedUserAadObjectId =
-          typeof userAadObjectId === "string"
-            ? userAadObjectId.trim()
-            : "";
+          typeof userAadObjectId === "string" ? userAadObjectId.trim() : "";
         const normalizedTeamId =
           typeof teamId === "string" ? teamId.trim() : "";
         const parsedIncId = Number(incId);
         const parsedResponseOptionId = Number(responseOptionId);
 
-        if (!normalizedDeviceId || !normalizedUserAadObjectId || !normalizedTeamId) {
+        if (
+          !normalizedDeviceId ||
+          !normalizedUserAadObjectId ||
+          !normalizedTeamId
+        ) {
           return res.status(400).json({
             success: false,
             message: "deviceId, userAadObjectId, and teamId are required",
@@ -813,9 +815,8 @@ const handlerForSafetyBotTab = (app) => {
           });
         }
 
-        const device = await desktopDeviceStore.getActiveDeviceById(
-          normalizedDeviceId,
-        );
+        const device =
+          await desktopDeviceStore.getActiveDeviceById(normalizedDeviceId);
         if (
           !device ||
           String(device.user_aadobject_id).toLowerCase() !==
@@ -841,9 +842,12 @@ const handlerForSafetyBotTab = (app) => {
         const pool = await poolPromise;
         const userResult = await pool
           .request()
-          .input("user_aadobject_id", sql.NVarChar(256), normalizedUserAadObjectId)
-          .input("team_id", sql.NVarChar(256), normalizedTeamId)
-          .query(`
+          .input(
+            "user_aadobject_id",
+            sql.NVarChar(256),
+            normalizedUserAadObjectId,
+          )
+          .input("team_id", sql.NVarChar(256), normalizedTeamId).query(`
             SELECT TOP 1 user_id, user_name
             FROM MSTeamsTeamsUsers
             WHERE user_aadobject_id = @user_aadobject_id
@@ -939,29 +943,25 @@ const handlerForSafetyBotTab = (app) => {
   app.post(
     "/areyousafetabhandler/submit-desktop-incident-comment",
     async (req, res) => {
-      const {
-        deviceId,
-        userAadObjectId,
-        teamId,
-        incId,
-        comment,
-        commandId,
-      } = req.body ?? {};
+      const { deviceId, userAadObjectId, teamId, incId, comment, commandId } =
+        req.body ?? {};
 
       try {
         const normalizedDeviceId =
           typeof deviceId === "string" ? deviceId.trim().toLowerCase() : "";
         const normalizedUserAadObjectId =
-          typeof userAadObjectId === "string"
-            ? userAadObjectId.trim()
-            : "";
+          typeof userAadObjectId === "string" ? userAadObjectId.trim() : "";
         const normalizedTeamId =
           typeof teamId === "string" ? teamId.trim() : "";
         const parsedIncId = Number(incId);
         const normalizedComment =
           typeof comment === "string" ? comment.trim() : "";
 
-        if (!normalizedDeviceId || !normalizedUserAadObjectId || !normalizedTeamId) {
+        if (
+          !normalizedDeviceId ||
+          !normalizedUserAadObjectId ||
+          !normalizedTeamId
+        ) {
           return res.status(400).json({
             success: false,
             message: "deviceId, userAadObjectId, and teamId are required",
@@ -989,9 +989,8 @@ const handlerForSafetyBotTab = (app) => {
           });
         }
 
-        const device = await desktopDeviceStore.getActiveDeviceById(
-          normalizedDeviceId,
-        );
+        const device =
+          await desktopDeviceStore.getActiveDeviceById(normalizedDeviceId);
         if (
           !device ||
           String(device.user_aadobject_id).toLowerCase() !==
@@ -1017,9 +1016,12 @@ const handlerForSafetyBotTab = (app) => {
         const pool = await poolPromise;
         const userResult = await pool
           .request()
-          .input("user_aadobject_id", sql.NVarChar(256), normalizedUserAadObjectId)
-          .input("team_id", sql.NVarChar(256), normalizedTeamId)
-          .query(`
+          .input(
+            "user_aadobject_id",
+            sql.NVarChar(256),
+            normalizedUserAadObjectId,
+          )
+          .input("team_id", sql.NVarChar(256), normalizedTeamId).query(`
             SELECT TOP 1 user_id, user_name
             FROM MSTeamsTeamsUsers
             WHERE user_aadobject_id = @user_aadobject_id
@@ -2579,9 +2581,10 @@ const handlerForSafetyBotTab = (app) => {
    * websocket (sos_assistance_update), not by polling this endpoint.
    */
   app.get("/areyousafetabhandler/get-desktop-sos-chat", async (req, res) => {
-    const userAadObjectId =
-      req.query.userAadObjectId || req.query.userId || "";
-    const assistId = Number(req.query.assistId || req.query.requestAssistanceid);
+    const userAadObjectId = req.query.userAadObjectId || req.query.userId || "";
+    const assistId = Number(
+      req.query.assistId || req.query.requestAssistanceid,
+    );
 
     try {
       if (!userAadObjectId || !Number.isFinite(assistId) || assistId <= 0) {
@@ -5173,7 +5176,7 @@ const handlerForSafetyBotTab = (app) => {
       `${comments}`,
       "",
     );
-    res.status(200);
+    return res.status(200).json({ success: true });
   });
   app.post("/handleWhatsappResponse", async (req, res) => {
     const body = req.body;
