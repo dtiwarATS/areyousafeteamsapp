@@ -4883,7 +4883,7 @@ ORDER BY ACL.EventDateTime DESC;
             }
           }
         } else if (advisoryType == "Weather") {
-          {
+          try {
             const weatherAdvisory = require("./travelServices/weather-advisory-feed");
             const selections =
               await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
@@ -4951,6 +4951,13 @@ ORDER BY ACL.EventDateTime DESC;
                 keepKeys,
               );
             }
+          } catch (weatherErr) {
+            // Selection/JSON already saved — do not fail the whole Save on detail sync
+            console.error(
+              "saveTravelAdvisorySelection weather detail sync failed:",
+              weatherErr && weatherErr.message,
+              weatherErr && weatherErr.stack,
+            );
           }
         }
 
@@ -4970,7 +4977,11 @@ ORDER BY ACL.EventDateTime DESC;
               : undefined,
         });
       } catch (err) {
-        //  processSafetyBotError(err, "", "", "", "saveTravelAdvisorySelection");
+        console.error(
+          "saveTravelAdvisorySelection failed:",
+          err && err.message,
+          err && err.stack,
+        );
         res.status(500).json({ success: false, error: err.message });
       }
     },

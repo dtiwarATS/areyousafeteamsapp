@@ -123,6 +123,39 @@ async function ensureAdvisoryTable() {
 }
 
 /**
+ * Resolve FK column on AdvisoryDetail: production uses TravelAdvisorySelectionId;
+ * fresh schema (ENSURE_ADVISORY_DETAIL_TABLE_SQL) uses AdvisoryId.
+ * @returns {Promise<'TravelAdvisorySelectionId'|'AdvisoryId'>}
+ */
+let _advisoryDetailFkColPromise = null;
+async function getAdvisoryDetailFkColumn() {
+  if (_advisoryDetailFkColPromise) return _advisoryDetailFkColPromise;
+  _advisoryDetailFkColPromise = (async () => {
+    const pool = await poolPromise;
+    const result = await pool.request().query(`
+      SELECT CASE
+        WHEN COL_LENGTH('dbo.AdvisoryDetail', 'TravelAdvisorySelectionId') IS NOT NULL
+          THEN N'TravelAdvisorySelectionId'
+        ELSE N'AdvisoryId'
+      END AS ColName
+    `);
+    const name =
+      result.recordset && result.recordset[0]
+        ? String(result.recordset[0].ColName)
+        : "AdvisoryId";
+    return name === "TravelAdvisorySelectionId"
+      ? "TravelAdvisorySelectionId"
+      : "AdvisoryId";
+  })();
+  try {
+    return await _advisoryDetailFkColPromise;
+  } catch (err) {
+    _advisoryDetailFkColPromise = null;
+    throw err;
+  }
+}
+
+/**
  * Ensure AdvisoryDetail table exists (create if not).
  * Adds LocationKey for Weather (one detail row per city) without breaking Travel
  * (Travel rows keep LocationKey NULL and stay keyed by country).
@@ -136,6 +169,14 @@ async function ensureAdvisoryDetailTable() {
     IF COL_LENGTH('dbo.AdvisoryDetail', 'LocationKey') IS NULL
     BEGIN
       ALTER TABLE [dbo].[AdvisoryDetail] ADD [LocationKey] NVARCHAR(256) NULL;
+    END
+    IF COL_LENGTH('dbo.AdvisoryDetail', 'ApiResponseJson') IS NULL
+    BEGIN
+      ALTER TABLE [dbo].[AdvisoryDetail] ADD [ApiResponseJson] NVARCHAR(MAX) NULL;
+    END
+    IF COL_LENGTH('dbo.AdvisoryDetail', 'AdvisoryType') IS NULL
+    BEGIN
+      ALTER TABLE [dbo].[AdvisoryDetail] ADD [AdvisoryType] NVARCHAR(50) NULL;
     END
   `);
   // Allow multiple detail rows per Advisory (one per country / city).
@@ -203,6 +244,8 @@ async function ensureAdvisoryDetailTable() {
           WHERE [LocationKey] IS NULL;
     END
   `);
+  // Column may have been added; refresh cache for FK helpers
+  _advisoryDetailFkColPromise = null;
 }
 
 /**
@@ -490,10 +533,17 @@ async function saveTravelAdvisorySelections(
         `);
 
       // Drop stale Weather AdvisoryDetail rows (by LocationKey, not country alone)
-      await deleteWeatherAdvisoryDetailsNotInLocationKeys(
-        keepId,
-        mergedLocationKeys,
-      );
+      try {
+        await deleteWeatherAdvisoryDetailsNotInLocationKeys(
+          keepId,
+          mergedLocationKeys,
+        );
+      } catch (detailCleanupErr) {
+        console.error(
+          "saveTravelAdvisorySelections detail cleanup failed:",
+          detailCleanupErr && detailCleanupErr.message,
+        );
+      }
     } else {
       await pool
         .request()
@@ -622,11 +672,12 @@ async function getActiveSelectedCountriesForTenantTeam(
 async function getSavedAdvisoryForSelectedId(selectedId) {
   if (selectedId == null) return null;
   const pool = await poolPromise;
+  const fkCol = await getAdvisoryDetailFkColumn();
   const result = await pool.request().input("selectedId", sql.Int, selectedId)
     .query(`
       SELECT Level, LevelNumber, Summary, Link, LastUpdatedAtUtc
       FROM [dbo].[AdvisoryDetail]
-      WHERE TravelAdvisorySelectionId = @selectedId
+      WHERE [${fkCol}] = @selectedId
     `);
   const rows = result.recordset || [];
   if (rows.length === 0) return null;
@@ -809,16 +860,18 @@ async function upsertSavedAdvisory(
     .input("SyncedAtUtc", sql.DateTime, syncedAtUtc)
     .input("ApiResponseJson", sql.NVarChar(sql.MAX), ApiResponseJson);
 
+  const fkCol = await getAdvisoryDetailFkColumn();
+
   // Weather: match by LocationKey so same-country cities get separate rows.
   // Travel: match by CountryCode; LocationKey stays NULL.
   const mergeSql = isWeather && locKey
     ? `
     MERGE [dbo].[AdvisoryDetail] AS t
     USING (
-      SELECT @TravelAdvisorySelectionId AS TravelAdvisorySelectionId,
+      SELECT @TravelAdvisorySelectionId AS SelectionId,
              @LocationKey AS LocationKey
     ) AS s
-    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId
+    ON t.[${fkCol}] = s.SelectionId
       AND t.LocationKey = s.LocationKey
     WHEN MATCHED THEN
       UPDATE SET FeedId = @FeedId, CountryCode = @CountryCode, LocationKey = @LocationKey,
@@ -829,7 +882,7 @@ async function upsertSavedAdvisory(
         LastUpdatedAtUtc = @LastUpdatedAtUtc, SyncedAtUtc = @SyncedAtUtc,
         AdvisoryType = @AdvisoryType
     WHEN NOT MATCHED THEN
-      INSERT (TravelAdvisorySelectionId, FeedId, CountryCode, LocationKey, Title, Level, LevelNumber,
+      INSERT ([${fkCol}], FeedId, CountryCode, LocationKey, Title, Level, LevelNumber,
         Link, PublishedDate, ApiResponseJson, Description, Summary, AdvisoryType,
         Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
       VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryCode, @LocationKey, @Title, @Level, @LevelNumber,
@@ -840,10 +893,10 @@ async function upsertSavedAdvisory(
     : `
     MERGE [dbo].[AdvisoryDetail] AS t
     USING (
-      SELECT @TravelAdvisorySelectionId AS TravelAdvisorySelectionId,
+      SELECT @TravelAdvisorySelectionId AS SelectionId,
              @CountryCode AS CountryCode
     ) AS s
-    ON t.TravelAdvisorySelectionId = s.TravelAdvisorySelectionId
+    ON t.[${fkCol}] = s.SelectionId
       AND t.CountryCode = s.CountryCode
       AND t.LocationKey IS NULL
     WHEN MATCHED THEN
@@ -854,7 +907,7 @@ async function upsertSavedAdvisory(
         LastUpdatedAtUtc = @LastUpdatedAtUtc, SyncedAtUtc = @SyncedAtUtc,
         AdvisoryType = @AdvisoryType
     WHEN NOT MATCHED THEN
-      INSERT (TravelAdvisorySelectionId, FeedId, CountryCode, LocationKey, Title, Level, LevelNumber,
+      INSERT ([${fkCol}], FeedId, CountryCode, LocationKey, Title, Level, LevelNumber,
         Link, PublishedDate, ApiResponseJson, Description, Summary, AdvisoryType,
         Restrictions, Recommendations, LastUpdatedAtUtc, SyncedAtUtc)
       VALUES (@TravelAdvisorySelectionId, @FeedId, @CountryCode, NULL, @Title, @Level, @LevelNumber,
@@ -882,6 +935,7 @@ async function deleteWeatherAdvisoryDetailsNotInLocationKeys(
   if (advisoryId == null) return 0;
   await ensureAdvisoryDetailTable();
   const pool = await poolPromise;
+  const fkCol = await getAdvisoryDetailFkColumn();
   const keys = Array.isArray(locationKeys)
     ? locationKeys.map((k) => String(k)).filter(Boolean)
     : [];
@@ -891,7 +945,7 @@ async function deleteWeatherAdvisoryDetailsNotInLocationKeys(
     .input("AdvisoryId", sql.Int, advisoryId)
     .input("keysJson", sql.NVarChar(sql.MAX), keysJson).query(`
       DELETE FROM [dbo].[AdvisoryDetail]
-      WHERE TravelAdvisorySelectionId = @AdvisoryId
+      WHERE [${fkCol}] = @AdvisoryId
         AND (
           LocationKey IS NULL
           OR LocationKey NOT IN (
@@ -980,6 +1034,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     return { advisories: [], countryCodes: [], locationSelections: [] };
   }
 
+  const fkCol = await getAdvisoryDetailFkColumn();
   const advPromise = pool
     .request()
     .input("TenantId", sql.NVarChar(256), tenantIdTrimmed)
@@ -989,7 +1044,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
            d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc,
            ISNULL(c.name, d.CountryCode) AS CountryName, d.CountryCode
     FROM [dbo].[AdvisoryDetail] d
-    INNER JOIN [dbo].[Advisory] s ON s.Id = d.TravelAdvisorySelectionId
+    INNER JOIN [dbo].[Advisory] s ON s.Id = d.[${fkCol}]
     LEFT JOIN [dbo].[Countries] c ON UPPER(LTRIM(RTRIM(c.code))) = UPPER(LTRIM(RTRIM(d.CountryCode)))
     WHERE s.TenantId = @TenantId AND s.IsActive = 1 and d.AdvisoryType=@AdvisoryType
     ORDER BY ISNULL(c.name, d.CountryCode)
