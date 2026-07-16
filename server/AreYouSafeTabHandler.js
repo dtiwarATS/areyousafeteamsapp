@@ -5516,6 +5516,26 @@ ORDER BY ACL.EventDateTime DESC;
     }
   });
 
+  app.get("/areyousafetabhandler/getWeatherAlertLocations", async (req, res) => {
+    try {
+      const weatherLocationsDb = require("./travelServices/weather-alert-locations-db");
+      const source = req.query.source || "all";
+      const teamId = req.query.teamId || "";
+      const tenantId = req.query.tenantId || "";
+      const data = await weatherLocationsDb.getWeatherAlertLocations(source, {
+        teamId,
+        tenantId,
+      });
+      res.json({ success: true, data });
+    } catch (err) {
+      console.error(
+        "Error in /areyousafetabhandler/getWeatherAlertLocations:",
+        err,
+      );
+      res.status(500).json({ success: false, error: err.message, data: null });
+    }
+  });
+
   app.get(
     "/areyousafetabhandler/getTravelAdvisoryByTeam/",
     async (req, res) => {
@@ -5587,6 +5607,16 @@ ORDER BY ACL.EventDateTime DESC;
         const countryCodes = Array.isArray(body.countryCodes)
           ? body.countryCodes
           : [];
+        const locationSelections = Array.isArray(body.locationSelections)
+          ? body.locationSelections
+          : [];
+        const removedLocationKeys = Array.isArray(body.removedLocationKeys)
+          ? body.removedLocationKeys
+          : [];
+        const removedCountryCodes = Array.isArray(body.removedCountryCodes)
+          ? body.removedCountryCodes
+          : [];
+        const replaceSelections = body.replaceSelections === true;
 
         if (!tenantId) {
           return res.status(400).json({
@@ -5606,6 +5636,8 @@ ORDER BY ACL.EventDateTime DESC;
           userId,
           countryCodes,
           advisoryType,
+          locationSelections,
+          { removedLocationKeys, removedCountryCodes, replaceSelections },
         );
 
         let detailSavedCount = 0;
@@ -5659,38 +5691,81 @@ ORDER BY ACL.EventDateTime DESC;
             }
           }
         } else if (advisoryType == "Weather") {
-          {
-            const parts = String(coordsStr)
-              .trim()
-              .split(/[,\s]+/);
-            const lat = parseFloat(parts[0]);
-            const lon = parseFloat(parts[1]);
-            if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
-              const weatherAdvisory = require("./travelServices/weather-advisory-feed");
-              const results = await weatherAdvisory.getWeatherAlerts(lat, lon);
-              const selections =
-                await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
-                  tenantId,
-                  "",
-                  "Weather",
-                );
-              const now = new Date();
-              for (const row of selections) {
-                const advisoryId = row.TravelAdvisorySelectedCountriesId;
-                const countryCode =
-                  results.length > 0
-                    ? (results[0].countryCode || "").trim()
-                    : "";
+          try {
+            const weatherAdvisory = require("./travelServices/weather-advisory-feed");
+            const selections =
+              await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
+                tenantId,
+                "",
+                "Weather",
+              );
+
+            const effectiveLocations =
+              Array.isArray(result.locationSelections) &&
+              result.locationSelections.length > 0
+                ? result.locationSelections
+                : locationSelections;
+
+            const now = new Date();
+            const weatherLocationKey =
+              travelSelectedDb.weatherLocationKey ||
+              ((loc) =>
+                `${String(loc.countryCode || "")
+                  .trim()
+                  .toUpperCase()}|${String(loc.cityName || "").trim()}|${
+                  loc.state != null ? String(loc.state).trim() : ""
+                }`);
+
+            // One AdvisoryDetail row per city LocationKey (not one per country)
+            for (const row of selections) {
+              const advisoryId = row.TravelAdvisorySelectedCountriesId;
+
+              for (const loc of effectiveLocations) {
+                const code = String(loc.countryCode || "")
+                  .trim()
+                  .toUpperCase();
+                const lat = Number(loc.latitude);
+                const lon = Number(loc.longitude);
+                if (!code || Number.isNaN(lat) || Number.isNaN(lon)) continue;
+
+                const locKey = weatherLocationKey(loc);
+                let alerts = [];
+                try {
+                  alerts = await weatherAdvisory.getWeatherAlerts(lat, lon);
+                } catch (err) {
+                  console.error(
+                    `saveTravelAdvisorySelection weather fetch failed for ${locKey}:`,
+                    err && err.message,
+                  );
+                  alerts = [];
+                }
+
                 await travelSelectedDb.upsertSavedAdvisory(
                   advisoryId,
-                  countryCode,
-                  results,
+                  code,
+                  alerts,
                   now,
                   "Weather",
+                  locKey,
                 );
                 detailSavedCount++;
               }
+
+              const keepKeys = effectiveLocations
+                .map((l) => weatherLocationKey(l))
+                .filter(Boolean);
+              await travelSelectedDb.deleteWeatherAdvisoryDetailsNotInLocationKeys(
+                advisoryId,
+                keepKeys,
+              );
             }
+          } catch (weatherErr) {
+            // Selection/JSON already saved — do not fail the whole Save on detail sync
+            console.error(
+              "saveTravelAdvisorySelection weather detail sync failed:",
+              weatherErr && weatherErr.message,
+              weatherErr && weatherErr.stack,
+            );
           }
         }
 
@@ -5710,7 +5785,11 @@ ORDER BY ACL.EventDateTime DESC;
               : undefined,
         });
       } catch (err) {
-        //  processSafetyBotError(err, "", "", "", "saveTravelAdvisorySelection");
+        console.error(
+          "saveTravelAdvisorySelection failed:",
+          err && err.message,
+          err && err.stack,
+        );
         res.status(500).json({ success: false, error: err.message });
       }
     },
