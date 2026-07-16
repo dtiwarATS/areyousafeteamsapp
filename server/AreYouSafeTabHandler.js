@@ -15,7 +15,7 @@ const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
 const { saveToken, getToken } = require("./store");
-
+const socketService = require("./socket/socketService");
 const desktopDeviceStore = require("./store/desktopDeviceStore");
 const {
   sendPushNotification,

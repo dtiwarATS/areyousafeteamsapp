@@ -28,6 +28,7 @@ const {
 } = require("../api/apiMethods");
 
 const desktopDeviceStore = require("../store/desktopDeviceStore");
+const socketService = require("../socket/socketService");
 const {
   sendEmail,
   formatedDate,
