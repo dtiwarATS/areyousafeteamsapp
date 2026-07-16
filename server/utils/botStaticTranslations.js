@@ -62,10 +62,10 @@ const getBotStaticTextWithIncident = (
   translatedText,
   fallback,
 ) => {
-  if (!hasIncidentTranslations(translatedText)) {
-    return fallback;
-  }
   const staticText = getBotStaticText(key, languageId, fallback);
+  if (!hasIncidentTranslations(translatedText)) {
+    return staticText;
+  }
   return getTranslatedField(translatedText, key, languageId, staticText);
 };
 
@@ -190,6 +190,52 @@ const buildSafeResponseThankYouText = (
   });
 };
 
+/** Strip Teams Adaptive Card / mention markup for desktop plain text. */
+const stripTeamsMarkupForPlainText = (text) => {
+  if (!text || typeof text !== "string") {
+    return "";
+  }
+
+  return text
+    .replace(/<at>(.*?)<\/at>/gi, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .trim();
+};
+
+/**
+ * Same follow-up copy the bot sends after Safe / Need assistance:
+ * thank-you DM + Additional Comments card labels.
+ */
+const buildDesktopSafeResponseFollowUp = (
+  incCreatedBy,
+  languageId,
+  translatedText,
+) => {
+  const confirmationMessage = stripTeamsMarkupForPlainText(
+    buildSafeResponseThankYouText(incCreatedBy, languageId, translatedText),
+  );
+  const additionalCommentsLabel = getBotStaticTextWithIncident(
+    "additionalComments",
+    languageId,
+    translatedText,
+    "Additional Comments",
+  );
+  const sendButtonLabel = getBotStaticTextWithIncident(
+    "sendButton",
+    languageId,
+    translatedText,
+    "Send",
+  );
+
+  return {
+    confirmationMessage,
+    ui: {
+      additionalCommentsLabel,
+      sendButtonLabel,
+    },
+  };
+};
+
 const buildSubmitCommentResponseText = (
   commentVal,
   incCreatedBy,
@@ -223,6 +269,65 @@ const buildSubmitCommentResponseText = (
     "✔️ Your safety status has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible.",
   );
   return applyBotStaticPlaceholders(text, { incidentCreator: incCreatedBy });
+};
+
+/**
+ * Same confirmation text the bot shows after submit_comment.
+ */
+const buildDesktopSubmitCommentFollowUp = (
+  commentVal,
+  incCreatedBy,
+  languageId,
+  translatedText,
+) => ({
+  confirmationMessage: stripTeamsMarkupForPlainText(
+    buildSubmitCommentResponseText(
+      commentVal,
+      incCreatedBy,
+      languageId,
+      translatedText,
+    ),
+  ),
+});
+
+/**
+ * Plain-text closed/unavailable incident message for desktop API 409 responses.
+ * Mirrors Teams bot sendIncStatusValidation copy (with optional incident translations).
+ */
+const buildDesktopIncStatusClosedMessage = (
+  incStatusId,
+  { incTitle, incCreatedBy, languageId, translatedText },
+) => {
+  if (incStatusId === -1) {
+    return stripTeamsMarkupForPlainText(
+      getBotStaticTextWithIncident(
+        "incidentNoLongerAvailable",
+        languageId,
+        translatedText,
+        "This incident is no longer available.",
+      ),
+    );
+  }
+  if (incStatusId === 2) {
+    const title = incTitle || "incident";
+    const creatorName = incCreatedBy?.name || "";
+    const fallback = creatorName
+      ? `The ${title} is closed. Please contact ${creatorName}`
+      : `The ${title} is closed.`;
+    const template = getBotStaticTextWithIncident(
+      "incidentClosedContactCreator",
+      languageId,
+      translatedText,
+      fallback,
+    );
+    return stripTeamsMarkupForPlainText(
+      applyBotStaticPlaceholders(template, {
+        incidentCreator: incCreatedBy,
+        IncidentTitle: title,
+      }),
+    );
+  }
+  return null;
 };
 
 const buildUserCommentedCard = (
@@ -330,6 +435,10 @@ module.exports = {
   getIncidentTypeTitle,
   buildAcknowledgeMsgToCreator,
   buildSafeResponseThankYouText,
+  buildDesktopSafeResponseFollowUp,
+  buildDesktopSubmitCommentFollowUp,
+  buildDesktopIncStatusClosedMessage,
+  stripTeamsMarkupForPlainText,
   buildUserRespondedCard,
   buildUserCommentedCard,
   buildSubmitCommentResponseText,

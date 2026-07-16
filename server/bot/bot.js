@@ -92,6 +92,9 @@ const {
   getSafetyCheckMessageText,
   SafetyCheckCard,
   getSafetyCheckTypeCard,
+  getHelloText,
+  getTranslatedOptionText,
+  resolveTranslatedResponseOptionData,
 } = require("../models/SafetyCheckCard");
 const { json } = require("body-parser");
 const { count } = require("console");
@@ -3161,6 +3164,442 @@ const sendSafetyCheckMsgViaEmail = async (
   }
 };
 
+const getDesktopNotificationLevel = (incTypeId) => {
+  const typeId = Number(incTypeId);
+  if (typeId === 1) {
+    return "warning";
+  }
+  if (typeId === 2) {
+    return "critical";
+  }
+  return "reminder";
+};
+
+function extractUserAadObjIds(members) {
+  return (members || [])
+    .map(
+      (member) =>
+        member?.userAadObjId || member?.user_aadobject_id || member?.id,
+    )
+    .filter((id) => typeof id === "string" && id.trim() !== "");
+}
+
+function stripTeamsMarkupForDesktop(text, incTitle = "") {
+  if (!text || typeof text !== "string") {
+    return "";
+  }
+
+  return text
+    .replace(/<at>(.*?)<\/at>/gi, "$1")
+    .replace(/\*\*(.*?)\*\*/g, "$1")
+    .replace(/\{IncidentTitle\}/g, incTitle || "")
+    .replace(/<IncidentCreator>/gi, "")
+    .replace(/<IncidentTitle>/gi, incTitle || "")
+    .trim();
+}
+
+function resolveDesktopCreatorName(incData, explicitCreatedByName = "") {
+  const explicit =
+    typeof explicitCreatedByName === "string"
+      ? explicitCreatedByName.trim()
+      : "";
+  if (explicit) {
+    return explicit;
+  }
+
+  if (!incData || typeof incData !== "object") {
+    return "";
+  }
+
+  const candidates = [
+    incData.CREATED_BY_NAME,
+    incData.incCreatedByName,
+    typeof incData.incCreatedBy === "object" ? incData.incCreatedBy?.name : "",
+    typeof incData.incCreatedBy === "string" ? incData.incCreatedBy : "",
+    incData.createdByName,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
+}
+
+function resolveDesktopCreatorPayload(incData, createdByName) {
+  const name = typeof createdByName === "string" ? createdByName.trim() : "";
+  if (!name) {
+    return null;
+  }
+
+  const id =
+    (typeof incData?.incCreatedBy === "object" && incData.incCreatedBy?.id) ||
+    incData?.created_by ||
+    "";
+  const email =
+    (typeof incData?.incCreatedBy === "object" &&
+      incData.incCreatedBy?.email) ||
+    "";
+
+  return {
+    name,
+    id: typeof id === "string" ? id : String(id || ""),
+    email: typeof email === "string" ? email.trim() : "",
+  };
+}
+
+function pickIncField(incData, ...keys) {
+  if (!incData || typeof incData !== "object") {
+    return "";
+  }
+  for (const key of keys) {
+    const value = incData[key];
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return "";
+}
+
+function appendLabeledDesktopSection(parts, label, value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text) {
+    return;
+  }
+  parts.push(`${label}:\n${text}`);
+}
+
+/**
+ * Plain-text message body for desktop types 2–5 (mirrors Teams Adaptive Card sections).
+ */
+async function buildDesktopIncidentMessageBody({
+  incTypeId,
+  incId,
+  incTitle,
+  createdByName,
+  rawGuidance,
+  responseSelectedUsersList,
+  incData,
+}) {
+  const typeId = Number(incTypeId) || 1;
+  const creatorName = createdByName || "the safety team";
+  const guidance = stripTeamsMarkupForDesktop(rawGuidance, incTitle);
+  const additionalInfo = pickIncField(
+    incData,
+    "additionalInfo",
+    "ADDITIONAL_INFO",
+    "additional_info",
+  );
+  const travelUpdate = pickIncField(
+    incData,
+    "travelUpdate",
+    "TRAVEL_UPDATE",
+    "travel_update",
+  );
+  const contactInfo = pickIncField(
+    incData,
+    "contactInfo",
+    "CONTACT_INFO",
+    "contact_info",
+  );
+  const situation = pickIncField(incData, "situation", "SITUATION");
+
+  if (typeId === 1) {
+    const safetyCheckMessageText = await getSafetyCheckMessageText(
+      incId,
+      creatorName,
+      incTitle,
+      [],
+      responseSelectedUsersList,
+      typeId,
+      rawGuidance,
+    );
+    return stripTeamsMarkupForDesktop(safetyCheckMessageText, incTitle);
+  }
+
+  const parts = [];
+
+  if (typeId === 2) {
+    const safetyAlertText = await getSafetyCheckMessageText(
+      incId,
+      creatorName,
+      incTitle,
+      [],
+      responseSelectedUsersList,
+      typeId,
+      rawGuidance,
+    );
+    const intro = stripTeamsMarkupForDesktop(safetyAlertText, incTitle);
+    if (intro) {
+      parts.push(intro);
+    }
+    if (incTitle) {
+      parts.push(`Safety Alert: ${incTitle}`);
+    }
+    appendLabeledDesktopSection(parts, "Guidance", guidance);
+    return parts.join("\n\n");
+  }
+
+  if (typeId === 3) {
+    parts.push(`This is an important bulletin from ${creatorName}.`);
+    if (incTitle) {
+      parts.push(`Important Bulletin: ${incTitle}`);
+    }
+    appendLabeledDesktopSection(parts, "Guidance", guidance);
+    appendLabeledDesktopSection(
+      parts,
+      "Additional Information",
+      additionalInfo,
+    );
+    return parts.join("\n\n");
+  }
+
+  if (typeId === 4) {
+    parts.push(`This is a travel advisory from ${creatorName}.`);
+    if (incTitle) {
+      parts.push(`Travel Advisory: ${incTitle}`);
+    }
+    appendLabeledDesktopSection(parts, "Travel Update", travelUpdate);
+    appendLabeledDesktopSection(parts, "Guidance", guidance);
+    appendLabeledDesktopSection(parts, "Contact Information", contactInfo);
+    return parts.join("\n\n");
+  }
+
+  if (typeId === 5) {
+    parts.push(`This is a stakeholder notice from ${creatorName}.`);
+    if (incTitle) {
+      parts.push(`Stakeholder Notice: ${incTitle}`);
+    }
+    appendLabeledDesktopSection(parts, "Situation", situation);
+    appendLabeledDesktopSection(
+      parts,
+      "Additional Information",
+      additionalInfo,
+    );
+    return parts.join("\n\n");
+  }
+
+  return guidance || stripTeamsMarkupForDesktop(rawGuidance, incTitle);
+}
+
+function normalizeDesktopResponseOptions(
+  responseOptions,
+  incTypeId,
+  translatedText = null,
+  languageId = null,
+) {
+  const typeId = Number(incTypeId) || 1;
+  const filtered = (Array.isArray(responseOptions) ? responseOptions : [])
+    .filter(
+      (option) =>
+        option &&
+        Number.isFinite(Number(option.id)) &&
+        typeof option.option === "string" &&
+        option.option.trim() !== "",
+    )
+    .map((option) => ({
+      id: Number(option.id),
+      option: option.option.trim(),
+      color: option.color || undefined,
+    }));
+
+  if (filtered.length > 0) {
+    return filtered;
+  }
+
+  if (typeId === 1) {
+    return [
+      {
+        id: 1,
+        option: getTranslatedOptionText(
+          translatedText,
+          "I am safe",
+          languageId,
+          "I am safe",
+        ),
+        color: "#4CAF50",
+      },
+      {
+        id: 2,
+        option: getTranslatedOptionText(
+          translatedText,
+          "I need assistance",
+          languageId,
+          "I need assistance",
+        ),
+        color: "#F44336",
+      },
+    ];
+  }
+
+  // Types 2–5: single Acknowledge when incident has no response options
+  return [
+    {
+      id: 1,
+      option: getTranslatedOptionText(
+        translatedText,
+        "Acknowledged",
+        languageId,
+        "Acknowledged",
+      ),
+    },
+  ];
+}
+
+const sendSafetyCheckMsgViaDesktop = async (
+  companyData,
+  userAadObjIds,
+  incId,
+  incTitle,
+  incData,
+  responseOptions,
+  createdByNameArg = "",
+) => {
+  try {
+    const normalizedUserAadObjIds = (userAadObjIds || []).filter(
+      (id) => typeof id === "string" && id.trim() !== "",
+    );
+    if (!normalizedUserAadObjIds.length) {
+      return;
+    }
+
+    const pairedDevices =
+      await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(
+        normalizedUserAadObjIds,
+      );
+    const registeredDevices = pairedDevices.filter((device) =>
+      socketService.isDeviceSocketConnected(String(device.device_id)),
+    );
+
+    console.log("[DESKTOP] device lookup for incident", {
+      incId,
+      recipientCount: normalizedUserAadObjIds.length,
+      pairedDeviceCount: pairedDevices.length,
+      registeredDeviceCount: registeredDevices.length,
+    });
+
+    if (!registeredDevices.length) {
+      console.log(
+        "[DESKTOP] No socket-registered devices for incident recipients",
+        {
+          incId,
+          userCount: normalizedUserAadObjIds.length,
+          pairedDeviceCount: pairedDevices.length,
+        },
+      );
+      return;
+    }
+
+    const organizationId = companyData?.userTenantId || "";
+    const incTypeId = Number(incData?.incTypeId || incData?.inc_type_id || 1);
+    const level = getDesktopNotificationLevel(incTypeId);
+    const rawGuidance =
+      incData?.incGuidance || incData?.GUIDANCE || incData?.guidance || "";
+    const createdByName = resolveDesktopCreatorName(incData, createdByNameArg);
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
+    const responseSelectedUsersList =
+      incData?.incResponseSelectedUsersList ||
+      incData?.responseSelectedUsersList ||
+      [];
+    const translatedText = getIncidentTranslatedText(incData);
+
+    const messageBody = await buildDesktopIncidentMessageBody({
+      incTypeId,
+      incId,
+      incTitle,
+      createdByName,
+      rawGuidance,
+      responseSelectedUsersList,
+      incData,
+    });
+    const resolvedGuidance = messageBody || rawGuidance;
+
+    for (const device of registeredDevices) {
+      const deviceId = String(device.device_id).toLowerCase();
+      const recipientAadObjectId = String(
+        device.user_aadobject_id || "",
+      ).trim();
+      let languageId = DEFAULT_LANGUAGE_ID;
+      try {
+        if (recipientAadObjectId) {
+          languageId =
+            (await incidentService.getUserLanguageIdByAadObjId(
+              recipientAadObjectId,
+            )) || DEFAULT_LANGUAGE_ID;
+        }
+      } catch (langErr) {
+        console.warn(
+          "[DESKTOP] getUserLanguageIdByAadObjId failed; using default",
+          langErr?.message || langErr,
+        );
+      }
+      const helloText = getHelloText(languageId, translatedText);
+
+      const translatedOptionData = resolveTranslatedResponseOptionData(
+        translatedText,
+        languageId,
+        {
+          responseOptions: Array.isArray(responseOptions)
+            ? responseOptions
+            : [],
+          responseType: "buttons",
+        },
+      );
+      const desktopResponseOptions = normalizeDesktopResponseOptions(
+        translatedOptionData?.responseOptions,
+        incTypeId,
+        translatedText,
+        languageId,
+      );
+
+      const command = {
+        protocolVersion: 1,
+        commandId: crypto.randomUUID(),
+        organizationId,
+        deviceId,
+        type: "showPopup",
+        priority: incTypeId === 2 ? "critical" : "high",
+        requiresAck: true,
+        expiresAt,
+        payload: {
+          incId: String(incId),
+          incTitle,
+          incTypeId,
+          incGuidance: resolvedGuidance,
+          helloText,
+          messageBody,
+          level,
+          teamId: companyData?.teamId || "",
+          creator: resolveDesktopCreatorPayload(incData, createdByName),
+          responseOptions: desktopResponseOptions,
+          responseType: "buttons",
+          sentAt: new Date().toISOString(),
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      socketService.emitCommandToDevice(deviceId, command);
+
+      console.log("[DESKTOP] command emitted for incident", {
+        incId,
+        deviceId,
+        userAadObjectId: device.user_aadobject_id,
+        commandId: command.commandId,
+        incTypeId,
+        languageId,
+        responseOptionCount: desktopResponseOptions.length,
+      });
+    }
+  } catch (err) {
+    console.error(
+      "[DESKTOP] sendSafetyCheckMsgViaDesktop error:",
+      err?.message,
+    );
+  }
+};
+
 function getSafetyCheckEmailHtml(senderName, incidentName, incid, user) {
   let safeUrl =
     process.env.serviceUrl +
@@ -4602,6 +5041,19 @@ const sendSafetyCheckMessageAsync = async (
             incData,
           );
         }
+        incData.incCreatedByName =
+          incData.incCreatedByName || incCreatedByUserObj.name;
+        incData.CREATED_BY_NAME =
+          incData.CREATED_BY_NAME || incCreatedByUserObj.name;
+        sendSafetyCheckMsgViaDesktop(
+          companyData,
+          extractUserAadObjIds(allMembersArr),
+          incId,
+          incTitle,
+          incData,
+          responseOptionData.responseOptions,
+          incCreatedByUserObj.name || createdByUserInfo.user_name,
+        );
         /*const incCreatedByUserArr = [];
         const incCreatedByUserObj = {
           id: createdByUserInfo.user_id,
@@ -5072,6 +5524,19 @@ const NewsendSafetyCheckMessageAsync = async (
             incData,
           );
         }
+        incData.incCreatedByName =
+          incData.incCreatedByName || createdByUserInfo.user_name;
+        incData.CREATED_BY_NAME =
+          incData.CREATED_BY_NAME || createdByUserInfo.user_name;
+        sendSafetyCheckMsgViaDesktop(
+          companyData,
+          userAadObjIds,
+          incId,
+          incTitle,
+          incData,
+          responseOptionData.responseOptions,
+          createdByUserInfo.user_name || incCreatedByUserObj.name,
+        );
       }
     } catch (err) {
       console.log(`sendSafetyCheckMessage error: ${err} `);
@@ -6306,6 +6771,26 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
+    sendSafetyCheckMsgViaDesktop(
+      companyData,
+      extractUserAadObjIds(subEventObj.eventMembers),
+      incId,
+      incTitle,
+      {
+        ...subEventObj,
+        incGuidance,
+        incTypeId: subEventObj.incTypeId || subEventObj.inc_type_id || 1,
+        CREATED_BY_NAME:
+          incCreatedByUserObj?.name || subEventObj.CREATED_BY_NAME,
+        incCreatedByName:
+          incCreatedByUserObj?.name || subEventObj.incCreatedByName,
+        incCreatedBy: incCreatedByUserObj,
+      },
+      responseOptionData.responseOptions,
+      incCreatedByUserObj?.name ||
+        subEventObj.createdByName ||
+        subEventObj.CREATED_BY_NAME,
+    );
   });
 };
 

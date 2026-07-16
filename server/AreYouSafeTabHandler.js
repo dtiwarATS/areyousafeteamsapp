@@ -29,10 +29,117 @@ const {
   buildIncFileContentUrl,
   isAllowedFileViewUrl,
 } = require("./utils/incidentFileViewer");
+const {
+  buildDesktopSafeResponseFollowUp,
+  buildDesktopSubmitCommentFollowUp,
+  buildDesktopIncStatusClosedMessage,
+  getIncidentTranslatedText,
+  DEFAULT_LANGUAGE_ID,
+} = require("./utils/botStaticTranslations");
+const {
+  buildDesktopSosChatSnapshot,
+  buildDesktopSosClosedPayload,
+} = require("./utils/desktopSosChatCopy");
+const { getHelloText } = require("./models/SafetyCheckCard");
 const { Sms } = require("twilio/lib/twiml/VoiceResponse");
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function loadIncidentFollowUpContext(incId, userAadObjectId) {
+  const pool = await poolPromise;
+  const incResult = await pool.request().input("inc_id", sql.Int, Number(incId))
+    .query(`
+      SELECT TOP 1
+        i.id,
+        i.created_by,
+        i.CREATED_BY_NAME,
+        i.RESPONSE_OPTIONS,
+        i.TRANSLATED_TEXT_JSON,
+        i.inc_name,
+        u.user_aadobject_id AS creator_aadobject_id,
+        u.email AS creator_email,
+        u.user_name AS creator_user_name
+      FROM MSTeamsIncidents i
+      LEFT JOIN MSTeamsTeamsUsers u
+        ON (
+          u.user_id = i.created_by
+          OR LOWER(u.user_aadobject_id) = LOWER(CAST(i.created_by AS NVARCHAR(256)))
+        )
+      WHERE i.id = @inc_id
+      ORDER BY CASE WHEN u.email IS NOT NULL AND LTRIM(RTRIM(u.email)) <> '' THEN 0 ELSE 1 END
+    `);
+
+  const incRow = incResult?.recordset?.[0] || null;
+  const languageId =
+    await incidentService.getUserLanguageIdByAadObjId(userAadObjectId);
+  const creatorName =
+    incRow?.CREATED_BY_NAME || incRow?.creator_user_name || "";
+  const creatorId = incRow?.creator_aadobject_id || incRow?.created_by || "";
+  const creatorEmail =
+    typeof incRow?.creator_email === "string"
+      ? incRow.creator_email.trim()
+      : "";
+
+  const incCreatedBy = {
+    id: creatorId,
+    name: creatorName,
+  };
+  const translatedText = getIncidentTranslatedText({
+    TRANSLATED_TEXT_JSON: incRow?.TRANSLATED_TEXT_JSON,
+  });
+
+  let responseLabel = null;
+  if (incRow?.RESPONSE_OPTIONS) {
+    try {
+      const options =
+        typeof incRow.RESPONSE_OPTIONS === "string"
+          ? JSON.parse(incRow.RESPONSE_OPTIONS)
+          : incRow.RESPONSE_OPTIONS;
+      if (Array.isArray(options)) {
+        responseLabel = options;
+      }
+    } catch {
+      responseLabel = null;
+    }
+  }
+
+  return {
+    languageId,
+    incCreatedBy,
+    translatedText,
+    responseOptions: responseLabel,
+    incTitle: incRow?.inc_name || "",
+    creator: creatorName
+      ? {
+          name: creatorName,
+          id: creatorId || "",
+          email: creatorEmail || "",
+        }
+      : null,
+  };
+}
+
+async function getDesktopIncStatusClosedResponse(parsedIncId, userAadObjectId) {
+  const incStatusId = await incidentService.getIncStatus(parsedIncId);
+  if (incStatusId === -1 || incStatusId === 2) {
+    const followUpCtx = await loadIncidentFollowUpContext(
+      parsedIncId,
+      userAadObjectId,
+    );
+    const message = buildDesktopIncStatusClosedMessage(incStatusId, {
+      incTitle: followUpCtx.incTitle,
+      incCreatedBy: followUpCtx.incCreatedBy,
+      languageId: followUpCtx.languageId,
+      translatedText: followUpCtx.translatedText,
+    });
+    return {
+      blocked: true,
+      message: message || "Incident is closed or no longer accepting responses",
+    };
+  }
+  return { blocked: false };
+}
 
 /**
  * Resolve Teams ID (29:1xxx) to AAD Object ID (UUID).
@@ -361,6 +468,631 @@ const handlerForSafetyBotTab = (app) => {
       });
     }
   });
+
+  app.post(
+    "/areyousafetabhandler/verify-desktop-pairing-code",
+    async (req, res) => {
+      const code =
+        typeof req.body?.code === "string" ? req.body.code.trim() : "";
+      const deviceMetadata = req.body?.deviceMetadata || {};
+
+      if (!code) {
+        return res.status(400).json({
+          success: false,
+          message: "code is required",
+        });
+      }
+
+      const machineName =
+        typeof deviceMetadata.machineName === "string"
+          ? deviceMetadata.machineName.trim()
+          : "";
+      const osVersion =
+        typeof deviceMetadata.osVersion === "string"
+          ? deviceMetadata.osVersion.trim()
+          : "";
+      const agentVersion =
+        typeof deviceMetadata.agentVersion === "string"
+          ? deviceMetadata.agentVersion.trim()
+          : "";
+      const currentUser =
+        typeof deviceMetadata.currentUser === "string"
+          ? deviceMetadata.currentUser.trim()
+          : "";
+      const deviceFingerprint =
+        typeof deviceMetadata.deviceFingerprint === "string"
+          ? deviceMetadata.deviceFingerprint.trim()
+          : "";
+
+      if (
+        !machineName ||
+        !osVersion ||
+        !agentVersion ||
+        !currentUser ||
+        !deviceFingerprint
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: "deviceMetadata is incomplete",
+        });
+      }
+
+      try {
+        const pool = await poolPromise;
+
+        const userResult = await pool
+          .request()
+          .input("code", sql.NVarChar(10), code).query(`
+            SELECT TOP 1 team_id, user_aadobject_id, user_name, email, tenantid
+            FROM MSTeamsTeamsUsers
+            WHERE Generated_code = @code
+              AND (Generated_code_expires_at IS NULL OR Generated_code_expires_at > SYSUTCDATETIME())
+          `);
+
+        const user = userResult?.recordset?.[0];
+        if (!user) {
+          return res.status(401).json({
+            success: false,
+            message: "Invalid or expired code",
+          });
+        }
+
+        const deviceId = crypto.randomUUID();
+        const userAadObjectId = user.user_aadobject_id;
+
+        await desktopDeviceStore.upsertPairedDevice({
+          deviceId,
+          userAadObjectId,
+          tenantId: user.tenantid,
+          teamId: user.team_id,
+          deviceMetadata: {
+            machineName,
+            osVersion,
+            agentVersion,
+            currentUser,
+            deviceFingerprint,
+          },
+        });
+
+        await pool
+          .request()
+          .input("user_aadobject_id", sql.NVarChar(256), userAadObjectId)
+          .query(`
+            UPDATE MSTeamsTeamsUsers
+            SET Generated_code = NULL, Generated_code_expires_at = NULL
+            WHERE user_aadobject_id = @user_aadobject_id
+          `);
+
+        return res.status(200).json({
+          success: true,
+          deviceId,
+          userAadObjectId,
+          userName: user.user_name,
+          email: user.email,
+          tenantId: user.tenantid,
+          teamId: user.team_id,
+        });
+      } catch (err) {
+        console.error("Error in verify-desktop-pairing-code:", err);
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          "",
+          "error in /areyousafetabhandler/verify-desktop-pairing-code",
+        );
+        return res.status(500).json({
+          success: false,
+          message: "Failed to verify desktop pairing code",
+        });
+      }
+    },
+  );
+
+  app.post("/areyousafetabhandler/unpair-desktop-device", async (req, res) => {
+    const deviceId =
+      typeof req.body?.deviceId === "string" ? req.body.deviceId.trim() : "";
+    const userAadObjectId =
+      typeof req.body?.userAadObjectId === "string"
+        ? req.body.userAadObjectId.trim()
+        : "";
+
+    if (!deviceId || !userAadObjectId) {
+      return res.status(400).json({
+        success: false,
+        message: "deviceId and userAadObjectId are required",
+      });
+    }
+
+    try {
+      const revoked = await desktopDeviceStore.revokeDevice({
+        deviceId,
+        userAadObjectId,
+      });
+
+      if (!revoked) {
+        return res.status(404).json({
+          success: false,
+          message: "Device not found or already unpaired",
+        });
+      }
+
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error("Error in unpair-desktop-device:", err);
+      processSafetyBotError(
+        err,
+        "",
+        userAadObjectId,
+        "",
+        "error in /areyousafetabhandler/unpair-desktop-device",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Failed to unpair desktop device",
+      });
+    }
+  });
+
+  app.post(
+    "/areyousafetabhandler/send-desktop-test-command",
+    async (req, res) => {
+      const userAadObjectId =
+        typeof req.body?.userAadObjectId === "string"
+          ? req.body.userAadObjectId.trim()
+          : "";
+      const incTitle =
+        typeof req.body?.incTitle === "string" && req.body.incTitle.trim()
+          ? req.body.incTitle.trim()
+          : "Test Safety Check";
+      const incGuidance =
+        typeof req.body?.incGuidance === "string" && req.body.incGuidance.trim()
+          ? req.body.incGuidance.trim()
+          : "This is a test notification from the desktop agent dev endpoint.";
+      const creatorBody = req.body?.creator;
+      const creator =
+        creatorBody &&
+        typeof creatorBody === "object" &&
+        typeof creatorBody.name === "string" &&
+        creatorBody.name.trim()
+          ? {
+              name: creatorBody.name.trim(),
+              id:
+                typeof creatorBody.id === "string" ? creatorBody.id.trim() : "",
+              email:
+                typeof creatorBody.email === "string"
+                  ? creatorBody.email.trim()
+                  : "",
+            }
+          : null;
+
+      if (!userAadObjectId) {
+        return res.status(400).json({
+          success: false,
+          message: "userAadObjectId is required",
+        });
+      }
+
+      try {
+        const pairedDevices =
+          await desktopDeviceStore.getActiveDevicesByUserAadObjectIds([
+            userAadObjectId,
+          ]);
+        const devices = pairedDevices.filter((device) =>
+          socketService.isDeviceSocketConnected(String(device.device_id)),
+        );
+
+        if (!devices.length) {
+          return res.status(404).json({
+            success: false,
+            message:
+              "No socket-registered paired desktop device found for this user",
+            pairedDeviceCount: pairedDevices.length,
+          });
+        }
+
+        const device = devices[0];
+        const deviceId = String(device.device_id).toLowerCase();
+        let languageId = DEFAULT_LANGUAGE_ID;
+        try {
+          languageId =
+            (await incidentService.getUserLanguageIdByAadObjId(
+              userAadObjectId,
+            )) || DEFAULT_LANGUAGE_ID;
+        } catch {
+          languageId = DEFAULT_LANGUAGE_ID;
+        }
+        const helloText = getHelloText(languageId, null);
+
+        const command = {
+          protocolVersion: 1,
+          commandId: crypto.randomUUID(),
+          organizationId: device.tenant_id || "",
+          deviceId,
+          type: "showPopup",
+          priority: "high",
+          requiresAck: true,
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
+          payload: {
+            incId: "test",
+            incTitle,
+            incGuidance,
+            helloText,
+            messageBody: incGuidance,
+            level: "warning",
+            creator,
+            responseOptions: [
+              { id: 1, option: "I am safe", color: "#4CAF50" },
+              { id: 2, option: "I need assistance", color: "#F44336" },
+            ],
+            responseType: "buttons",
+            sentAt: new Date().toISOString(),
+          },
+          timestamp: new Date().toISOString(),
+        };
+
+        socketService.emitCommandToDevice(deviceId, command);
+
+        return res.status(200).json({
+          success: true,
+          deviceId,
+          commandId: command.commandId,
+        });
+      } catch (err) {
+        console.error("Error in send-desktop-test-command:", err);
+        processSafetyBotError(
+          err,
+          "",
+          userAadObjectId,
+          "",
+          "error in /areyousafetabhandler/send-desktop-test-command",
+        );
+        return res.status(500).json({
+          success: false,
+          message: "Failed to send desktop test command",
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/areyousafetabhandler/submit-desktop-incident-response",
+    async (req, res) => {
+      const {
+        deviceId,
+        userAadObjectId,
+        teamId,
+        incId,
+        responseOptionId,
+        commandId,
+      } = req.body ?? {};
+
+      try {
+        const normalizedDeviceId =
+          typeof deviceId === "string" ? deviceId.trim().toLowerCase() : "";
+        const normalizedUserAadObjectId =
+          typeof userAadObjectId === "string" ? userAadObjectId.trim() : "";
+        const normalizedTeamId =
+          typeof teamId === "string" ? teamId.trim() : "";
+        const parsedIncId = Number(incId);
+        const parsedResponseOptionId = Number(responseOptionId);
+
+        if (
+          !normalizedDeviceId ||
+          !normalizedUserAadObjectId ||
+          !normalizedTeamId
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "deviceId, userAadObjectId, and teamId are required",
+          });
+        }
+
+        if (!Number.isFinite(parsedIncId) || parsedIncId <= 0) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid incId",
+          });
+        }
+
+        if (
+          !Number.isFinite(parsedResponseOptionId) ||
+          parsedResponseOptionId <= 0
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid responseOptionId",
+          });
+        }
+
+        if (String(incId) === "test") {
+          return res.status(400).json({
+            success: false,
+            message: "Test incidents cannot be submitted to the database",
+          });
+        }
+
+        const device =
+          await desktopDeviceStore.getActiveDeviceById(normalizedDeviceId);
+        if (
+          !device ||
+          String(device.user_aadobject_id).toLowerCase() !==
+            normalizedUserAadObjectId.toLowerCase()
+        ) {
+          return res.status(403).json({
+            success: false,
+            message: "Device not found or does not match user",
+          });
+        }
+
+        const incStatusCheck = await getDesktopIncStatusClosedResponse(
+          parsedIncId,
+          normalizedUserAadObjectId,
+        );
+        if (incStatusCheck.blocked) {
+          return res.status(409).json({
+            success: false,
+            message: incStatusCheck.message,
+          });
+        }
+
+        const pool = await poolPromise;
+        const userResult = await pool
+          .request()
+          .input(
+            "user_aadobject_id",
+            sql.NVarChar(256),
+            normalizedUserAadObjectId,
+          )
+          .input("team_id", sql.NVarChar(256), normalizedTeamId).query(`
+            SELECT TOP 1 user_id, user_name
+            FROM MSTeamsTeamsUsers
+            WHERE user_aadobject_id = @user_aadobject_id
+              AND team_id = @team_id
+          `);
+
+        const userRow = userResult?.recordset?.[0];
+        if (!userRow?.user_id) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found for team",
+          });
+        }
+
+        const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", new Date());
+        await incidentService.updateIncResponseData(
+          parsedIncId,
+          userRow.user_id,
+          parsedResponseOptionId,
+          null,
+          respTimestamp,
+          normalizedUserAadObjectId,
+          "Desktop",
+        );
+
+        incidentService.saveAllTypeQuerylogs(
+          normalizedUserAadObjectId,
+          userRow.user_name || "",
+          "DESKTOP",
+          "",
+          parsedIncId,
+          "BUTTON_CLICKED",
+          "",
+          "",
+          "",
+          String(parsedResponseOptionId),
+          "",
+        );
+
+        const followUpCtx = await loadIncidentFollowUpContext(
+          parsedIncId,
+          normalizedUserAadObjectId,
+        );
+        const followUp = buildDesktopSafeResponseFollowUp(
+          followUpCtx.incCreatedBy,
+          followUpCtx.languageId,
+          followUpCtx.translatedText,
+        );
+
+        let responseLabel = String(parsedResponseOptionId);
+        if (Array.isArray(followUpCtx.responseOptions)) {
+          const matched = followUpCtx.responseOptions.find(
+            (option) => Number(option.id) === parsedResponseOptionId,
+          );
+          if (matched?.option) {
+            responseLabel = matched.option;
+          }
+        }
+
+        console.log("[DESKTOP] incident response submitted", {
+          incId: parsedIncId,
+          deviceId: normalizedDeviceId,
+          userAadObjectId: normalizedUserAadObjectId,
+          responseOptionId: parsedResponseOptionId,
+          commandId: commandId || null,
+        });
+
+        return res.status(200).json({
+          success: true,
+          responseOptionId: parsedResponseOptionId,
+          responseLabel,
+          confirmationMessage: followUp.confirmationMessage,
+          ui: followUp.ui,
+          creator: followUpCtx.creator,
+        });
+      } catch (err) {
+        console.error("Error in submit-desktop-incident-response:", err);
+        processSafetyBotError(
+          err,
+          teamId ?? "",
+          "",
+          userAadObjectId ?? "",
+          "error in /areyousafetabhandler/submit-desktop-incident-response",
+        );
+        return res.status(500).json({
+          success: false,
+          message: "Failed to submit desktop incident response",
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/areyousafetabhandler/submit-desktop-incident-comment",
+    async (req, res) => {
+      const { deviceId, userAadObjectId, teamId, incId, comment, commandId } =
+        req.body ?? {};
+
+      try {
+        const normalizedDeviceId =
+          typeof deviceId === "string" ? deviceId.trim().toLowerCase() : "";
+        const normalizedUserAadObjectId =
+          typeof userAadObjectId === "string" ? userAadObjectId.trim() : "";
+        const normalizedTeamId =
+          typeof teamId === "string" ? teamId.trim() : "";
+        const parsedIncId = Number(incId);
+        const normalizedComment =
+          typeof comment === "string" ? comment.trim() : "";
+
+        if (
+          !normalizedDeviceId ||
+          !normalizedUserAadObjectId ||
+          !normalizedTeamId
+        ) {
+          return res.status(400).json({
+            success: false,
+            message: "deviceId, userAadObjectId, and teamId are required",
+          });
+        }
+
+        if (!Number.isFinite(parsedIncId) || parsedIncId <= 0) {
+          return res.status(400).json({
+            success: false,
+            message: "Invalid incId",
+          });
+        }
+
+        if (!normalizedComment) {
+          return res.status(400).json({
+            success: false,
+            message: "comment is required",
+          });
+        }
+
+        if (String(incId) === "test") {
+          return res.status(400).json({
+            success: false,
+            message: "Test incidents cannot be submitted to the database",
+          });
+        }
+
+        const device =
+          await desktopDeviceStore.getActiveDeviceById(normalizedDeviceId);
+        if (
+          !device ||
+          String(device.user_aadobject_id).toLowerCase() !==
+            normalizedUserAadObjectId.toLowerCase()
+        ) {
+          return res.status(403).json({
+            success: false,
+            message: "Device not found or does not match user",
+          });
+        }
+
+        const incStatusCheck = await getDesktopIncStatusClosedResponse(
+          parsedIncId,
+          normalizedUserAadObjectId,
+        );
+        if (incStatusCheck.blocked) {
+          return res.status(409).json({
+            success: false,
+            message: incStatusCheck.message,
+          });
+        }
+
+        const pool = await poolPromise;
+        const userResult = await pool
+          .request()
+          .input(
+            "user_aadobject_id",
+            sql.NVarChar(256),
+            normalizedUserAadObjectId,
+          )
+          .input("team_id", sql.NVarChar(256), normalizedTeamId).query(`
+            SELECT TOP 1 user_id, user_name
+            FROM MSTeamsTeamsUsers
+            WHERE user_aadobject_id = @user_aadobject_id
+              AND team_id = @team_id
+          `);
+
+        const userRow = userResult?.recordset?.[0];
+        if (!userRow?.user_id) {
+          return res.status(404).json({
+            success: false,
+            message: "User not found for team",
+          });
+        }
+
+        await incidentService.updateIncResponseComment(
+          parsedIncId,
+          userRow.user_id,
+          normalizedComment,
+          null,
+        );
+
+        incidentService.saveAllTypeQuerylogs(
+          normalizedUserAadObjectId,
+          userRow.user_name || "",
+          "DESKTOP",
+          "",
+          parsedIncId,
+          "TEAMS_COMMENT",
+          "",
+          "",
+          "",
+          normalizedComment,
+          "",
+        );
+
+        const followUpCtx = await loadIncidentFollowUpContext(
+          parsedIncId,
+          normalizedUserAadObjectId,
+        );
+        const followUp = buildDesktopSubmitCommentFollowUp(
+          normalizedComment,
+          followUpCtx.incCreatedBy,
+          followUpCtx.languageId,
+          followUpCtx.translatedText,
+        );
+
+        console.log("[DESKTOP] incident comment submitted", {
+          incId: parsedIncId,
+          deviceId: normalizedDeviceId,
+          userAadObjectId: normalizedUserAadObjectId,
+          commandId: commandId || null,
+        });
+
+        return res.status(200).json({
+          success: true,
+          confirmationMessage: followUp.confirmationMessage,
+          creator: followUpCtx.creator,
+        });
+      } catch (err) {
+        console.error("Error in submit-desktop-incident-comment:", err);
+        processSafetyBotError(
+          err,
+          teamId ?? "",
+          "",
+          userAadObjectId ?? "",
+          "error in /areyousafetabhandler/submit-desktop-incident-comment",
+        );
+        return res.status(500).json({
+          success: false,
+          message: "Failed to submit desktop incident comment",
+        });
+      }
+    },
+  );
 
   app.get("/areyousafetabhandler/getTemplateList", async (req, res) => {
     const userObjId = req.query.userId;
@@ -1839,6 +2571,62 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+
+  /**
+   * One-shot desktop SOS chat snapshot: assistance record + translated UI copy
+   * + firstResponder/Chat/Call when already accepted. Accept updates arrive via
+   * websocket (sos_assistance_update), not by polling this endpoint.
+   */
+  app.get("/areyousafetabhandler/get-desktop-sos-chat", async (req, res) => {
+    const userAadObjectId = req.query.userAadObjectId || req.query.userId || "";
+    const assistId = Number(
+      req.query.assistId || req.query.requestAssistanceid,
+    );
+
+    try {
+      if (!userAadObjectId || !Number.isFinite(assistId) || assistId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: "userAadObjectId and assistId are required",
+        });
+      }
+
+      const records = await incidentService.getAssistanceData(userAadObjectId);
+      const assist =
+        Array.isArray(records) &&
+        records.find((row) => Number(row.id) === assistId);
+
+      if (!assist) {
+        return res.status(404).json({
+          success: false,
+          message: "Assistance record not found",
+        });
+      }
+
+      const snapshot = await buildDesktopSosChatSnapshot(
+        userAadObjectId,
+        assist,
+      );
+
+      return res.status(200).json({
+        success: true,
+        ...snapshot,
+      });
+    } catch (err) {
+      console.error("Error in get-desktop-sos-chat:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjectId,
+        "error in /areyousafetabhandler/get-desktop-sos-chat",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Failed to load desktop SOS chat",
+      });
+    }
+  });
   app.get("/areyousafetabhandler/getAllUserAssistanceData", (req, res) => {
     const userAadObjId = req.query.userId;
     const teamid = req.query.teamid;
@@ -2003,6 +2791,26 @@ const handlerForSafetyBotTab = (app) => {
               assistanceuseraadobjectid,
               comment,
             );
+
+            try {
+              const closedPayload = buildDesktopSosClosedPayload({
+                requestAssistanceid: assistId,
+                userAadObjId: assistanceuseraadobjectid,
+                closedByName: closedByUserName,
+                comment,
+                closedAt: new Date().toISOString(),
+              });
+              await socketService.emitSosAssistanceUpdateToUser(
+                assistanceuseraadobjectid,
+                closedPayload,
+              );
+            } catch (desktopErr) {
+              console.error(
+                "[DESKTOP] emit SOS closed update failed:",
+                desktopErr?.message || desktopErr,
+              );
+            }
+
             res.send(true);
           })
           .catch((err) => {
@@ -4365,7 +5173,7 @@ const handlerForSafetyBotTab = (app) => {
       `${comments}`,
       "",
     );
-    res.status(200);
+    return res.status(200).json({ success: true });
   });
   app.post("/handleWhatsappResponse", async (req, res) => {
     const body = req.body;
