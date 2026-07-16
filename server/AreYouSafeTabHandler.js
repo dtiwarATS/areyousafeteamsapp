@@ -15,6 +15,8 @@ const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
 const { saveToken, getToken } = require("./store");
+
+const desktopDeviceStore = require("./store/desktopDeviceStore");
 const {
   sendPushNotification,
   getFcmTokensForUsers,
@@ -5516,25 +5518,30 @@ ORDER BY ACL.EventDateTime DESC;
     }
   });
 
-  app.get("/areyousafetabhandler/getWeatherAlertLocations", async (req, res) => {
-    try {
-      const weatherLocationsDb = require("./travelServices/weather-alert-locations-db");
-      const source = req.query.source || "all";
-      const teamId = req.query.teamId || "";
-      const tenantId = req.query.tenantId || "";
-      const data = await weatherLocationsDb.getWeatherAlertLocations(source, {
-        teamId,
-        tenantId,
-      });
-      res.json({ success: true, data });
-    } catch (err) {
-      console.error(
-        "Error in /areyousafetabhandler/getWeatherAlertLocations:",
-        err,
-      );
-      res.status(500).json({ success: false, error: err.message, data: null });
-    }
-  });
+  app.get(
+    "/areyousafetabhandler/getWeatherAlertLocations",
+    async (req, res) => {
+      try {
+        const weatherLocationsDb = require("./travelServices/weather-alert-locations-db");
+        const source = req.query.source || "all";
+        const teamId = req.query.teamId || "";
+        const tenantId = req.query.tenantId || "";
+        const data = await weatherLocationsDb.getWeatherAlertLocations(source, {
+          teamId,
+          tenantId,
+        });
+        res.json({ success: true, data });
+      } catch (err) {
+        console.error(
+          "Error in /areyousafetabhandler/getWeatherAlertLocations:",
+          err,
+        );
+        res
+          .status(500)
+          .json({ success: false, error: err.message, data: null });
+      }
+    },
+  );
 
   app.get(
     "/areyousafetabhandler/getTravelAdvisoryByTeam/",
