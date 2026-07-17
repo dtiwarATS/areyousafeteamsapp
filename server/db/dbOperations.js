@@ -549,15 +549,10 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
       },
     ],
     actions: [
-      // {
-      //   type: "Action.OpenUrl",
-      //   title: "Complete Setup",
-      //   url: process.env.TEAMS_DASHBOARD_URL || "https://teams.microsoft.com"
-      // },
       {
-        type: "Action.Execute",
-        verb: "completeSetup",
+        type: "Action.OpenUrl",
         title: "Complete Setup",
+        url: "https://teams.microsoft.com/l/app/884e521a-dadc-41e9-a8af-fcaa907e783e?source=app-details-dialog",
       },
     ],
   };
@@ -916,66 +911,23 @@ const updateSuperUserDataByUserAadObjId = async (
       "integrationPanelDraft in updateSuperUserDataByUserAadObjId: ",
       integrationPanelDraft,
     );
-    // Get current super_users value before update for audit trail
-    const selectQuery = `SELECT super_users FROM MSTeamsInstallationDetails WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
-    const currentResult = await pool.request().query(selectQuery);
-    const oldSuperUsers =
-      currentResult.recordset.length > 0
-        ? currentResult.recordset[0].super_users || ""
-        : "";
 
-    let updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = ${toSqlNVarChar(selectedUserStr)},WHO_CAN_CREATE_INCIDENT=${toSqlNVarChar(iscreateIncidentUser)},EnableSafetycheckForVisitors=${
+    // Team-scoped settings + tenant-scoped settings in two queries (was SELECT + 4 UPDATEs).
+    const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = ${toSqlNVarChar(selectedUserStr)},WHO_CAN_CREATE_INCIDENT=${toSqlNVarChar(iscreateIncidentUser)},EnableSafetycheckForVisitors=${
       EnableSafetycheckForVisitors ? 1 : 0
     } ,SafetycheckForVisitorsQuestion1=${toSqlNVarChar(SafetycheckForVisitorsQuestion1)},SafetycheckForVisitorsQuestion2=${toSqlNVarChar(SafetycheckForVisitorsQuestion2)},SafetycheckForVisitorsQuestion3=${toSqlNVarChar(SafetycheckForVisitorsQuestion3)} 
 ,EMERGENCY_CONTACTS=${toSqlNVarChar(emergencyContactsStr)}
-    WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
+    WHERE (user_obj_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}';
 
-    updateQuery += `; UPDATE MSTeamsInstallationDetails SET IsReminderEnabledBeforeAcknowledgement = ${EnableSOSFollowUps ? 1 : 0}, MaxReminderCountBeforeAcknowledgement = ${SOSFollowUpCount}, ReminderIntervalMinutesBeforeAcknowledgement = ${SOSFollowUpInterval}, NotifyInitiatorIfNoResponseBeforeAcknowledgement = ${NotifyInitiatorIfNoResponse ? 1 : 0},
+UPDATE MSTeamsInstallationDetails SET IsReminderEnabledBeforeAcknowledgement = ${EnableSOSFollowUps ? 1 : 0}, MaxReminderCountBeforeAcknowledgement = ${SOSFollowUpCount}, ReminderIntervalMinutesBeforeAcknowledgement = ${SOSFollowUpInterval}, NotifyInitiatorIfNoResponseBeforeAcknowledgement = ${NotifyInitiatorIfNoResponse ? 1 : 0},
 MaxReminderCountAfterAcknowledgement = ${SOSFollowUpCountSection2}, NotifyNoResponseBeforeAcknowledgementMessage=${toSqlNVarChar(SOSInitiatorMessage)},
 ReminderIntervalMinutesAfterAcknowledgement = ${SOSFollowUpIntervalSection2},NotifyNoResponseAfterAcknowledgementMessage=${toSqlNVarChar(SOSAllRespondersMessage)},
- NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement = ${NotifyAllRespondersIfNoResponse ? 1 : 0},IsReminderEnabledAfterAcknowledgement=${enableSOSFollowUpsSection2 ? 1 : 0}
-WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
+ NotifyInitiatorAndResponderIfNoResponseAfterAcknowledgement = ${NotifyAllRespondersIfNoResponse ? 1 : 0},IsReminderEnabledAfterAcknowledgement=${enableSOSFollowUpsSection2 ? 1 : 0},
+INTEGRATION_CONFIGURE = ${toSqlNVarChar(integrationPanelDraft)}, SHOW_SOS_BUTTON = ${AllowUsersToSendSosRequest ? 1 : 0}, LAST_UPDATED_BY = '${userId}'
+WHERE user_tenant_id = (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
 
-    updateQuery += `; UPDATE MSTeamsInstallationDetails SET INTEGRATION_CONFIGURE = ${toSqlNVarChar(integrationPanelDraft)}, SHOW_SOS_BUTTON = ${AllowUsersToSendSosRequest ? 1 : 0} WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
-    updateQuery += `; UPDATE MSTeamsInstallationDetails SET LAST_UPDATED_BY = '${userId}' WHERE user_tenant_id in (select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${teamId}')`;
-    const result = await pool.request().query(updateQuery);
+    await pool.request().query(updateQuery);
     isUpdated = true;
-
-    // // Log audit trail if super_users value changed
-    // if (oldSuperUsers !== selectedUserStr) {
-    //   const escapedOldValue = (oldSuperUsers || "").replace(/'/g, "''");
-    //   const escapedNewValue = (selectedUserStr || "").replace(/'/g, "''");
-    //   const escapedUserId = (userId || "").replace(/'/g, "''");
-    //   const escapedTeamId = (teamId || "").replace(/'/g, "''");
-
-    //   const auditQuery = `INSERT INTO AUDIT_TRAIL (
-    //     UPDATED_IN,
-    //     ACTION,
-    //     TEAM_ID,
-    //     FIELD_NAME,
-    //     [FROM],
-    //     [TO],
-    //     UPDATED_BY,
-    //     UPDATED_DATETIME
-    //   ) VALUES (
-    //     'ADMIN_CONFIG',
-    //     'UPDATE',
-    //     '${escapedTeamId}',
-    //     'Select users who can create incident',
-    //     '${escapedOldValue}',
-    //     '${escapedNewValue}',
-    //     '${escapedUserId}',
-    //     GETDATE()
-    //   )`;
-
-    //   try {
-    //     await pool.request().query(auditQuery);
-    //   } catch (auditErr) {
-    //     console.log("Error inserting audit trail:", auditErr);
-    //     // Don't fail the main update if audit trail fails
-    //   }
-    // }
-    // return Promise.resolve();
   } catch (err) {
     console.log(err);
     isUpdated = false;
