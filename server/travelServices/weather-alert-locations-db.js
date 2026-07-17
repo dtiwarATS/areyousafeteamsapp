@@ -1,6 +1,6 @@
 /**
  * Weather alert location options for Manage Locations dropdowns.
- * source=all      → WeatherAlertSupportedCountry + WeatherAlertCity (all available)
+ * source=all      → CountryList + CityList (all available)
  * source=manual   → LOCATION_CONFIGURATION (ISOffice365Location null/0) + available flag
  * source=office365 → LOCATION_CONFIGURATION (ISOffice365Location=1) + available flag
  */
@@ -17,7 +17,7 @@ async function getAllWeatherAlertLocations() {
 
   const countriesResult = await pool.request().query(`
     SELECT Id, CountryName AS name, Code AS code, Region AS region
-    FROM [dbo].[WeatherAlertSupportedCountry]
+    FROM [dbo].[CountryList]
     ORDER BY CountryName
   `);
 
@@ -29,8 +29,8 @@ async function getAllWeatherAlertLocations() {
       ci.State AS state,
       ci.Latitude AS latitude,
       ci.Longitude AS longitude
-    FROM [dbo].[WeatherAlertCity] ci
-    INNER JOIN [dbo].[WeatherAlertSupportedCountry] c ON c.Id = ci.CountryId
+    FROM [dbo].[CityList] ci
+    INNER JOIN [dbo].[CountryList] c ON c.Id = ci.CountryId
     ORDER BY c.CountryName, ci.CityName
   `);
 
@@ -55,14 +55,14 @@ async function getAllWeatherAlertLocations() {
 }
 
 /**
- * Load WeatherAlertSupportedCountry lookup maps (by name and by code).
+ * Load CountryList lookup maps (by name and by code).
  * @returns {Promise<{ byName: Map<string, { code: string, name: string, region: string }>, byCode: Map<string, { code: string, name: string, region: string }> }>}
  */
 async function loadSupportedCountryLookup() {
   const pool = await poolPromise;
   const result = await pool.request().query(`
     SELECT CountryName AS name, Code AS code, Region AS region
-    FROM [dbo].[WeatherAlertSupportedCountry]
+    FROM [dbo].[CountryList]
   `);
 
   const byName = new Map();
@@ -93,8 +93,8 @@ function toCoordinate(value) {
 }
 
 /**
- * Normalize LOCATION_CONFIGURATION rows and mark availability vs WeatherAlertSupportedCountry.
- * Passes through latitude/longitude/state when joined from WeatherAlertCity.
+ * Normalize LOCATION_CONFIGURATION rows and mark availability vs CountryList.
+ * Passes through latitude/longitude/state when joined from CityList.
  * @param {Array<{ country?: string, city?: string, countryCode?: string, countryName?: string, region?: string, state?: string, latitude?: number, longitude?: number }>} rows
  * @param {{ byName: Map, byCode: Map }} supported
  */
@@ -179,7 +179,7 @@ function normalizeConfiguredLocationsWithAvailability(rows, supported) {
 
 /**
  * Locations from LOCATION_CONFIGURATION for a tenant, filtered by Office365 flag.
- * Joins WeatherAlertSupportedCountry + WeatherAlertCity for lat/long/state.
+ * Joins CountryList + CityList for lat/long/state.
  * @param {string} tenantId
  * @param {'manual'|'office365'} mode
  */
@@ -212,7 +212,7 @@ async function getConfiguredWeatherAlertLocations(tenantId, mode) {
     FROM [dbo].[LOCATION_CONFIGURATION] LC
     OUTER APPLY (
       SELECT TOP 1 Id, Code, CountryName, Region
-      FROM [dbo].[WeatherAlertSupportedCountry]
+      FROM [dbo].[CountryList]
       WHERE UPPER(LTRIM(RTRIM(LC.COUNTRY))) IN (
         UPPER(LTRIM(RTRIM(CountryName))),
         UPPER(LTRIM(RTRIM(Code)))
@@ -221,7 +221,7 @@ async function getConfiguredWeatherAlertLocations(tenantId, mode) {
     ) c
     OUTER APPLY (
       SELECT TOP 1 State, Latitude, Longitude
-      FROM [dbo].[WeatherAlertCity]
+      FROM [dbo].[CityList]
       WHERE CountryId = c.Id
         AND UPPER(LTRIM(RTRIM(LC.CITY))) = UPPER(LTRIM(RTRIM(CityName)))
       ORDER BY State
