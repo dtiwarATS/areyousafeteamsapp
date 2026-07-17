@@ -318,9 +318,9 @@ const getAllIncByTenantId = async (tenantId, orderBy) => {
       "",
       "",
       "error in getAllIncByTenantId tenantId=" +
-        tenantId +
-        " orderBy=" +
-        orderBy,
+      tenantId +
+      " orderBy=" +
+      orderBy,
     );
   }
 };
@@ -339,9 +339,9 @@ const getIncByTenantId = async (tenantId, incidentId, orderBy) => {
       "",
       "",
       "error in getIncByTenantId tenantId=" +
-        tenantId +
-        " incidentId=" +
-        incidentId,
+      tenantId +
+      " incidentId=" +
+      incidentId,
     );
   }
 };
@@ -456,8 +456,8 @@ const getAdmins = async (aadObjuserId, TeamID) => {
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${superUsersArr.join(
-                              "','",
-                            )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+                "','",
+              )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
             } else {
               selectQuery = `select user_id, serviceUrl, user_tenant_id, user_name from msteamsinstallationdetails where team_id in
               (select team_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') and uninstallation_date is null;`;
@@ -502,11 +502,11 @@ const addComment = async (assistanceId, comment, ts, aadObjuserId) => {
       "",
       aadObjuserId,
       "error in addComment assistanceId=" +
-        assistanceId +
-        " comment=" +
-        comment +
-        " ts=" +
-        ts,
+      assistanceId +
+      " comment=" +
+      comment +
+      " ts=" +
+      ts,
     );
   }
 };
@@ -531,11 +531,11 @@ const updateSosStatus = async (
       "",
       aadObjuserId,
       "error in updateSosStatus assistanceId=" +
-        assistanceId +
-        " comment=" +
-        comment +
-        " ts=" +
-        ts,
+      assistanceId +
+      " comment=" +
+      comment +
+      " ts=" +
+      ts,
     );
   }
 };
@@ -1085,9 +1085,9 @@ const addMembersIntoIncData = async (
       let membername = member.name || member.title;
       insertMembersQuery += ` insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
           values(${incId}, '${memberid}', '${membername.replace(
-            /'/g,
-            "''",
-          )}', 0, 0, NULL, NULL, NULL); `;
+        /'/g,
+        "''",
+      )}', 0, 0, NULL, NULL, NULL); `;
     }
 
     if (insertMembersQuery != "") {
@@ -1115,9 +1115,9 @@ const addMembersIntoIncData = async (
       "",
       userAadObjId,
       "error in addMembersIntoIncData incId=" +
-        incId +
-        " allMembers=" +
-        allMembers,
+      incId +
+      " allMembers=" +
+      allMembers,
     );
   }
 
@@ -1173,8 +1173,7 @@ const updateIncResponseComment = async (
       `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText.replace(
         /'/g,
         "''",
-      )}' WHERE convert(datetime, runAt) = convert(datetime, '${
-        incData.runAt
+      )}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt
       }' ) ` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
       `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
@@ -1342,11 +1341,11 @@ const saveIncResponseSelectedUsers = async (
       "",
       userAadObjId,
       "error in saveIncResponseSelectedUsers incId=" +
-        incId +
-        " userIds=" +
-        userIds +
-        " memberChoises=" +
-        memberChoises,
+      incId +
+      " userIds=" +
+      userIds +
+      " memberChoises=" +
+      memberChoises,
     );
   }
 };
@@ -1398,9 +1397,9 @@ const saveIncResponseSelectedTeams = async (
       "",
       userAadObjId,
       "error in saveIncResponseSelectedTeams incId=" +
-        incId +
-        " channelIds=" +
-        channelIds,
+      incId +
+      " channelIds=" +
+      channelIds,
     );
   }
 };
@@ -1669,10 +1668,9 @@ const getTeamMemeberSqlQuery = (
       ? CreateIncidentUsersLeftJoinQuery
       : "") +
     ` WHERE ${whereSql} and u.hasLicense = 1 
-    ${
-      resendSafetyCheck == "true"
-        ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
-        : ""
+    ${resendSafetyCheck == "true"
+      ? `and u.user_id in (select user_id from MSTeamsMemberResponses where inc_id=${incidentId} and response = 0)`
+      : ""
     }  
     ORDER BY u.[USER_NAME]; `
   );
@@ -1735,7 +1733,7 @@ const getAllTeamMembersByTeamId = async (
       "",
       userAadObjId,
       "error in getAllTeamMembersByTeamId superUsersLeftJoinQuery=" +
-        superUsersLeftJoinQuery,
+      superUsersLeftJoinQuery,
     );
   }
 };
@@ -2110,6 +2108,7 @@ const getManualLocations = async (tenantId) => {
       LAST_UPDATED_BY AS lastUpdatedBy
     FROM LOCATION_CONFIGURATION
     WHERE TENENT_ID = @tenantId
+      AND (ISOffice365Location IS NULL OR ISOffice365Location = 0)
     ORDER BY COUNTRY, CITY
   `;
 
@@ -2170,7 +2169,8 @@ const saveManualLocations = async (body) => {
               CITY = @city,
               DEPARTMENT = @department,
               LastUpdatedDateTime = GETDATE(),
-              LAST_UPDATED_BY = @userAadObjId
+              LAST_UPDATED_BY = @userAadObjId,
+              ISOffice365Location = 0
           WHERE ID = @id
             AND TENENT_ID = @tenantId
         `);
@@ -2194,9 +2194,9 @@ const saveManualLocations = async (body) => {
 
       await insertRequest.query(`
         INSERT INTO LOCATION_CONFIGURATION
-          (TENENT_ID, COUNTRY, CITY, DEPARTMENT, CREATED_BY, LastUpdatedDateTime)
+          (TENENT_ID, COUNTRY, CITY, DEPARTMENT, CREATED_BY, LastUpdatedDateTime, ISOffice365Location)
         VALUES
-          (@tenantId, @country, @city, @department, @userAadObjId, GETDATE())
+          (@tenantId, @country, @city, @department, @userAadObjId, GETDATE(), 0)
       `);
       insertedCount += 1;
     }
@@ -2374,8 +2374,8 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN ('${emergencyContactsArr.join(
-                              "','",
-                            )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+                "','",
+              )}') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
 
               const result = await db.getDataFromDB(selectQuery, aadObjuserId);
               if (result && result.length > 0) {
@@ -2557,8 +2557,8 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
-                              "','",
-                            )} ') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
+                "','",
+              )} ') and b.serviceUrl is not null and b.user_tenant_id is not null and b.uninstallation_date is null;`;
 
               const result = await db.getDataFromDB(selectQuery, aadObjuserId);
               if (result && result.length > 0) {
@@ -2656,25 +2656,23 @@ const saveSOSResponder = async (teamId, rowsToSave) => {
           "''",
         )}')
         BEGIN
-        Insert into MSTeamsSOSResponder (TEAM_ID, ${
-          row.country ? "COUNTRY," : ""
-        } CITY, RESPONDER) VALUES ('${teamId}', ${
-          row.country ? "'" + row.country.replace(/'/g, "''") + "', " : ""
-        } '${row.city.replace(/'/g, "''")}', '${JSON.stringify(
-          row.users,
-        ).replace(/'/g, "''")}');
+        Insert into MSTeamsSOSResponder (TEAM_ID, ${row.country ? "COUNTRY," : ""
+          } CITY, RESPONDER) VALUES ('${teamId}', ${row.country ? "'" + row.country.replace(/'/g, "''") + "', " : ""
+          } '${row.city.replace(/'/g, "''")}', '${JSON.stringify(
+            row.users,
+          ).replace(/'/g, "''")}');
         END
         ELSE
         BEGIN
         Update MSTeamsSOSResponder SET RESPONDER = '${JSON.stringify(
-          row.users,
-        ).replace(
-          /'/g,
-          "''",
-        )}' WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(
-          /'/g,
-          "''",
-        )}';
+            row.users,
+          ).replace(
+            /'/g,
+            "''",
+          )}' WHERE TEAM_ID = '${teamId}' AND CITY = '${row.city?.replace(
+            /'/g,
+            "''",
+          )}';
         END;`;
       } else if (row.country) {
         sql += `
@@ -3519,11 +3517,11 @@ const updateMessageDeliveredStatus = async (
       "",
       userId,
       "error in updateMessageDeliveredStatus incId=" +
-        incId +
-        " isMessageDelivered=" +
-        isMessageDelivered +
-        " msgResp=" +
-        JSON.stringify(msgResp),
+      incId +
+      " isMessageDelivered=" +
+      isMessageDelivered +
+      " msgResp=" +
+      JSON.stringify(msgResp),
     );
   }
 };
@@ -3587,9 +3585,9 @@ const updateSubscriptionType = async (
       "",
       "",
       "error in updateSubscriptionType licenseType=" +
-        licenseType +
-        " tenantId=" +
-        tenantId,
+      licenseType +
+      " tenantId=" +
+      tenantId,
     );
   }
 };
@@ -3617,9 +3615,9 @@ const updateBeforeMessageSentFlag = async (
       "",
       userAadObjId,
       "error in updateBeforeMessageSentFlag id=" +
-        id +
-        " subcriptionMessage=" +
-        subcriptionMessage,
+      id +
+      " subcriptionMessage=" +
+      subcriptionMessage,
     );
   }
 };
@@ -3646,9 +3644,9 @@ const updatepostSentPostInstallationFlag = async (
       "",
       userAadObjId,
       "error in updatepostSentPostInstallationFlag id=" +
-        id +
-        " subcriptionMessage=" +
-        subcriptionMessage,
+      id +
+      " subcriptionMessage=" +
+      subcriptionMessage,
     );
   }
 };
@@ -3699,7 +3697,7 @@ const updateAfterExpiryMessageSentFlag = async (
       "",
       userAadObjId,
       "error in updateAfterExpiryMessageSentFlag subscriptionId=" +
-        subscriptionId,
+      subscriptionId,
     );
   }
 };
@@ -3734,9 +3732,9 @@ const updateSubscriptionTypeToTypeOne = async (
       "",
       userObjId,
       "error in updateSubscriptionTypeToTypeOne tenantId=" +
-        tenantId +
-        " subscriptionId=" +
-        subscriptionId,
+      tenantId +
+      " subscriptionId=" +
+      subscriptionId,
     );
   }
 };
@@ -3752,9 +3750,9 @@ const updateSubcriptionProcessFlag = async (subscriptionId, userAadObjId) => {
       "",
       userAadObjId,
       "error in updateSubcriptionProcessFlag subscriptionId=" +
-        subscriptionId +
-        " userAadObjId=" +
-        userAadObjId,
+      subscriptionId +
+      " userAadObjId=" +
+      userAadObjId,
     );
   }
 };
@@ -3867,7 +3865,7 @@ const updateConversationId = async (teamId, userObjId) => {
           sqlUpdate = "";
           console.log(sql);
           db.updateDataIntoDBAsync(sql, dbPool, userObjId)
-            .then((resp) => {})
+            .then((resp) => { })
             .catch((err) => {
               sqlUpdate += sql;
               processSafetyBotError(
@@ -3939,9 +3937,9 @@ const updateConversationId = async (teamId, userObjId) => {
               "",
               userObjId,
               "error in fnRecursiveCall startIndex=" +
-                startIndex +
-                " endIndex=" +
-                endIndex,
+              startIndex +
+              " endIndex=" +
+              endIndex,
             );
           }
         }
@@ -4219,9 +4217,9 @@ const getIncDataToCopyInc = async (
       "",
       userAadObjId,
       "error in getIncDataToCopyInc incId=" +
-        incId +
-        " selectedUsers=" +
-        selectedUsers,
+      incId +
+      " selectedUsers=" +
+      selectedUsers,
     );
   }
   return Promise.resolve(result);
@@ -4363,13 +4361,13 @@ const updateSafetyCheckStatus = async (
       "",
       userAadObjId,
       "error in updateSafetyCheckStatus respId=" +
-        respId +
-        " isRecurring=" +
-        isRecurring +
-        " isSafe=" +
-        isSafe +
-        " respTimestamp=" +
-        respTimestamp,
+      respId +
+      " isRecurring=" +
+      isRecurring +
+      " isSafe=" +
+      isSafe +
+      " respTimestamp=" +
+      respTimestamp,
     );
   }
   return false;
@@ -4395,15 +4393,14 @@ const updateSafetyCheckStatusViaSMSLink = async (
         "yyyy-MM-dd hh:mm:ss",
         new Date(),
       )}'
-      , response_via = '${
-        viaSMS == "SMS"
+      , response_via = '${viaSMS == "SMS"
           ? "SMS"
           : viaSMS == "Email"
             ? "Email"
             : viaSMS == "VoiceCall"
               ? "VoiceCall"
               : "whatsapp"
-      }' 
+        }' 
        where runat = '${runat}' and 
       memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
       (select id from MSTeamsMemberResponses where inc_id = ${incId} and 
@@ -4412,15 +4409,14 @@ const updateSafetyCheckStatusViaSMSLink = async (
       sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
         "yyyy-MM-dd hh:mm:ss",
         new Date(),
-      )}', response_via = '${
-        viaSMS == "SMS"
+      )}', response_via = '${viaSMS == "SMS"
           ? "SMS"
           : viaSMS == "Email"
             ? "Email"
             : viaSMS == "VoiceCall"
               ? "VoiceCall"
               : "whatsapp"
-      }'
+        }'
       where inc_id = ${incId} and (user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}'
       and team_id = '${team_id}') or user_id='${user_aadobject_id}')`;
     }
@@ -4433,11 +4429,11 @@ const updateSafetyCheckStatusViaSMSLink = async (
       "",
       userAadObjId,
       "error in updateSafetyCheckStatus incId=" +
-        incId +
-        " response=" +
-        resp +
-        " respTimestamp=" +
-        new date().toString(),
+      incId +
+      " response=" +
+      resp +
+      " respTimestamp=" +
+      new date().toString(),
     );
   }
   return false;
@@ -4455,11 +4451,10 @@ const saveSMSlogs = async (
   try {
     const recurrRespQuery = `insert into MSTeamsSMSlogs(usr_id, status, sms_text, raw_data,TWILIO_ID,ERROR_DETAILS,EVENT_ID) 
           values('${userid}', '${status}', '${SMS_TEXT.replaceAll(
-            "'",
-            "''",
-          )}', '${RAW_DATA}', '${sid ? sid.replaceAll("'", "''") : sid}', '${
-            error ? error.replaceAll("'", "''") : error
-          }','${eventid}')`;
+      "'",
+      "''",
+    )}', '${RAW_DATA}', '${sid ? sid.replaceAll("'", "''") : sid}', '${error ? error.replaceAll("'", "''") : error
+      }','${eventid}')`;
     pool = await poolPromise;
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
