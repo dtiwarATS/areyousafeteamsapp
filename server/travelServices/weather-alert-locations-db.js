@@ -1,6 +1,8 @@
 /**
  * Weather alert location options for Manage Locations dropdowns.
- * source=all      → CountryList + CityList (all available)
+ * Only CountryList rows with IsWeatherAlertSupported = 1 count as supported.
+ * Rows with IsWeatherAlertSupported = 0 are treated as not in CountryList.
+ * source=all      → CountryList + CityList (IsWeatherAlertSupported = 1 only)
  * source=manual   → LOCATION_CONFIGURATION (ISOffice365Location null/0) + available flag
  * source=office365 → LOCATION_CONFIGURATION (ISOffice365Location=1) + available flag
  */
@@ -9,7 +11,7 @@ const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 
 /**
- * Get all countries and cities from weather alert tables.
+ * Get all countries and cities from weather alert tables (IsWeatherAlertSupported = 1 only).
  * @returns {Promise<{ countries: Array, cities: Array }>}
  */
 async function getAllWeatherAlertLocations() {
@@ -18,6 +20,7 @@ async function getAllWeatherAlertLocations() {
   const countriesResult = await pool.request().query(`
     SELECT Id, CountryName AS name, Code AS code, Region AS region
     FROM [dbo].[CountryList]
+    WHERE IsWeatherAlertSupported = 1
     ORDER BY CountryName
   `);
 
@@ -31,6 +34,7 @@ async function getAllWeatherAlertLocations() {
       ci.Longitude AS longitude
     FROM [dbo].[CityList] ci
     INNER JOIN [dbo].[CountryList] c ON c.Id = ci.CountryId
+      AND c.IsWeatherAlertSupported = 1
     ORDER BY c.CountryName, ci.CityName
   `);
 
@@ -55,7 +59,8 @@ async function getAllWeatherAlertLocations() {
 }
 
 /**
- * Load CountryList lookup maps (by name and by code).
+ * Load CountryList lookup maps (by name and by code) for IsWeatherAlertSupported = 1 only.
+ * Flag = 0 rows are excluded (treated as not in CountryList).
  * @returns {Promise<{ byName: Map<string, { code: string, name: string, region: string }>, byCode: Map<string, { code: string, name: string, region: string }> }>}
  */
 async function loadSupportedCountryLookup() {
@@ -63,6 +68,7 @@ async function loadSupportedCountryLookup() {
   const result = await pool.request().query(`
     SELECT CountryName AS name, Code AS code, Region AS region
     FROM [dbo].[CountryList]
+    WHERE IsWeatherAlertSupported = 1
   `);
 
   const byName = new Map();
@@ -93,7 +99,8 @@ function toCoordinate(value) {
 }
 
 /**
- * Normalize LOCATION_CONFIGURATION rows and mark availability vs CountryList.
+ * Normalize LOCATION_CONFIGURATION rows and mark availability vs supported CountryList
+ * (IsWeatherAlertSupported = 1). Flag = 0 or missing → available: false.
  * Passes through latitude/longitude/state when joined from CityList.
  * @param {Array<{ country?: string, city?: string, countryCode?: string, countryName?: string, region?: string, state?: string, latitude?: number, longitude?: number }>} rows
  * @param {{ byName: Map, byCode: Map }} supported
@@ -179,7 +186,7 @@ function normalizeConfiguredLocationsWithAvailability(rows, supported) {
 
 /**
  * Locations from LOCATION_CONFIGURATION for a tenant, filtered by Office365 flag.
- * Joins CountryList + CityList for lat/long/state.
+ * Joins CountryList (IsWeatherAlertSupported = 1) + CityList for lat/long/state.
  * @param {string} tenantId
  * @param {'manual'|'office365'} mode
  */
@@ -213,10 +220,11 @@ async function getConfiguredWeatherAlertLocations(tenantId, mode) {
     OUTER APPLY (
       SELECT TOP 1 Id, Code, CountryName, Region
       FROM [dbo].[CountryList]
-      WHERE UPPER(LTRIM(RTRIM(LC.COUNTRY))) IN (
-        UPPER(LTRIM(RTRIM(CountryName))),
-        UPPER(LTRIM(RTRIM(Code)))
-      )
+      WHERE IsWeatherAlertSupported = 1
+        AND UPPER(LTRIM(RTRIM(LC.COUNTRY))) IN (
+          UPPER(LTRIM(RTRIM(CountryName))),
+          UPPER(LTRIM(RTRIM(Code)))
+        )
       ORDER BY CountryName
     ) c
     OUTER APPLY (
