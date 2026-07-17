@@ -213,7 +213,7 @@ async function getConfiguredWeatherAlertLocations(tenantId, mode) {
       c.Code AS countryCode,
       c.CountryName AS countryName,
       c.Region AS region,
-      ci.State AS state,
+      COALESCE(ci.State, LC.STATE) AS state,
       ci.Latitude AS latitude,
       ci.Longitude AS longitude
     FROM [dbo].[LOCATION_CONFIGURATION] LC
@@ -232,6 +232,11 @@ async function getConfiguredWeatherAlertLocations(tenantId, mode) {
       FROM [dbo].[CityList]
       WHERE CountryId = c.Id
         AND UPPER(LTRIM(RTRIM(LC.CITY))) = UPPER(LTRIM(RTRIM(CityName)))
+        AND (
+          LC.STATE IS NULL
+          OR LTRIM(RTRIM(LC.STATE)) = ''
+          OR UPPER(LTRIM(RTRIM(ISNULL(State, '')))) = UPPER(LTRIM(RTRIM(LC.STATE)))
+        )
       ORDER BY State
     ) ci
     WHERE LC.TENENT_ID = @tenantId

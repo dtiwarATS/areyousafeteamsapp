@@ -2084,6 +2084,9 @@ const normalizeManualLocations = (locations) => {
         row?.country ?? row?.COUNTRY ?? row?.Country ?? "",
       ).trim(),
       city: String(row?.city ?? row?.CITY ?? row?.City ?? "").trim(),
+      state: String(
+        row?.state ?? row?.STATE ?? row?.State ?? "",
+      ).trim(),
       department: String(
         row?.department ?? row?.DEPARTMENT ?? row?.Department ?? "",
       ).trim(),
@@ -2102,6 +2105,7 @@ const getManualLocations = async (tenantId) => {
       TENENT_ID AS tenantId,
       COUNTRY AS country,
       CITY AS city,
+      STATE AS state,
       DEPARTMENT AS department,
       CREATED_DATE AS createdDate,
       LastUpdatedDateTime AS lastUpdatedDateTime,
@@ -2155,6 +2159,11 @@ const saveManualLocations = async (body) => {
       saveRequest.input("country", sql.NVarChar(sql.MAX), location.country);
       saveRequest.input("city", sql.NVarChar(sql.MAX), location.city);
       saveRequest.input(
+        "state",
+        sql.NVarChar(sql.MAX),
+        location.state || null,
+      );
+      saveRequest.input(
         "department",
         sql.NVarChar(sql.MAX),
         location.department || null,
@@ -2167,6 +2176,7 @@ const saveManualLocations = async (body) => {
           UPDATE LOCATION_CONFIGURATION
           SET COUNTRY = @country,
               CITY = @city,
+              STATE = @state,
               DEPARTMENT = @department,
               LastUpdatedDateTime = GETDATE(),
               LAST_UPDATED_BY = @userAadObjId,
@@ -2186,6 +2196,11 @@ const saveManualLocations = async (body) => {
       insertRequest.input("country", sql.NVarChar(sql.MAX), location.country);
       insertRequest.input("city", sql.NVarChar(sql.MAX), location.city);
       insertRequest.input(
+        "state",
+        sql.NVarChar(sql.MAX),
+        location.state || null,
+      );
+      insertRequest.input(
         "department",
         sql.NVarChar(sql.MAX),
         location.department || null,
@@ -2194,9 +2209,9 @@ const saveManualLocations = async (body) => {
 
       await insertRequest.query(`
         INSERT INTO LOCATION_CONFIGURATION
-          (TENENT_ID, COUNTRY, CITY, DEPARTMENT, CREATED_BY, LastUpdatedDateTime, ISOffice365Location)
+          (TENENT_ID, COUNTRY, CITY, STATE, DEPARTMENT, CREATED_BY, LastUpdatedDateTime, ISOffice365Location)
         VALUES
-          (@tenantId, @country, @city, @department, @userAadObjId, GETDATE(), 0)
+          (@tenantId, @country, @city, @state, @department, @userAadObjId, GETDATE(), 0)
       `);
       insertedCount += 1;
     }
