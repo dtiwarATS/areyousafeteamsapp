@@ -2248,6 +2248,176 @@ const deleteManualLocation = async (id) => {
   };
 };
 
+const normalizeLocationKeyPart = (value) =>
+  String(value ?? "")
+    .trim();
+
+const buildOffice365LocationKey = (country, city, state) =>
+  `${normalizeLocationKeyPart(country)}|${normalizeLocationKeyPart(city)}|${normalizeLocationKeyPart(state)}`;
+
+/**
+ * Reconcile LOCATION_CONFIGURATION rows for a tenant from MSTeamsTeamsUsers
+ * (ISOffice365Location = 1 only). Unique key: TENENT_ID + COUNTRY + CITY + STATE.
+ */
+const syncOffice365Locations = async (tenantId) => {
+  const tid = String(tenantId || "").trim();
+  if (!tid) {
+    return { success: false, error: "tenantId is required" };
+  }
+
+  const pool = await poolPromise;
+  const loadRequest = pool.request();
+  loadRequest.input("tenantId", sql.NVarChar(sql.MAX), tid);
+
+  const distinctResult = await loadRequest.query(`
+    SELECT DISTINCT
+      LTRIM(RTRIM(ISNULL(tu.country, ''))) AS country,
+      LTRIM(RTRIM(ISNULL(tu.city, ''))) AS city,
+      LTRIM(RTRIM(ISNULL(tu.state, ''))) AS state
+    FROM MSTeamsTeamsUsers tu
+    INNER JOIN MSTeamsInstallationDetails id ON tu.team_id = id.team_id
+    WHERE id.user_tenant_id = @tenantId
+      AND (
+        LTRIM(RTRIM(ISNULL(tu.country, ''))) <> ''
+        OR LTRIM(RTRIM(ISNULL(tu.city, ''))) <> ''
+        OR LTRIM(RTRIM(ISNULL(tu.state, ''))) <> ''
+      )
+  `);
+
+  const existingResult = await pool
+    .request()
+    .input("tenantId", sql.NVarChar(sql.MAX), tid)
+    .query(`
+      SELECT
+        ID AS id,
+        LTRIM(RTRIM(ISNULL(COUNTRY, ''))) AS country,
+        LTRIM(RTRIM(ISNULL(CITY, ''))) AS city,
+        LTRIM(RTRIM(ISNULL(STATE, ''))) AS state
+      FROM LOCATION_CONFIGURATION
+      WHERE TENENT_ID = @tenantId
+        AND ISOffice365Location = 1
+    `);
+
+  const distinctLocations = (distinctResult.recordset || []).map((row) => ({
+    country: normalizeLocationKeyPart(row.country),
+    city: normalizeLocationKeyPart(row.city),
+    state: normalizeLocationKeyPart(row.state),
+  }));
+
+  const distinctKeys = new Set(
+    distinctLocations.map((loc) =>
+      buildOffice365LocationKey(loc.country, loc.city, loc.state),
+    ),
+  );
+
+  const existingByKey = new Map();
+  const duplicateIds = [];
+  for (const row of existingResult.recordset || []) {
+    const key = buildOffice365LocationKey(row.country, row.city, row.state);
+    if (existingByKey.has(key)) {
+      duplicateIds.push(row.id);
+    } else {
+      existingByKey.set(key, row);
+    }
+  }
+
+  const transaction = new sql.Transaction(pool);
+  let transactionStarted = false;
+  let insertedCount = 0;
+  let updatedCount = 0;
+  let deletedCount = 0;
+
+  try {
+    await transaction.begin();
+    transactionStarted = true;
+
+    for (const location of distinctLocations) {
+      const key = buildOffice365LocationKey(
+        location.country,
+        location.city,
+        location.state,
+      );
+      const existing = existingByKey.get(key);
+
+      if (existing) {
+        const updateRequest = new sql.Request(transaction);
+        updateRequest.input("id", sql.Int, existing.id);
+        updateRequest.input("tenantId", sql.NVarChar(sql.MAX), tid);
+        updateRequest.input("country", sql.NVarChar(sql.MAX), location.country);
+        updateRequest.input("city", sql.NVarChar(sql.MAX), location.city);
+        updateRequest.input("state", sql.NVarChar(sql.MAX), location.state);
+
+        await updateRequest.query(`
+          UPDATE LOCATION_CONFIGURATION
+          SET COUNTRY = @country,
+              CITY = @city,
+              STATE = @state,
+              LastUpdatedDateTime = GETDATE(),
+              LAST_UPDATED_BY = 'SYSTEM'
+          WHERE ID = @id
+            AND TENENT_ID = @tenantId
+            AND ISOffice365Location = 1
+        `);
+        updatedCount += 1;
+        existingByKey.delete(key);
+        continue;
+      }
+
+      const insertRequest = new sql.Request(transaction);
+      insertRequest.input("tenantId", sql.NVarChar(sql.MAX), tid);
+      insertRequest.input("country", sql.NVarChar(sql.MAX), location.country);
+      insertRequest.input("city", sql.NVarChar(sql.MAX), location.city);
+      insertRequest.input("state", sql.NVarChar(sql.MAX), location.state);
+
+      await insertRequest.query(`
+        INSERT INTO LOCATION_CONFIGURATION
+          (TENENT_ID, COUNTRY, CITY, STATE, DEPARTMENT, CREATED_BY, LAST_UPDATED_BY, LastUpdatedDateTime, ISOffice365Location)
+        VALUES
+          (@tenantId, @country, @city, @state, NULL, 'SYSTEM', 'SYSTEM', GETDATE(), 1)
+      `);
+      insertedCount += 1;
+    }
+
+    const staleIds = [
+      ...duplicateIds,
+      ...[...existingByKey.values()].map((row) => row.id),
+    ];
+    for (const staleId of staleIds) {
+      const deleteRequest = new sql.Request(transaction);
+      deleteRequest.input("id", sql.Int, staleId);
+      deleteRequest.input("tenantId", sql.NVarChar(sql.MAX), tid);
+
+      const deleteResult = await deleteRequest.query(`
+        DELETE FROM LOCATION_CONFIGURATION
+        WHERE ID = @id
+          AND TENENT_ID = @tenantId
+          AND ISOffice365Location = 1
+      `);
+      deletedCount += deleteResult.rowsAffected?.[0] || 0;
+    }
+
+    await transaction.commit();
+    return {
+      success: true,
+      insertedCount,
+      updatedCount,
+      deletedCount,
+    };
+  } catch (err) {
+    if (transactionStarted) {
+      await transaction.rollback();
+    }
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      `error in syncOffice365Locations for tenant ${tid}`,
+    );
+    throw err;
+  }
+};
+
 const getSuperUsersByTeamId = async (teamId) => {
   let result = null;
   try {
@@ -4987,6 +5157,7 @@ module.exports = {
   getManualLocations,
   saveManualLocations,
   deleteManualLocation,
+  syncOffice365Locations,
   getSuperUsersByTeamId,
   getCreateIncidentUsersByTeamId,
   isWelcomeMessageSend,

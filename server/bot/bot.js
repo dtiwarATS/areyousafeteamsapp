@@ -4399,6 +4399,24 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
             }
           }
           // console.log({ finalphone: phone });
+          try {
+            await incidentService.syncOffice365Locations(tenantId);
+          } catch (syncErr) {
+            console.log({
+              "error in syncOffice365Locations": syncErr,
+              tenantId,
+            });
+            processSafetyBotError(
+              syncErr,
+              tenantId,
+              "",
+              "",
+              "error in syncOffice365Locations after getUserDetails",
+              "",
+              false,
+              "",
+            );
+          }
         }
       })
       .catch((error) => {
