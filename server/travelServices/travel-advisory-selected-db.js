@@ -796,7 +796,7 @@ async function upsertSavedAdvisory(
     : (advisory?.title?.toString().slice(0, 500) ?? null);
 
   const level = isWeather
-    ? (advisory[0]?.category?.toString().slice(0, 100) ?? null)
+    ? (advisory[0]?.level?.toString().slice(0, 100) ?? null)
     : (advisory?.level?.toString().slice(0, 100) ?? null);
 
   const levelNumber = isWeather
