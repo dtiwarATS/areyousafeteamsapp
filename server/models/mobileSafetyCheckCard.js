@@ -4,10 +4,63 @@
  */
 const {
   getBotStaticText,
+  getBotStaticTextWithIncident,
   getTranslatedField,
   applyBotStaticPlaceholders,
+  buildSafeResponseThankYouText,
   DEFAULT_LANGUAGE_ID,
 } = require("../utils/botStaticTranslations");
+
+const toMobilePlainText = (text, creatorName) =>
+  String(text || "")
+    .replace(/<\/?at>/gi, "")
+    .replace(/<IncidentCreator>/g, creatorName)
+    .replace(/\*\*/g, "")
+    .replace(/^✔️\s*/u, "")
+    .trim();
+
+const buildMobileUiStrings = (creatorName, languageId, translatedText) => {
+  const incidentCreator = { name: creatorName };
+  const thankYouRaw = buildSafeResponseThankYouText(
+    incidentCreator,
+    languageId,
+    translatedText,
+  );
+  const additionalCommentsLabel = getBotStaticTextWithIncident(
+    "additionalComments",
+    languageId,
+    translatedText,
+    "Additional Comments",
+  );
+  const sendLabel = getBotStaticTextWithIncident(
+    "sendButton",
+    languageId,
+    translatedText,
+    "Send",
+  );
+  let commentTemplate = getBotStaticTextWithIncident(
+    "submitCommentWithMessage",
+    languageId,
+    translatedText,
+    "✔️ Your message has been sent to <IncidentCreator>. Someone will be in touch with you as soon as possible \n\n **{AdditionalCommentsLabel}**: {CommentVal}",
+  );
+  commentTemplate = applyBotStaticPlaceholders(commentTemplate, {
+    incidentCreator,
+    AdditionalCommentsLabel: additionalCommentsLabel,
+    CommentVal: "",
+  });
+  const commentSentIntro = toMobilePlainText(
+    String(commentTemplate).split("\n\n")[0],
+    creatorName,
+  );
+
+  return {
+    thankYouText: toMobilePlainText(thankYouRaw, creatorName),
+    additionalCommentsLabel,
+    sendLabel,
+    commentSentIntro,
+  };
+};
 
 const resolveLanguageId = (languageId) =>
   languageId != null && languageId !== ""
@@ -240,11 +293,14 @@ const buildMobileCardSnapshot = (
 
   const options = (responseOptionData?.responseOptions || [])
     .filter((o) => o && String(o.option || "").trim())
-    .map((o) => ({
-      id: o.id,
-      option: String(o.option),
-      color: o.color || "",
-    }));
+    .map((o, index) => {
+      const parsedId = Number.parseInt(String(o.id), 10);
+      return {
+        id: Number.isFinite(parsedId) && parsedId >= 1 ? parsedId : index + 1,
+        option: String(o.option),
+        color: o.color || "",
+      };
+    });
 
   const responseType = responseOptionData?.responseType || "buttons";
   const showResponseActions =
@@ -265,6 +321,7 @@ const buildMobileCardSnapshot = (
     travelUpdate: fields.travelUpdate || "",
     contactInfo: fields.contactInfo || "",
     situation: fields.situation || "",
+    uiStrings: buildMobileUiStrings(creatorName, lang, translatedText),
   };
 };
 

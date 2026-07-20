@@ -3638,7 +3638,8 @@ const handlerForSafetyBotTab = (app) => {
           return res.send({ success: false, error: "Missing userAadObjId" });
         }
 
-        // Map UI text / option id to response_value (same as Teams Action.Execute info)
+        // Map UI text / option id to response_value (same as Teams Action.Execute info).
+        // Custom buttons use numeric ids 3+; also accept option label text.
         const raw = (responseOption ?? "").toString().trim();
         const lower = raw.toLowerCase();
         let responseValue = Number.parseInt(raw, 10);
@@ -3649,6 +3650,48 @@ const handlerForSafetyBotTab = (app) => {
           if (lower === "i am safe" || lower === "i_am_safe") responseValue = 1;
           else if (lower === "i need assistance" || lower === "need_assistance")
             responseValue = 2;
+        }
+
+        let incRow = null;
+        const loadIncRow = async () => {
+          if (incRow) return incRow;
+          incRow = await incidentService.getInc(
+            parsedIncId,
+            null,
+            userAadObjId,
+          );
+          return incRow;
+        };
+
+        // Resolve custom option label → id from incident RESPONSE_OPTIONS
+        if (!Number.isFinite(responseValue) || responseValue < 1) {
+          try {
+            const row = await loadIncRow();
+            let opts = row?.responseOptions;
+            if (typeof opts === "string") {
+              opts = JSON.parse(opts);
+            }
+            if (Array.isArray(opts)) {
+              const match = opts.find(
+                (o) =>
+                  o &&
+                  String(o.option || "")
+                    .trim()
+                    .toLowerCase() === lower,
+              );
+              if (match?.id != null && match.id !== "") {
+                const matchedId = Number.parseInt(String(match.id), 10);
+                if (Number.isFinite(matchedId) && matchedId >= 1) {
+                  responseValue = matchedId;
+                }
+              }
+            }
+          } catch (lookupErr) {
+            console.warn(
+              "[trackSafetyCheckResponse] option lookup failed:",
+              lookupErr?.message || lookupErr,
+            );
+          }
         }
 
         if (!Number.isFinite(responseValue) || responseValue < 1) {
@@ -3666,15 +3709,11 @@ const handlerForSafetyBotTab = (app) => {
             "Mobile",
           );
         } else {
-          // Custom option ids (types 3–5) — same response_value column Teams uses
+          // Custom option ids (3+) — same response_value column Teams uses
           let teamIdForUpdate = teamId;
           if (!teamIdForUpdate) {
-            const incRow = await incidentService.getInc(
-              parsedIncId,
-              null,
-              userAadObjId,
-            );
-            teamIdForUpdate = incRow?.teamId || "";
+            const row = await loadIncRow();
+            teamIdForUpdate = row?.teamId || "";
           }
           await incidentService.updateSafetyCheckStatusViaSMSLink(
             parsedIncId,
