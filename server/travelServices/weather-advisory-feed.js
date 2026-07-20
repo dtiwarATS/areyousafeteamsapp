@@ -55,6 +55,7 @@ async function getWeatherAlerts(lat, lon) {
     alertId: r.alertId,
     description: r.description || { localized: "", english: "" },
     category: r.category || "",
+    level: r.level != null ? String(r.level).trim() : "",
     priority: r.priority ?? 0,
     source: r.source || "",
     sourceId: r.sourceId,
