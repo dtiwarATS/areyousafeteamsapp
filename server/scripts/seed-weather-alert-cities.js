@@ -1,5 +1,5 @@
 /**
- * Seed WeatherAlertSupportedCountry and WeatherAlertCity from Azure coverage list + GeoNames cities5000.
+ * Seed CountryList and CityList from Azure coverage list + GeoNames cities5000.
  *
  * Usage (from areyousafeteamsapp folder):
  *   node server/scripts/seed-weather-alert-cities.js
@@ -168,8 +168,8 @@ async function getPool() {
 }
 
 async function seedCountries(pool, countries) {
-  await pool.request().query("DELETE FROM WeatherAlertCity");
-  await pool.request().query("DELETE FROM WeatherAlertSupportedCountry");
+  await pool.request().query("DELETE FROM CityList");
+  await pool.request().query("DELETE FROM CountryList");
 
   const idByIso = new Map();
   for (const country of countries) {
@@ -179,7 +179,7 @@ async function seedCountries(pool, countries) {
       .input("Code", sql.NVarChar(10), country.code)
       .input("Region", sql.NVarChar(50), country.region)
       .query(`
-        INSERT INTO WeatherAlertSupportedCountry (CountryName, Code, Region)
+        INSERT INTO CountryList (CountryName, Code, Region)
         OUTPUT INSERTED.Id
         VALUES (@CountryName, @Code, @Region)
       `);
@@ -218,7 +218,7 @@ async function seedCities(pool, cities, idByIso) {
     if (values.length === 0) continue;
 
     await request.query(`
-      INSERT INTO WeatherAlertCity (CountryId, CityName, State, Latitude, Longitude)
+      INSERT INTO CityList (CountryId, CityName, State, Latitude, Longitude)
       VALUES ${values.join(", ")}
     `);
 
@@ -262,8 +262,8 @@ async function main() {
 
   const summary = await pool.request().query(`
     SELECT
-      (SELECT COUNT(*) FROM WeatherAlertSupportedCountry) AS CountryCount,
-      (SELECT COUNT(*) FROM WeatherAlertCity) AS CityCount
+      (SELECT COUNT(*) FROM CountryList) AS CountryCount,
+      (SELECT COUNT(*) FROM CityList) AS CityCount
   `);
 
   const { CountryCount, CityCount } = summary.recordset[0];

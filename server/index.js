@@ -81,7 +81,7 @@ function initJob() {
           "jobs",
           "travelAdvisorySelectedCountries-job.js",
         ),
-        cron: "0 */6 * * *",
+        cron: "*/30 * * * *",
       },
       {
         name: "GetAllUser-job",

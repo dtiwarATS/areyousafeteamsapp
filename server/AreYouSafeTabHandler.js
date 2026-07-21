@@ -5519,6 +5519,94 @@ ORDER BY ACL.EventDateTime DESC;
   });
 
   app.get(
+    "/areyousafetabhandler/getLocationConfigCountries",
+    async (req, res) => {
+      try {
+        const locationConfigDb = require("./travelServices/location-configuration-locations-db");
+        const countries = await locationConfigDb.getLocationConfigCountries();
+        res.json({ success: true, data: { countries } });
+      } catch (err) {
+        console.error(
+          "Error in /areyousafetabhandler/getLocationConfigCountries:",
+          err,
+        );
+        res.status(500).json({
+          success: false,
+          error: err.message,
+          data: { countries: [] },
+        });
+      }
+    },
+  );
+
+  app.get("/areyousafetabhandler/getLocationConfigCities", async (req, res) => {
+    try {
+      const locationConfigDb = require("./travelServices/location-configuration-locations-db");
+      const countryCode = req.query.countryCode || "";
+      const countryName = req.query.countryName || req.query.country || "";
+      const cities = await locationConfigDb.getLocationConfigCities({
+        countryCode,
+        countryName,
+      });
+      res.json({ success: true, data: { cities } });
+    } catch (err) {
+      console.error(
+        "Error in /areyousafetabhandler/getLocationConfigCities:",
+        err,
+      );
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        data: { cities: [] },
+      });
+    }
+  });
+
+  app.get(
+    "/areyousafetabhandler/getLocationConfigCountries",
+    async (req, res) => {
+      try {
+        const locationConfigDb = require("./travelServices/location-configuration-locations-db");
+        const countries = await locationConfigDb.getLocationConfigCountries();
+        res.json({ success: true, data: { countries } });
+      } catch (err) {
+        console.error(
+          "Error in /areyousafetabhandler/getLocationConfigCountries:",
+          err,
+        );
+        res.status(500).json({
+          success: false,
+          error: err.message,
+          data: { countries: [] },
+        });
+      }
+    },
+  );
+
+  app.get("/areyousafetabhandler/getLocationConfigCities", async (req, res) => {
+    try {
+      const locationConfigDb = require("./travelServices/location-configuration-locations-db");
+      const countryCode = req.query.countryCode || "";
+      const countryName = req.query.countryName || req.query.country || "";
+      const cities = await locationConfigDb.getLocationConfigCities({
+        countryCode,
+        countryName,
+      });
+      res.json({ success: true, data: { cities } });
+    } catch (err) {
+      console.error(
+        "Error in /areyousafetabhandler/getLocationConfigCities:",
+        err,
+      );
+      res.status(500).json({
+        success: false,
+        error: err.message,
+        data: { cities: [] },
+      });
+    }
+  });
+
+  app.get(
     "/areyousafetabhandler/getWeatherAlertLocations",
     async (req, res) => {
       try {
