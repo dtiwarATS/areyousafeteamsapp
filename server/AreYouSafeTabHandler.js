@@ -4448,8 +4448,8 @@ const handlerForSafetyBotTab = (app) => {
           return res.send({ success: false, error: "Missing userAadObjId" });
         }
 
-        // Map UI text to the existing DB convention:
-        // response=1 (responded), response_value=1 (safe) or 2 (need assistance)
+        // Map UI text / option id to response_value (same as Teams Action.Execute info).
+        // Custom buttons use numeric ids 3+; also accept option label text.
         const raw = (responseOption ?? "").toString().trim();
         const lower = raw.toLowerCase();
         let responseValue = Number.parseInt(raw, 10);
@@ -4462,30 +4462,86 @@ const handlerForSafetyBotTab = (app) => {
             responseValue = 2;
         }
 
-        if (responseValue !== 1 && responseValue !== 2) {
+        let incRow = null;
+        const loadIncRow = async () => {
+          if (incRow) return incRow;
+          incRow = await incidentService.getInc(
+            parsedIncId,
+            null,
+            userAadObjId,
+          );
+          return incRow;
+        };
+
+        // Resolve custom option label → id from incident RESPONSE_OPTIONS
+        if (!Number.isFinite(responseValue) || responseValue < 1) {
+          try {
+            const row = await loadIncRow();
+            let opts = row?.responseOptions;
+            if (typeof opts === "string") {
+              opts = JSON.parse(opts);
+            }
+            if (Array.isArray(opts)) {
+              const match = opts.find(
+                (o) =>
+                  o &&
+                  String(o.option || "")
+                    .trim()
+                    .toLowerCase() === lower,
+              );
+              if (match?.id != null && match.id !== "") {
+                const matchedId = Number.parseInt(String(match.id), 10);
+                if (Number.isFinite(matchedId) && matchedId >= 1) {
+                  responseValue = matchedId;
+                }
+              }
+            }
+          } catch (lookupErr) {
+            console.warn(
+              "[trackSafetyCheckResponse] option lookup failed:",
+              lookupErr?.message || lookupErr,
+            );
+          }
+        }
+
+        if (!Number.isFinite(responseValue) || responseValue < 1) {
           return res.send({
             success: false,
             error: "Invalid responseOption",
           });
         }
 
-        const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", new Date());
+        if (responseValue === 1 || responseValue === 2) {
+          await bot.proccessSMSLinkClick(
+            userAadObjId,
+            String(parsedIncId),
+            responseValue === 1 ? "YES" : "NO",
+            "Mobile",
+          );
+        } else {
+          // Custom option ids (3+) — same response_value column Teams uses
+          let teamIdForUpdate = teamId;
+          if (!teamIdForUpdate) {
+            const row = await loadIncRow();
+            teamIdForUpdate = row?.teamId || "";
+          }
+          await incidentService.updateSafetyCheckStatusViaSMSLink(
+            parsedIncId,
+            responseValue,
+            userAadObjId,
+            teamIdForUpdate,
+            "Mobile",
+          );
+        }
 
-        const pool = await poolPromise;
-        const sql = require("mssql");
+        if (comment && typeof comment === "string" && comment.trim()) {
+          await bot.processCommentViaLink(
+            userAadObjId,
+            String(parsedIncId),
+            comment.trim(),
+          );
+        }
 
-        let query = "";
-
-        // ✅ CASE 2: USER_AAD_OBJ_ID
-
-        query = `
-      UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = 'Teams',comment = '${comment ?? ""}' WHERE inc_id = ${incId} AND user_id in (select  top 1 user_id from MSTeamsTeamsUsers where user_aadobject_id= '${userAadObjId}')
-
-
-      `;
-
-        const request = pool.request();
-        const result = await request.query(query);
         return res.send({ success: true });
       } catch (err) {
         console.log(err);
@@ -5158,24 +5214,45 @@ const handlerForSafetyBotTab = (app) => {
   app.post("/smscomment", async (req, res) => {
     console.log("got reply for sms comment", req.body);
     let { userId, eventId, comments, isfrom } = req.body;
-    const isfromemail = isfrom ? true : false;
-    console.log({ userId, eventId, comments });
-    await bot.processCommentViaLink(userId, eventId, comments);
+    const channel =
+      isfrom === "Email"
+        ? "Email"
+        : isfrom === "Mobile"
+          ? "Mobile"
+          : isfrom
+            ? "SMS"
+            : "SMS";
+    console.log({ userId, eventId, comments, channel });
+    try {
+      await bot.processCommentViaLink(userId, eventId, comments);
 
-    incidentService.saveAllTypeQuerylogs(
-      userId,
-      "",
-      isfromemail ? "Email" : "SMS",
-      "",
-      eventId,
-      "SMS_COMMENT",
-      "",
-      "",
-      "",
-      `${comments}`,
-      "",
-    );
-    return res.status(200).json({ success: true });
+      incidentService.saveAllTypeQuerylogs(
+        userId,
+        "",
+        channel,
+        "",
+        eventId,
+        "SMS_COMMENT",
+        "",
+        "",
+        "",
+        `${comments}`,
+        "",
+      );
+      return res.status(200).json({ success: true });
+    } catch (err) {
+      console.error("Error in /smscomment:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userId,
+        "error in /smscomment eventId=" + eventId,
+      );
+      return res
+        .status(500)
+        .json({ success: false, error: "Failed to save comment" });
+    }
   });
   app.post("/handleWhatsappResponse", async (req, res) => {
     const body = req.body;

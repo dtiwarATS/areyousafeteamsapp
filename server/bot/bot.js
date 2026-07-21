@@ -11,6 +11,7 @@ const {
   ConnectorClient,
 } = require("botframework-connector");
 const incidentService = require("../services/incidentService");
+const fcmService = require("../services/fcmService");
 const path = require("path");
 const FormData = require("form-data");
 const mail = require("../utils/mail");
@@ -5388,6 +5389,39 @@ const NewsendSafetyCheckMessageAsync = async (
           translatedtext: incData.TRANSLATED_TEXT_JSON,
         };
         const batchSize = 100;
+
+        // FCM push once per incident (tab UI may call this endpoint in member batches)
+        const isBatchedRequest =
+          isFirstBatch != null || isLastBatch != null;
+        const isExplicitFirstBatch =
+          isFirstBatch === "true" || isFirstBatch === true;
+        const shouldSendFcmPush =
+          (!isBatchedRequest || isExplicitFirstBatch) &&
+          fcmService.shouldSendSafetyCheckPush(incId);
+        if (shouldSendFcmPush) {
+          fcmService
+            .sendSafetyCheckPushToMembers(allMembersArr, {
+              incId,
+              teamId,
+              incTitle,
+              createdByName: createdByUserInfo?.user_name || "",
+              incTypeId,
+              incGuidance: incGuidance || incData?.incGuidance || "",
+              additionalInfo: incData?.additionalInfo || "",
+              travelUpdate: incData?.travelUpdate || "",
+              contactInfo: incData?.contactInfo || "",
+              situation: incData?.situation || "",
+              responseOptionData,
+              translatedtext: incData?.TRANSLATED_TEXT_JSON || null,
+              isDrill: !!(incData?.isDrill || incData?.IS_DRILL),
+            })
+            .catch((err) => {
+              console.error(
+                "[NewsendSafetyCheckMessageAsync] FCM push error:",
+                err?.message || err,
+              );
+            });
+        }
 
         if (allMembersArr.length > 100) {
           const batchPromises = [];

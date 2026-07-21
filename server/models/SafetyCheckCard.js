@@ -9,9 +9,7 @@ const {
 } = require("../utils/botStaticTranslations");
 
 const resolveLanguageId = (languageId) =>
-  languageId != null && languageId !== ""
-    ? languageId
-    : DEFAULT_LANGUAGE_ID;
+  languageId != null && languageId !== "" ? languageId : DEFAULT_LANGUAGE_ID;
 
 const getCardText = (key, languageId, translatedText, fallback) =>
   getBotStaticTextWithIncident(
@@ -35,7 +33,13 @@ const getCardIntroText = (
     },
   );
 
-const getCardTitleText = (key, languageId, translatedText, incTitle, fallback) =>
+const getCardTitleText = (
+  key,
+  languageId,
+  translatedText,
+  incTitle,
+  fallback,
+) =>
   applyBotStaticPlaceholders(
     getCardText(key, languageId, translatedText, fallback),
     {
@@ -573,7 +577,10 @@ const getImpBulletineTypeCard = async (
       }
     });
   } else {
-    const dropdownStrings = getResponseDropdownStrings(languageId, translatedText);
+    const dropdownStrings = getResponseDropdownStrings(
+      languageId,
+      translatedText,
+    );
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",
@@ -726,7 +733,10 @@ const getTravelAdvisoryTypeCard = async (
       }
     });
   } else {
-    const dropdownStrings = getResponseDropdownStrings(languageId, translatedText);
+    const dropdownStrings = getResponseDropdownStrings(
+      languageId,
+      translatedText,
+    );
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",
@@ -866,7 +876,10 @@ const getStakeholderNoticeTypeCard = async (
       }
     });
   } else {
-    const dropdownStrings = getResponseDropdownStrings(languageId, translatedText);
+    const dropdownStrings = getResponseDropdownStrings(
+      languageId,
+      translatedText,
+    );
     let dropdown = {
       type: "Input.ChoiceSet",
       id: "dropdownSelection",
@@ -917,6 +930,12 @@ const getStakeholderNoticeTypeCard = async (
     },
   };
 };
+
+/**
+ * Plain JSON snapshot of what Teams Adaptive Cards show — for mobile FCM / in-app UI.
+ * Implemented in mobileSafetyCheckCard.js (no circular deps with FCM).
+ */
+const { buildMobileCardSnapshot } = require("./mobileSafetyCheckCard");
 
 const SafetyCheckCard = async (
   incTitle,
@@ -1035,4 +1054,5 @@ module.exports = {
   getTranslatedOptionText,
   resolveTranslatedResponseOptionData,
   getHelloText,
+  buildMobileCardSnapshot,
 };
