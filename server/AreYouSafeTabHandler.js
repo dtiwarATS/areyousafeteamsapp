@@ -4756,9 +4756,11 @@ ORDER BY ACL.EventDateTime DESC;
       const source = req.query.source || "all";
       const teamId = req.query.teamId || "";
       const tenantId = req.query.tenantId || "";
+      const q = req.query.q || "";
       const data = await weatherLocationsDb.getWeatherAlertLocations(source, {
         teamId,
         tenantId,
+        q,
       });
       res.json({ success: true, data });
     } catch (err) {

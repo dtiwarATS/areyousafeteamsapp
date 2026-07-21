@@ -1,8 +1,6 @@
 /**
  * Weather alert location options for Manage Locations dropdowns.
- * Only CountryList rows with IsWeatherAlertSupported = 1 count as supported.
- * Rows with IsWeatherAlertSupported = 0 are treated as not in CountryList.
- * source=all      → CountryList + CityList (IsWeatherAlertSupported = 1 only)
+ * source=all      → supported CountryList + CityList (fast); optional q searches all CityList
  * source=manual   → LOCATION_CONFIGURATION (ISOffice365Location null/0) + available flag
  * source=office365 → LOCATION_CONFIGURATION (ISOffice365Location=1) + available flag
  */
@@ -10,8 +8,23 @@
 const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 
+const CITY_SEARCH_MIN_CHARS = 3;
+const CITY_SEARCH_DEFAULT_LIMIT = 100;
+
 /**
- * Get all countries and cities from weather alert tables (IsWeatherAlertSupported = 1 only).
+ * Escape LIKE wildcards for SQL Server parameterized patterns.
+ * @param {string} value
+ */
+function escapeLikePattern(value) {
+  return String(value || "")
+    .replace(/\[/g, "[[]")
+    .replace(/]/g, "[%]")
+    .replace(/_/g, "[_]");
+}
+
+/**
+ * Supported countries + cities only (IsWeatherAlertSupported = 1).
+ * Kept lean so the Weather Alerts tab can load quickly after reload.
  * @returns {Promise<{ countries: Array, cities: Array }>}
  */
 async function getAllWeatherAlertLocations() {
@@ -59,8 +72,64 @@ async function getAllWeatherAlertLocations() {
 }
 
 /**
+ * Search CityList (including unsupported countries) for the dropdown.
+ * Unsupported cities are returned with available: false.
+ * @param {string} query
+ * @param {number} [limit]
+ * @returns {Promise<Array>}
+ */
+async function searchWeatherAlertCities(query, limit = CITY_SEARCH_DEFAULT_LIMIT) {
+  const q = String(query || "").trim();
+  if (q.length < CITY_SEARCH_MIN_CHARS) return [];
+
+  const pool = await poolPromise;
+  const pattern = `%${escapeLikePattern(q)}%`;
+  const prefixPattern = `${escapeLikePattern(q)}%`;
+  const top = Math.min(
+    Math.max(Number(limit) || CITY_SEARCH_DEFAULT_LIMIT, 1),
+    200,
+  );
+
+  const result = await pool
+    .request()
+    .input("pattern", sql.NVarChar(400), pattern)
+    .input("prefixPattern", sql.NVarChar(400), prefixPattern)
+    .input("limit", sql.Int, top)
+    .query(`
+      SELECT TOP (@limit)
+        c.Code AS countryCode,
+        c.CountryName AS countryName,
+        c.IsWeatherAlertSupported AS isWeatherAlertSupported,
+        ci.CityName AS cityName,
+        ci.State AS state,
+        ci.Latitude AS latitude,
+        ci.Longitude AS longitude
+      FROM [dbo].[CityList] ci
+      INNER JOIN [dbo].[CountryList] c ON c.Id = ci.CountryId
+      WHERE
+        ci.CityName LIKE @pattern
+        OR ISNULL(ci.State, '') LIKE @pattern
+        OR c.CountryName LIKE @pattern
+      ORDER BY
+        CASE WHEN ci.CityName LIKE @prefixPattern THEN 0 ELSE 1 END,
+        CASE WHEN c.IsWeatherAlertSupported = 1 THEN 0 ELSE 1 END,
+        ci.CityName,
+        c.CountryName
+    `);
+
+  return (result.recordset || []).map((r) => ({
+    countryCode: String(r.countryCode || "").trim(),
+    countryName: String(r.countryName || "").trim(),
+    cityName: String(r.cityName || "").trim(),
+    state: r.state != null ? String(r.state).trim() : null,
+    latitude: Number(r.latitude),
+    longitude: Number(r.longitude),
+    available: Boolean(r.isWeatherAlertSupported),
+  }));
+}
+
+/**
  * Load CountryList lookup maps (by name and by code) for IsWeatherAlertSupported = 1 only.
- * Flag = 0 rows are excluded (treated as not in CountryList).
  * @returns {Promise<{ byName: Map<string, { code: string, name: string, region: string }>, byCode: Map<string, { code: string, name: string, region: string }> }>}
  */
 async function loadSupportedCountryLookup() {
@@ -99,10 +168,8 @@ function toCoordinate(value) {
 }
 
 /**
- * Normalize LOCATION_CONFIGURATION rows and mark availability vs supported CountryList
- * (IsWeatherAlertSupported = 1). Flag = 0 or missing → available: false.
- * Passes through latitude/longitude/state when joined from CityList.
- * @param {Array<{ country?: string, city?: string, countryCode?: string, countryName?: string, region?: string, state?: string, latitude?: number, longitude?: number }>} rows
+ * Normalize LOCATION_CONFIGURATION rows and mark availability vs supported CountryList.
+ * @param {Array} rows
  * @param {{ byName: Map, byCode: Map }} supported
  */
 function normalizeConfiguredLocationsWithAvailability(rows, supported) {
@@ -126,16 +193,13 @@ function normalizeConfiguredLocationsWithAvailability(rows, supported) {
 
     const joinedCode = String(row.countryCode || "").trim();
     const joinedName = String(row.countryName || "").trim();
-    const available = Boolean(matched || joinedCode || joinedName);
-    const countryCode = available
-      ? joinedCode || matched?.code || orgCountry
-      : orgCountry;
-    const countryName = available
-      ? joinedName || matched?.name || orgCountry
-      : orgCountry;
-    const region = available
-      ? String(row.region || matched?.region || "").trim()
-      : "";
+    const available =
+      row.isWeatherAlertSupported != null
+        ? Boolean(Number(row.isWeatherAlertSupported))
+        : Boolean(matched);
+    const countryCode = joinedCode || matched?.code || orgCountry;
+    const countryName = joinedName || matched?.name || orgCountry;
+    const region = String(row.region || matched?.region || "").trim();
 
     const countryKey = String(countryCode || countryName).toUpperCase();
     if (orgCountry && !countryMap.has(countryKey)) {
@@ -171,7 +235,6 @@ function normalizeConfiguredLocationsWithAvailability(rows, supported) {
   }
 
   const countries = [...countryMap.values()].sort((a, b) => {
-    // Available first, then by name
     if (a.available !== b.available) return a.available ? -1 : 1;
     return a.name.localeCompare(b.name);
   });
@@ -186,7 +249,6 @@ function normalizeConfiguredLocationsWithAvailability(rows, supported) {
 
 /**
  * Locations from LOCATION_CONFIGURATION for a tenant, filtered by Office365 flag.
- * Joins CountryList (IsWeatherAlertSupported = 1) + CityList for lat/long/state.
  * @param {string} tenantId
  * @param {'manual'|'office365'} mode
  */
@@ -213,15 +275,15 @@ async function getConfiguredWeatherAlertLocations(tenantId, mode) {
       c.Code AS countryCode,
       c.CountryName AS countryName,
       c.Region AS region,
+      c.IsWeatherAlertSupported AS isWeatherAlertSupported,
       COALESCE(ci.State, LC.STATE) AS state,
       ci.Latitude AS latitude,
       ci.Longitude AS longitude
     FROM [dbo].[LOCATION_CONFIGURATION] LC
     OUTER APPLY (
-      SELECT TOP 1 Id, Code, CountryName, Region
+      SELECT TOP 1 Id, Code, CountryName, Region, IsWeatherAlertSupported
       FROM [dbo].[CountryList]
-      WHERE IsWeatherAlertSupported = 1
-        AND UPPER(LTRIM(RTRIM(LC.COUNTRY))) IN (
+      WHERE UPPER(LTRIM(RTRIM(LC.COUNTRY))) IN (
           UPPER(LTRIM(RTRIM(CountryName))),
           UPPER(LTRIM(RTRIM(Code)))
         )
@@ -255,30 +317,24 @@ async function getConfiguredWeatherAlertLocations(tenantId, mode) {
   );
 }
 
-/**
- * Manual locations from LOCATION_CONFIGURATION (ISOffice365Location null/0).
- * @param {string} tenantId
- */
 async function getManualWeatherAlertLocations(tenantId) {
   return getConfiguredWeatherAlertLocations(tenantId, "manual");
 }
 
-/**
- * Office 365 locations from LOCATION_CONFIGURATION (ISOffice365Location=1).
- * @param {string} tenantId
- */
 async function getOffice365WeatherAlertLocations(tenantId) {
   return getConfiguredWeatherAlertLocations(tenantId, "office365");
 }
 
 /**
  * Get weather location options for Manage Locations dropdowns.
+ * Optional opts.q (3+ chars) searches the full CityList for source=all.
  * @param {'all'|'office365'|'manual'} source
- * @param {{ teamId?: string, tenantId?: string }} [opts]
+ * @param {{ teamId?: string, tenantId?: string, q?: string }} [opts]
  */
 async function getWeatherAlertLocations(source, opts = {}) {
   const mode = String(source || "all").toLowerCase();
   const tenantId = opts.tenantId || "";
+  const q = String(opts.q || "").trim();
 
   if (mode === "manual") {
     return getManualWeatherAlertLocations(tenantId);
@@ -286,6 +342,12 @@ async function getWeatherAlertLocations(source, opts = {}) {
   if (mode === "office365") {
     return getOffice365WeatherAlertLocations(tenantId);
   }
+
+  if (q.length >= CITY_SEARCH_MIN_CHARS) {
+    const cities = await searchWeatherAlertCities(q);
+    return { countries: [], cities };
+  }
+
   return getAllWeatherAlertLocations();
 }
 
@@ -294,4 +356,5 @@ module.exports = {
   getWeatherAlertLocations,
   getManualWeatherAlertLocations,
   getOffice365WeatherAlertLocations,
+  searchWeatherAlertCities,
 };
