@@ -19,60 +19,44 @@ function requireMappedIds(req, res) {
   return { tenantId, teamId };
 }
 
-router.get("/users-by-city", async (req, res) => {
+/** Multi-filter people lookup (replaces users-by-city / country / department / at-location). */
+router.get("/users", async (req, res) => {
   const ids = requireMappedIds(req, res);
   if (!ids) return;
-  const city = req.query.city || "";
-  const result = await service.listUsersByCity({ teamId: ids.teamId, city });
-  res.json(result);
-});
-
-router.get("/users-at-location", async (req, res) => {
-  const ids = requireMappedIds(req, res);
-  if (!ids) return;
-  const location = req.query.location || "";
-  if (!String(location).trim()) {
-    return res.status(400).json({ error: "location is required" });
-  }
-  const includeConfigured =
-    req.query.includeConfigured === undefined
-      ? true
-      : String(req.query.includeConfigured).toLowerCase() !== "false";
-  const result = await service.listUsersAtLocation({
+  const result = await service.listUsers({
     teamId: ids.teamId,
     tenantId: ids.tenantId,
-    location,
-    includeConfigured,
+    city: req.query.city,
+    country: req.query.country,
+    state: req.query.state,
+    department: req.query.department,
+    name: req.query.name,
+    locationMode: req.query.locationMode || "effective",
+    includeConfigured: String(req.query.includeConfigured || "").toLowerCase() === "true",
   });
-  if (result.error === "location is required") {
+  if (result.error && result.count === 0 && !result.users?.length) {
     return res.status(400).json(result);
   }
   res.json(result);
 });
 
-router.get("/users-by-country", async (req, res) => {
+/** Distinct city/country/state/department with counts (people and/or LOCATION_CONFIGURATION). */
+router.get("/distinct-values", async (req, res) => {
   const ids = requireMappedIds(req, res);
   if (!ids) return;
-  const country = req.query.country || "";
-  if (!String(country).trim()) {
-    return res.status(400).json({ error: "country is required" });
+  const field = req.query.field || "";
+  if (!String(field).trim()) {
+    return res.status(400).json({ error: "field is required (city|country|state|department)" });
   }
-  const result = await service.listUsersByCountry({ teamId: ids.teamId, country });
-  if (result.error === "country is required") {
-    return res.status(400).json(result);
-  }
-  res.json(result);
-});
-
-router.get("/users-by-department", async (req, res) => {
-  const ids = requireMappedIds(req, res);
-  if (!ids) return;
-  const department = req.query.department || "";
-  if (!String(department).trim()) {
-    return res.status(400).json({ error: "department is required" });
-  }
-  const result = await service.listUsersByDepartment({ teamId: ids.teamId, department });
-  if (result.error === "department is required") {
+  const result = await service.listDistinctValues({
+    teamId: ids.teamId,
+    tenantId: ids.tenantId,
+    field,
+    scopedField: req.query.scopedField,
+    scopedValue: req.query.scopedValue,
+    source: req.query.source || "people",
+  });
+  if (result.error && !result.values?.length) {
     return res.status(400).json(result);
   }
   res.json(result);

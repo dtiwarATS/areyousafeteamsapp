@@ -6,6 +6,8 @@ const sql = require("mssql");
 const db = require("../../db");
 const poolPromise = require("../../db/dbConn");
 
+const DISTINCT_FIELDS = new Set(["city", "country", "state", "department"]);
+
 async function getCompanyDataByTeamId(teamId) {
   const result = await db.getCompanyDataByTeamId
     ? db.getCompanyDataByTeamId(teamId)
@@ -13,8 +15,107 @@ async function getCompanyDataByTeamId(teamId) {
   return result;
 }
 
+function trimOrNull(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s || null;
+}
+
+function includesInsensitive(haystack, needle) {
+  if (!needle) return true;
+  if (!haystack) return false;
+  return String(haystack).toLowerCase().includes(String(needle).toLowerCase());
+}
+
+/**
+ * Resolve effective location: DYNAMIC_LOCATION if set, else directory city/state/country.
+ */
+function resolveMemberLocation(m) {
+  const city = trimOrNull(m.city);
+  const country = trimOrNull(m.country);
+  const state = trimOrNull(m.state);
+  const department = trimOrNull(m.department);
+  const dynamicLocation = trimOrNull(m.DYNAMIC_LOCATION);
+  const homeCombined = [city, state, country].filter(Boolean).join(", ") || null;
+
+  let effectiveLocation = null;
+  let source = null;
+  if (dynamicLocation) {
+    effectiveLocation = dynamicLocation;
+    source = "dynamic";
+  } else if (homeCombined || city) {
+    effectiveLocation = homeCombined || city;
+    source = "office365";
+  }
+
+  return {
+    city,
+    country,
+    state,
+    department,
+    dynamicLocation,
+    homeCombined,
+    effectiveLocation,
+    source,
+  };
+}
+
+async function loadTeamMembers(teamId) {
+  const pool = await poolPromise;
+  const membersResult = await pool
+    .request()
+    .input("teamId", sql.NVarChar(256), String(teamId))
+    .query(`
+      SELECT TOP 500
+        user_aadobject_id,
+        user_name,
+        city,
+        country,
+        state,
+        department,
+        DYNAMIC_LOCATION
+      FROM MSTeamsTeamsUsers
+      WHERE team_id = @teamId
+    `);
+  return membersResult.recordset || [];
+}
+
+async function loadConfiguredLocations(tenantId) {
+  if (!tenantId) return [];
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("tenantId", sql.NVarChar(sql.MAX), String(tenantId))
+      .query(`
+        SELECT
+          CITY AS city,
+          COUNTRY AS country,
+          STATE AS state,
+          DEPARTMENT AS department,
+          ISOffice365Location
+        FROM [dbo].[LOCATION_CONFIGURATION]
+        WHERE TENENT_ID = @tenantId
+      `);
+    return (result.recordset || []).map((row) => ({
+      city: trimOrNull(row.city),
+      country: trimOrNull(row.country),
+      state: trimOrNull(row.state),
+      department: trimOrNull(row.department),
+      source:
+        row.ISOffice365Location === 1 || row.ISOffice365Location === true
+          ? "office365"
+          : "manual",
+    }));
+  } catch (err) {
+    console.warn("[ai-caller] LOCATION_CONFIGURATION load skipped:", err.message);
+    return [];
+  }
+}
+
 /**
  * Find a LOCATION_CONFIGURATION row matching the query (manual or O365 catalog).
+ * Includes STATE in select + match.
  */
 async function findConfiguredLocation(pool, tenantId, locationQuery) {
   try {
@@ -26,6 +127,7 @@ async function findConfiguredLocation(pool, tenantId, locationQuery) {
         SELECT TOP 1
           CITY AS city,
           COUNTRY AS country,
+          STATE AS state,
           DEPARTMENT AS department,
           ISOffice365Location
         FROM [dbo].[LOCATION_CONFIGURATION]
@@ -33,7 +135,9 @@ async function findConfiguredLocation(pool, tenantId, locationQuery) {
           AND (
             LOWER(ISNULL(CITY, '')) LIKE '%' + @q + '%'
             OR LOWER(ISNULL(COUNTRY, '')) LIKE '%' + @q + '%'
+            OR LOWER(ISNULL(STATE, '')) LIKE '%' + @q + '%'
             OR LOWER(ISNULL(CITY, '') + ', ' + ISNULL(COUNTRY, '')) LIKE '%' + @q + '%'
+            OR LOWER(ISNULL(CITY, '') + ', ' + ISNULL(STATE, '') + ', ' + ISNULL(COUNTRY, '')) LIKE '%' + @q + '%'
           )
         ORDER BY
           CASE WHEN ISOffice365Location = 1 THEN 0 ELSE 1 END,
@@ -42,10 +146,14 @@ async function findConfiguredLocation(pool, tenantId, locationQuery) {
     const row = result.recordset?.[0];
     if (!row) return null;
     return {
-      city: row.city || null,
-      country: row.country || null,
-      department: row.department || null,
-      source: row.ISOffice365Location === 1 || row.ISOffice365Location === true ? "office365" : "manual",
+      city: trimOrNull(row.city),
+      country: trimOrNull(row.country),
+      state: trimOrNull(row.state),
+      department: trimOrNull(row.department),
+      source:
+        row.ISOffice365Location === 1 || row.ISOffice365Location === true
+          ? "office365"
+          : "manual",
     };
   } catch (err) {
     console.warn("[ai-caller] LOCATION_CONFIGURATION lookup skipped:", err.message);
@@ -54,9 +162,242 @@ async function findConfiguredLocation(pool, tenantId, locationQuery) {
 }
 
 /**
- * Users whose effective location matches `location`.
- * Prefers DYNAMIC_LOCATION (current/manual update); else O365/directory CITY.
+ * Multi-filter people lookup.
+ * locationMode: effective (default) | home | travelers
  */
+async function listUsers({
+  teamId,
+  tenantId,
+  city,
+  country,
+  state,
+  department,
+  name,
+  locationMode = "effective",
+  includeConfigured = false,
+}) {
+  const filters = {
+    city: trimOrNull(city),
+    country: trimOrNull(country),
+    state: trimOrNull(state),
+    department: trimOrNull(department),
+    name: trimOrNull(name),
+    locationMode: String(locationMode || "effective").toLowerCase(),
+  };
+
+  const mode = ["effective", "home", "travelers"].includes(filters.locationMode)
+    ? filters.locationMode
+    : "effective";
+
+  const hasFilter =
+    filters.city ||
+    filters.country ||
+    filters.state ||
+    filters.department ||
+    filters.name ||
+    mode === "travelers";
+
+  if (!hasFilter) {
+    return {
+      users: [],
+      count: 0,
+      filtersApplied: filters,
+      error: "Provide at least one filter: city, country, state, department, name, or locationMode=travelers",
+    };
+  }
+
+  try {
+    const members = await loadTeamMembers(teamId);
+    const users = [];
+
+    for (const m of members) {
+      const loc = resolveMemberLocation(m);
+      const displayName = trimOrNull(m.user_name) || "";
+
+      if (filters.name && !includesInsensitive(displayName, filters.name)) continue;
+      if (filters.department && !includesInsensitive(loc.department, filters.department)) continue;
+
+      if (mode === "travelers") {
+        if (!loc.dynamicLocation) continue;
+        const homeCity = loc.city || "";
+        if (homeCity && includesInsensitive(loc.dynamicLocation, homeCity)) continue;
+        // still apply geo filters against effective (current) location
+        if (filters.city && !includesInsensitive(loc.dynamicLocation, filters.city)) continue;
+        if (filters.state && !includesInsensitive(loc.dynamicLocation, filters.state) && !includesInsensitive(loc.state, filters.state)) {
+          continue;
+        }
+        if (filters.country && !includesInsensitive(loc.dynamicLocation, filters.country) && !includesInsensitive(loc.country, filters.country)) {
+          continue;
+        }
+      } else if (mode === "home") {
+        if (filters.city && !includesInsensitive(loc.city, filters.city)) continue;
+        if (filters.state && !includesInsensitive(loc.state, filters.state)) continue;
+        if (filters.country && !includesInsensitive(loc.country, filters.country)) continue;
+      } else {
+        // effective: match city/state/country against effective location string, with directory fallbacks
+        const geoHaystack = [loc.effectiveLocation, loc.city, loc.state, loc.country]
+          .filter(Boolean)
+          .join(" ");
+        if (filters.city && !includesInsensitive(geoHaystack, filters.city)) continue;
+        if (filters.state && !includesInsensitive(geoHaystack, filters.state)) continue;
+        if (filters.country && !includesInsensitive(geoHaystack, filters.country)) continue;
+        if (!loc.effectiveLocation && !filters.name && !filters.department) continue;
+      }
+
+      users.push({
+        id: m.user_aadobject_id,
+        name: m.user_name,
+        city: loc.city,
+        country: loc.country,
+        state: loc.state,
+        department: loc.department,
+        dynamicLocation: loc.dynamicLocation,
+        effectiveLocation: loc.effectiveLocation,
+        source: loc.source,
+      });
+    }
+
+    let configuredLocation = null;
+    if (includeConfigured && tenantId && (filters.city || filters.state || filters.country)) {
+      const pool = await poolPromise;
+      const q = filters.city || filters.state || filters.country;
+      configuredLocation = await findConfiguredLocation(pool, tenantId, q);
+    }
+
+    return {
+      users,
+      count: users.length,
+      filtersApplied: { ...filters, locationMode: mode },
+      configuredLocation,
+    };
+  } catch (err) {
+    return {
+      users: [],
+      count: 0,
+      filtersApplied: filters,
+      error: err.message,
+    };
+  }
+}
+
+function fieldValueFromRow(row, field) {
+  if (field === "city") return trimOrNull(row.city);
+  if (field === "country") return trimOrNull(row.country);
+  if (field === "state") return trimOrNull(row.state);
+  if (field === "department") return trimOrNull(row.department);
+  return null;
+}
+
+function rowMatchesScope(row, scopedField, scopedValue) {
+  if (!scopedField || !scopedValue) return true;
+  const v = fieldValueFromRow(row, scopedField);
+  return includesInsensitive(v, scopedValue);
+}
+
+/**
+ * Distinct org field values with counts.
+ * source: people | configured | both
+ */
+async function listDistinctValues({
+  teamId,
+  tenantId,
+  field,
+  scopedField,
+  scopedValue,
+  source = "people",
+}) {
+  const f = String(field || "").toLowerCase().trim();
+  if (!DISTINCT_FIELDS.has(f)) {
+    return {
+      values: [],
+      totalDistinct: 0,
+      field: f,
+      error: "field must be one of: city, country, state, department",
+    };
+  }
+
+  const src = ["people", "configured", "both"].includes(String(source).toLowerCase())
+    ? String(source).toLowerCase()
+    : "people";
+  const scopeField = scopedField ? String(scopedField).toLowerCase().trim() : null;
+  const scopeValue = trimOrNull(scopedValue);
+  if (scopeField && !DISTINCT_FIELDS.has(scopeField)) {
+    return {
+      values: [],
+      totalDistinct: 0,
+      field: f,
+      error: "scopedField must be one of: city, country, state, department",
+    };
+  }
+
+  try {
+    const map = new Map(); // value -> { value, count, fromConfigured }
+
+    if (src === "people" || src === "both") {
+      const members = await loadTeamMembers(teamId);
+      for (const m of members) {
+        const loc = resolveMemberLocation(m);
+        const row = {
+          city: loc.city,
+          country: loc.country,
+          state: loc.state,
+          department: loc.department,
+        };
+        if (!rowMatchesScope(row, scopeField, scopeValue)) continue;
+        const value = fieldValueFromRow(row, f);
+        if (!value) continue;
+        const key = value.toLowerCase();
+        const prev = map.get(key);
+        if (prev) prev.count += 1;
+        else map.set(key, { value, count: 1, fromConfigured: false });
+      }
+    }
+
+    if (src === "configured" || src === "both") {
+      const configured = await loadConfiguredLocations(tenantId);
+      for (const row of configured) {
+        if (!rowMatchesScope(row, scopeField, scopeValue)) continue;
+        const value = fieldValueFromRow(row, f);
+        if (!value) continue;
+        const key = value.toLowerCase();
+        const prev = map.get(key);
+        if (prev) {
+          if (src === "configured") prev.count += 1;
+          // both: keep people count; mark also configured
+          prev.fromConfigured = prev.fromConfigured || true;
+        } else {
+          map.set(key, {
+            value,
+            count: src === "configured" ? 1 : 0,
+            fromConfigured: true,
+          });
+        }
+      }
+    }
+
+    const values = [...map.values()].sort((a, b) => a.value.localeCompare(b.value));
+    return {
+      values,
+      totalDistinct: values.length,
+      field: f,
+      scoped_to: scopeField && scopeValue ? { field: scopeField, value: scopeValue } : null,
+      source: src,
+    };
+  } catch (err) {
+    return {
+      values: [],
+      totalDistinct: 0,
+      field: f,
+      error: err.message,
+    };
+  }
+}
+
+/** @deprecated Prefer listUsers — kept for safety-check city estimate compatibility shape */
+async function listUsersByCity({ teamId, city }) {
+  return listUsers({ teamId, city: city || "", locationMode: "effective" });
+}
+
 async function listUsersAtLocation({ teamId, tenantId, location, includeConfigured = true }) {
   const locationQuery = String(location || "").trim();
   if (!locationQuery) {
@@ -69,229 +410,34 @@ async function listUsersAtLocation({ teamId, tenantId, location, includeConfigur
       error: "location is required",
     };
   }
-
-  try {
-    const pool = await poolPromise;
-    const membersResult = await pool
-      .request()
-      .input("teamId", sql.NVarChar(256), String(teamId))
-      .query(`
-        SELECT TOP 500
-          user_aadobject_id,
-          user_name,
-          city,
-          country,
-          DYNAMIC_LOCATION
-        FROM MSTeamsTeamsUsers
-        WHERE team_id = @teamId
-      `);
-
-    const needle = locationQuery.toLowerCase();
-    const users = [];
-    const countsBySource = { dynamic: 0, office365: 0 };
-
-    for (const m of membersResult.recordset || []) {
-      const dynamicLocation =
-        (m.DYNAMIC_LOCATION != null && String(m.DYNAMIC_LOCATION).trim()) || null;
-      const directoryCity = (m.city != null && String(m.city).trim()) || null;
-      const directoryCountry = (m.country != null && String(m.country).trim()) || null;
-      const directoryCombined =
-        [directoryCity, directoryCountry].filter(Boolean).join(", ") || null;
-
-      let effectiveLocation = null;
-      let source = null;
-      if (dynamicLocation) {
-        effectiveLocation = dynamicLocation;
-        source = "dynamic";
-      } else if (directoryCombined || directoryCity) {
-        effectiveLocation = directoryCombined || directoryCity;
-        source = "office365";
-      } else {
-        continue;
-      }
-
-      if (!String(effectiveLocation).toLowerCase().includes(needle)) continue;
-
-      users.push({
-        id: m.user_aadobject_id,
-        name: m.user_name,
-        effectiveLocation,
-        source,
-        directoryCity,
-        dynamicLocation,
-      });
-      countsBySource[source] += 1;
-    }
-
-    let configuredLocation = null;
-    if (includeConfigured !== false && tenantId) {
-      configuredLocation = await findConfiguredLocation(pool, tenantId, locationQuery);
-    }
-
-    return {
-      locationQuery,
-      configuredLocation,
-      users,
-      count: users.length,
-      countsBySource,
-    };
-  } catch (err) {
-    return {
-      locationQuery,
-      configuredLocation: null,
-      users: [],
-      count: 0,
-      countsBySource: { dynamic: 0, office365: 0 },
-      error: err.message,
-    };
+  const result = await listUsers({
+    teamId,
+    tenantId,
+    city: locationQuery,
+    locationMode: "effective",
+    includeConfigured,
+  });
+  // Also try matching as country/state by treating the whole string as a geo needle via city filter (haystack)
+  const countsBySource = { dynamic: 0, office365: 0 };
+  for (const u of result.users || []) {
+    if (u.source === "dynamic") countsBySource.dynamic += 1;
+    else if (u.source === "office365") countsBySource.office365 += 1;
   }
-}
-
-/**
- * List team members by city (directory city, country, or DYNAMIC_LOCATION).
- * Same SQL source as listUsersAtLocation; response shape kept for safety-check estimates.
- */
-async function listUsersByCity({ teamId, city }) {
-  const cityQuery = String(city || "").trim();
-  try {
-    const pool = await poolPromise;
-    const membersResult = await pool
-      .request()
-      .input("teamId", sql.NVarChar(256), String(teamId))
-      .query(`
-        SELECT TOP 500
-          user_aadobject_id,
-          user_name,
-          city,
-          country,
-          department,
-          DYNAMIC_LOCATION
-        FROM MSTeamsTeamsUsers
-        WHERE team_id = @teamId
-      `);
-
-    const needle = cityQuery.toLowerCase();
-    const users = [];
-
-    for (const m of membersResult.recordset || []) {
-      const directoryCity = (m.city != null && String(m.city).trim()) || "";
-      const directoryCountry = (m.country != null && String(m.country).trim()) || "";
-      const dynamicLocation =
-        (m.DYNAMIC_LOCATION != null && String(m.DYNAMIC_LOCATION).trim()) || "";
-      const haystack = [directoryCity, directoryCountry, dynamicLocation]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      if (needle && !haystack.includes(needle)) continue;
-
-      users.push({
-        id: m.user_aadobject_id,
-        name: m.user_name,
-        city: directoryCity || dynamicLocation || null,
-        country: directoryCountry || null,
-        department: (m.department != null && String(m.department).trim()) || null,
-      });
-    }
-
-    return { users, count: users.length };
-  } catch (err) {
-    return { users: [], count: 0, error: err.message };
-  }
-}
-
-/**
- * List team members by directory country (O365/country field).
- */
-async function listUsersByCountry({ teamId, country }) {
-  const countryQuery = String(country || "").trim();
-  if (!countryQuery) {
-    return { users: [], count: 0, countryQuery: "", error: "country is required" };
-  }
-  try {
-    const pool = await poolPromise;
-    const membersResult = await pool
-      .request()
-      .input("teamId", sql.NVarChar(256), String(teamId))
-      .query(`
-        SELECT TOP 500
-          user_aadobject_id,
-          user_name,
-          city,
-          country,
-          department,
-          DYNAMIC_LOCATION
-        FROM MSTeamsTeamsUsers
-        WHERE team_id = @teamId
-      `);
-
-    const needle = countryQuery.toLowerCase();
-    const users = [];
-
-    for (const m of membersResult.recordset || []) {
-      const directoryCountry = (m.country != null && String(m.country).trim()) || "";
-      if (!directoryCountry || !directoryCountry.toLowerCase().includes(needle)) continue;
-
-      users.push({
-        id: m.user_aadobject_id,
-        name: m.user_name,
-        city: (m.city != null && String(m.city).trim()) || null,
-        country: directoryCountry,
-        department: (m.department != null && String(m.department).trim()) || null,
-      });
-    }
-
-    return { users, count: users.length, countryQuery };
-  } catch (err) {
-    return { users: [], count: 0, countryQuery, error: err.message };
-  }
-}
-
-/**
- * List team members by directory department.
- */
-async function listUsersByDepartment({ teamId, department }) {
-  const departmentQuery = String(department || "").trim();
-  if (!departmentQuery) {
-    return { users: [], count: 0, departmentQuery: "", error: "department is required" };
-  }
-  try {
-    const pool = await poolPromise;
-    const membersResult = await pool
-      .request()
-      .input("teamId", sql.NVarChar(256), String(teamId))
-      .query(`
-        SELECT TOP 500
-          user_aadobject_id,
-          user_name,
-          city,
-          country,
-          department,
-          DYNAMIC_LOCATION
-        FROM MSTeamsTeamsUsers
-        WHERE team_id = @teamId
-      `);
-
-    const needle = departmentQuery.toLowerCase();
-    const users = [];
-
-    for (const m of membersResult.recordset || []) {
-      const directoryDepartment = (m.department != null && String(m.department).trim()) || "";
-      if (!directoryDepartment || !directoryDepartment.toLowerCase().includes(needle)) continue;
-
-      users.push({
-        id: m.user_aadobject_id,
-        name: m.user_name,
-        city: (m.city != null && String(m.city).trim()) || null,
-        country: (m.country != null && String(m.country).trim()) || null,
-        department: directoryDepartment,
-      });
-    }
-
-    return { users, count: users.length, departmentQuery };
-  } catch (err) {
-    return { users: [], count: 0, departmentQuery, error: err.message };
-  }
+  return {
+    locationQuery,
+    configuredLocation: result.configuredLocation || null,
+    users: (result.users || []).map((u) => ({
+      id: u.id,
+      name: u.name,
+      effectiveLocation: u.effectiveLocation,
+      source: u.source,
+      directoryCity: u.city,
+      dynamicLocation: u.dynamicLocation,
+    })),
+    count: result.count,
+    countsBySource,
+    error: result.error,
+  };
 }
 
 async function createAndSendSafetyCheck(payload) {
@@ -304,7 +450,6 @@ async function createAndSendSafetyCheck(payload) {
     memberIds,
   } = payload;
 
-  // Lazy-require existing modules so this file can load even if paths differ
   let createNewIncident;
   let NewsendSafetyCheckMessageAsync;
   try {
@@ -321,7 +466,6 @@ async function createAndSendSafetyCheck(payload) {
   }
 
   if (!createNewIncident || !NewsendSafetyCheckMessageAsync) {
-    // Safe stub response when services cannot be loaded (dev / incomplete wire-up)
     return {
       stub: true,
       message: "AICaller received safety-check request; existing create/send modules not loaded in this environment.",
@@ -334,10 +478,22 @@ async function createAndSendSafetyCheck(payload) {
     };
   }
 
-  const membersResult = await listUsersByCity({ teamId, city: city || "" });
-  const members = (memberIds && memberIds.length)
-    ? membersResult.users.filter((u) => memberIds.includes(u.id))
-    : membersResult.users;
+  let membersPool;
+  if (city) {
+    membersPool = await listUsers({ teamId, city, locationMode: "effective" });
+  } else {
+    const members = await loadTeamMembers(teamId);
+    membersPool = {
+      users: members.map((m) => ({
+        id: m.user_aadobject_id,
+        name: m.user_name,
+      })),
+    };
+  }
+
+  const members = memberIds && memberIds.length
+    ? membersPool.users.filter((u) => memberIds.includes(u.id))
+    : membersPool.users;
 
   const incData = {
     title: title || "Safety check",
@@ -419,9 +575,9 @@ async function getCheckinStatus({ teamId, incidentId }) {
 }
 
 module.exports = {
+  listUsers,
+  listDistinctValues,
   listUsersByCity,
-  listUsersByCountry,
-  listUsersByDepartment,
   listUsersAtLocation,
   createAndSendSafetyCheck,
   getActiveIncidents,
