@@ -164,6 +164,7 @@ async function listUsersByCity({ teamId, city }) {
           user_name,
           city,
           country,
+          department,
           DYNAMIC_LOCATION
         FROM MSTeamsTeamsUsers
         WHERE team_id = @teamId
@@ -188,12 +189,108 @@ async function listUsersByCity({ teamId, city }) {
         id: m.user_aadobject_id,
         name: m.user_name,
         city: directoryCity || dynamicLocation || null,
+        country: directoryCountry || null,
+        department: (m.department != null && String(m.department).trim()) || null,
       });
     }
 
     return { users, count: users.length };
   } catch (err) {
     return { users: [], count: 0, error: err.message };
+  }
+}
+
+/**
+ * List team members by directory country (O365/country field).
+ */
+async function listUsersByCountry({ teamId, country }) {
+  const countryQuery = String(country || "").trim();
+  if (!countryQuery) {
+    return { users: [], count: 0, countryQuery: "", error: "country is required" };
+  }
+  try {
+    const pool = await poolPromise;
+    const membersResult = await pool
+      .request()
+      .input("teamId", sql.NVarChar(256), String(teamId))
+      .query(`
+        SELECT TOP 500
+          user_aadobject_id,
+          user_name,
+          city,
+          country,
+          department,
+          DYNAMIC_LOCATION
+        FROM MSTeamsTeamsUsers
+        WHERE team_id = @teamId
+      `);
+
+    const needle = countryQuery.toLowerCase();
+    const users = [];
+
+    for (const m of membersResult.recordset || []) {
+      const directoryCountry = (m.country != null && String(m.country).trim()) || "";
+      if (!directoryCountry || !directoryCountry.toLowerCase().includes(needle)) continue;
+
+      users.push({
+        id: m.user_aadobject_id,
+        name: m.user_name,
+        city: (m.city != null && String(m.city).trim()) || null,
+        country: directoryCountry,
+        department: (m.department != null && String(m.department).trim()) || null,
+      });
+    }
+
+    return { users, count: users.length, countryQuery };
+  } catch (err) {
+    return { users: [], count: 0, countryQuery, error: err.message };
+  }
+}
+
+/**
+ * List team members by directory department.
+ */
+async function listUsersByDepartment({ teamId, department }) {
+  const departmentQuery = String(department || "").trim();
+  if (!departmentQuery) {
+    return { users: [], count: 0, departmentQuery: "", error: "department is required" };
+  }
+  try {
+    const pool = await poolPromise;
+    const membersResult = await pool
+      .request()
+      .input("teamId", sql.NVarChar(256), String(teamId))
+      .query(`
+        SELECT TOP 500
+          user_aadobject_id,
+          user_name,
+          city,
+          country,
+          department,
+          DYNAMIC_LOCATION
+        FROM MSTeamsTeamsUsers
+        WHERE team_id = @teamId
+      `);
+
+    const needle = departmentQuery.toLowerCase();
+    const users = [];
+
+    for (const m of membersResult.recordset || []) {
+      const directoryDepartment = (m.department != null && String(m.department).trim()) || "";
+      if (!directoryDepartment || !directoryDepartment.toLowerCase().includes(needle)) continue;
+
+      users.push({
+        id: m.user_aadobject_id,
+        name: m.user_name,
+        city: (m.city != null && String(m.city).trim()) || null,
+        country: (m.country != null && String(m.country).trim()) || null,
+        department: directoryDepartment,
+      });
+    }
+
+    return { users, count: users.length, departmentQuery };
+  } catch (err) {
+    return { users: [], count: 0, departmentQuery, error: err.message };
   }
 }
 
@@ -323,6 +420,8 @@ async function getCheckinStatus({ teamId, incidentId }) {
 
 module.exports = {
   listUsersByCity,
+  listUsersByCountry,
+  listUsersByDepartment,
   listUsersAtLocation,
   createAndSendSafetyCheck,
   getActiveIncidents,

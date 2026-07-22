@@ -50,6 +50,34 @@ router.get("/users-at-location", async (req, res) => {
   res.json(result);
 });
 
+router.get("/users-by-country", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const country = req.query.country || "";
+  if (!String(country).trim()) {
+    return res.status(400).json({ error: "country is required" });
+  }
+  const result = await service.listUsersByCountry({ teamId: ids.teamId, country });
+  if (result.error === "country is required") {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
+router.get("/users-by-department", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const department = req.query.department || "";
+  if (!String(department).trim()) {
+    return res.status(400).json({ error: "department is required" });
+  }
+  const result = await service.listUsersByDepartment({ teamId: ids.teamId, department });
+  if (result.error === "department is required") {
+    return res.status(400).json(result);
+  }
+  res.json(result);
+});
+
 router.post("/safety-check", async (req, res) => {
   const ids = requireMappedIds(req, res);
   if (!ids) return;
