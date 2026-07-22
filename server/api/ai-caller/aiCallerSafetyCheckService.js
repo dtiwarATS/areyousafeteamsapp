@@ -148,54 +148,50 @@ async function listUsersAtLocation({ teamId, tenantId, location, includeConfigur
 }
 
 /**
- * Resolve installation / members with defensive fallbacks so missing helpers
- * don't break the wrapper; returns structured errors instead.
+ * List team members by city (directory city, country, or DYNAMIC_LOCATION).
+ * Same SQL source as listUsersAtLocation; response shape kept for safety-check estimates.
  */
 async function listUsersByCity({ teamId, city }) {
+  const cityQuery = String(city || "").trim();
   try {
-    // Prefer existing DB helpers when present
-    if (typeof db.getAllMembersByTeamId === "function") {
-      const members = await db.getAllMembersByTeamId(teamId);
-      const filtered = (members || []).filter((m) => {
-        const c = (m.city || m.City || m.officeLocation || "").toString().toLowerCase();
-        return !city || c.includes(String(city).toLowerCase());
+    const pool = await poolPromise;
+    const membersResult = await pool
+      .request()
+      .input("teamId", sql.NVarChar(256), String(teamId))
+      .query(`
+        SELECT TOP 500
+          user_aadobject_id,
+          user_name,
+          city,
+          country,
+          DYNAMIC_LOCATION
+        FROM MSTeamsTeamsUsers
+        WHERE team_id = @teamId
+      `);
+
+    const needle = cityQuery.toLowerCase();
+    const users = [];
+
+    for (const m of membersResult.recordset || []) {
+      const directoryCity = (m.city != null && String(m.city).trim()) || "";
+      const directoryCountry = (m.country != null && String(m.country).trim()) || "";
+      const dynamicLocation =
+        (m.DYNAMIC_LOCATION != null && String(m.DYNAMIC_LOCATION).trim()) || "";
+      const haystack = [directoryCity, directoryCountry, dynamicLocation]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      if (needle && !haystack.includes(needle)) continue;
+
+      users.push({
+        id: m.user_aadobject_id,
+        name: m.user_name,
+        city: directoryCity || dynamicLocation || null,
       });
-      return {
-        users: filtered.map((m) => ({
-          id: m.user_aadobject_id || m.userAadObjId || m.id,
-          name: m.user_name || m.displayName || m.name,
-          city: m.city || m.City || m.officeLocation || null,
-        })),
-        count: filtered.length,
-      };
     }
 
-    // Fallback: query MSTeamsTeamsUsers if a generic query helper exists
-    if (typeof db.executeQuery === "function") {
-      const rows = await db.executeQuery(
-        `SELECT TOP 500 user_aadobject_id, user_name, city
-         FROM MSTeamsTeamsUsers WHERE team_id = @teamId`,
-        { teamId }
-      );
-      const filtered = (rows || []).filter((m) => {
-        const c = (m.city || "").toString().toLowerCase();
-        return !city || c.includes(String(city).toLowerCase());
-      });
-      return {
-        users: filtered.map((m) => ({
-          id: m.user_aadobject_id,
-          name: m.user_name,
-          city: m.city,
-        })),
-        count: filtered.length,
-      };
-    }
-
-    return {
-      users: [],
-      count: 0,
-      note: "Member listing helper not available; configure DB helpers or stub for local testing.",
-    };
+    return { users, count: users.length };
   } catch (err) {
     return { users: [], count: 0, error: err.message };
   }
