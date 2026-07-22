@@ -442,46 +442,67 @@ async function listUsersAtLocation({ teamId, tenantId, location, includeConfigur
 
 async function createAndSendSafetyCheck(payload) {
   const {
+    teamsTenantId: tenantId,
     teamsTeamId: teamId,
     userAadObjId,
     title,
     message,
     city,
+    country,
+    state,
+    department,
     memberIds,
   } = payload;
 
-  let createNewIncident;
-  let NewsendSafetyCheckMessageAsync;
-  try {
-    const tab = require("../../tab/areYouSafeTab");
-    createNewIncident = tab.createNewIncident;
-  } catch (e) {
-    createNewIncident = null;
-  }
-  try {
-    const bot = require("../../bot");
-    NewsendSafetyCheckMessageAsync = bot.NewsendSafetyCheckMessageAsync;
-  } catch (e) {
-    NewsendSafetyCheckMessageAsync = null;
-  }
+  const { AreYouSafeTab } = require("../../tab/areYouSafeTab");
+  const bot = require("../../bot/bot");
+  const { getCompanyDataByTeamId } = require("../../db/dbOperations");
+  const { AYSLog } = require("../../utils/log");
+  const {
+    buildOnetimeIncDataLikeTab,
+    buildIncMembers,
+  } = require("./aiCallerTabPayload");
 
-  if (!createNewIncident || !NewsendSafetyCheckMessageAsync) {
+  const filters = {
+    city: trimOrNull(city),
+    country: trimOrNull(country),
+    state: trimOrNull(state),
+    department: trimOrNull(department),
+  };
+  const explicitIds = Array.isArray(memberIds)
+    ? memberIds.map((id) => String(id)).filter(Boolean)
+    : [];
+
+  const hasFilter =
+    filters.city ||
+    filters.country ||
+    filters.state ||
+    filters.department ||
+    explicitIds.length > 0;
+
+  if (!hasFilter) {
     return {
-      stub: true,
-      message: "AICaller received safety-check request; existing create/send modules not loaded in this environment.",
-      teamId,
-      userAadObjId,
-      title,
-      previewMessage: message,
-      city,
-      memberIds: memberIds || [],
+      error:
+        "Provide at least one recipient filter: city, country, state, department, or memberIds",
     };
   }
 
   let membersPool;
-  if (city) {
-    membersPool = await listUsers({ teamId, city, locationMode: "effective" });
+  if (filters.city || filters.country || filters.state || filters.department) {
+    membersPool = await listUsers({
+      teamId,
+      tenantId,
+      city: filters.city,
+      country: filters.country,
+      state: filters.state,
+      department: filters.department,
+      locationMode: "effective",
+    });
+    if (membersPool.error && !(membersPool.users || []).length) {
+      return { error: membersPool.error || "Failed to resolve recipients" };
+    }
   } else {
+    // memberIds only — load team and intersect
     const members = await loadTeamMembers(teamId);
     membersPool = {
       users: members.map((m) => ({
@@ -491,53 +512,101 @@ async function createAndSendSafetyCheck(payload) {
     };
   }
 
-  const members = memberIds && memberIds.length
-    ? membersPool.users.filter((u) => memberIds.includes(u.id))
-    : membersPool.users;
+  let users = membersPool.users || [];
+  if (explicitIds.length) {
+    const idSet = new Set(explicitIds);
+    users = users.filter((u) => idSet.has(String(u.id)));
+  }
 
-  const incData = {
-    title: title || "Safety check",
-    guidance: message || "",
-    team_id: teamId,
-    created_by: userAadObjId,
-  };
+  if (!users.length) {
+    return {
+      error: "No recipients matched the given filters",
+      filters,
+      memberIds: explicitIds,
+    };
+  }
 
-  const created = await createNewIncident(userAadObjId, {
-    incData,
-    incMembers: members.map((m) => ({ value: m.id, label: m.name })),
+  const selectedIds = users.map((u) => u.id);
+  const createdByName = "Safety Assistant";
+  const incData = buildOnetimeIncDataLikeTab({
+    title,
+    message,
+    teamId,
+    userAadObjId,
+    createdByName,
+    selectedMemberIds: selectedIds,
   });
+  const incMembers = buildIncMembers(users);
+
+  const tab = new AreYouSafeTab();
+  const created = await tab.createNewIncident(
+    { incData, incMembers, incId: -1 },
+    userAadObjId
+  );
 
   const incId = created?.incId || created?.incid || created?.id;
   if (!incId) {
     return { error: "Incident create did not return an id", created };
   }
 
-  await NewsendSafetyCheckMessageAsync({
-    query: {
-      incId,
-      teamId,
-      userAadObjId,
-      isFirstBatch: true,
-      isLastBatch: true,
-    },
-    body: {
-      createByInfo: { user_id: userAadObjId, user_name: "Safety Assistant" },
-      members: members.map((m) => ({ value: m.id, label: m.name })),
-      incdata: {
-        title: title || "Safety check",
-        guidance: message || "",
-        selectedMembers: members.map((m) => m.id),
-        incCreatedBy: userAadObjId,
-      },
-    },
-  });
+  const companyData = await getCompanyDataByTeamId(teamId, userAadObjId);
+  if (!companyData) {
+    return {
+      error: "companyData not found for team — ensure the Teams app is installed",
+      incidentId: incId,
+    };
+  }
+
+  const createByInfo = {
+    user_id: userAadObjId,
+    user_name: createdByName,
+    companyData,
+  };
+
+  // Tab passes the Incident model from create (incGuidance, selectedMembers, …)
+  const incdataForSend = {
+    ...created,
+    incId,
+    incTitle: created.incTitle || incData.incTitle,
+    incGuidance: created.incGuidance || incData.guidance,
+    guidance: created.incGuidance || incData.guidance,
+    selectedMembers:
+      typeof created.selectedMembers === "string" && created.selectedMembers
+        ? created.selectedMembers
+        : selectedIds.join(","),
+    incCreatedBy: created.incCreatedBy || userAadObjId,
+    teamId: created.teamId || teamId,
+    incType: created.incType || "onetime",
+    incTypeId: created.incTypeId || 1,
+    responseType: created.responseType || incData.responseType,
+    responseOptions: created.responseOptions || incData.responseOptions,
+    translatedMessages: created.translatedMessages || "",
+  };
+
+  const log = new AYSLog();
+  await bot.NewsendSafetyCheckMessageAsync(
+    incId,
+    teamId,
+    createByInfo,
+    log,
+    userAadObjId,
+    false,
+    incdataForSend,
+    incMembers,
+    companyData,
+    "true",
+    "true"
+  );
 
   return {
     stub: false,
     incidentId: incId,
-    sentTo: members.length,
-    city: city || null,
-    title,
+    sentTo: users.length,
+    city: filters.city,
+    country: filters.country,
+    state: filters.state,
+    department: filters.department,
+    title: incData.incTitle,
   };
 }
 
@@ -558,19 +627,120 @@ async function getActiveIncidents({ tenantId, teamId }) {
   }
 }
 
-async function getCheckinStatus({ teamId, incidentId }) {
+async function resolveLatestSafetyCheckIncidentId(teamId) {
   try {
-    if (typeof db.getSafetyCheckProgress === "function") {
-      const progress = await db.getSafetyCheckProgress(incidentId, teamId);
-      return { incidentId, progress };
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("teamId", sql.NVarChar(256), String(teamId))
+      .query(`
+        SELECT TOP 1 id AS incidentId
+        FROM dbo.MSTeamsIncidents
+        WHERE team_id = @teamId
+          AND (INC_TYPE_ID = 1 OR INC_TYPE_ID IS NULL)
+          AND ISNULL(isSavedAsDraft, 0) = 0
+          AND ISNULL(isSaveAsTemplate, 0) = 0
+        ORDER BY created_date DESC, id DESC
+      `);
+    return result.recordset?.[0]?.incidentId ?? null;
+  } catch (err) {
+    console.warn("[ai-caller] resolveLatestSafetyCheckIncidentId failed:", err.message);
+    return null;
+  }
+}
+
+function memberDisplayName(m) {
+  return (
+    trimOrNull(m?.userName) ||
+    trimOrNull(m?.user_name) ||
+    trimOrNull(m?.name) ||
+    trimOrNull(m?.user_id) ||
+    "Unknown"
+  );
+}
+
+function namesFromMembers(list) {
+  return (list || []).map(memberDisplayName);
+}
+
+function buildStatusSummary(payload) {
+  const c = payload.counts || {};
+  const clip = (arr) => {
+    if (!arr?.length) return "";
+    const shown = arr.slice(0, 5).join(", ");
+    return arr.length > 5 ? ` (${shown} +${arr.length - 5} more)` : ` (${shown})`;
+  };
+  return [
+    `Safe: ${c.safe ?? 0}${clip(payload.safe)}`,
+    `Need assistance: ${c.needAssistance ?? 0}${clip(payload.needAssistance)}`,
+    `Not responded: ${c.notResponded ?? 0}${clip(payload.notResponded)}`,
+  ].join(" — ");
+}
+
+async function getCheckinStatus({ teamId, incidentId, userAadObjId }) {
+  try {
+    const incidentService = require("../../services/incidentService");
+    const { AreYouSafeTab } = require("../../tab/areYouSafeTab");
+
+    let resolvedId = incidentId ? Number(incidentId) || incidentId : null;
+    let latest = false;
+    if (!resolvedId) {
+      resolvedId = await resolveLatestSafetyCheckIncidentId(teamId);
+      latest = true;
+      if (!resolvedId) {
+        return { error: "No safety-check incidents found for this team", teamId };
+      }
     }
+
+    const inc = await incidentService.getInc(resolvedId, null, userAadObjId || null);
+    if (!inc || !inc.incId) {
+      return { error: "Incident not found", incidentId: resolvedId, teamId };
+    }
+
+    const members = Array.isArray(inc.members) ? inc.members : [];
+    const tab = new AreYouSafeTab();
+    const sorted = tab.sortMembers(members, inc.incTypeId || 1) || {
+      membersSafe: [],
+      membersUnsafe: [],
+      membersNotResponded: [],
+    };
+
+    const safe = namesFromMembers(sorted.membersSafe);
+    const needAssistance = namesFromMembers(sorted.membersUnsafe);
+    let notResponded = namesFromMembers(sorted.membersNotResponded);
+
+    // Members not classified by sortMembers → treat as not responded
+    const named = new Set([...safe, ...needAssistance, ...notResponded]);
+    for (const m of members) {
+      const n = memberDisplayName(m);
+      if (!named.has(n)) {
+        notResponded.push(n);
+        named.add(n);
+      }
+    }
+
+    const status = {
+      safe,
+      needAssistance,
+      notResponded,
+      counts: {
+        safe: safe.length,
+        needAssistance: needAssistance.length,
+        notResponded: notResponded.length,
+      },
+    };
+
     return {
-      incidentId,
-      note: "Progress helper not available yet.",
+      incidentId: inc.incId || resolvedId,
+      title: inc.incTitle || null,
       teamId,
+      latest,
+      status,
+      ...status,
+      summary: buildStatusSummary(status),
     };
   } catch (err) {
-    return { incidentId, error: err.message };
+    return { incidentId, teamId, error: err.message };
   }
 }
 

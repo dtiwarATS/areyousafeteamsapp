@@ -73,7 +73,24 @@ router.post("/safety-check", async (req, res) => {
       ...req.body,
       teamsTenantId: ids.tenantId,
       teamsTeamId: ids.teamId,
+      city: req.body.city,
+      country: req.body.country,
+      state: req.body.state,
+      department: req.body.department,
+      memberIds: req.body.memberIds,
+      title: req.body.title,
+      message: req.body.message,
+      userAadObjId: req.body.userAadObjId,
     });
+    if (result?.error) {
+      return res.status(400).json(result);
+    }
+    if (result?.stub) {
+      return res.status(503).json({
+        ...result,
+        error: result.message || "Safety check send is unavailable",
+      });
+    }
     res.json(result);
   } catch (err) {
     console.error("[ai-caller] safety-check error", err);
@@ -85,8 +102,14 @@ router.get("/checkin-status", async (req, res) => {
   const ids = requireMappedIds(req, res);
   if (!ids) return;
   const incidentId = req.query.incidentId;
-  if (!incidentId) return res.status(400).json({ error: "incidentId is required" });
-  const result = await service.getCheckinStatus({ teamId: ids.teamId, incidentId });
+  const result = await service.getCheckinStatus({
+    teamId: ids.teamId,
+    incidentId: incidentId || undefined,
+    userAadObjId: req.query.userAadObjId,
+  });
+  if (result?.error) {
+    return res.status(result.error.includes("No safety-check") || result.error.includes("not found") ? 404 : 400).json(result);
+  }
   res.json(result);
 });
 
