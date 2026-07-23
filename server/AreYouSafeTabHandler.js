@@ -5711,6 +5711,28 @@ ORDER BY ACL.EventDateTime DESC;
   );
 
   app.get(
+    "/areyousafetabhandler/getTravelAdvisoryLocations",
+    async (req, res) => {
+      try {
+        const travelLocationsDb = require("./travelServices/travel-advisory-locations-db");
+        const q = req.query.q || "";
+        const data = await travelLocationsDb.getTravelAdvisoryLocations({ q });
+        res.json({ success: true, data });
+      } catch (err) {
+        console.error(
+          "Error in /areyousafetabhandler/getTravelAdvisoryLocations:",
+          err,
+        );
+        res.status(500).json({
+          success: false,
+          error: err.message,
+          data: { countries: [], cities: [] },
+        });
+      }
+    },
+  );
+
+  app.get(
     "/areyousafetabhandler/getTravelAdvisoryByTeam/",
     async (req, res) => {
       try {
