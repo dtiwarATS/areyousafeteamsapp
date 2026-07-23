@@ -3029,15 +3029,27 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  // Web endpoint to accept SOS via link (for SMS/Email)
+  // Web endpoint to accept SOS via link (for SMS/Email) — also JSON for desktop (`format=json`)
   app.get("/acceptSOS", async (req, res) => {
+    const wantsJson =
+      String(req.query.format || "").toLowerCase() === "json" ||
+      String(req.headers.accept || "").includes("application/json");
+
+    const respond = (status, { html, json }) => {
+      if (wantsJson) {
+        return res.status(status).json(json);
+      }
+      return res.status(status).send(html);
+    };
+
     try {
       const requestAssistanceid = req.query.id;
       const adminAadObjId = req.query.adminId;
       const adminPhone = req.query.phone;
 
       if (!requestAssistanceid) {
-        return res.status(400).send(`
+        return respond(400, {
+          html: `
           <html>
             <head><title>SOS Response</title></head>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3045,7 +3057,12 @@ const handlerForSafetyBotTab = (app) => {
               <p>Missing required parameters.</p>
             </body>
           </html>
-        `);
+        `,
+          json: {
+            success: false,
+            message: "Missing required parameters.",
+          },
+        });
       }
 
       // Get admin info by phone or aadObjectId
@@ -3065,7 +3082,8 @@ const handlerForSafetyBotTab = (app) => {
       } else if (adminPhone) {
         // Try to find admin by phone number (this would require phone lookup)
         // For now, we'll need adminAadObjId - but we can enhance this later
-        return res.status(400).send(`
+        return respond(400, {
+          html: `
           <html>
             <head><title>SOS Response</title></head>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3073,11 +3091,17 @@ const handlerForSafetyBotTab = (app) => {
               <p>Please use the admin ID parameter.</p>
             </body>
           </html>
-        `);
+        `,
+          json: {
+            success: false,
+            message: "Please use the admin ID parameter.",
+          },
+        });
       }
 
       if (!adminInfo) {
-        return res.status(404).send(`
+        return respond(404, {
+          html: `
           <html>
             <head><title>SOS Response</title></head>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3085,7 +3109,12 @@ const handlerForSafetyBotTab = (app) => {
               <p>Admin not found. Please ensure you're using the correct link.</p>
             </body>
           </html>
-        `);
+        `,
+          json: {
+            success: false,
+            message: "Admin not found. Please ensure you're using the correct link.",
+          },
+        });
       }
 
       // Get assistance request info
@@ -3096,7 +3125,8 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       if (!assistanceData || assistanceData.length === 0) {
-        return res.status(404).send(`
+        return respond(404, {
+          html: `
           <html>
             <head><title>SOS Response</title></head>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3104,7 +3134,12 @@ const handlerForSafetyBotTab = (app) => {
               <p>SOS request not found.</p>
             </body>
           </html>
-        `);
+        `,
+          json: {
+            success: false,
+            message: "SOS request not found.",
+          },
+        });
       }
 
       // Check if already responded
@@ -3121,7 +3156,8 @@ const handlerForSafetyBotTab = (app) => {
       ) {
         const firstResponderId = existingResponse[0].FIRST_RESPONDER;
         if (firstResponderId === adminInfo.user_aadobject_id) {
-          return res.send(`
+          return respond(200, {
+            html: `
             <html>
               <head><title>SOS Response</title></head>
               <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
@@ -3129,9 +3165,16 @@ const handlerForSafetyBotTab = (app) => {
                 <p>Thank you for your response.</p>
               </body>
             </html>
-          `);
+          `,
+            json: {
+              success: true,
+              alreadyAcceptedBySelf: true,
+              message: "You are already the first responder for this SOS.",
+            },
+          });
         } else {
-          return res.send(`
+          return respond(200, {
+            html: `
             <html>
               <head><title>SOS Response</title></head>
               <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
@@ -3139,13 +3182,15 @@ const handlerForSafetyBotTab = (app) => {
                 <p>Another responder is handling this request.</p>
               </body>
             </html>
-          `);
+          `,
+            json: {
+              success: false,
+              alreadyAcceptedByOther: true,
+              message: "Someone else has already responded to this SOS.",
+            },
+          });
         }
       }
-
-      // // Process acceptance - update database
-      // const updateQuery = `UPDATE MSTeamsAssistance SET FIRST_RESPONDER = '${adminInfo.user_aadobject_id}', FIRST_RESPONDER_RESPONDED_AT = GETDATE() WHERE id = ${requestAssistanceid}`;
-      // await db.updateDataIntoDB(updateQuery, adminInfo.user_aadobject_id);
 
       // Get requester info
       const requesterQuery = `SELECT user_id, user_name, user_aadobject_id, email FROM MSTeamsTeamsUsers WHERE user_id = '${assistanceData[0].user_id}'`;
@@ -3254,8 +3299,8 @@ const handlerForSafetyBotTab = (app) => {
           );
         });
 
-      // Return success page
-      res.send(`
+      return respond(200, {
+        html: `
         <html>
           <head>
             <title>SOS Response Accepted</title>
@@ -3268,10 +3313,25 @@ const handlerForSafetyBotTab = (app) => {
             </div>
           </body>
         </html>
-      `);
+      `,
+        json: {
+          success: true,
+          message: notificationMessage,
+        },
+      });
     } catch (err) {
       console.log("Error in /acceptSOS:", err);
       processSafetyBotError(err, "", "", "", "error in /acceptSOS");
+      const wantsJsonFallback =
+        String(req.query.format || "").toLowerCase() === "json" ||
+        String(req.headers.accept || "").includes("application/json");
+      if (wantsJsonFallback) {
+        return res.status(500).json({
+          success: false,
+          message:
+            "An error occurred while processing your response. Please try again or contact support.",
+        });
+      }
       res.status(500).send(`
         <html>
           <head><title>SOS Response Error</title></head>
