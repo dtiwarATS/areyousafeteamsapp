@@ -102,14 +102,36 @@ function countryToCode(country) {
   return 'XX';
 }
 
-/** Prefer feed's dcIdentifier (e.g. "AM,advisory" → "AM"); fall back to name lookup. */
+/**
+ * Prefer ISO code from country name in the title (matches CountryList/Countries).
+ * Feed dcIdentifier / Country-Tag often use FIPS (e.g. Chad=CD) which collide with ISO.
+ * Fall back to dcIdentifier only when name lookup returns XX.
+ */
 function getCountryCodeFromItem(item, countryName) {
+  const fromName = countryToCode(countryName);
+  if (fromName && fromName !== 'XX') return fromName;
+
   const raw = item.dcIdentifier || item.dcidentifier;
   if (raw && typeof raw === 'string') {
     const code = raw.split(',')[0].trim().toUpperCase();
     if (code.length === 2) return code;
   }
-  return countryToCode(countryName);
+  return 'XX';
+}
+
+/**
+ * rss-parser puts State Dept HTML in item.content; item.description is often undefined.
+ * @param {object} item
+ * @returns {string}
+ */
+function getItemDescriptionHtml(item) {
+  if (!item || typeof item !== 'object') return '';
+  const raw =
+    item.content ||
+    item.description ||
+    item['content:encoded'] ||
+    '';
+  return typeof raw === 'string' ? raw : '';
 }
 
 function extractCountryInfo(title) {
@@ -163,10 +185,44 @@ function parseDescription(description) {
 function extractSummary(description) {
   if (!description || typeof description !== 'string') return 'No summary available';
   try {
-    const summaryMatch = description.match(/<b>Country Summary:<\/b>(.*?)<\/p>/s);
-    if (summaryMatch) return stripHtml(summaryMatch[1]).trim();
-    const firstParagraph = description.match(/<p>(.*?)<\/p>/s);
-    if (firstParagraph) return stripHtml(firstParagraph[1]).trim();
+    const countrySummary = description.match(
+      /<b>\s*Country Summary:\s*<\/b>(.*?)<\/p>/is,
+    );
+    if (countrySummary) {
+      const text = stripHtml(countrySummary[1]).trim();
+      if (text) return text;
+    }
+
+    // Dedicated heading: <p><b>Advisory Summary</b></p> then body paragraphs until next section
+    const advisoryHeadingBlock = description.match(
+      /<p>\s*<b>\s*Advisory Summary\s*<\/b>\s*<\/p>\s*((?:[\s\S]*?))(?=<h[1-6]\b|<p>\s*<b>\s*(?:Crime|Terrorism|Unrest|Health|Kidnapping|Landmines|If you decide)|$)/i,
+    );
+    if (advisoryHeadingBlock) {
+      const text = stripHtml(advisoryHeadingBlock[1]).trim();
+      if (text) return text;
+    }
+
+    // Inline: <b>Advisory summary</b><br>…</p>
+    const advisoryInline = description.match(
+      /<b>\s*Advisory summary\s*<\/b>\s*(?:<br\s*\/?>)?\s*([\s\S]*?)<\/p>/i,
+    );
+    if (advisoryInline) {
+      const text = stripHtml(advisoryInline[1]).trim();
+      if (text) return text;
+    }
+
+    // Chad-style / lead-in: text before first <p> plus first <p>
+    const firstPIndex = description.search(/<p\b/i);
+    let combined = '';
+    if (firstPIndex > 0) {
+      combined = stripHtml(description.slice(0, firstPIndex)).trim();
+    }
+    const firstParagraph = description.match(/<p\b[^>]*>(.*?)<\/p>/is);
+    if (firstParagraph) {
+      const pText = stripHtml(firstParagraph[1]).trim();
+      combined = [combined, pText].filter(Boolean).join(' ').trim();
+    }
+    if (combined) return combined;
   } catch (e) {
     // ignore
   }
@@ -194,7 +250,8 @@ function processAdvisoryItem(item, options) {
     ? (options.countryCodeMap[country] || countryToCode(country))
     : getCountryCodeFromItem(item, country);
   const { level, levelNumber } = extractThreatLevel(categories.threatLevel);
-  const { restrictions, recommendations } = parseDescription(item.description || '');
+  const html = getItemDescriptionHtml(item);
+  const { restrictions, recommendations } = parseDescription(html);
 
   return {
     id: generateId(item.guid),
@@ -205,8 +262,8 @@ function processAdvisoryItem(item, options) {
     levelNumber,
     link: item.link,
     pubDate: item.pubDate,
-    description: cleanHtmlDescription(item.description),
-    summary: extractSummary(item.description),
+    description: cleanHtmlDescription(html),
+    summary: extractSummary(html),
     restrictions,
     recommendations,
     lastUpdated: new Date(item.pubDate || 0)
@@ -269,6 +326,7 @@ module.exports = {
   setCountryCodeFallback,
   getCountryCodeFallback,
   getCountryCodeFromItem,
+  getItemDescriptionHtml,
   RSS_URL,
   processAdvisoryItem,
   parseCategories,

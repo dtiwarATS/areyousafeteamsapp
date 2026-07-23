@@ -322,6 +322,73 @@ function weatherLocationKey(loc) {
     .toUpperCase()}|${String(loc.cityName || "").trim()}|${loc.state != null ? String(loc.state).trim() : ""}`;
 }
 
+/** Travel location key: country-only → CODE|| ; city → CODE|city|state */
+function travelLocationKey(loc) {
+  const code = String(loc.countryCode || "")
+    .trim()
+    .toUpperCase();
+  const city = String(loc.cityName || "").trim();
+  const state = loc.state != null ? String(loc.state).trim() : "";
+  if (!city) return `${code}||`;
+  return `${code}|${city}|${state}`;
+}
+
+function normalizeLocationSelectionRow(l) {
+  return {
+    countryCode: String(l.countryCode || "")
+      .trim()
+      .toUpperCase(),
+    countryName: String(l.countryName || "").trim(),
+    cityName: String(l.cityName || "").trim(),
+    state: l.state != null ? String(l.state).trim() : null,
+    latitude:
+      l.latitude != null && !Number.isNaN(Number(l.latitude))
+        ? Number(l.latitude)
+        : null,
+    longitude:
+      l.longitude != null && !Number.isNaN(Number(l.longitude))
+        ? Number(l.longitude)
+        : null,
+  };
+}
+
+function isUsCountryCode(code) {
+  const c = String(code || "")
+    .trim()
+    .toUpperCase();
+  return c === "US" || c === "USA" || c === "UNITED STATES";
+}
+
+/**
+ * Travel: non-U.S. cities promote to country-only (State Dept is country-level).
+ * U.S. cities stay city-level for IPAWS. Dedupes by travelLocationKey.
+ * @param {Array} locations
+ * @returns {Array}
+ */
+function normalizeTravelLocationSelections(locations) {
+  const list = Array.isArray(locations) ? locations : [];
+  const map = new Map();
+  for (const raw of list) {
+    if (!raw) continue;
+    let loc = normalizeLocationSelectionRow(raw);
+    if (!loc.countryCode) continue;
+    if (loc.cityName && !isUsCountryCode(loc.countryCode)) {
+      loc = {
+        countryCode: loc.countryCode,
+        countryName: loc.countryName || loc.countryCode,
+        cityName: "",
+        state: null,
+        latitude: null,
+        longitude: null,
+      };
+    }
+    const key = travelLocationKey(loc);
+    if (!key || key === "||") continue;
+    if (!map.has(key)) map.set(key, loc);
+  }
+  return Array.from(map.values());
+}
+
 async function saveTravelAdvisorySelections(
   tenantId,
   teamId,
@@ -334,26 +401,23 @@ async function saveTravelAdvisorySelections(
   await ensureAdvisoryTable();
   const pool = await poolPromise;
 
-  const locations = Array.isArray(locationSelections)
+  const isWeatherType = advisoryType === "Weather";
+  // Weather requires cityName; Travel allows country-only (empty cityName) or U.S. city rows.
+  let locations = Array.isArray(locationSelections)
     ? locationSelections
-        .filter((l) => l && String(l.cityName || "").trim())
-        .map((l) => ({
-          countryCode: String(l.countryCode || "")
-            .trim()
-            .toUpperCase(),
-          countryName: String(l.countryName || "").trim(),
-          cityName: String(l.cityName || "").trim(),
-          state: l.state != null ? String(l.state).trim() : null,
-          latitude:
-            l.latitude != null && !Number.isNaN(Number(l.latitude))
-              ? Number(l.latitude)
-              : null,
-          longitude:
-            l.longitude != null && !Number.isNaN(Number(l.longitude))
-              ? Number(l.longitude)
-              : null,
-        }))
+        .filter((l) => {
+          if (!l) return false;
+          const code = String(l.countryCode || "").trim();
+          if (!code) return false;
+          if (isWeatherType) return Boolean(String(l.cityName || "").trim());
+          return true;
+        })
+        .map(normalizeLocationSelectionRow)
     : [];
+
+  if (!isWeatherType) {
+    locations = normalizeTravelLocationSelections(locations);
+  }
 
   let codes = Array.isArray(countryCodes)
     ? countryCodes.filter((c) => c != null && String(c).trim() !== "")
@@ -575,15 +639,97 @@ async function saveTravelAdvisorySelections(
     };
   }
 
-  const { deletedCount } = await deleteAdvisoryForTenantNotInCountryCodes(
-    tenantId,
-    validCodes,
-    advisoryType,
-  );
+  // Travel (non-Weather): persist locationSelections so chips survive reload.
+  // replaceSelections=true → incoming list is authoritative; otherwise merge.
+  let travelLocations = locations;
+  if (!opts.replaceSelections) {
+    const existingTravel = await pool
+      .request()
+      .input("TenantId", sql.NVarChar(256), tenantId || "")
+      .input("AdvisoryType", sql.NVarChar(50), advisoryType || "Travel")
+      .query(`
+        SELECT TOP 1 SelectedLocationsJson
+        FROM dbo.Advisory
+        WHERE TenantId = @TenantId AND AdvisoryType = @AdvisoryType
+        ORDER BY Id ASC
+      `);
+    let existingLocs = [];
+    const existingRow =
+      existingTravel.recordset && existingTravel.recordset[0]
+        ? existingTravel.recordset[0]
+        : null;
+    if (existingRow && existingRow.SelectedLocationsJson) {
+      try {
+        const parsed = JSON.parse(existingRow.SelectedLocationsJson);
+        if (Array.isArray(parsed)) existingLocs = parsed;
+      } catch {
+        existingLocs = [];
+      }
+    }
+    const locMap = new Map();
+    for (const loc of existingLocs) {
+      const key = travelLocationKey(loc);
+      if (key && key !== "||") {
+        locMap.set(key, normalizeLocationSelectionRow(loc));
+      }
+    }
+    for (const loc of locations) {
+      locMap.set(travelLocationKey(loc), loc);
+    }
+    for (const key of removedLocationKeys) {
+      locMap.delete(key);
+    }
+    for (const [key, loc] of [...locMap.entries()]) {
+      const code = String(loc.countryCode || "")
+        .trim()
+        .toUpperCase();
+      if (removedCountryCodes.has(code)) locMap.delete(key);
+    }
+    travelLocations = normalizeTravelLocationSelections(
+      Array.from(locMap.values()),
+    );
+    if (travelLocations.length > 0) {
+      validCodes = [
+        ...new Set([
+          ...validCodes,
+          ...travelLocations.map((l) => l.countryCode).filter(Boolean),
+        ]),
+      ];
+      for (const c of removedCountryCodes) {
+        validCodes = validCodes.filter((code) => code !== c);
+      }
+    }
+  }
+
+  // Travel uses one Advisory row with comma-joined CountryCode.
+  // Only wipe the row when the selection is fully cleared — never match
+  // "US,FR" against individual codes (that would delete on every save).
+  let deletedCount = 0;
+  if (validCodes.length === 0 && travelLocations.length === 0) {
+    const del = await deleteAdvisoryForTenantNotInCountryCodes(
+      tenantId,
+      [],
+      advisoryType,
+    );
+    deletedCount = del.deletedCount || 0;
+  }
 
   let savedCount = 0;
   let skipped = 0;
   const allCountryCodes = validCodes.join(",");
+  const travelLocationsJson =
+    travelLocations.length > 0 ? JSON.stringify(travelLocations) : null;
+
+  if (validCodes.length === 0 && travelLocations.length === 0) {
+    return {
+      savedCount: 0,
+      skipped,
+      invalidCodes,
+      deletedCount,
+      locationSelections: [],
+      countryCodes: [],
+    };
+  }
 
   const req = pool
     .request()
@@ -591,7 +737,11 @@ async function saveTravelAdvisorySelections(
     .input("CountryCode", sql.NVarChar(sql.MAX), allCountryCodes)
     .input("AdvisoryType", sql.NVarChar(50), advisoryType)
     .input("CreatedByUserId", sql.NVarChar(256), userId || "")
-    .input("SelectedLocationsJson", sql.NVarChar(sql.MAX), null);
+    .input(
+      "SelectedLocationsJson",
+      sql.NVarChar(sql.MAX),
+      travelLocationsJson,
+    );
 
   await req.query(`
 IF EXISTS (
@@ -605,6 +755,7 @@ BEGIN
     UPDATE dbo.Advisory
     SET 
         CountryCode = @CountryCode,
+        SelectedLocationsJson = @SelectedLocationsJson,
         IsActive = 1,
         UpdatedByUserId = @CreatedByUserId,
         UpdatedAtUtc = GETUTCDATE()
@@ -619,8 +770,15 @@ BEGIN
     (@TenantId, @CountryCode, @AdvisoryType, 1, @CreatedByUserId, @SelectedLocationsJson);
 END
 `);
-  savedCount = validCodes.length > 0 ? 1 : 0;
-  return { savedCount, skipped, invalidCodes, deletedCount };
+  savedCount = 1;
+  return {
+    savedCount,
+    skipped,
+    invalidCodes,
+    deletedCount,
+    locationSelections: travelLocations,
+    countryCodes: validCodes,
+  };
 }
 
 /**
@@ -675,7 +833,7 @@ async function getSavedAdvisoryForSelectedId(selectedId) {
   const fkCol = await getAdvisoryDetailFkColumn();
   const result = await pool.request().input("selectedId", sql.Int, selectedId)
     .query(`
-      SELECT Level, LevelNumber, Summary, Link, LastUpdatedAtUtc
+      SELECT Level, LevelNumber, Summary, Description, Link, LastUpdatedAtUtc
       FROM [dbo].[AdvisoryDetail]
       WHERE [${fkCol}] = @selectedId
     `);
@@ -686,6 +844,44 @@ async function getSavedAdvisoryForSelectedId(selectedId) {
     Level: row.Level,
     LevelNumber: row.LevelNumber,
     Summary: row.Summary,
+    Description: row.Description,
+    Link: row.Link,
+    LastUpdated: row.LastUpdatedAtUtc,
+  };
+}
+
+/**
+ * Get saved Travel country-level AdvisoryDetail for selection + country code.
+ * @param {number} selectedId
+ * @param {string} countryCode
+ * @returns {Promise<{ Level, LevelNumber, Summary, Description, Link, LastUpdated }|null>}
+ */
+async function getSavedAdvisoryForSelectedIdAndCountry(selectedId, countryCode) {
+  if (selectedId == null) return null;
+  const code = String(countryCode || "")
+    .trim()
+    .toUpperCase();
+  if (!code) return null;
+  const pool = await poolPromise;
+  const fkCol = await getAdvisoryDetailFkColumn();
+  const result = await pool
+    .request()
+    .input("selectedId", sql.Int, selectedId)
+    .input("CountryCode", sql.NVarChar(50), code).query(`
+      SELECT TOP 1 Level, LevelNumber, Summary, Description, Link, LastUpdatedAtUtc
+      FROM [dbo].[AdvisoryDetail]
+      WHERE [${fkCol}] = @selectedId
+        AND UPPER(LTRIM(RTRIM(CountryCode))) = @CountryCode
+        AND LocationKey IS NULL
+    `);
+  const rows = result.recordset || [];
+  if (rows.length === 0) return null;
+  const row = rows[0];
+  return {
+    Level: row.Level,
+    LevelNumber: row.LevelNumber,
+    Summary: row.Summary,
+    Description: row.Description,
     Link: row.Link,
     LastUpdated: row.LastUpdatedAtUtc,
   };
@@ -801,7 +997,7 @@ async function upsertSavedAdvisory(
 
   const levelNumber = isWeather
     ? null
-    : advisory[0]?.levelNumber != null
+    : advisory?.levelNumber != null && !Array.isArray(advisory)
       ? Number(advisory.levelNumber)
       : null;
 
@@ -838,7 +1034,13 @@ async function upsertSavedAdvisory(
         ? advisory.lastUpdated
         : new Date(advisory.lastUpdated)
       : null;
-  const ApiResponseJson = isWeather ? JSON.stringify(advisory) : "";
+  const ApiResponseJson = isWeather
+    ? JSON.stringify(advisory)
+    : advisory?.apiResponseJson != null
+      ? String(advisory.apiResponseJson)
+      : advisory?.ApiResponseJson != null
+        ? String(advisory.ApiResponseJson)
+        : "";
 
   const req = pool
     .request()
@@ -862,9 +1064,10 @@ async function upsertSavedAdvisory(
 
   const fkCol = await getAdvisoryDetailFkColumn();
 
-  // Weather: match by LocationKey so same-country cities get separate rows.
-  // Travel: match by CountryCode; LocationKey stays NULL.
-  const mergeSql = isWeather && locKey
+  // Weather / Travel-US-city: match by LocationKey so same-country cities get separate rows.
+  // Travel country-level: match by CountryCode; LocationKey stays NULL.
+  const useLocationKey = Boolean(locKey);
+  const mergeSql = useLocationKey
     ? `
     MERGE [dbo].[AdvisoryDetail] AS t
     USING (
@@ -950,6 +1153,81 @@ async function deleteWeatherAdvisoryDetailsNotInLocationKeys(
           LocationKey IS NULL
           OR LocationKey NOT IN (
             SELECT value FROM OPENJSON(@keysJson)
+          )
+        )
+    `);
+  return result.rowsAffected && result.rowsAffected[0] != null
+    ? result.rowsAffected[0]
+    : 0;
+}
+
+/**
+ * Delete Travel city-level AdvisoryDetail rows (LocationKey set) not in the keep set.
+ * Does not remove country-level Travel rows (LocationKey IS NULL).
+ * @param {number} advisoryId
+ * @param {string[]} locationKeys
+ * @returns {Promise<number>}
+ */
+async function deleteTravelCityAdvisoryDetailsNotInLocationKeys(
+  advisoryId,
+  locationKeys,
+) {
+  if (advisoryId == null) return 0;
+  await ensureAdvisoryDetailTable();
+  const pool = await poolPromise;
+  const fkCol = await getAdvisoryDetailFkColumn();
+  const keys = Array.isArray(locationKeys)
+    ? locationKeys.map((k) => String(k)).filter(Boolean)
+    : [];
+  const keysJson = JSON.stringify(keys);
+  const result = await pool
+    .request()
+    .input("AdvisoryId", sql.Int, advisoryId)
+    .input("keysJson", sql.NVarChar(sql.MAX), keysJson).query(`
+      DELETE FROM [dbo].[AdvisoryDetail]
+      WHERE [${fkCol}] = @AdvisoryId
+        AND LocationKey IS NOT NULL
+        AND (
+          @keysJson = N'[]'
+          OR LocationKey NOT IN (
+            SELECT value FROM OPENJSON(@keysJson)
+          )
+        )
+    `);
+  return result.rowsAffected && result.rowsAffected[0] != null
+    ? result.rowsAffected[0]
+    : 0;
+}
+
+/**
+ * Delete Travel country-level AdvisoryDetail rows (LocationKey NULL) not in keep set.
+ * @param {number} advisoryId
+ * @param {string[]} countryCodes
+ * @returns {Promise<number>}
+ */
+async function deleteTravelCountryAdvisoryDetailsNotInCountryCodes(
+  advisoryId,
+  countryCodes,
+) {
+  if (advisoryId == null) return 0;
+  await ensureAdvisoryDetailTable();
+  const pool = await poolPromise;
+  const fkCol = await getAdvisoryDetailFkColumn();
+  const codes = Array.isArray(countryCodes)
+    ? countryCodes.map((c) => String(c).trim().toUpperCase()).filter(Boolean)
+    : [];
+  const codesJson = JSON.stringify(codes);
+  const result = await pool
+    .request()
+    .input("AdvisoryId", sql.Int, advisoryId)
+    .input("codesJson", sql.NVarChar(sql.MAX), codesJson).query(`
+      DELETE FROM [dbo].[AdvisoryDetail]
+      WHERE [${fkCol}] = @AdvisoryId
+        AND LocationKey IS NULL
+        AND (
+          @codesJson = N'[]'
+          OR UPPER(LTRIM(RTRIM(CountryCode))) NOT IN (
+            SELECT UPPER(LTRIM(RTRIM(value))) FROM OPENJSON(@codesJson)
           )
         )
     `);
@@ -1124,7 +1402,129 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     };
   });
 
+  // Backfill State Dept rows that were saved before RSS content/description fix
+  if (
+    String(AdvisoryType || "").trim().toLowerCase() === "travel" &&
+    advisories.length > 0
+  ) {
+    await backfillEmptyTravelDescriptionsFromFeed(advisories);
+  }
+
   return { advisories, countryCodes, locationSelections };
+}
+
+/**
+ * When Summary/Description were stored empty ("No summary available"/null) because
+ * rss-parser puts HTML in item.content, refresh those fields from the live feed
+ * and persist onto AdvisoryDetail so the Travel UI stops showing "-".
+ * @param {Array<object>} advisories - mutable list from getTravelAdvisoryByTeamData
+ */
+async function backfillEmptyTravelDescriptionsFromFeed(advisories) {
+  const list = Array.isArray(advisories) ? advisories : [];
+  const needs = list.filter((a) => {
+    if (a == null) return false;
+    // Skip IPAWS city-level rows
+    if (a.LocationKey) return false;
+    const desc = String(a.description || "").trim();
+    const sum = String(a.summary || "").trim();
+    return (
+      !desc ||
+      !sum ||
+      sum === "No summary available" ||
+      sum === "-" ||
+      desc === "-"
+    );
+  });
+  if (needs.length === 0) return;
+
+  let feedList = [];
+  try {
+    const travelAdvisory = require("./travel-advisory-feed");
+    feedList = await travelAdvisory.getProcessedAdvisories();
+  } catch (err) {
+    console.error(
+      "backfillEmptyTravelDescriptionsFromFeed feed fetch failed:",
+      err && err.message ? err.message : err,
+    );
+    return;
+  }
+
+  const byCode = {};
+  for (const adv of feedList) {
+    const code = String(adv.countryCode || "")
+      .trim()
+      .toUpperCase();
+    if (code) byCode[code] = adv;
+  }
+
+  const pool = await poolPromise;
+  for (const a of needs) {
+    const code = String(a.countryCode || "")
+      .trim()
+      .toUpperCase();
+    const feedAdv = byCode[code];
+    if (!feedAdv) continue;
+    const detailId = a.id != null ? Number(a.id) : NaN;
+    if (!Number.isFinite(detailId)) continue;
+
+    const description =
+      feedAdv.description != null ? String(feedAdv.description) : null;
+    const summary =
+      feedAdv.summary != null ? String(feedAdv.summary) : null;
+    if (!description && (!summary || summary === "No summary available")) {
+      continue;
+    }
+
+    try {
+      await pool
+        .request()
+        .input("Id", sql.Int, detailId)
+        .input("Description", sql.NVarChar(sql.MAX), description)
+        .input("Summary", sql.NVarChar(sql.MAX), summary)
+        .input(
+          "Title",
+          sql.NVarChar(500),
+          feedAdv.title != null ? String(feedAdv.title).slice(0, 500) : null,
+        )
+        .input(
+          "Level",
+          sql.NVarChar(100),
+          feedAdv.level != null ? String(feedAdv.level).slice(0, 100) : null,
+        )
+        .input(
+          "LevelNumber",
+          sql.Int,
+          feedAdv.levelNumber != null ? Number(feedAdv.levelNumber) : null,
+        )
+        .input(
+          "Link",
+          sql.NVarChar(500),
+          feedAdv.link != null ? String(feedAdv.link).slice(0, 500) : null,
+        ).query(`
+          UPDATE [dbo].[AdvisoryDetail]
+          SET Description = @Description,
+              Summary = @Summary,
+              Title = COALESCE(@Title, Title),
+              Level = COALESCE(@Level, Level),
+              LevelNumber = COALESCE(@LevelNumber, LevelNumber),
+              Link = COALESCE(@Link, Link),
+              SyncedAtUtc = SYSUTCDATETIME()
+          WHERE Id = @Id
+        `);
+
+      a.description = description || a.description;
+      a.summary = summary || a.summary;
+      if (feedAdv.title) a.title = String(feedAdv.title);
+      if (feedAdv.level) a.level = String(feedAdv.level);
+      if (feedAdv.levelNumber != null) a.levelNumber = Number(feedAdv.levelNumber);
+      if (feedAdv.link) a.link = String(feedAdv.link);
+    } catch (updErr) {
+      console.error(
+        `backfillEmptyTravelDescriptionsFromFeed update failed for ${code}:`,
+        updErr && updErr.message ? updErr.message : updErr,
+      );
+    }
+  }
 }
 
 /**
@@ -1416,6 +1816,10 @@ module.exports = {
   ensureAllTravelAdvisoryTables,
   saveTravelAdvisorySelections,
   weatherLocationKey,
+  travelLocationKey,
+  normalizeTravelLocationSelections,
+  deleteTravelCityAdvisoryDetailsNotInLocationKeys,
+  deleteTravelCountryAdvisoryDetailsNotInCountryCodes,
   getActiveSelectedCountries,
   getActiveSelectedCountriesForTenantTeam,
   getSelectedCountriesForTenantTeam,
@@ -1424,6 +1828,7 @@ module.exports = {
   deactivateSelectedCountry,
   deleteSelectedCountry,
   getSavedAdvisoryForSelectedId,
+  getSavedAdvisoryForSelectedIdAndCountry,
   advisoryToSnapshot,
   snapshotsEqual,
   upsertSavedAdvisory,

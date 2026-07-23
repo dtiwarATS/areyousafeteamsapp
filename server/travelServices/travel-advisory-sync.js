@@ -9,13 +9,74 @@
 const travelAdvisory = require("./travel-advisory-feed");
 const {
   getActiveSelectedCountries,
-  getSavedAdvisoryForSelectedId,
+  getSavedAdvisoryForSelectedIdAndCountry,
   advisoryToSnapshot,
   snapshotsEqual,
   upsertSavedAdvisory,
   insertSelectedCountryLog,
 } = require("./travel-advisory-selected-db");
-const { processSafetyBotError } = require("../models/processError");
+const sql = require("mssql");
+const poolPromise = require("../db/dbConn");
+
+function splitCountryCodes(raw) {
+  return String(raw || "")
+    .split(",")
+    .map((c) => c.trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function isEmptySummaryOrDescription(summary, description) {
+  const sum = String(summary || "").trim();
+  const desc = String(description || "").trim();
+  return (
+    !desc ||
+    !sum ||
+    sum === "No summary available" ||
+    sum === "-" ||
+    desc === "-"
+  );
+}
+
+/**
+ * Resolve country codes for an Advisory row from CountryCode and SelectedLocationsJson.
+ * @param {object} row
+ * @returns {Promise<string[]>}
+ */
+async function resolveSelectedCountryCodes(row) {
+  const fromColumn = splitCountryCodes(row.CountryCode);
+  const codes = new Set(fromColumn);
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("Id", sql.Int, row.TravelAdvisorySelectedCountriesId).query(`
+        SELECT SelectedLocationsJson, AdvisoryType
+        FROM [dbo].[Advisory]
+        WHERE Id = @Id
+      `);
+    const rec = (result.recordset || [])[0];
+    if (rec && String(rec.AdvisoryType || "").toLowerCase() === "weather") {
+      return [];
+    }
+    if (rec && rec.SelectedLocationsJson) {
+      const parsed = JSON.parse(rec.SelectedLocationsJson);
+      if (Array.isArray(parsed)) {
+        for (const loc of parsed) {
+          const city = String(loc.cityName || "").trim();
+          const code = String(loc.countryCode || "")
+            .trim()
+            .toUpperCase();
+          // Country-level Travel only (skip US city IPAWS keys)
+          if (code && !city) codes.add(code);
+          else if (code && code !== "US" && code !== "USA") codes.add(code);
+        }
+      }
+    }
+  } catch {
+    // keep codes from CountryCode column
+  }
+  return [...codes];
+}
 
 /**
  * Sync advisories from RSS for selected countries only.
@@ -51,72 +112,88 @@ async function runSync() {
 
     let insertCount = 0;
     let updateCount = 0;
+    let processedCountries = 0;
 
     for (const row of selected) {
-      const {
-        TravelAdvisorySelectedCountriesId: selectedId,
-        CountryCode: countryCode,
-      } = row;
+      const selectedId = row.TravelAdvisorySelectedCountriesId;
+      const countryCodes = await resolveSelectedCountryCodes(row);
+      if (countryCodes.length === 0) continue;
 
-      const advisory = advisoryByCode[(countryCode || "").toUpperCase()];
-      if (!advisory) continue;
+      for (const countryCode of countryCodes) {
+        const advisory = advisoryByCode[countryCode];
+        if (!advisory) continue;
+        processedCountries++;
 
-      const saved = await getSavedAdvisoryForSelectedId(selectedId);
-      const newSnapshot = advisoryToSnapshot(advisory);
-      const oldSnapshot = saved
-        ? advisoryToSnapshot({
-            level: saved.Level,
-            levelNumber: saved.LevelNumber,
-            summary: saved.Summary,
-            link: saved.Link,
-            lastUpdated: saved.LastUpdated,
-          })
-        : null;
-
-      if (!saved) {
-        await upsertSavedAdvisory(selectedId, countryCode, advisory, jobRunAt);
-        insertCount++;
-      } else if (!snapshotsEqual(oldSnapshot, newSnapshot)) {
-        const advisoryDetailId = await upsertSavedAdvisory(
+        const saved = await getSavedAdvisoryForSelectedIdAndCountry(
           selectedId,
           countryCode,
-          advisory,
-          jobRunAt,
         );
-        if (oldSnapshot.levelNumber !== newSnapshot.levelNumber) {
-          await insertSelectedCountryLog(
+        const newSnapshot = advisoryToSnapshot(advisory);
+        const oldSnapshot = saved
+          ? advisoryToSnapshot({
+              level: saved.Level,
+              levelNumber: saved.LevelNumber,
+              summary: saved.Summary,
+              link: saved.Link,
+              lastUpdated: saved.LastUpdated,
+            })
+          : null;
+
+        const needsEmptyBackfill =
+          saved &&
+          isEmptySummaryOrDescription(saved.Summary, saved.Description);
+
+        if (!saved) {
+          await upsertSavedAdvisory(
             selectedId,
-            "LevelNumber",
             countryCode,
-            advisoryDetailId,
-            oldSnapshot,
-            newSnapshot,
+            advisory,
             jobRunAt,
+            "Travel",
           );
+          insertCount++;
+        } else if (
+          needsEmptyBackfill ||
+          !snapshotsEqual(oldSnapshot, newSnapshot)
+        ) {
+          const advisoryDetailId = await upsertSavedAdvisory(
+            selectedId,
+            countryCode,
+            advisory,
+            jobRunAt,
+            "Travel",
+          );
+          if (
+            oldSnapshot &&
+            oldSnapshot.levelNumber !== newSnapshot.levelNumber
+          ) {
+            await insertSelectedCountryLog(
+              selectedId,
+              "LevelNumber",
+              countryCode,
+              advisoryDetailId,
+              oldSnapshot,
+              newSnapshot,
+              jobRunAt,
+            );
+          }
+          updateCount++;
         }
-        updateCount++;
       }
     }
 
     console.log(
-      `travelAdvisorySync: at ${jobRunAt.toISOString()} processed ${selected.length} selected, inserts=${insertCount}, updates=${updateCount}`,
+      `travelAdvisorySync: at ${jobRunAt.toISOString()} selections=${selected.length}, countries=${processedCountries}, inserts=${insertCount}, updates=${updateCount}`,
     );
     return {
       success: true,
-      count: selected.length,
+      count: processedCountries,
       insertCount,
       updateCount,
       jobRunAt,
     };
   } catch (err) {
     console.error("travelAdvisorySync error:", err);
-    // processSafetyBotError(
-    //   err,
-    //   "",
-    //   "",
-    //   "",
-    //   "error in travelAdvisorySync: " + (err && err.message)
-    // );
     return {
       success: false,
       count: 0,
