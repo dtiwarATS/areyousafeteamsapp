@@ -24,56 +24,18 @@
 const express = require("express");
 const router = express.Router();
 const selectedDb = require("./travel-advisory-selected-db");
-const travelAdvisory = require("./travel-advisory-feed");
-
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-let cachedAdvisories = null;
-let cacheUpdatedAt = null;
+const {
+  CACHE_TTL_MS,
+  getAdvisoriesData,
+  clearCache,
+  getCacheMeta,
+} = require("./travel-advisory-cache");
 
 function getRequestId(req) {
   return (
     req.headers["x-request-id"] ||
     `req_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`
   );
-}
-
-function mapFeedItemToAdvisory(adv) {
-  return {
-    country: adv.country,
-    countryCode: adv.countryCode,
-    level: adv.level,
-    levelNumber: adv.levelNumber ?? 0,
-    title: adv.title,
-    summary: adv.summary || "No summary available",
-    restrictions: Array.isArray(adv.restrictions) ? adv.restrictions : [],
-    recommendations: Array.isArray(adv.recommendations)
-      ? adv.recommendations
-      : [],
-    link: adv.link,
-    pubDate: adv.pubDate,
-    lastUpdated: adv.lastUpdated ? new Date(adv.lastUpdated) : null,
-  };
-}
-
-async function getAdvisoriesData() {
-  if (
-    cachedAdvisories &&
-    cacheUpdatedAt &&
-    Date.now() - cacheUpdatedAt < CACHE_TTL_MS
-  ) {
-    return cachedAdvisories;
-  }
-  const advisories = await travelAdvisory.getProcessedAdvisories();
-  cachedAdvisories = Array.isArray(advisories)
-    ? advisories.map(mapFeedItemToAdvisory)
-    : [];
-  cacheUpdatedAt = Date.now();
-  return cachedAdvisories;
-}
-
-function clearCache() {
-  cachedAdvisories = null;
-  cacheUpdatedAt = null;
 }
 
 function applyFilters(advisories, filters) {
@@ -478,6 +440,7 @@ router.get("/raw", async (req, res, next) => {
 
 // ----- GET /cache/stats -----
 router.get("/cache/stats", (req, res) => {
+  const { cachedAdvisories, cacheUpdatedAt } = getCacheMeta();
   const lastUpdated = cacheUpdatedAt
     ? new Date(cacheUpdatedAt).toISOString()
     : null;

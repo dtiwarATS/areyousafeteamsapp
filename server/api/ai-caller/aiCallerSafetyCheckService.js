@@ -610,21 +610,100 @@ async function createAndSendSafetyCheck(payload) {
   };
 }
 
-async function getActiveIncidents({ tenantId, teamId }) {
+/**
+ * Active incidents for chat: in-progress safety checks (+ optional location filter)
+ * merged with org Weather Advisory rows when a location is provided.
+ * No new alert tables — uses existing dynamic Advisory / AdvisoryDetail sync.
+ */
+/**
+ * Lean DB-only list of in-progress MSTeamsIncidents (any INC_TYPE_ID).
+ * Default window: last 7 days by created_date. Pass sinceDays for older lookback.
+ * No weather/travel merge — use get_weather_alerts / get_travel_advisories.
+ * Response breakdown stays on get_checkin_status → MSTeamsMemberResponses.
+ */
+async function getActiveIncidents({ tenantId, teamId, location, sinceDays }) {
+  const loc = trimOrNull(location) || "";
+  let days = Number(sinceDays);
+  if (!Number.isFinite(days) || days <= 0) days = 7;
+  days = Math.min(Math.floor(days), 365);
+
+  const incidents = [];
+
   try {
-    if (typeof db.getAllIncData === "function") {
-      const data = await db.getAllIncData(teamId);
-      return { incidents: data || [] };
+    const pool = await poolPromise;
+    const req = pool
+      .request()
+      .input("teamId", sql.NVarChar(256), String(teamId))
+      .input("sinceDays", sql.Int, days);
+    let sqlText = `
+      SELECT TOP 40
+        inc.id AS incidentId,
+        inc.inc_name AS title,
+        inc.INC_STATUS_ID AS statusId,
+        GLI.LIST_ITEM AS statusLabel,
+        inc.created_date AS createdAt
+      FROM dbo.MSTeamsIncidents inc
+      LEFT JOIN dbo.GEN_LIST_ITEM GLI ON GLI.ID = inc.INC_STATUS_ID
+      WHERE inc.team_id = @teamId
+        AND ISNULL(inc.isSavedAsDraft, 0) = 0
+        AND ISNULL(inc.isSaveAsTemplate, 0) = 0
+        AND inc.INC_STATUS_ID = 1
+        AND CAST(inc.created_date AS datetime) >= DATEADD(day, -@sinceDays, GETUTCDATE())
+    `;
+    if (loc) {
+      req.input("loc", sql.NVarChar(256), `%${loc}%`);
+      sqlText += `
+        AND (
+          inc.inc_name LIKE @loc
+          OR inc.inc_desc LIKE @loc
+          OR ISNULL(inc.situation, '') LIKE @loc
+          OR ISNULL(inc.additionalInfo, '') LIKE @loc
+        )
+      `;
     }
-    return {
-      incidents: [],
-      note: "getAllIncData not available; wire to incidentService when ready.",
-      tenantId,
+    sqlText += ` ORDER BY CAST(inc.created_date AS datetime) DESC, inc.id DESC`;
+
+    const result = await req.query(sqlText);
+    for (const row of result.recordset || []) {
+      const created =
+        row.createdAt instanceof Date
+          ? row.createdAt.toISOString()
+          : row.createdAt
+            ? new Date(row.createdAt).toISOString()
+            : null;
+      incidents.push({
+        incidentId: row.incidentId,
+        title: row.title || `Incident #${row.incidentId}`,
+        createdAt: created,
+        status: row.statusLabel || "In progress",
+        statusId: row.statusId != null ? Number(row.statusId) : undefined,
+      });
+    }
+    console.log("[ai-caller] getActiveIncidents", {
       teamId,
-    };
+      sinceDays: days,
+      location: loc || undefined,
+      count: incidents.length,
+    });
   } catch (err) {
-    return { incidents: [], error: err.message };
+    console.warn("[ai-caller] getActiveIncidents failed:", err.message);
   }
+
+  const payload = {
+    source: incidents.length ? "org_data" : "none",
+    sinceDays: days,
+    location: loc || undefined,
+    incidents,
+    tenantId,
+    teamId,
+  };
+  if (!incidents.length) {
+    payload.note =
+      days <= 7
+        ? `No in-progress incidents in the last ${days} days. Ask for older (e.g. last 30 days) if needed.`
+        : `No in-progress incidents in the last ${days} days.`;
+  }
+  return payload;
 }
 
 async function resolveLatestSafetyCheckIncidentId(teamId) {

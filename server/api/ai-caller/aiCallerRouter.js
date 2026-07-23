@@ -5,6 +5,7 @@
 const express = require("express");
 const { requireAiCallerAuth } = require("./aiCallerAuth");
 const service = require("./aiCallerSafetyCheckService");
+const advisory = require("./aiCallerAdvisoryService");
 
 const router = express.Router();
 router.use(requireAiCallerAuth);
@@ -113,11 +114,80 @@ router.get("/checkin-status", async (req, res) => {
   res.json(result);
 });
 
+router.get("/weather-alerts", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const location = String(req.query.location || "").trim();
+  if (!location) {
+    return res.status(400).json({ error: "location is required", source: "none", advisories: [] });
+  }
+  try {
+    const result = await advisory.getWeatherAlertsForAiCaller({
+      tenantId: ids.tenantId,
+      teamId: ids.teamId,
+      location,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[ai-caller] weather-alerts error", err);
+    res.status(500).json({
+      error: err.message || "Failed to fetch weather alerts",
+      source: "none",
+      location,
+      advisories: [],
+    });
+  }
+});
+
+router.get("/travel-advisories", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const location = String(req.query.location || "").trim();
+  if (!location) {
+    return res.status(400).json({ error: "location is required", source: "none", advisories: [] });
+  }
+  try {
+    const result = await advisory.getTravelAdvisoriesForAiCaller({
+      tenantId: ids.tenantId,
+      teamId: ids.teamId,
+      location,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[ai-caller] travel-advisories error", err);
+    res.status(500).json({
+      error: err.message || "Failed to fetch travel advisories",
+      source: "none",
+      location,
+      advisories: [],
+    });
+  }
+});
+
 router.get("/active-incidents", async (req, res) => {
   const ids = requireMappedIds(req, res);
   if (!ids) return;
-  const result = await service.getActiveIncidents({ tenantId: ids.tenantId, teamId: ids.teamId });
-  res.json(result);
+  const location = req.query.location != null ? String(req.query.location).trim() : "";
+  const sinceDaysRaw = req.query.sinceDays != null ? Number(req.query.sinceDays) : undefined;
+  const sinceDays =
+    sinceDaysRaw != null && Number.isFinite(sinceDaysRaw) ? sinceDaysRaw : undefined;
+  try {
+    const result = await service.getActiveIncidents({
+      tenantId: ids.tenantId,
+      teamId: ids.teamId,
+      location: location || undefined,
+      sinceDays,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[ai-caller] active-incidents error", err);
+    res.status(500).json({
+      error: err.message || "Failed to fetch active incidents",
+      source: "none",
+      location: location || "",
+      incidents: [],
+    });
+  }
 });
 
 module.exports = router;
