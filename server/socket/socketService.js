@@ -36,6 +36,42 @@ function getBaseUrl() {
     "";
 }
 
+/**
+ * Same contact resolution as Tab: getEmergencyContactUsers returns [contacts, initiatorRows].
+ * Use contacts (index 0) only; never merge the initiator row into notify recipients.
+ */
+async function fetchServerSosContacts(baseUrl, userId, teamIdParam) {
+  const url =
+    `${baseUrl}/areyousafetabhandler/getEmergencyContactUsers` +
+    `?userId=${encodeURIComponent(userId)}&teamid=${encodeURIComponent(teamIdParam)}`;
+  const res = await axios.get(url, { validateStatus: () => true });
+  const data = res.data;
+  if (!data || !Array.isArray(data)) {
+    return [];
+  }
+
+  const contactsRaw = Array.isArray(data[0]) ? data[0] : data;
+  const initiatorKey = String(userId || "").trim().toLowerCase();
+  const seen = new Set();
+  const contacts = [];
+
+  for (const item of contactsRaw) {
+    if (!item || typeof item !== "object") continue;
+    const aadId = item.user_aadobject_id != null ? String(item.user_aadobject_id).trim() : "";
+    if (!aadId) continue;
+    const key = aadId.toLowerCase();
+    if (key === initiatorKey || seen.has(key)) continue;
+    seen.add(key);
+    contacts.push({
+      user_aadobject_id: aadId,
+      user_name: item.user_name || aadId,
+      email: item.email,
+    });
+  }
+
+  return contacts;
+}
+
 async function handleSosRequest(payload, ack) {
   const safeAck = (response) => {
     if (typeof ack === "function") {
@@ -73,16 +109,25 @@ async function handleSosRequest(payload, ack) {
       return;
     }
 
+    // Resolve officers the same way Tab does (server list), not client-flattened adminlist.
+    let serverContacts = [];
+    try {
+      serverContacts = await fetchServerSosContacts(baseUrl, userId, teamIdParam);
+    } catch (err) {
+      console.error("[SOCKET] sos_request failed to load server contacts:", err?.message);
+    }
+
     const sentToNames = (typeof step1Data === "object" && step1Data.sent_to_names)
       ? step1Data.sent_to_names
-      : adminlist
+      : serverContacts
         .map((a) => a.user_name || a.user_aadobject_id)
         .filter(Boolean)
         .join(", ");
     safeAck({ success: true, sosRequestId, sentToNames });
 
+    const notifyList = serverContacts.length > 0 ? serverContacts : [];
     const incData = [
-      adminlist,
+      notifyList,
       [{ user_id: userId, user_name: userName }],
     ];
     const step2Url = `${baseUrl}/areyousafetabhandler/sendNeedAssistanceProactiveMessage/?userId=${encodeURIComponent(userId)}&teamId=${encodeURIComponent(teamIdParam)}&requestAssistance=${encodeURIComponent(sosRequestId)}&issendemail=true`;
@@ -90,7 +135,7 @@ async function handleSosRequest(payload, ack) {
       data: { adminlist: JSON.stringify(incData), ulocData: null },
     }, { headers: { "Content-Type": "application/json" }, validateStatus: () => true });
 
-    const step3Promises = adminlist.map((admin) => {
+    const step3Promises = notifyList.map((admin) => {
       const adminAadId = admin.user_aadobject_id;
       if (!adminAadId) return Promise.resolve();
       return axios.post(`${baseUrl}/areyousafetabhandler/sendNotification`, {
