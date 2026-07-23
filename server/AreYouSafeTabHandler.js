@@ -5815,54 +5815,251 @@ ORDER BY ACL.EventDateTime DESC;
         );
 
         let detailSavedCount = 0;
-        let advisoriesList = [];
+        let advisoriesList = undefined;
+        let locationSelectionsOut = null;
+        let travelAdvisoriesLoaded = false;
         const requestedCodesSet = new Set(
-          (countryCodes || [])
-            .map((c) => String(c).trim().toUpperCase())
+          [
+            ...(countryCodes || []),
+            ...(Array.isArray(result.countryCodes) ? result.countryCodes : []),
+            ...(Array.isArray(result.locationSelections)
+              ? result.locationSelections
+              : locationSelections || []
+            ).map((l) => l && l.countryCode),
+          ]
+            .map((c) =>
+              String(c || "")
+                .trim()
+                .toUpperCase(),
+            )
             .filter(Boolean),
         );
-        if (requestedCodesSet.size > 0 && advisoryType == "Travel") {
-          const selections =
-            await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
-              tenantId,
-              "",
-              "Travel",
+        // Client remove path sends removedLocationKeys; add path leaves them empty.
+        const isTravelRemoveOnly =
+          advisoryType == "Travel" &&
+          (removedLocationKeys.length > 0 || removedCountryCodes.length > 0);
+
+        if (advisoryType == "Travel") {
+          try {
+            const ipawsFeed = require("./travelServices/ipaws-advisory-feed");
+            const selections =
+              await travelSelectedDb.getActiveSelectedCountriesForTenantTeam(
+                tenantId,
+                "",
+                "Travel",
+              );
+            const filtered =
+              requestedCodesSet.size > 0
+                ? selections.filter((row) => {
+                    const codes = (row.CountryCode || "")
+                      .split(",")
+                      .map((c) => c.trim().toUpperCase());
+                    return codes.some((code) => requestedCodesSet.has(code));
+                  })
+                : selections;
+
+            const effectiveLocations =
+              Array.isArray(result.locationSelections) &&
+              result.locationSelections.length > 0
+                ? result.locationSelections
+                : Array.isArray(locationSelections)
+                  ? locationSelections
+                  : [];
+
+            const travelLocKey =
+              travelSelectedDb.travelLocationKey ||
+              ((loc) => {
+                const code = String(loc.countryCode || "")
+                  .trim()
+                  .toUpperCase();
+                const city = String(loc.cityName || "").trim();
+                const state = loc.state != null ? String(loc.state).trim() : "";
+                if (!city) return `${code}||`;
+                return `${code}|${city}|${state}`;
+              });
+
+            const usCityLocs = effectiveLocations.filter(
+              (l) =>
+                l &&
+                ipawsFeed.isUsCountryCode(l.countryCode) &&
+                String(l.cityName || "").trim(),
             );
-          const filtered = selections.filter((row) => {
-            const countryCodes = (row.CountryCode || "")
-              .split(",")
-              .map((c) => c.trim().toUpperCase());
+            const hasUsCountryOnly = effectiveLocations.some(
+              (l) =>
+                l &&
+                ipawsFeed.isUsCountryCode(l.countryCode) &&
+                !String(l.cityName || "").trim(),
+            );
+            const nonUsCodes = [
+              ...new Set(
+                [
+                  ...[...requestedCodesSet].filter(
+                    (c) => !ipawsFeed.isUsCountryCode(c),
+                  ),
+                  ...effectiveLocations
+                    .filter(
+                      (l) =>
+                        l &&
+                        !ipawsFeed.isUsCountryCode(l.countryCode) &&
+                        String(l.countryCode || "").trim(),
+                    )
+                    .map((l) => String(l.countryCode).trim().toUpperCase()),
+                ].filter(Boolean),
+              ),
+            ];
 
-            return countryCodes.some((code) => requestedCodesSet.has(code));
-          });
-          if (filtered.length > 0) {
-            const advisories = await travelAdvisory.getProcessedAdvisories();
-            const advisoryByCode = {};
-            for (const adv of advisories) {
-              const code = (adv.countryCode || "").toUpperCase();
-              if (code) advisoryByCode[code] = adv;
-            }
-            const now = new Date();
-            for (const row of filtered) {
-              const selectedId = row.TravelAdvisorySelectedCountriesId;
-              const countryCodes = (row.CountryCode || "")
-                .split(",")
-                .map((c) => c.trim().toUpperCase());
+            const keepCityKeys = usCityLocs
+              .map((l) => travelLocKey(l))
+              .filter(Boolean);
+            const keepCountryCodes = [
+              ...nonUsCodes,
+              ...(hasUsCountryOnly ? ["US"] : []),
+            ];
 
-              for (const code of countryCodes) {
-                const advisory = advisoryByCode[code];
-                if (advisory) {
+            if (isTravelRemoveOnly) {
+              // Remove-only: delete stale detail rows — skip feed + IPAWS re-fetch.
+              for (const row of filtered) {
+                const selectedId = row.TravelAdvisorySelectedCountriesId;
+                if (
+                  typeof travelSelectedDb.deleteTravelCityAdvisoryDetailsNotInLocationKeys ===
+                  "function"
+                ) {
+                  await travelSelectedDb.deleteTravelCityAdvisoryDetailsNotInLocationKeys(
+                    selectedId,
+                    keepCityKeys,
+                  );
+                }
+                if (
+                  typeof travelSelectedDb.deleteTravelCountryAdvisoryDetailsNotInCountryCodes ===
+                  "function"
+                ) {
+                  await travelSelectedDb.deleteTravelCountryAdvisoryDetailsNotInCountryCodes(
+                    selectedId,
+                    keepCountryCodes,
+                  );
+                }
+              }
+            } else if (filtered.length > 0) {
+              const advisories = await travelAdvisory.getProcessedAdvisories();
+              const advisoryByCode = {};
+              for (const adv of advisories) {
+                const code = (adv.countryCode || "").toUpperCase();
+                if (code) advisoryByCode[code] = adv;
+              }
+              const now = new Date();
+
+              for (const row of filtered) {
+                const selectedId = row.TravelAdvisorySelectedCountriesId;
+
+                // Non-U.S. countries → State Dept country advisory
+                for (const code of nonUsCodes) {
+                  const advisory = advisoryByCode[code];
+                  if (advisory) {
+                    await travelSelectedDb.upsertSavedAdvisory(
+                      selectedId,
+                      code,
+                      advisory,
+                      now,
+                      "Travel",
+                    );
+                    detailSavedCount++;
+                  }
+                }
+
+                // U.S. country-only chip → State Dept U.S. advisory
+                if (hasUsCountryOnly) {
+                  const usAdv = advisoryByCode.US || advisoryByCode.USA || null;
+                  if (usAdv) {
+                    await travelSelectedDb.upsertSavedAdvisory(
+                      selectedId,
+                      "US",
+                      usAdv,
+                      now,
+                      "Travel",
+                    );
+                    detailSavedCount++;
+                  }
+                }
+
+                // U.S. cities → FEMA IPAWS per city LocationKey
+                for (const loc of usCityLocs) {
+                  const locKey = travelLocKey(loc);
+                  let alerts = [];
+                  try {
+                    alerts = await ipawsFeed.getIpawsAlertsForLocation(loc);
+                  } catch (err) {
+                    console.error(
+                      `saveTravelAdvisorySelection IPAWS fetch failed for ${locKey}:`,
+                      err && err.message,
+                    );
+                    alerts = [];
+                  }
+                  if (!Array.isArray(alerts) || alerts.length === 0) {
+                    continue;
+                  }
+                  const advisory = ipawsFeed.toTravelAdvisory(alerts, loc);
                   await travelSelectedDb.upsertSavedAdvisory(
                     selectedId,
-                    code,
+                    "US",
                     advisory,
                     now,
                     "Travel",
+                    locKey,
                   );
                   detailSavedCount++;
                 }
+
+                if (
+                  typeof travelSelectedDb.deleteTravelCityAdvisoryDetailsNotInLocationKeys ===
+                  "function"
+                ) {
+                  await travelSelectedDb.deleteTravelCityAdvisoryDetailsNotInLocationKeys(
+                    selectedId,
+                    keepCityKeys,
+                  );
+                }
+
+                if (
+                  typeof travelSelectedDb.deleteTravelCountryAdvisoryDetailsNotInCountryCodes ===
+                  "function"
+                ) {
+                  await travelSelectedDb.deleteTravelCountryAdvisoryDetailsNotInCountryCodes(
+                    selectedId,
+                    keepCountryCodes,
+                  );
+                }
+              }
+
+              // Return advisories so the client can skip a second getTravelAdvisoryByTeam.
+              try {
+                const teamData =
+                  await travelSelectedDb.getTravelAdvisoryByTeamData(
+                    "",
+                    tenantId,
+                    "Travel",
+                  );
+                advisoriesList = Array.isArray(teamData.advisories)
+                  ? teamData.advisories
+                  : [];
+                locationSelectionsOut = Array.isArray(
+                  teamData.locationSelections,
+                )
+                  ? teamData.locationSelections
+                  : [];
+                travelAdvisoriesLoaded = true;
+              } catch (loadErr) {
+                console.error(
+                  "saveTravelAdvisorySelection load advisories failed:",
+                  loadErr && loadErr.message,
+                );
               }
             }
+          } catch (travelErr) {
+            console.error(
+              "saveTravelAdvisorySelection travel detail sync failed:",
+              travelErr && travelErr.message,
+              travelErr && travelErr.stack,
+            );
           }
         } else if (advisoryType == "Weather") {
           try {
@@ -5956,6 +6153,12 @@ ORDER BY ACL.EventDateTime DESC;
           invalidCodes:
             result.invalidCodes && result.invalidCodes.length
               ? result.invalidCodes
+              : undefined,
+          advisories: travelAdvisoriesLoaded ? advisoriesList : undefined,
+          locationSelections: travelAdvisoriesLoaded
+            ? locationSelectionsOut
+            : Array.isArray(result.locationSelections)
+              ? result.locationSelections
               : undefined,
         });
       } catch (err) {
