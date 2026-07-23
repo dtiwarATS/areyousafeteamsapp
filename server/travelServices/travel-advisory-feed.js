@@ -229,9 +229,38 @@ function extractSummary(description) {
   return 'No summary available';
 }
 
+/**
+ * Convert State Dept HTML description to plain text while keeping structure:
+ * paragraphs, line breaks, and list items (as "• " lines).
+ * Does not collapse the whole body into a single space-separated line.
+ */
 function cleanHtmlDescription(description) {
-  if (!description || typeof description !== 'string') return '';
-  return stripHtml(description).replace(/\s+/g, ' ').trim();
+  if (!description || typeof description !== "string") return "";
+  let html = description;
+  // Block / break → newlines
+  html = html.replace(/<\s*br\s*\/?\s*>/gi, "\n");
+  html = html.replace(/<\s*\/\s*p\s*>/gi, "\n");
+  html = html.replace(/<\s*p\b[^>]*>/gi, "\n");
+  html = html.replace(/<\s*\/\s*div\s*>/gi, "\n");
+  html = html.replace(/<\s*\/\s*h[1-6]\s*>/gi, "\n");
+  html = html.replace(/<\s*h[1-6]\b[^>]*>/gi, "\n");
+  // List items → bullet lines
+  html = html.replace(/<\s*li\b[^>]*>/gi, "\n• ");
+  html = html.replace(/<\s*\/\s*li\s*>/gi, "\n");
+  html = html.replace(/<\s*\/\s*ul\s*>/gi, "\n");
+  html = html.replace(/<\s*\/\s*ol\s*>/gi, "\n");
+  html = html.replace(/<\s*ul\b[^>]*>/gi, "\n");
+  html = html.replace(/<\s*ol\b[^>]*>/gi, "\n");
+
+  let text = stripHtml(html);
+  // Normalize spaces within a line, keep newlines
+  text = text
+    .split(/\n/)
+    .map((line) => line.replace(/[ \t\f\v]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return text;
 }
 
 function generateId(guid) {
