@@ -2,26 +2,18 @@
  * FEMA IPAWS All-Hazards PUBLIC CAP feed for U.S. city/area Travel Advisories.
  * Isolated from Weather Azure Maps feed.
  *
- * Prod:  https://apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent/{timestamp}
- * Test/local (TDL): https://tdl.apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent/{timestamp}
- * Override via process.env.IPAWS_PUBLIC_FEED_BASE
+ * Always uses production:
+ *   https://apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent/{timestamp}
+ * Optional override: process.env.IPAWS_PUBLIC_FEED_BASE
  */
 
 const axios = require("axios");
 
 const IPAWS_PROD_BASE =
   "https://apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent";
-const IPAWS_TDL_BASE =
-  "https://tdl.apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent";
-
-const isProdEnv =
-  String(process.env.NODE_ENV || "")
-    .trim()
-    .toLowerCase() === "production";
 
 const DEFAULT_BASE =
-  process.env.IPAWS_PUBLIC_FEED_BASE ||
-  (isProdEnv ? IPAWS_PROD_BASE : IPAWS_TDL_BASE);
+  process.env.IPAWS_PUBLIC_FEED_BASE || IPAWS_PROD_BASE;
 
 /** Look-back window when requesting recent alerts (ms). Default 24h. */
 const RECENT_LOOKBACK_MS = Number(process.env.IPAWS_LOOKBACK_MS) || 24 * 60 * 60 * 1000;
@@ -275,12 +267,16 @@ function alertMatchesLocation(alert, loc) {
     const desc = String(area.areaDesc || "").toLowerCase();
     if (city && desc.includes(city)) return true;
     if (city && state && desc.includes(city) && desc.includes(state)) return true;
+    // Statewide / region text (e.g. areaDesc "New Hampshire") — match selected state
+    if (state && desc && (desc === state || desc.includes(state))) return true;
 
+    const polys = area.polygons || [];
+    const circles = area.circles || [];
     if (hasCoords) {
-      for (const poly of area.polygons || []) {
+      for (const poly of polys) {
         if (pointInPolygon(lon, lat, poly)) return true;
       }
-      for (const circle of area.circles || []) {
+      for (const circle of circles) {
         if (pointInCircle(lon, lat, circle)) return true;
       }
     }
@@ -290,7 +286,7 @@ function alertMatchesLocation(alert, loc) {
 
 /**
  * Fetch raw recent IPAWS PUBLIC CAP XML.
- * @returns {Promise<string>}
+ * @returns {Promise<{ xml: string, url: string, status: number }>}
  */
 async function fetchRecentCapXml() {
   // FEMA expects ISO-8601 UTC (e.g. 2026-07-23T08:00:00Z), not epoch ms.
@@ -308,7 +304,19 @@ async function fetchRecentCapXml() {
     if (res.status >= 400) {
       throw new Error(`IPAWS feed HTTP ${res.status} url=${url}`);
     }
-    return typeof res.data === "string" ? res.data : String(res.data || "");
+    const xml =
+      typeof res.data === "string" ? res.data : String(res.data || "");
+    console.log("[IPAWS] fetchRecentCapXml", {
+      base: DEFAULT_BASE,
+      url,
+      sinceIso,
+      lookbackMs: RECENT_LOOKBACK_MS,
+      status: res.status,
+      xmlLen: xml.length,
+      hasAlertTag: /<alert\b/i.test(xml),
+      sample: xml.slice(0, 180).replace(/\s+/g, " "),
+    });
+    return { xml, url, status: res.status };
   } catch (err) {
     if (err && err.message && String(err.message).includes("url=")) {
       throw err;
@@ -319,43 +327,142 @@ async function fetchRecentCapXml() {
 }
 
 /**
- * Get IPAWS alerts matching a U.S. city selection.
+ * Parse feed XML into non-Met normalized alerts.
+ * @param {string} xml
+ * @returns {{ alerts: object[], blockCount: number, skippedMet: number, parseErrors: number }}
+ */
+function parseRecentAlertsFromXml(xml) {
+  const blocks = splitAlertBlocks(xml);
+  const alerts = [];
+  let skippedMet = 0;
+  let parseErrors = 0;
+
+  for (const block of blocks) {
+    try {
+      const alert = parseCapAlert(block);
+      if (isMetWeatherAlert(alert)) {
+        skippedMet++;
+        continue;
+      }
+      alerts.push(alert);
+    } catch (parseErr) {
+      parseErrors++;
+      console.warn(
+        "[IPAWS] parseCapAlert error:",
+        parseErr && parseErr.message ? parseErr.message : parseErr,
+      );
+    }
+  }
+
+  return {
+    alerts,
+    blockCount: blocks.length,
+    skippedMet,
+    parseErrors,
+  };
+}
+
+/**
+ * Fetch recent IPAWS feed and parse non-Met alerts (one HTTP call).
+ * @returns {Promise<{ xml: string, url: string, status: number, alerts: object[] }>}
+ */
+async function fetchAndParseRecentAlerts() {
+  const fetched = await fetchRecentCapXml();
+  const parsed = parseRecentAlertsFromXml(fetched.xml);
+  console.log("[IPAWS] fetchAndParseRecentAlerts", {
+    url: fetched.url,
+    status: fetched.status,
+    blockCount: parsed.blockCount,
+    alerts: parsed.alerts.length,
+    skippedMet: parsed.skippedMet,
+    parseErrors: parsed.parseErrors,
+  });
+  return {
+    xml: fetched.xml,
+    url: fetched.url,
+    status: fetched.status,
+    alerts: parsed.alerts,
+  };
+}
+
+/**
+ * Filter an in-memory alert list to those matching a U.S. city.
+ * @param {object[]} alerts
+ * @param {{ cityName: string, state?: string|null, latitude?: number|null, longitude?: number|null, countryCode?: string }} loc
+ * @returns {object[]}
+ */
+function getIpawsAlertsForLocationFromAlerts(alerts, loc) {
+  const code = String(loc?.countryCode || "US").trim().toUpperCase();
+  const city = String(loc?.cityName || "").trim();
+  if (loc?.countryCode && !isUsCountryCode(code)) return [];
+  if (!city) return [];
+
+  const list = Array.isArray(alerts) ? alerts : [];
+  return list.filter((alert) => {
+    if (isMetWeatherAlert(alert)) return false;
+    return alertMatchesLocation(alert, loc);
+  });
+}
+
+/**
+ * Get IPAWS alerts matching a U.S. city selection (live feed).
  * @param {{ cityName: string, state?: string|null, latitude?: number|null, longitude?: number|null, countryCode?: string }} loc
  * @returns {Promise<object[]>} normalized alert objects
  */
 async function getIpawsAlertsForLocation(loc) {
   const code = String(loc?.countryCode || "US").trim().toUpperCase();
+  const city = String(loc?.cityName || "").trim();
+  const state = loc?.state != null ? String(loc.state).trim() : "";
+  console.log("[IPAWS] getIpawsAlertsForLocation start", {
+    city,
+    state,
+    countryCode: loc?.countryCode,
+    lat: loc?.latitude,
+    lon: loc?.longitude,
+  });
+
   if (loc?.countryCode && !isUsCountryCode(code)) {
+    console.log("[IPAWS] skip — not a US country code", { code });
     return [];
   }
-  const city = String(loc?.cityName || "").trim();
-  if (!city) return [];
+  if (!city) {
+    console.log("[IPAWS] skip — empty cityName");
+    return [];
+  }
 
-  let xml = "";
+  let parsed;
   try {
-    xml = await fetchRecentCapXml();
+    parsed = await fetchAndParseRecentAlerts();
   } catch (err) {
     console.error(
-      "IPAWS fetch failed:",
+      "[IPAWS] fetch failed:",
       err && err.message ? err.message : err,
     );
     return [];
   }
 
-  const blocks = splitAlertBlocks(xml);
-  const alerts = [];
-  for (const block of blocks) {
-    try {
-      const alert = parseCapAlert(block);
-      // Exclude CAP Category=Met (weather) — shown on Weather Alerts tab
-      if (isMetWeatherAlert(alert)) continue;
-      if (alertMatchesLocation(alert, loc)) {
-        alerts.push(alert);
-      }
-    } catch (parseErr) {
-      // skip malformed alert
-    }
+  if (!parsed.alerts.length) {
+    console.warn("[IPAWS] EMPTY FEED — no usable alerts (nothing to match)", {
+      url: parsed.url,
+      xmlLen: parsed.xml.length,
+      sample: String(parsed.xml || "")
+        .slice(0, 220)
+        .replace(/\s+/g, " "),
+      hint: "Prod feed has no active alerts in lookback window; wait for a new CAP or use IpawsAlertCache fallback",
+    });
+    return [];
   }
+
+  const alerts = getIpawsAlertsForLocationFromAlerts(parsed.alerts, loc);
+  console.log("[IPAWS] getIpawsAlertsForLocation result", {
+    city,
+    state,
+    url: parsed.url,
+    feedAlertCount: parsed.alerts.length,
+    matched: alerts.length,
+    matchedTitles: alerts.slice(0, 5).map((a) => a.title),
+  });
+
   return alerts;
 }
 
@@ -429,6 +536,9 @@ function toTravelAdvisory(alerts, loc) {
 module.exports = {
   isUsCountryCode,
   getIpawsAlertsForLocation,
+  getIpawsAlertsForLocationFromAlerts,
+  fetchAndParseRecentAlerts,
+  parseRecentAlertsFromXml,
   toTravelAdvisory,
   alertMatchesLocation,
   fetchRecentCapXml,

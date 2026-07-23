@@ -84,6 +84,11 @@ function initJob() {
         cron: "*/30 * * * *",
       },
       {
+        name: "ipaws-advisory-sync-job",
+        path: path.join(__dirname, "jobs", "ipaws-advisory-sync-job.js"),
+        cron: "*/1 * * * *",
+      },
+      {
         name: "GetAllUser-job",
         path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
         cron: "*/15 * * * *",

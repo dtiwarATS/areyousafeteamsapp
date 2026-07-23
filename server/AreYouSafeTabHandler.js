@@ -6004,9 +6004,24 @@ ORDER BY ACL.EventDateTime DESC;
                 }
 
                 // U.S. cities → FEMA IPAWS per city LocationKey
+                console.log("[IPAWS] saveTravel sync US cities", {
+                  usCityCount: usCityLocs.length,
+                  cities: usCityLocs.map((l) => ({
+                    city: l.cityName,
+                    state: l.state,
+                    countryCode: l.countryCode,
+                    lat: l.latitude,
+                    lon: l.longitude,
+                    key: travelLocKey(l),
+                  })),
+                });
+                const ipawsCacheDb = require("./travelServices/ipaws-alert-cache-db");
+                let cachedAlerts = null;
+                const cityKeysWithAlerts = [];
                 for (const loc of usCityLocs) {
                   const locKey = travelLocKey(loc);
                   let alerts = [];
+                  let alertSource = "live";
                   try {
                     alerts = await ipawsFeed.getIpawsAlertsForLocation(loc);
                   } catch (err) {
@@ -6017,9 +6032,50 @@ ORDER BY ACL.EventDateTime DESC;
                     alerts = [];
                   }
                   if (!Array.isArray(alerts) || alerts.length === 0) {
+                    try {
+                      if (cachedAlerts == null) {
+                        cachedAlerts =
+                          await ipawsCacheDb.getActiveIpawsAlerts();
+                      }
+                      alerts = ipawsFeed.getIpawsAlertsForLocationFromAlerts(
+                        cachedAlerts,
+                        loc,
+                      );
+                      alertSource = "cache";
+                    } catch (cacheErr) {
+                      console.error(
+                        `saveTravelAdvisorySelection IPAWS cache failed for ${locKey}:`,
+                        cacheErr && cacheErr.message,
+                      );
+                      alerts = [];
+                    }
+                  }
+                  console.log("[IPAWS] saveTravel city outcome", {
+                    locKey,
+                    alertCount: Array.isArray(alerts) ? alerts.length : 0,
+                    source: alertSource,
+                    note:
+                      !Array.isArray(alerts) || alerts.length === 0
+                        ? "EMPTY — skip upsert (no Travel card)"
+                        : "upserting IPAWS advisory",
+                  });
+                  if (!Array.isArray(alerts) || alerts.length === 0) {
                     continue;
                   }
                   const advisory = ipawsFeed.toTravelAdvisory(alerts, loc);
+                  if (!advisory) {
+                    console.log("[IPAWS] toTravelAdvisory returned null", {
+                      locKey,
+                    });
+                    continue;
+                  }
+                  if (locKey) cityKeysWithAlerts.push(locKey);
+                  console.log("[IPAWS] upserting advisory", {
+                    locKey,
+                    title: advisory.title,
+                    hasLink: Boolean(advisory.link),
+                    source: alertSource,
+                  });
                   await travelSelectedDb.upsertSavedAdvisory(
                     selectedId,
                     "US",
@@ -6030,6 +6086,10 @@ ORDER BY ACL.EventDateTime DESC;
                   );
                   detailSavedCount++;
                 }
+                console.log("[IPAWS] saveTravel cityKeysWithAlerts", {
+                  cityKeysWithAlerts,
+                  keepCityKeys,
+                });
 
                 if (
                   typeof travelSelectedDb.deleteTravelCityAdvisoryDetailsNotInLocationKeys ===

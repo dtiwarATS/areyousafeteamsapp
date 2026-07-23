@@ -1803,6 +1803,76 @@ async function getActiveWeatherSelectedCountries() {
   return getActiveWeatherSelectedLocations();
 }
 
+/**
+ * Active Travel selections expanded to U.S. city rows only (for IPAWS sync).
+ * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string, LocationKey: string, cityName: string, state: string|null, latitude: number|null, longitude: number|null, countryName: string|null }>>}
+ */
+async function getActiveTravelUsCityLocations() {
+  await ensureAdvisoryTable();
+  const pool = await poolPromise;
+  const result = await pool.request().query(`
+    SELECT
+      s.Id AS TravelAdvisorySelectedCountriesId,
+      s.TenantId,
+      s.CountryCode,
+      s.SelectedLocationsJson
+    FROM [dbo].[Advisory] s
+    WHERE s.AdvisoryType = 'Travel' AND s.IsActive = 1
+    ORDER BY s.Id
+  `);
+
+  const expanded = [];
+  for (const row of result.recordset || []) {
+    let locs = [];
+    if (row.SelectedLocationsJson) {
+      try {
+        const parsed = JSON.parse(row.SelectedLocationsJson);
+        if (Array.isArray(parsed)) locs = parsed;
+      } catch {
+        locs = [];
+      }
+    }
+
+    for (const loc of locs) {
+      const countryCode = String(loc.countryCode || "")
+        .trim()
+        .toUpperCase();
+      if (!isUsCountryCode(countryCode)) continue;
+      const cityName =
+        loc.cityName != null ? String(loc.cityName).trim() : "";
+      if (!cityName) continue;
+
+      const lat =
+        loc.latitude != null && !Number.isNaN(Number(loc.latitude))
+          ? Number(loc.latitude)
+          : null;
+      const lon =
+        loc.longitude != null && !Number.isNaN(Number(loc.longitude))
+          ? Number(loc.longitude)
+          : null;
+
+      expanded.push({
+        TravelAdvisorySelectedCountriesId: row.TravelAdvisorySelectedCountriesId,
+        TenantId: row.TenantId,
+        CountryCode: countryCode,
+        LocationKey: travelLocationKey({
+          countryCode,
+          cityName,
+          state: loc.state,
+        }),
+        cityName,
+        state: loc.state != null ? String(loc.state).trim() : null,
+        latitude: lat,
+        longitude: lon,
+        countryName:
+          loc.countryName != null ? String(loc.countryName).trim() : "United States",
+      });
+    }
+  }
+
+  return expanded;
+}
+
 module.exports = {
   getCountriesFromDb,
   getAllCountriesFromDb,
@@ -1837,4 +1907,5 @@ module.exports = {
   getTravelAdvisoryByTeamData,
   getActiveWeatherSelectedCountries,
   getActiveWeatherSelectedLocations,
+  getActiveTravelUsCityLocations,
 };
