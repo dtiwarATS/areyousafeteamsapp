@@ -158,6 +158,25 @@ function buildUiCopy(translations) {
 }
 
 /**
+ * Payload for officers' desktop incoming SOS alert (translated UI strings for requester language).
+ */
+async function buildIncomingSosDesktopPayload(input) {
+  const userAadObjId = input?.userAadObjId || "";
+  const languageId =
+    (await incidentService.getUserLanguageIdByAadObjId(userAadObjId)) ||
+    DEFAULT_LANGUAGE_ID;
+  const translations = await loadAttributeTranslations(languageId);
+
+  return {
+    requestAssistanceid: input?.requestAssistanceid ?? null,
+    userAadObjId: userAadObjId || null,
+    userName: input?.userName || null,
+    teamId: input?.teamId ?? null,
+    ui: buildUiCopy(translations),
+  };
+}
+
+/**
  * Build first-responder accept payload shared by bot Adaptive Card,
  * SMS/WhatsApp/Email requester text, and desktop websocket.
  *
@@ -332,6 +351,7 @@ module.exports = {
   SOS_ATTRIBUTE_KEYS,
   loadAttributeTranslations,
   buildDesktopSosAcceptPayload,
+  buildIncomingSosDesktopPayload,
   buildDesktopSosChatSnapshot,
   buildDesktopSosClosedPayload,
   teamsChatUrl,

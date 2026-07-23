@@ -580,12 +580,16 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 .filter((id) => id != null && String(id).trim() !== ""),
             ),
           ];
-          socketService.emitIncomingSosToUsers(officerAads, {
+          const {
+            buildIncomingSosDesktopPayload,
+          } = require("../utils/desktopSosChatCopy");
+          const incomingPayload = await buildIncomingSosDesktopPayload({
             requestAssistanceid,
             userAadObjId,
             userName: user?.user_name,
             teamId: admins[0]?.team_id,
           });
+          socketService.emitIncomingSosToUsers(officerAads, incomingPayload);
         } catch (desktopEmitErr) {
           console.log("[SOCKET] emitIncomingSosToUsers error", {
             requestAssistanceid,
