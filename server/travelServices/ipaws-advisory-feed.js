@@ -2,15 +2,26 @@
  * FEMA IPAWS All-Hazards PUBLIC CAP feed for U.S. city/area Travel Advisories.
  * Isolated from Weather Azure Maps feed.
  *
- * Production: https://apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent/{timestamp}
+ * Prod:  https://apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent/{timestamp}
+ * Test/local (TDL): https://tdl.apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent/{timestamp}
  * Override via process.env.IPAWS_PUBLIC_FEED_BASE
  */
 
 const axios = require("axios");
 
+const IPAWS_PROD_BASE =
+  "https://apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent";
+const IPAWS_TDL_BASE =
+  "https://tdl.apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent";
+
+const isProdEnv =
+  String(process.env.NODE_ENV || "")
+    .trim()
+    .toLowerCase() === "production";
+
 const DEFAULT_BASE =
   process.env.IPAWS_PUBLIC_FEED_BASE ||
-  "https://apps.fema.gov/IPAWSOPEN_EAS_SERVICE/rest/public/recent";
+  (isProdEnv ? IPAWS_PROD_BASE : IPAWS_TDL_BASE);
 
 /** Look-back window when requesting recent alerts (ms). Default 24h. */
 const RECENT_LOOKBACK_MS = Number(process.env.IPAWS_LOOKBACK_MS) || 24 * 60 * 60 * 1000;
@@ -282,18 +293,29 @@ function alertMatchesLocation(alert, loc) {
  * @returns {Promise<string>}
  */
 async function fetchRecentCapXml() {
-  const since = Date.now() - RECENT_LOOKBACK_MS;
-  const url = `${DEFAULT_BASE.replace(/\/$/, "")}/${since}`;
-  const res = await axios.get(url, {
-    timeout: 30000,
-    responseType: "text",
-    headers: { Accept: "application/xml, text/xml, */*" },
-    validateStatus: (s) => s >= 200 && s < 500,
-  });
-  if (res.status >= 400) {
-    throw new Error(`IPAWS feed HTTP ${res.status}`);
+  // FEMA expects ISO-8601 UTC (e.g. 2026-07-23T08:00:00Z), not epoch ms.
+  const sinceIso = new Date(Date.now() - RECENT_LOOKBACK_MS)
+    .toISOString()
+    .replace(/\.\d{3}Z$/, "Z");
+  const url = `${DEFAULT_BASE.replace(/\/$/, "")}/${sinceIso}`;
+  try {
+    const res = await axios.get(url, {
+      timeout: 30000,
+      responseType: "text",
+      headers: { Accept: "application/xml, text/xml, */*" },
+      validateStatus: (s) => s >= 200 && s < 500,
+    });
+    if (res.status >= 400) {
+      throw new Error(`IPAWS feed HTTP ${res.status} url=${url}`);
+    }
+    return typeof res.data === "string" ? res.data : String(res.data || "");
+  } catch (err) {
+    if (err && err.message && String(err.message).includes("url=")) {
+      throw err;
+    }
+    const msg = err && err.message ? err.message : String(err);
+    throw new Error(`${msg} url=${url}`);
   }
-  return typeof res.data === "string" ? res.data : String(res.data || "");
 }
 
 /**
