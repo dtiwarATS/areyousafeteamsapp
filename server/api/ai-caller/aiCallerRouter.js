@@ -6,6 +6,7 @@ const express = require("express");
 const { requireAiCallerAuth } = require("./aiCallerAuth");
 const service = require("./aiCallerSafetyCheckService");
 const advisory = require("./aiCallerAdvisoryService");
+const sos = require("./aiCallerSosService");
 
 const router = express.Router();
 router.use(requireAiCallerAuth);
@@ -186,6 +187,57 @@ router.get("/active-incidents", async (req, res) => {
       source: "none",
       location: location || "",
       incidents: [],
+    });
+  }
+});
+
+/** New SOS list — does not modify tab SOS handlers. */
+router.get("/sos-events", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const sinceDaysRaw = req.query.sinceDays != null ? Number(req.query.sinceDays) : undefined;
+  const sinceDays =
+    sinceDaysRaw != null && Number.isFinite(sinceDaysRaw) ? sinceDaysRaw : undefined;
+  try {
+    const result = await sos.getSosEvents({
+      teamId: ids.teamId,
+      status: req.query.status,
+      city: req.query.city,
+      location: req.query.location,
+      sinceDays,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[ai-caller] sos-events error", err);
+    res.status(500).json({
+      error: err.message || "Failed to fetch SOS events",
+      source: "none",
+      events: [],
+    });
+  }
+});
+
+/** New SOS stats — does not modify tab SOS handlers. */
+router.get("/sos-stats", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const sinceDaysRaw = req.query.sinceDays != null ? Number(req.query.sinceDays) : undefined;
+  const sinceDays =
+    sinceDaysRaw != null && Number.isFinite(sinceDaysRaw) ? sinceDaysRaw : undefined;
+  try {
+    const result = await sos.getSosStats({
+      teamId: ids.teamId,
+      city: req.query.city,
+      location: req.query.location,
+      sinceDays,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[ai-caller] sos-stats error", err);
+    res.status(500).json({
+      error: err.message || "Failed to fetch SOS stats",
+      source: "none",
+      total: 0,
     });
   }
 });
