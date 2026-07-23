@@ -2040,6 +2040,7 @@ WHERE rn = 1;
                 };
 
                 // Send message to each admin and collect other admin names
+                const otherOfficerAads = [];
                 for (const admin of adminInfo) {
                   // Skip sending to the admin who clicked (they'll get the acknowledgment)
                   if (admin.user_id === user.id) {
@@ -2051,6 +2052,10 @@ WHERE rn = 1;
                     id: admin.user_id,
                     name: admin.user_name,
                   });
+
+                  if (admin.user_aadobject_id) {
+                    otherOfficerAads.push(admin.user_aadobject_id);
+                  }
 
                   const adminMemberArr = [
                     {
@@ -2068,6 +2073,36 @@ WHERE rn = 1;
                     null,
                     user.id,
                   );
+                }
+
+                // Push translated accept copy to other officers' desktops (same as victim desktop payload).
+                if (
+                  otherOfficerAads.length > 0 &&
+                  desktopAcceptPayload?.confirmationMessage
+                ) {
+                  socketService
+                    .emitSosTakenToUsers(otherOfficerAads, {
+                      requestAssistanceid,
+                      userAadObjId,
+                      userName: requesterUser.user_name,
+                      confirmationMessage:
+                        desktopAcceptPayload.confirmationMessage,
+                      FIRST_RESPONDER:
+                        desktopAcceptPayload.FIRST_RESPONDER || null,
+                      FIRST_RESPONDER_RESPONDED_AT:
+                        desktopAcceptPayload.FIRST_RESPONDER_RESPONDED_AT ||
+                        null,
+                      firstResponder:
+                        desktopAcceptPayload.firstResponder || null,
+                      ui: desktopAcceptPayload.ui || null,
+                      status: "taken",
+                    })
+                    .catch((err) => {
+                      console.error(
+                        "[DESKTOP] emitSosTakenToUsers failed:",
+                        err?.message,
+                      );
+                    });
                 }
               }
             }

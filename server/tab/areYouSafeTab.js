@@ -572,6 +572,30 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       let admins = data[0];
       let user = data[1][0];
       if (admins != null && admins.length > 0) {
+        try {
+          const officerAads = [
+            ...new Set(
+              admins
+                .map((a) => a?.user_aadobject_id)
+                .filter((id) => id != null && String(id).trim() !== ""),
+            ),
+          ];
+          const {
+            buildIncomingSosDesktopPayload,
+          } = require("../utils/desktopSosChatCopy");
+          const incomingPayload = await buildIncomingSosDesktopPayload({
+            requestAssistanceid,
+            userAadObjId,
+            userName: user?.user_name,
+            teamId: admins[0]?.team_id,
+          });
+          socketService.emitIncomingSosToUsers(officerAads, incomingPayload);
+        } catch (desktopEmitErr) {
+          console.log("[SOCKET] emitIncomingSosToUsers error", {
+            requestAssistanceid,
+            error: desktopEmitErr?.message || desktopEmitErr,
+          });
+        }
         let mentionUserEntities = [];
         if (sendonetime == "true") {
           dashboard.mentionUser(

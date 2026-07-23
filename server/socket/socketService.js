@@ -29,6 +29,12 @@ const EVENT_HEARTBEAT = "heartbeat";
 const EVENT_HELLO = "hello";
 const EVENT_TEST_MESSAGE = "test_message";
 const EVENT_SOS_ASSISTANCE_UPDATE = "sos_assistance_update";
+const EVENT_INCOMING_SOS = "incoming_sos";
+const EVENT_SOS_TAKEN = "sos_taken";
+
+/** Dedupe desktop incoming_sos emits (Tab + socket SOS both notify). */
+const recentIncomingSosEmits = new Map();
+const INCOMING_SOS_DEDUPE_MS = 60_000;
 
 function getBaseUrl() {
   return process.env.BASE_URL ||
@@ -145,6 +151,30 @@ async function handleSosRequest(payload, ack) {
         data: { requestAssistanceid: sosRequestId, userAadObjId: userId },
       }, { headers: { "Content-Type": "application/json" }, validateStatus: () => true });
     });
+
+    // Paired desktop officers (same contact list as Teams/SMS; excludes initiator).
+    void (async () => {
+      try {
+        const {
+          buildIncomingSosDesktopPayload,
+        } = require("../utils/desktopSosChatCopy");
+        const incomingPayload = await buildIncomingSosDesktopPayload({
+          requestAssistanceid: sosRequestId,
+          userAadObjId: userId,
+          userName,
+          teamId: teamIdParam !== "null" ? teamIdParam : undefined,
+        });
+        await emitIncomingSosToUsers(
+          notifyList.map((a) => a.user_aadobject_id).filter(Boolean),
+          incomingPayload,
+        );
+      } catch (err) {
+        console.error(
+          "[SOCKET] sos_request incoming_sos desktop emit failed:",
+          err?.message,
+        );
+      }
+    })();
 
     Promise.all([step2Promise, ...step3Promises]).catch((err) => {
       console.error("[SOCKET] sos_request background error:", err?.message);
@@ -470,12 +500,104 @@ async function emitSosAssistanceUpdateToUser(userAadObjectId, payload) {
   }
 }
 
+/**
+ * Push incoming SOS alerts to paired desktop devices for safety officers.
+ * @param {string[]} userAadObjectIds
+ * @param {object} payload - { requestAssistanceid, userAadObjId, userName, teamId }
+ */
+async function emitIncomingSosToUsers(userAadObjectIds, payload) {
+  if (!desktopIo || !payload?.requestAssistanceid) {
+    return;
+  }
+
+  const ids = [
+    ...new Set(
+      (userAadObjectIds || [])
+        .map((id) => (id != null ? String(id).trim() : ""))
+        .filter(Boolean),
+    ),
+  ];
+  if (ids.length === 0) {
+    return;
+  }
+
+  const dedupeKey = String(payload.requestAssistanceid);
+  const lastEmit = recentIncomingSosEmits.get(dedupeKey);
+  const now = Date.now();
+  if (lastEmit && now - lastEmit < INCOMING_SOS_DEDUPE_MS) {
+    console.log("[SOCKET][desktop] skip duplicate incoming_sos", {
+      requestAssistanceid: payload.requestAssistanceid,
+    });
+    return;
+  }
+  recentIncomingSosEmits.set(dedupeKey, now);
+  for (const [key, ts] of recentIncomingSosEmits) {
+    if (now - ts > INCOMING_SOS_DEDUPE_MS) {
+      recentIncomingSosEmits.delete(key);
+    }
+  }
+
+  const devices =
+    await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
+
+  for (const device of devices) {
+    const room = deviceRoom(device.device_id);
+    desktopIo.to(room).emit(EVENT_INCOMING_SOS, payload);
+    console.log("[SOCKET][desktop] emitIncomingSosToUsers", {
+      deviceId: device.device_id,
+      room,
+      requestAssistanceid: payload.requestAssistanceid,
+      userAadObjId: payload.userAadObjId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+/**
+ * Notify other paired officers that someone accepted the SOS.
+ * @param {string[]} userAadObjectIds
+ * @param {object} payload
+ */
+async function emitSosTakenToUsers(userAadObjectIds, payload) {
+  if (!desktopIo || !payload?.requestAssistanceid) {
+    return;
+  }
+
+  const ids = [
+    ...new Set(
+      (userAadObjectIds || [])
+        .map((id) => (id != null ? String(id).trim() : ""))
+        .filter(Boolean),
+    ),
+  ];
+  if (ids.length === 0) {
+    return;
+  }
+
+  const devices =
+    await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
+
+  for (const device of devices) {
+    const room = deviceRoom(device.device_id);
+    desktopIo.to(room).emit(EVENT_SOS_TAKEN, payload);
+    console.log("[SOCKET][desktop] emitSosTakenToUsers", {
+      deviceId: device.device_id,
+      room,
+      requestAssistanceid: payload.requestAssistanceid,
+      FIRST_RESPONDER: payload.FIRST_RESPONDER,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
 module.exports = {
   attach,
   emitRespondToAssistance,
   emitNewSosTeams,
   emitCommandToDevice,
   emitSosAssistanceUpdateToUser,
+  emitIncomingSosToUsers,
+  emitSosTakenToUsers,
   isDeviceSocketConnected,
   EVENT_HELLO,
   EVENT_RESPOND_TO_ASSISTANCE,
@@ -483,4 +605,6 @@ module.exports = {
   EVENT_SOS_REQUEST,
   EVENT_REGISTER_DEVICE,
   EVENT_HEARTBEAT,
+  EVENT_INCOMING_SOS,
+  EVENT_SOS_TAKEN,
 };
