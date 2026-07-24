@@ -3149,6 +3149,19 @@ const handlerForSafetyBotTab = (app) => {
         adminInfo.user_aadobject_id,
       );
 
+      // Requester info (needed for acknowledgment Chat/Call links)
+      const requesterQuery = `SELECT user_id, user_name, user_aadobject_id, email FROM MSTeamsTeamsUsers WHERE user_id = '${assistanceData[0].user_id}'`;
+      const requesterInfo = await db.getDataFromDB(
+        requesterQuery,
+        adminInfo.user_aadobject_id,
+      );
+      const requester =
+        requesterInfo && requesterInfo.length > 0 ? requesterInfo[0] : null;
+
+      const {
+        buildOfficerAcceptAcknowledgment,
+      } = require("./utils/desktopSosChatCopy");
+
       if (
         existingResponse &&
         existingResponse.length > 0 &&
@@ -3156,6 +3169,11 @@ const handlerForSafetyBotTab = (app) => {
       ) {
         const firstResponderId = existingResponse[0].FIRST_RESPONDER;
         if (firstResponderId === adminInfo.user_aadobject_id) {
+          const acknowledgment = buildOfficerAcceptAcknowledgment({
+            admin: adminInfo,
+            requester,
+            alreadyAcceptedBySelf: true,
+          });
           return respond(200, {
             html: `
             <html>
@@ -3170,6 +3188,7 @@ const handlerForSafetyBotTab = (app) => {
               success: true,
               alreadyAcceptedBySelf: true,
               message: "You are already the first responder for this SOS.",
+              acknowledgment,
             },
           });
         } else {
@@ -3191,15 +3210,6 @@ const handlerForSafetyBotTab = (app) => {
           });
         }
       }
-
-      // Get requester info
-      const requesterQuery = `SELECT user_id, user_name, user_aadobject_id, email FROM MSTeamsTeamsUsers WHERE user_id = '${assistanceData[0].user_id}'`;
-      const requesterInfo = await db.getDataFromDB(
-        requesterQuery,
-        adminInfo.user_aadobject_id,
-      );
-      const requester =
-        requesterInfo && requesterInfo.length > 0 ? requesterInfo[0] : null;
 
       // Get list of other admins/responders who were notified
       let otherAdminNames = [];
@@ -3267,6 +3277,13 @@ const handlerForSafetyBotTab = (app) => {
         }
       }
 
+      const acknowledgment = buildOfficerAcceptAcknowledgment({
+        admin: adminInfo,
+        requester,
+        notificationMessage,
+        alreadyAcceptedBySelf: false,
+      });
+
       // Import botActivityHandler to use the notification logic
       const { BotActivityHandler } = require("./bot/botActivityHandler");
       const botHandler = new BotActivityHandler();
@@ -3317,6 +3334,7 @@ const handlerForSafetyBotTab = (app) => {
         json: {
           success: true,
           message: notificationMessage,
+          acknowledgment,
         },
       });
     } catch (err) {

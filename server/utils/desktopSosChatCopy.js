@@ -141,6 +141,81 @@ function applyNamePlaceholder(template, name) {
   return String(template).replace(/\{name\}/g, name || "");
 }
 
+/**
+ * Teams deep links for officer ↔ requester (same pattern as bot acknowledgment card).
+ */
+function buildOfficerRequesterDeepLinks(admin, requester) {
+  const adminEmail =
+    typeof admin?.email === "string" ? admin.email.trim() : "";
+  const requesterEmail =
+    typeof requester?.email === "string" ? requester.email.trim() : "";
+  const adminAad = admin?.user_aadobject_id || admin?.aadObjectId || "";
+  const requesterAad =
+    requester?.user_aadobject_id || requester?.aadObjectId || "";
+
+  let chatUrl = null;
+  let callUrl = null;
+
+  if (adminEmail && requesterEmail) {
+    const users = `${encodeURIComponent(adminEmail)},${encodeURIComponent(
+      requesterEmail,
+    )}`;
+    chatUrl = `https://teams.microsoft.com/l/chat/0/0?users=${users}`;
+    callUrl = `https://teams.microsoft.com/l/call/0/0?users=${users}`;
+  } else if (adminAad && requesterAad) {
+    chatUrl = `https://teams.microsoft.com/l/chat/0/0?users=${adminAad},${requesterAad}`;
+    callUrl = `https://teams.microsoft.com/l/call/0/0?users=${adminAad},${requesterAad}`;
+  } else {
+    const solo = requesterEmail || requesterAad;
+    chatUrl = teamsChatUrl(solo);
+    callUrl = teamsCallUrl(solo);
+  }
+
+  return { chatUrl, callUrl };
+}
+
+/**
+ * JSON acknowledgment for desktop after Accept — mirrors Teams Adaptive Card.
+ */
+function buildOfficerAcceptAcknowledgment({
+  admin,
+  requester,
+  notificationMessage,
+  alreadyAcceptedBySelf,
+}) {
+  const requesterName =
+    (requester?.user_name && String(requester.user_name).trim()) || "";
+  const { chatUrl, callUrl } = buildOfficerRequesterDeepLinks(admin, requester);
+
+  const title = alreadyAcceptedBySelf
+    ? "You are already the first responder for this SOS."
+    : "You are now the first responder.";
+
+  let detailText = "";
+  if (notificationMessage && !alreadyAcceptedBySelf) {
+    const stripped = String(notificationMessage)
+      .replace(/^You are now the first responder\.\s*/i, "")
+      .trim();
+    detailText = stripped;
+  } else if (requesterName) {
+    detailText = `${requesterName} has been notified.`;
+  }
+
+  return {
+    title,
+    detailText: detailText || null,
+    requesterName: requesterName || null,
+    chatUrl,
+    callUrl,
+    chatButtonLabel: requesterName
+      ? `Chat with ${requesterName}`
+      : "Chat",
+    callButtonLabel: requesterName
+      ? `Call ${requesterName}`
+      : "Call",
+  };
+}
+
 function buildUiCopy(translations) {
   return {
     iNeedAssistance: translations.iNeedAssistance,
@@ -363,6 +438,7 @@ module.exports = {
   buildIncomingSosDesktopPayload,
   buildDesktopSosChatSnapshot,
   buildDesktopSosClosedPayload,
+  buildOfficerAcceptAcknowledgment,
   teamsChatUrl,
   teamsCallUrl,
 };
