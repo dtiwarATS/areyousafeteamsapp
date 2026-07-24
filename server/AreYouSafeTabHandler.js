@@ -338,7 +338,7 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   const LOGIN_CODE_LENGTH = 6;
-  const DEFAULT_LOGIN_CODE_EXPIRY_SECONDS = 300;
+  const DEFAULT_LOGIN_CODE_EXPIRY_SECONDS = 600;
   const LOGIN_CODE_EXPIRY_SECONDS =
     Number.parseInt(process.env.LOGIN_CODE_EXPIRY_SECONDS, 10) ||
     DEFAULT_LOGIN_CODE_EXPIRY_SECONDS;
@@ -425,7 +425,8 @@ const handlerForSafetyBotTab = (app) => {
           SELECT TOP 1 team_id, user_aadobject_id, user_name, email,tenantid
           FROM MSTeamsTeamsUsers
           WHERE Generated_code = @code
-            AND (Generated_code_expires_at IS NULL OR Generated_code_expires_at > SYSUTCDATETIME())
+            AND Generated_code_expires_at IS NOT NULL
+            AND Generated_code_expires_at > SYSUTCDATETIME()
         `);
 
       const user = userResult?.recordset?.[0];
@@ -528,7 +529,8 @@ const handlerForSafetyBotTab = (app) => {
             SELECT TOP 1 team_id, user_aadobject_id, user_name, email, tenantid
             FROM MSTeamsTeamsUsers
             WHERE Generated_code = @code
-              AND (Generated_code_expires_at IS NULL OR Generated_code_expires_at > SYSUTCDATETIME())
+              AND Generated_code_expires_at IS NOT NULL
+              AND Generated_code_expires_at > SYSUTCDATETIME()
           `);
 
         const user = userResult?.recordset?.[0];
