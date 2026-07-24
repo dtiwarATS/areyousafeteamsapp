@@ -158,20 +158,29 @@ function buildUiCopy(translations) {
 }
 
 /**
- * Payload for officers' desktop incoming SOS alert (translated UI strings for requester language).
+ * Payload for officers' desktop incoming SOS (Chat tab / Teams-parity copy).
+ * messageBody matches Adaptive Card / FCM: "{name} needs assistance."
  */
 async function buildIncomingSosDesktopPayload(input) {
   const userAadObjId = input?.userAadObjId || "";
+  const userName =
+    typeof input?.userName === "string" ? input.userName.trim() : "";
   const languageId =
     (await incidentService.getUserLanguageIdByAadObjId(userAadObjId)) ||
     DEFAULT_LANGUAGE_ID;
   const translations = await loadAttributeTranslations(languageId);
 
+  const messageBody = userName
+    ? `${userName} needs assistance.`
+    : "Someone needs assistance.";
+
   return {
     requestAssistanceid: input?.requestAssistanceid ?? null,
     userAadObjId: userAadObjId || null,
-    userName: input?.userName || null,
+    userName: userName || null,
     teamId: input?.teamId ?? null,
+    messageBody,
+    acceptButtonLabel: "Accept and respond",
     ui: buildUiCopy(translations),
   };
 }
