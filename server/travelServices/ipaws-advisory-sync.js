@@ -29,6 +29,8 @@ async function runIpawsSync() {
 
     const alerts = Array.isArray(parsed.alerts) ? parsed.alerts : [];
     const cached = await ipawsCacheDb.upsertIpawsAlerts(alerts, jobRunAt);
+    const expiredDeleted =
+      await ipawsCacheDb.deleteExpiredIpawsAlerts(jobRunAt);
 
     // Prefer live feed alerts; if empty, match against non-expired cache.
     let matchAlerts = alerts;
@@ -69,13 +71,14 @@ async function runIpawsSync() {
     }
 
     console.log(
-      `ipawsAdvisorySync: fetched=${alerts.length} cachedUpserts=${cached} matchPool=${matchAlerts.length} selectedCities=${selected.length} matched=${citiesMatched} at ${jobRunAt.toISOString()}`,
+      `ipawsAdvisorySync: fetched=${alerts.length} cachedUpserts=${cached} expiredDeleted=${expiredDeleted} matchPool=${matchAlerts.length} selectedCities=${selected.length} matched=${citiesMatched} at ${jobRunAt.toISOString()}`,
     );
 
     return {
       success: true,
       fetched: alerts.length,
       cached,
+      expiredDeleted,
       citiesMatched,
     };
   } catch (err) {

@@ -208,8 +208,32 @@ async function getActiveIpawsAlerts(now = new Date()) {
   return out;
 }
 
+/**
+ * Delete cache rows whose ExpiresAt is in the past.
+ * @param {Date} [now]
+ * @returns {Promise<number>} rows deleted
+ */
+async function deleteExpiredIpawsAlerts(now = new Date()) {
+  await ensureIpawsAlertCacheTable();
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("Now", sql.DateTimeOffset, now)
+    .query(`
+      DELETE FROM [dbo].[IpawsAlertCache]
+      WHERE ExpiresAt IS NOT NULL AND ExpiresAt <= @Now;
+
+      SELECT @@ROWCOUNT AS DeletedCount;
+    `);
+  const recordsets = result.recordsets || [];
+  const last = recordsets[recordsets.length - 1] || result.recordset || [];
+  const row = Array.isArray(last) ? last[0] : null;
+  return Number(row?.DeletedCount) || 0;
+}
+
 module.exports = {
   ensureIpawsAlertCacheTable,
   upsertIpawsAlerts,
   getActiveIpawsAlerts,
+  deleteExpiredIpawsAlerts,
 };
