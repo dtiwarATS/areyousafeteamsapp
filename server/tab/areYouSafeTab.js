@@ -731,9 +731,16 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 name: admins[i].user_name,
               },
             ];
-            let IntegrationConfigure = JSON.parse(
-              admins[i].INTEGRATION_CONFIGURE,
-            );
+            let IntegrationConfigure = null;
+            try {
+              const raw = admins[i].INTEGRATION_CONFIGURE;
+              if (raw) {
+                IntegrationConfigure =
+                  typeof raw === "string" ? JSON.parse(raw) : raw;
+              }
+            } catch (_) {
+              IntegrationConfigure = null;
+            }
             try {
               incidentService.saveAllTypeQuerylogs(
                 admins[i].user_aadobject_id,
@@ -804,8 +811,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               );
             }
             if (
-              IntegrationConfigure.channels.sms.enabled &&
-              IntegrationConfigure.channels.sms.events.sos &&
+              IntegrationConfigure?.channels?.sms?.enabled &&
+              IntegrationConfigure?.channels?.sms?.events?.sos &&
               sendonetime == "true"
             ) {
               usrPhones.map(async (userpho) => {
@@ -902,8 +909,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               });
             }
             if (
-              IntegrationConfigure.channels.email.enabled &&
-              IntegrationConfigure.channels.email.events.sos &&
+              IntegrationConfigure?.channels?.email?.enabled &&
+              IntegrationConfigure?.channels?.email?.events?.sos &&
               sendonetime == "true"
             ) {
               try {
@@ -1023,8 +1030,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               }
             }
             if (
-              IntegrationConfigure.channels.whatsapp.enabled &&
-              IntegrationConfigure.channels.whatsapp.events.sos &&
+              IntegrationConfigure?.channels?.whatsapp?.enabled &&
+              IntegrationConfigure?.channels?.whatsapp?.events?.sos &&
               sendonetime == "true"
             ) {
               usrPhones.map(async (userpho) => {
