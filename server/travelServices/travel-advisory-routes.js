@@ -258,7 +258,7 @@ router.get("/countries", async (req, res, next) => {
   }
 });
 
-// ----- GET /countries/list (from Countries table: id, name, code for dropdown) -----
+// ----- GET /countries/list (from CountryList: id, name, code for dropdown) -----
 router.get("/countries/list", async (req, res, next) => {
   try {
     const countries = await selectedDb.getCountriesFromDb();
@@ -345,7 +345,7 @@ router.post("/selected", async (req, res, next) => {
     if (err.code === "MISSING_COUNTRY") {
       return res.status(400).json({
         success: false,
-        error: err.message || "Country not found in Countries table",
+        error: err.message || "Country not found in CountryList",
         timestamp: new Date().toISOString(),
         requestId: getRequestId(req),
       });

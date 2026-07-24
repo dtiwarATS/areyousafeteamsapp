@@ -103,7 +103,7 @@ function countryToCode(country) {
 }
 
 /**
- * Prefer ISO code from country name in the title (matches CountryList/Countries).
+ * Prefer ISO code from country name in the title (matches CountryList).
  * Feed dcIdentifier / Country-Tag often use FIPS (e.g. Chad=CD) which collide with ISO.
  * Fall back to dcIdentifier only when name lookup returns XX.
  */

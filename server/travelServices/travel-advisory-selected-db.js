@@ -2,33 +2,42 @@ const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 
 /**
- * Get all countries from Countries table (for dropdowns).
+ * Get all countries from CountryList (for dropdowns).
+ * Shape kept as { id, name, code } for API compatibility.
  * @returns {Promise<Array<{ id, name, code }>>}
  */
 async function getCountriesFromDb() {
   const pool = await poolPromise;
-  const result = await pool
-    .request()
-    .query("SELECT id, name, code FROM Countries ORDER BY name");
+  const result = await pool.request().query(`
+    SELECT Id AS id, CountryName AS name, Code AS code
+    FROM [dbo].[CountryList]
+    WHERE CountryName IS NOT NULL AND LTRIM(RTRIM(CountryName)) <> ''
+    ORDER BY CountryName
+  `);
   return result.recordset || [];
 }
 
 /**
- * Get all countries from Countries table with full row (id, name, code, level, created_at).
- * @returns {Promise<Array<{ id, name, code, level, created_at }>>}
+ * Get all countries from CountryList with stable API shape.
+ * @returns {Promise<Array<{ id, name, code, region }>>}
  */
 async function getAllCountriesFromDb() {
   const pool = await poolPromise;
-  const result = await pool
-    .request()
-    .query("SELECT * FROM Countries ORDER BY name");
+  const result = await pool.request().query(`
+    SELECT
+      Id AS id,
+      CountryName AS name,
+      Code AS code,
+      Region AS region
+    FROM [dbo].[CountryList]
+    WHERE CountryName IS NOT NULL AND LTRIM(RTRIM(CountryName)) <> ''
+    ORDER BY CountryName
+  `);
   return result.recordset || [];
 }
 
 /**
- * Get CountryId from Countries by code (for validation only; no longer used for storage).
- * @param {string} code - Country code (e.g. 'US')
- * @returns {Promise<number|null>}
+ * @deprecated CountryList is the source of truth; CountryId is no longer stored.
  */
 
 const ENSURE_ADVISORY_TABLE_SQL = `
@@ -1320,12 +1329,13 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     .query(`
     SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,d.AdvisoryType,d.ApiResponseJson,
            d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc, d.LocationKey,
-           ISNULL(c.name, d.CountryCode) AS CountryName, d.CountryCode
+           ISNULL(c.CountryName, d.CountryCode) AS CountryName, d.CountryCode
     FROM [dbo].[AdvisoryDetail] d
     INNER JOIN [dbo].[Advisory] s ON s.Id = d.[${fkCol}]
-    LEFT JOIN [dbo].[Countries] c ON UPPER(LTRIM(RTRIM(c.code))) = UPPER(LTRIM(RTRIM(d.CountryCode)))
+    -- CountryList is the ISO source of truth (Countries table is deprecated/dropped)
+    LEFT JOIN [dbo].[CountryList] c ON UPPER(LTRIM(RTRIM(c.Code))) = UPPER(LTRIM(RTRIM(d.CountryCode)))
     WHERE s.TenantId = @TenantId AND s.IsActive = 1 and d.AdvisoryType=@AdvisoryType
-    ORDER BY ISNULL(c.name, d.CountryCode)
+    ORDER BY ISNULL(c.CountryName, d.CountryCode)
   `);
 
   const countryCodesPromise = pool
@@ -1528,8 +1538,8 @@ async function backfillEmptyTravelDescriptionsFromFeed(advisories) {
 }
 
 /**
- * Get country code from Countries by id.
- * @param {number} id - Country id
+ * Get country code from CountryList by id.
+ * @param {number} id - CountryList Id
  * @returns {Promise<string|null>}
  */
 async function getCountryCodeById(id) {
@@ -1538,7 +1548,7 @@ async function getCountryCodeById(id) {
   const result = await pool
     .request()
     .input("id", sql.Int, id)
-    .query("SELECT code FROM Countries WHERE id = @id");
+    .query("SELECT Code AS code FROM [dbo].[CountryList] WHERE Id = @id");
   const rows = result.recordset || [];
   return rows.length ? (rows[0].code || "").trim() : null;
 }
@@ -1683,36 +1693,27 @@ async function deleteSelectedCountry(id) {
 
 /**
  * Get countries list in shape { name, code, level } for getTravelAdvisoryByTeam response.
- * Uses Countries table; level column may not exist in all schemas.
+ * Uses CountryList; level is always "" (lives on AdvisoryDetail, not master list).
  */
 async function getCountriesForByTeamResponse() {
   const pool = await poolPromise;
-  try {
-    const result = await pool.request().query(`
-      SELECT name, code, level FROM Countries ORDER BY name
-    `);
-    const rows = result.recordset || [];
-    return rows.map((r) => ({
-      name: r.name || "",
-      code: (r.code || "").trim(),
-      level: (r.level != null ? r.level : "") || "",
-    }));
-  } catch (e) {
-    const fallback = await pool
-      .request()
-      .query("SELECT name, code FROM Countries ORDER BY name");
-    const rows = fallback.recordset || [];
-    return rows.map((r) => ({
-      name: r.name || "",
-      code: (r.code || "").trim(),
-      level: "",
-    }));
-  }
+  const result = await pool.request().query(`
+    SELECT CountryName AS name, Code AS code
+    FROM [dbo].[CountryList]
+    WHERE CountryName IS NOT NULL AND LTRIM(RTRIM(CountryName)) <> ''
+    ORDER BY CountryName
+  `);
+  const rows = result.recordset || [];
+  return rows.map((r) => ({
+    name: r.name || "",
+    code: (r.code || "").trim(),
+    level: "",
+  }));
 }
 
 /**
  * Get all active Weather selections expanded to one row per city from SelectedLocationsJson.
- * Falls back to country-level coords from Countries when a city has no lat/lon.
+ * When a selection has no cities, falls back to a CityList row with coords for that country.
  * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string, LocationKey: string|null, cityName: string|null, state: string|null, latitude: number|null, longitude: number|null }>>}
  */
 async function getActiveWeatherSelectedLocations() {
@@ -1724,11 +1725,26 @@ async function getActiveWeatherSelectedLocations() {
       s.TenantId,
       s.CountryCode,
       s.SelectedLocationsJson,
-      c.latitude AS CountryLatitude,
-      c.longitude AS CountryLongitude
+      cf.Latitude AS CountryLatitude,
+      cf.Longitude AS CountryLongitude,
+      cf.CityName AS FallbackCityName,
+      cf.State AS FallbackState
     FROM [dbo].[Advisory] s
-    LEFT JOIN [dbo].[Countries] c
-      ON UPPER(LTRIM(RTRIM(s.CountryCode))) = UPPER(LTRIM(RTRIM(c.code)))
+    OUTER APPLY (
+      SELECT TOP 1 ci.Latitude, ci.Longitude, ci.CityName, ci.State
+      FROM [dbo].[CityList] ci
+      INNER JOIN [dbo].[CountryList] cl ON cl.Id = ci.CountryId
+      WHERE UPPER(LTRIM(RTRIM(cl.Code))) = UPPER(LTRIM(RTRIM(
+        CASE
+          WHEN CHARINDEX(',', s.CountryCode) > 0
+            THEN LEFT(s.CountryCode, CHARINDEX(',', s.CountryCode) - 1)
+          ELSE s.CountryCode
+        END
+      )))
+        AND ci.Latitude IS NOT NULL
+        AND ci.Longitude IS NOT NULL
+      ORDER BY ci.CityName
+    ) cf
     WHERE s.AdvisoryType = 'Weather' AND s.IsActive = 1
     ORDER BY s.Id
   `);
@@ -1752,15 +1768,26 @@ async function getActiveWeatherSelectedLocations() {
         .map((c) => c.trim().toUpperCase())
         .filter(Boolean)[0];
       if (!code) continue;
+      const lat =
+        row.CountryLatitude != null && !Number.isNaN(Number(row.CountryLatitude))
+          ? Number(row.CountryLatitude)
+          : null;
+      const lon =
+        row.CountryLongitude != null &&
+        !Number.isNaN(Number(row.CountryLongitude))
+          ? Number(row.CountryLongitude)
+          : null;
+      if (lat == null || lon == null) continue;
       expanded.push({
         TravelAdvisorySelectedCountriesId: row.TravelAdvisorySelectedCountriesId,
         TenantId: row.TenantId,
         CountryCode: code,
         LocationKey: null,
-        cityName: null,
-        state: null,
-        latitude: row.CountryLatitude ?? null,
-        longitude: row.CountryLongitude ?? null,
+        cityName:
+          row.FallbackCityName != null ? String(row.FallbackCityName) : null,
+        state: row.FallbackState != null ? String(row.FallbackState) : null,
+        latitude: lat,
+        longitude: lon,
       });
       continue;
     }
@@ -1795,7 +1822,7 @@ async function getActiveWeatherSelectedLocations() {
 }
 
 /**
- * Get all active Weather-type selections with coordinates from Countries table.
+ * Get all active Weather-type selections with coordinates (via CityList / SelectedLocationsJson).
  * @deprecated Prefer getActiveWeatherSelectedLocations for per-city coords.
  * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string, latitude: number|null, longitude: number|null }>>}
  */
