@@ -8,6 +8,11 @@
  * Downloads GeoNames cities5000.zip and admin1CodesASCII.txt (cached in server/scripts/.geonames-cache/).
  *
  * Safe to re-run: clears and reloads both tables.
+ *
+ * After re-seeding: restart the tab-handler server so the in-memory Travel
+ * Advisory and Weather Alert locations catalog caches
+ * (travel-advisory-locations-db.js, weather-alert-locations-db.js) reload.
+ * This CLI runs in a separate process and cannot invalidate the app caches.
  */
 
 const fs = require("fs");
@@ -268,6 +273,9 @@ async function main() {
 
   const { CountryCount, CityCount } = summary.recordset[0];
   console.log(`Done. Countries: ${CountryCount}, Cities: ${CityCount} (inserted ${inserted}).`);
+  console.log(
+    "Restart the tab-handler server to reload Travel Advisory and Weather Alert locations in-memory caches.",
+  );
 
   await pool.close();
 }

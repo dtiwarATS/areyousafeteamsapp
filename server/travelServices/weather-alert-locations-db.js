@@ -3,6 +3,10 @@
  * source=all      → supported CountryList + CityList (fast); optional q searches all CityList
  * source=manual   → LOCATION_CONFIGURATION (ISOffice365Location null/0) + available flag
  * source=office365 → LOCATION_CONFIGURATION (ISOffice365Location=1) + available flag
+ *
+ * Full CountryList/CityList catalog is cached in memory (warmed at server startup).
+ * source=all search filters that cache; invalidate after CountryList/CityList updates
+ * and restart the app process (or call invalidateWeatherAlertLocationsCache).
  */
 
 const sql = require("mssql");
@@ -12,28 +16,29 @@ const CITY_SEARCH_MIN_CHARS = 3;
 const CITY_SEARCH_DEFAULT_LIMIT = 100;
 
 /**
- * Escape LIKE wildcards for SQL Server parameterized patterns.
- * @param {string} value
+ * Full catalog: all countries/cities with available = IsWeatherAlertSupported.
+ * @type {{ countries: Array, cities: Array } | null}
  */
-function escapeLikePattern(value) {
-  return String(value || "")
-    .replace(/\[/g, "[[]")
-    .replace(/]/g, "[%]")
-    .replace(/_/g, "[_]");
-}
+let cachedCatalog = null;
+/** @type {Promise<{ countries: Array, cities: Array }> | null} */
+let loadPromise = null;
 
 /**
- * Supported countries + cities only (IsWeatherAlertSupported = 1).
- * Kept lean so the Weather Alerts tab can load quickly after reload.
+ * Load all countries + cities from CountryList / CityList (DB hit).
+ * Includes unsupported rows so search can return available: false.
  * @returns {Promise<{ countries: Array, cities: Array }>}
  */
-async function getAllWeatherAlertLocations() {
+async function fetchFullWeatherAlertCatalogFromDb() {
   const pool = await poolPromise;
 
   const countriesResult = await pool.request().query(`
-    SELECT Id, CountryName AS name, Code AS code, Region AS region
+    SELECT
+      CountryName AS name,
+      Code AS code,
+      Region AS region,
+      IsWeatherAlertSupported AS isWeatherAlertSupported
     FROM [dbo].[CountryList]
-    WHERE IsWeatherAlertSupported = 1
+    WHERE CountryName IS NOT NULL AND LTRIM(RTRIM(CountryName)) <> ''
     ORDER BY CountryName
   `);
 
@@ -41,13 +46,14 @@ async function getAllWeatherAlertLocations() {
     SELECT
       c.Code AS countryCode,
       c.CountryName AS countryName,
+      c.IsWeatherAlertSupported AS isWeatherAlertSupported,
       ci.CityName AS cityName,
       ci.State AS state,
       ci.Latitude AS latitude,
       ci.Longitude AS longitude
     FROM [dbo].[CityList] ci
     INNER JOIN [dbo].[CountryList] c ON c.Id = ci.CountryId
-      AND c.IsWeatherAlertSupported = 1
+    WHERE ci.CityName IS NOT NULL AND LTRIM(RTRIM(ci.CityName)) <> ''
     ORDER BY c.CountryName, ci.CityName
   `);
 
@@ -55,7 +61,7 @@ async function getAllWeatherAlertLocations() {
     code: String(r.code || "").trim(),
     name: String(r.name || "").trim(),
     region: String(r.region || "").trim(),
-    available: true,
+    available: Boolean(r.isWeatherAlertSupported),
   }));
 
   const cities = (citiesResult.recordset || []).map((r) => ({
@@ -65,88 +71,145 @@ async function getAllWeatherAlertLocations() {
     state: r.state != null ? String(r.state).trim() : null,
     latitude: Number(r.latitude),
     longitude: Number(r.longitude),
-    available: true,
+    available: Boolean(r.isWeatherAlertSupported),
   }));
 
   return { countries, cities };
 }
 
 /**
- * Search CityList (including unsupported countries) for the dropdown.
+ * Ensure full catalog is in memory (single-flight).
+ * @returns {Promise<{ countries: Array, cities: Array }>}
+ */
+async function ensureCatalogLoaded() {
+  if (cachedCatalog) {
+    return cachedCatalog;
+  }
+  if (!loadPromise) {
+    loadPromise = fetchFullWeatherAlertCatalogFromDb()
+      .then((catalog) => {
+        cachedCatalog = catalog;
+        loadPromise = null;
+        return catalog;
+      })
+      .catch((err) => {
+        loadPromise = null;
+        throw err;
+      });
+  }
+  return loadPromise;
+}
+
+/**
+ * Clear in-memory catalog. Call after CountryList/CityList updates on the
+ * running server process. Standalone seed CLI cannot clear the app process —
+ * restart the tab-handler server after re-seeding.
+ */
+function invalidateWeatherAlertLocationsCache() {
+  cachedCatalog = null;
+  loadPromise = null;
+}
+
+/**
+ * Warm catalog cache (for server startup). Safe to call multiple times.
+ * @returns {Promise<{ countries: Array, cities: Array }>}
+ */
+async function warmWeatherAlertLocationsCache() {
+  return ensureCatalogLoaded();
+}
+
+/**
+ * Supported countries + cities only (IsWeatherAlertSupported = 1).
+ * Served from in-memory catalog after first load.
+ * @returns {Promise<{ countries: Array, cities: Array }>}
+ */
+async function getAllWeatherAlertLocations() {
+  const catalog = await ensureCatalogLoaded();
+  return {
+    countries: catalog.countries.filter((c) => c.available),
+    cities: catalog.cities.filter((c) => c.available),
+  };
+}
+
+/**
+ * Search cached CityList (including unsupported countries) for the dropdown.
  * Unsupported cities are returned with available: false.
  * @param {string} query
  * @param {number} [limit]
  * @returns {Promise<Array>}
  */
-async function searchWeatherAlertCities(query, limit = CITY_SEARCH_DEFAULT_LIMIT) {
+async function searchWeatherAlertCities(
+  query,
+  limit = CITY_SEARCH_DEFAULT_LIMIT,
+) {
   const q = String(query || "").trim();
   if (q.length < CITY_SEARCH_MIN_CHARS) return [];
 
-  const pool = await poolPromise;
-  const pattern = `%${escapeLikePattern(q)}%`;
-  const prefixPattern = `${escapeLikePattern(q)}%`;
+  const catalog = await ensureCatalogLoaded();
+  const qLower = q.toLowerCase();
   const top = Math.min(
     Math.max(Number(limit) || CITY_SEARCH_DEFAULT_LIMIT, 1),
     200,
   );
 
-  const result = await pool
-    .request()
-    .input("pattern", sql.NVarChar(400), pattern)
-    .input("prefixPattern", sql.NVarChar(400), prefixPattern)
-    .input("limit", sql.Int, top)
-    .query(`
-      SELECT TOP (@limit)
-        c.Code AS countryCode,
-        c.CountryName AS countryName,
-        c.IsWeatherAlertSupported AS isWeatherAlertSupported,
-        ci.CityName AS cityName,
-        ci.State AS state,
-        ci.Latitude AS latitude,
-        ci.Longitude AS longitude
-      FROM [dbo].[CityList] ci
-      INNER JOIN [dbo].[CountryList] c ON c.Id = ci.CountryId
-      WHERE
-        ci.CityName LIKE @pattern
-        OR ISNULL(ci.State, '') LIKE @pattern
-        OR c.CountryName LIKE @pattern
-      ORDER BY
-        CASE WHEN ci.CityName LIKE @prefixPattern THEN 0 ELSE 1 END,
-        CASE WHEN c.IsWeatherAlertSupported = 1 THEN 0 ELSE 1 END,
-        ci.CityName,
-        c.CountryName
-    `);
+  const matched = [];
+  for (const city of catalog.cities) {
+    const cityName = city.cityName || "";
+    const state = city.state || "";
+    const countryName = city.countryName || "";
+    const cityLower = cityName.toLowerCase();
+    const stateLower = state.toLowerCase();
+    const countryLower = countryName.toLowerCase();
 
-  return (result.recordset || []).map((r) => ({
-    countryCode: String(r.countryCode || "").trim(),
-    countryName: String(r.countryName || "").trim(),
-    cityName: String(r.cityName || "").trim(),
-    state: r.state != null ? String(r.state).trim() : null,
-    latitude: Number(r.latitude),
-    longitude: Number(r.longitude),
-    available: Boolean(r.isWeatherAlertSupported),
-  }));
+    if (
+      !cityLower.includes(qLower) &&
+      !stateLower.includes(qLower) &&
+      !countryLower.includes(qLower)
+    ) {
+      continue;
+    }
+
+    matched.push({
+      city,
+      prefix: cityLower.startsWith(qLower) ? 0 : 1,
+      unsupported: city.available ? 0 : 1,
+    });
+  }
+
+  matched.sort((a, b) => {
+    if (a.prefix !== b.prefix) return a.prefix - b.prefix;
+    if (a.unsupported !== b.unsupported) return a.unsupported - b.unsupported;
+    const cityCmp = (a.city.cityName || "").localeCompare(
+      b.city.cityName || "",
+      undefined,
+      { sensitivity: "base" },
+    );
+    if (cityCmp !== 0) return cityCmp;
+    return (a.city.countryName || "").localeCompare(
+      b.city.countryName || "",
+      undefined,
+      { sensitivity: "base" },
+    );
+  });
+
+  return matched.slice(0, top).map((m) => m.city);
 }
 
 /**
  * Load CountryList lookup maps (by name and by code) for IsWeatherAlertSupported = 1 only.
+ * Uses cached catalog when available.
  * @returns {Promise<{ byName: Map<string, { code: string, name: string, region: string }>, byCode: Map<string, { code: string, name: string, region: string }> }>}
  */
 async function loadSupportedCountryLookup() {
-  const pool = await poolPromise;
-  const result = await pool.request().query(`
-    SELECT CountryName AS name, Code AS code, Region AS region
-    FROM [dbo].[CountryList]
-    WHERE IsWeatherAlertSupported = 1
-  `);
-
+  const catalog = await ensureCatalogLoaded();
   const byName = new Map();
   const byCode = new Map();
 
-  for (const r of result.recordset || []) {
-    const name = String(r.name || "").trim();
-    const code = String(r.code || "").trim();
-    const region = String(r.region || "").trim();
+  for (const c of catalog.countries) {
+    if (!c.available) continue;
+    const name = String(c.name || "").trim();
+    const code = String(c.code || "").trim();
+    const region = String(c.region || "").trim();
     if (!name && !code) continue;
     const entry = { code, name, region };
     if (name) byName.set(name.toUpperCase(), entry);
@@ -357,4 +420,6 @@ module.exports = {
   getManualWeatherAlertLocations,
   getOffice365WeatherAlertLocations,
   searchWeatherAlertCities,
+  warmWeatherAlertLocationsCache,
+  invalidateWeatherAlertLocationsCache,
 };
