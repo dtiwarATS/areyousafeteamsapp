@@ -299,6 +299,11 @@ function processAdvisoryItem(item, options) {
   };
 }
 
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+let cachedProcessedAdvisories = null;
+let cacheUpdatedAt = null;
+let inFlightProcessedAdvisories = null;
+
 /**
  * Fetches the RSS feed from travel.state.gov and returns raw feed + items.
  * Use this if you want the raw structure or to process items yourself.
@@ -323,15 +328,62 @@ async function getRawFeed() {
 /**
  * Fetches the RSS feed and returns an array of processed travel advisories
  * (country, countryCode, level, levelNumber, summary, restrictions, recommendations, etc.).
- * Use this from your route for a ready-to-send JSON response.
+ * Results are cached in-memory for CACHE_TTL_MS to avoid repeated full RSS downloads.
  *
  * @param {Object} [options]
  * @param {Object} [options.countryCodeMap] - Override/extension for country name → ISO code (e.g. { 'New Country': 'NC' })
+ * @param {boolean} [options.forceRefresh] - Bypass cache and re-fetch RSS
  * @returns {Promise<Array>} Processed advisories
  */
 async function getProcessedAdvisories(options) {
-  const { items } = await getRawFeed();
-  return items.map((item) => processAdvisoryItem(item, options));
+  const forceRefresh = options && options.forceRefresh === true;
+  const hasCustomMap =
+    options &&
+    options.countryCodeMap &&
+    typeof options.countryCodeMap === 'object';
+
+  // Custom countryCodeMap changes processing output — skip shared cache.
+  if (!forceRefresh && !hasCustomMap) {
+    if (
+      cachedProcessedAdvisories &&
+      cacheUpdatedAt &&
+      Date.now() - cacheUpdatedAt < CACHE_TTL_MS
+    ) {
+      return cachedProcessedAdvisories;
+    }
+    if (inFlightProcessedAdvisories) {
+      return inFlightProcessedAdvisories;
+    }
+  }
+
+  const loadPromise = (async () => {
+    const { items } = await getRawFeed();
+    return items.map((item) => processAdvisoryItem(item, options));
+  })();
+
+  if (!forceRefresh && !hasCustomMap) {
+    inFlightProcessedAdvisories = loadPromise;
+  }
+
+  try {
+    const advisories = await loadPromise;
+    if (!forceRefresh && !hasCustomMap) {
+      cachedProcessedAdvisories = Array.isArray(advisories) ? advisories : [];
+      cacheUpdatedAt = Date.now();
+    }
+    return advisories;
+  } finally {
+    if (inFlightProcessedAdvisories === loadPromise) {
+      inFlightProcessedAdvisories = null;
+    }
+  }
+}
+
+/** Clear in-memory RSS advisory cache (e.g. after manual refresh). */
+function clearProcessedAdvisoriesCache() {
+  cachedProcessedAdvisories = null;
+  cacheUpdatedAt = null;
+  inFlightProcessedAdvisories = null;
 }
 
 /**
@@ -352,6 +404,7 @@ function getCountryCodeFallback() {
 module.exports = {
   getRawFeed,
   getProcessedAdvisories,
+  clearProcessedAdvisoriesCache,
   setCountryCodeFallback,
   getCountryCodeFallback,
   getCountryCodeFromItem,
@@ -366,5 +419,6 @@ module.exports = {
   countryToCode,
   stripHtml,
   cleanHtmlDescription,
-  generateId
+  generateId,
+  CACHE_TTL_MS
 };

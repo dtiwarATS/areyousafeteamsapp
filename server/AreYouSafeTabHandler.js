@@ -5890,7 +5890,21 @@ ORDER BY ACL.EventDateTime DESC;
         const removedCountryCodes = Array.isArray(body.removedCountryCodes)
           ? body.removedCountryCodes
           : [];
+        const addedLocationKeys = Array.isArray(body.addedLocationKeys)
+          ? body.addedLocationKeys.map((k) => String(k || "").trim()).filter(Boolean)
+          : [];
+        const addedCountryCodes = Array.isArray(body.addedCountryCodes)
+          ? body.addedCountryCodes
+              .map((c) =>
+                String(c || "")
+                  .trim()
+                  .toUpperCase(),
+              )
+              .filter(Boolean)
+          : [];
         const replaceSelections = body.replaceSelections === true;
+        const hasTravelAddDelta =
+          addedLocationKeys.length > 0 || addedCountryCodes.length > 0;
 
         if (!tenantId) {
           return res.status(400).json({
@@ -6040,19 +6054,59 @@ ORDER BY ACL.EventDateTime DESC;
                 }
               }
             } else if (filtered.length > 0) {
-              const advisories = await travelAdvisory.getProcessedAdvisories();
-              const advisoryByCode = {};
-              for (const adv of advisories) {
-                const code = (adv.countryCode || "").toUpperCase();
-                if (code) advisoryByCode[code] = adv;
+              const addedKeySet = new Set(addedLocationKeys);
+              const addedCodeSet = new Set(addedCountryCodes);
+
+              // When client sends add-delta, only third-party sync newly added locations.
+              // Otherwise (backward compatible) sync the full selection.
+              const syncUsCityLocs = hasTravelAddDelta
+                ? usCityLocs.filter((l) => addedKeySet.has(travelLocKey(l)))
+                : usCityLocs;
+              const syncNonUsCodes = hasTravelAddDelta
+                ? nonUsCodes.filter(
+                    (code) =>
+                      addedCodeSet.has(code) ||
+                      addedKeySet.has(`${code}||`),
+                  )
+                : nonUsCodes;
+              const syncUsCountryOnly = hasTravelAddDelta
+                ? hasUsCountryOnly &&
+                  (addedCodeSet.has("US") ||
+                    addedCodeSet.has("USA") ||
+                    addedKeySet.has("US||") ||
+                    addedKeySet.has("USA||"))
+                : hasUsCountryOnly;
+
+              const needsStateDept =
+                syncNonUsCodes.length > 0 || syncUsCountryOnly;
+              const needsIpaws = syncUsCityLocs.length > 0;
+
+              console.log("[Travel] saveTravel sync scope", {
+                hasTravelAddDelta,
+                addedLocationKeys,
+                addedCountryCodes,
+                syncNonUsCodes,
+                syncUsCountryOnly,
+                syncUsCityCount: syncUsCityLocs.length,
+                totalUsCityCount: usCityLocs.length,
+              });
+
+              let advisoryByCode = {};
+              if (needsStateDept) {
+                const advisories =
+                  await travelAdvisory.getProcessedAdvisories();
+                for (const adv of advisories) {
+                  const code = (adv.countryCode || "").toUpperCase();
+                  if (code) advisoryByCode[code] = adv;
+                }
               }
               const now = new Date();
 
               for (const row of filtered) {
                 const selectedId = row.TravelAdvisorySelectedCountriesId;
 
-                // Non-U.S. countries → State Dept country advisory
-                for (const code of nonUsCodes) {
+                // Non-U.S. countries → State Dept country advisory (new only when delta)
+                for (const code of syncNonUsCodes) {
                   const advisory = advisoryByCode[code];
                   if (advisory) {
                     await travelSelectedDb.upsertSavedAdvisory(
@@ -6067,7 +6121,7 @@ ORDER BY ACL.EventDateTime DESC;
                 }
 
                 // U.S. country-only chip → State Dept U.S. advisory
-                if (hasUsCountryOnly) {
+                if (syncUsCountryOnly) {
                   const usAdv = advisoryByCode.US || advisoryByCode.USA || null;
                   if (usAdv) {
                     await travelSelectedDb.upsertSavedAdvisory(
@@ -6081,93 +6135,121 @@ ORDER BY ACL.EventDateTime DESC;
                   }
                 }
 
-                // U.S. cities → FEMA IPAWS per city LocationKey
-                console.log("[IPAWS] saveTravel sync US cities", {
-                  usCityCount: usCityLocs.length,
-                  cities: usCityLocs.map((l) => ({
-                    city: l.cityName,
-                    state: l.state,
-                    countryCode: l.countryCode,
-                    lat: l.latitude,
-                    lon: l.longitude,
-                    key: travelLocKey(l),
-                  })),
-                });
-                const ipawsCacheDb = require("./travelServices/ipaws-alert-cache-db");
-                let cachedAlerts = null;
-                const cityKeysWithAlerts = [];
-                for (const loc of usCityLocs) {
-                  const locKey = travelLocKey(loc);
-                  let alerts = [];
-                  let alertSource = "live";
+                // U.S. cities → FEMA IPAWS (new cities only when delta)
+                if (needsIpaws) {
+                  console.log("[IPAWS] saveTravel sync US cities", {
+                    usCityCount: syncUsCityLocs.length,
+                    cities: syncUsCityLocs.map((l) => ({
+                      city: l.cityName,
+                      state: l.state,
+                      countryCode: l.countryCode,
+                      lat: l.latitude,
+                      lon: l.longitude,
+                      key: travelLocKey(l),
+                    })),
+                  });
+                  const ipawsCacheDb = require("./travelServices/ipaws-alert-cache-db");
+
+                  // Prefer shared DB cache (cron-warmed); one live CAP fetch if needed.
+                  let matchAlerts = [];
+                  let alertSource = "cache";
                   try {
-                    alerts = await ipawsFeed.getIpawsAlertsForLocation(loc);
-                  } catch (err) {
+                    matchAlerts = await ipawsCacheDb.getActiveIpawsAlerts();
+                  } catch (cacheErr) {
                     console.error(
-                      `saveTravelAdvisorySelection IPAWS fetch failed for ${locKey}:`,
-                      err && err.message,
+                      "saveTravelAdvisorySelection IPAWS cache load failed:",
+                      cacheErr && cacheErr.message,
                     );
-                    alerts = [];
+                    matchAlerts = [];
                   }
-                  if (!Array.isArray(alerts) || alerts.length === 0) {
-                    try {
-                      if (cachedAlerts == null) {
-                        cachedAlerts =
-                          await ipawsCacheDb.getActiveIpawsAlerts();
-                      }
-                      alerts = ipawsFeed.getIpawsAlertsForLocationFromAlerts(
-                        cachedAlerts,
+
+                  const anyCacheMatch = syncUsCityLocs.some(
+                    (loc) =>
+                      ipawsFeed.getIpawsAlertsForLocationFromAlerts(
+                        matchAlerts,
                         loc,
-                      );
-                      alertSource = "cache";
-                    } catch (cacheErr) {
+                      ).length > 0,
+                  );
+
+                  if (!anyCacheMatch || !Array.isArray(matchAlerts) || matchAlerts.length === 0) {
+                    try {
+                      const parsed =
+                        await ipawsFeed.fetchAndParseRecentAlerts();
+                      const liveAlerts = Array.isArray(parsed.alerts)
+                        ? parsed.alerts
+                        : [];
+                      if (liveAlerts.length > 0) {
+                        matchAlerts = liveAlerts;
+                        alertSource = "live";
+                        try {
+                          await ipawsCacheDb.upsertIpawsAlerts(
+                            liveAlerts,
+                            now,
+                          );
+                        } catch (upsertCacheErr) {
+                          console.error(
+                            "saveTravelAdvisorySelection IPAWS cache upsert failed:",
+                            upsertCacheErr && upsertCacheErr.message,
+                          );
+                        }
+                      }
+                    } catch (liveErr) {
                       console.error(
-                        `saveTravelAdvisorySelection IPAWS cache failed for ${locKey}:`,
-                        cacheErr && cacheErr.message,
+                        "saveTravelAdvisorySelection IPAWS live fetch failed:",
+                        liveErr && liveErr.message,
                       );
-                      alerts = [];
                     }
                   }
-                  console.log("[IPAWS] saveTravel city outcome", {
-                    locKey,
-                    alertCount: Array.isArray(alerts) ? alerts.length : 0,
-                    source: alertSource,
-                    note:
-                      !Array.isArray(alerts) || alerts.length === 0
-                        ? "EMPTY — skip upsert (no Travel card)"
-                        : "upserting IPAWS advisory",
-                  });
-                  if (!Array.isArray(alerts) || alerts.length === 0) {
-                    continue;
-                  }
-                  const advisory = ipawsFeed.toTravelAdvisory(alerts, loc);
-                  if (!advisory) {
-                    console.log("[IPAWS] toTravelAdvisory returned null", {
+
+                  const cityKeysWithAlerts = [];
+                  for (const loc of syncUsCityLocs) {
+                    const locKey = travelLocKey(loc);
+                    const alerts =
+                      ipawsFeed.getIpawsAlertsForLocationFromAlerts(
+                        matchAlerts,
+                        loc,
+                      );
+                    console.log("[IPAWS] saveTravel city outcome", {
                       locKey,
+                      alertCount: Array.isArray(alerts) ? alerts.length : 0,
+                      source: alertSource,
+                      note:
+                        !Array.isArray(alerts) || alerts.length === 0
+                          ? "EMPTY — skip upsert (no Travel card)"
+                          : "upserting IPAWS advisory",
                     });
-                    continue;
+                    if (!Array.isArray(alerts) || alerts.length === 0) {
+                      continue;
+                    }
+                    const advisory = ipawsFeed.toTravelAdvisory(alerts, loc);
+                    if (!advisory) {
+                      console.log("[IPAWS] toTravelAdvisory returned null", {
+                        locKey,
+                      });
+                      continue;
+                    }
+                    if (locKey) cityKeysWithAlerts.push(locKey);
+                    console.log("[IPAWS] upserting advisory", {
+                      locKey,
+                      title: advisory.title,
+                      hasLink: Boolean(advisory.link),
+                      source: alertSource,
+                    });
+                    await travelSelectedDb.upsertSavedAdvisory(
+                      selectedId,
+                      "US",
+                      advisory,
+                      now,
+                      "Travel",
+                      locKey,
+                    );
+                    detailSavedCount++;
                   }
-                  if (locKey) cityKeysWithAlerts.push(locKey);
-                  console.log("[IPAWS] upserting advisory", {
-                    locKey,
-                    title: advisory.title,
-                    hasLink: Boolean(advisory.link),
-                    source: alertSource,
+                  console.log("[IPAWS] saveTravel cityKeysWithAlerts", {
+                    cityKeysWithAlerts,
+                    keepCityKeys,
                   });
-                  await travelSelectedDb.upsertSavedAdvisory(
-                    selectedId,
-                    "US",
-                    advisory,
-                    now,
-                    "Travel",
-                    locKey,
-                  );
-                  detailSavedCount++;
                 }
-                console.log("[IPAWS] saveTravel cityKeysWithAlerts", {
-                  cityKeysWithAlerts,
-                  keepCityKeys,
-                });
 
                 if (
                   typeof travelSelectedDb.deleteTravelCityAdvisoryDetailsNotInLocationKeys ===
