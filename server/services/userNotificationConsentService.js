@@ -407,6 +407,37 @@ const normalizeStoredConversationId = (value) => {
   return id;
 };
 
+/**
+ * One Adaptive Card per AAD user. Same person can have multiple
+ * MSTeamsTeamsUsers rows (multi-team) — DISTINCT on all columns still
+ * returns duplicates and caused double notifications.
+ */
+const dedupeRecipientsByUserId = (recipients) => {
+  const map = new Map();
+  for (const r of recipients || []) {
+    const userId = r.UserId || r.user_aadobject_id;
+    if (!userId) continue;
+    const existing = map.get(userId);
+    const rowHasId = !!normalizeStoredConversationId(r.ConversationId);
+    const existingHasId = !!normalizeStoredConversationId(
+      existing?.ConversationId,
+    );
+    if (!existing || (!existingHasId && rowHasId)) {
+      map.set(userId, {
+        UserId: userId,
+        UserName: r.UserName || r.user_name || existing?.UserName || "",
+        TeamsUserId:
+          r.TeamsUserId || r.user_id || existing?.TeamsUserId || userId,
+        ConversationId:
+          normalizeStoredConversationId(r.ConversationId) ||
+          existing?.ConversationId ||
+          null,
+      });
+    }
+  }
+  return Array.from(map.values());
+};
+
 const persistConversationId = async (userId, conversationId) => {
   const id = normalizeStoredConversationId(conversationId);
   if (!userId || !id) return;
@@ -725,10 +756,12 @@ const sendConsentRequests = async ({
     recipients = await getUsersNeedingConsent(effectiveTenant, chs);
   }
 
-  recipients = (recipients || []).filter((r) => {
-    const id = r.UserId || r.user_aadobject_id;
-    return !isConsentMessageExcludedUser(id);
-  });
+  recipients = dedupeRecipientsByUserId(
+    (recipients || []).filter((r) => {
+      const id = r.UserId || r.user_aadobject_id;
+      return !isConsentMessageExcludedUser(id);
+    }),
+  );
 
   if (!recipients.length) {
     return { sent: 0, skipped: 0, message: "No users need consent" };
