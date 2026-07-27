@@ -4319,6 +4319,78 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getUserConsentStats", async (req, res) => {
+    const tenantId = req.query.tenantId;
+    try {
+      if (!tenantId) {
+        res.status(400).send({ error: "tenantId is required" });
+        return;
+      }
+      const userNotificationConsentService = require("./services/userNotificationConsentService");
+      const stats =
+        await userNotificationConsentService.getConsentStats(tenantId);
+      res.send(stats);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        null,
+        "error in /areyousafetabhandler/getUserConsentStats",
+      );
+      res.status(500).send({ error: "Error fetching consent stats" });
+    }
+  });
+
+  app.post("/areyousafetabhandler/sendUserConsentRequest", async (req, res) => {
+    const {
+      teamId,
+      tenantId,
+      channels,
+      message,
+      userAadObjId,
+      userIds,
+    } = req.body || {};
+    try {
+      if (!teamId) {
+        res.status(400).send({ error: "teamId is required" });
+        return;
+      }
+      if (!Array.isArray(channels) || channels.length === 0) {
+        res.status(400).send({ error: "At least one channel is required" });
+        return;
+      }
+      const userNotificationConsentService = require("./services/userNotificationConsentService");
+      const result = await userNotificationConsentService.sendConsentRequests({
+        tenantId,
+        teamId,
+        channels,
+        message,
+        performedBy: userAadObjId || "admin",
+        userIds: Array.isArray(userIds) ? userIds : null,
+        persistOptInFlags: true,
+      });
+      if (result.error) {
+        res.status(400).send(result);
+        return;
+      }
+      res.send({
+        success: true,
+        ...result,
+        message: "Consent request sent successfully.",
+      });
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        teamId || "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/sendUserConsentRequest",
+      );
+      res.status(500).send({ error: "Error sending consent request" });
+    }
+  });
+
   app.get("/areyousafetabhandler/getIncDataToCopyInc", async (req, res) => {
     const incId = req.query.incid;
     const userAadObjId = req.query.userAadObjId;

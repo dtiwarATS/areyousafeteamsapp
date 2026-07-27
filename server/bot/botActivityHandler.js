@@ -17,6 +17,7 @@ const {
 } = require("botbuilder");
 const bot = require("../bot/bot");
 const incidentService = require("../services/incidentService");
+const userNotificationConsentService = require("../services/userNotificationConsentService");
 const socketService = require("../socket/socketService");
 const { buildDesktopSosAcceptPayload } = require("../utils/desktopSosChatCopy");
 const {
@@ -499,6 +500,54 @@ class BotActivityHandler extends TeamsActivityHandler {
                   });
                 }
                 await sendSetupMessageToAllMembers(teamMembers, companyDataObj);
+
+                // Auto-send notification opt-in Adaptive Card when User Consent is enabled
+                try {
+                  if (teamMember.aadObjectId != null) {
+                    let companyForConsent = companyDataObj;
+                    try {
+                      const companyFromDb =
+                        await incidentService.getCompanyData(teamId);
+                      if (companyFromDb?.serviceUrl || companyFromDb?.INTEGRATION_CONFIGURE) {
+                        companyForConsent = {
+                          ...companyDataObj,
+                          ...companyFromDb,
+                        };
+                      }
+                    } catch (_) {}
+
+                    const integrationConfig =
+                      userNotificationConsentService.parseIntegrationConfig(
+                        companyForConsent?.INTEGRATION_CONFIGURE,
+                      );
+                    const optInChannels =
+                      userNotificationConsentService.getOptInRequiredChannels(
+                        integrationConfig,
+                      );
+                    if (optInChannels.length > 0) {
+                      await userNotificationConsentService.sendConsentRequests({
+                        tenantId:
+                          companyForConsent.userTenantId ||
+                          companyForConsent.user_tenant_id ||
+                          userTenantId,
+                        teamId,
+                        channels: optInChannels,
+                        message:
+                          integrationConfig?.userConsent?.message ||
+                          userNotificationConsentService.DEFAULT_CONSENT_MESSAGE,
+                        performedBy: "system",
+                        userIds: [teamMember.aadObjectId],
+                        persistOptInFlags: false,
+                        companyData: companyForConsent,
+                      });
+                    }
+                  }
+                } catch (consentErr) {
+                  console.log(
+                    "Error auto-sending consent request to new member:",
+                    consentErr,
+                  );
+                }
               }
             }
           }
@@ -1290,6 +1339,44 @@ WHEN NOT MATCHED THEN
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
         await context.updateActivity(message);
+      } else if (uVerb === "submit_notification_consent") {
+        await context.sendActivities([{ type: "typing" }]);
+        const action = context.activity.value.action;
+        const actionData = action?.data || {};
+        const userNotificationConsentService = require("../services/userNotificationConsentService");
+        const user = context.activity.from;
+        const userId = user?.aadObjectId || user?.id;
+        const tenantId = actionData.tenantId;
+        const channelsRequested = actionData.channelsRequested || [];
+        let selectedChannels = actionData.selectedChannels;
+        if (typeof selectedChannels === "string") {
+          selectedChannels = selectedChannels
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+        if (!Array.isArray(selectedChannels)) {
+          selectedChannels = selectedChannels ? [selectedChannels] : [];
+        }
+
+        if (tenantId && userId) {
+          await userNotificationConsentService.recordConsentResponse({
+            tenantId,
+            userId,
+            channelsRequested,
+            selectedChannels,
+            performedBy: userId,
+          });
+        }
+
+        adaptiveCard =
+          userNotificationConsentService.buildConsentConfirmationCard(
+            selectedChannels,
+          );
+        const cards = CardFactory.adaptiveCard(adaptiveCard);
+        const message = MessageFactory.attachment(cards);
+        message.id = context.activity.replyToId;
+        await context.updateActivity(message);
       } else if (uVerb === "respond_to_assistance") {
         await context.sendActivities([{ type: "typing" }]);
         const action = context.activity.value.action;
@@ -1631,8 +1718,11 @@ WHEN NOT MATCHED THEN
       }
       const user = context.activity.from;
       if (context.activity.name === "adaptiveCard/action") {
-        // Skip selectResponseCard if we've already handled respond_to_assistance
-        if (uVerb !== "respond_to_assistance") {
+        // Skip selectResponseCard if we've already handled these verbs
+        if (
+          uVerb !== "respond_to_assistance" &&
+          uVerb !== "submit_notification_consent"
+        ) {
           const card = await bot.selectResponseCard(context, user);
           if (adaptiveCard != null) {
             return bot.invokeResponse(adaptiveCard);
@@ -1644,7 +1734,10 @@ WHEN NOT MATCHED THEN
             };
           }
         } else {
-          // respond_to_assistance was already handled, return OK
+          // Already handled above; return confirmation card if present
+          if (adaptiveCard != null) {
+            return bot.invokeResponse(adaptiveCard);
+          }
           return {
             status: StatusCodes.OK,
             body: {
@@ -2418,6 +2511,20 @@ WHERE rn = 1;
 
               // Send SMS if enabled in any team
               if (smsEnabled && smsTeamData && userPhone) {
+                const smsConfig =
+                  userNotificationConsentService.parseIntegrationConfig(
+                    smsTeamData.INTEGRATION_CONFIGURE,
+                  );
+                const canSendSms =
+                  await userNotificationConsentService.userHasChannelConsent(
+                    smsTeamData.user_tenant_id || tenantId,
+                    userToNotify.user_aadobject_id,
+                    "sms",
+                    smsConfig,
+                  );
+                if (!canSendSms) {
+                  // skip — opt-in required and user has not consented
+                } else {
                 const num =
                   smsTeamData.PHONE_FIELD == "businessPhones"
                     ? userPhone.businessPhones && userPhone.businessPhones[0]
@@ -2474,10 +2581,23 @@ WHERE rn = 1;
                     );
                   }
                 }
+                }
               }
 
               // Send WhatsApp if enabled in any team
               if (whatsappEnabled && whatsappTeamData && userPhone) {
+                const waConfig =
+                  userNotificationConsentService.parseIntegrationConfig(
+                    whatsappTeamData.INTEGRATION_CONFIGURE,
+                  );
+                const canSendWa =
+                  await userNotificationConsentService.userHasChannelConsent(
+                    whatsappTeamData.user_tenant_id || tenantId,
+                    userToNotify.user_aadobject_id,
+                    "whatsapp",
+                    waConfig,
+                  );
+                if (canSendWa) {
                 const num =
                   whatsappTeamData.PHONE_FIELD == "businessPhones"
                     ? userPhone.businessPhones && userPhone.businessPhones[0]
@@ -2531,10 +2651,23 @@ WHERE rn = 1;
                     );
                   }
                 }
+                }
               }
 
               // Send Email if enabled in any team
               if (emailEnabled && emailTeamData) {
+                const emailConfig =
+                  userNotificationConsentService.parseIntegrationConfig(
+                    emailTeamData.INTEGRATION_CONFIGURE,
+                  );
+                const canSendEmail =
+                  await userNotificationConsentService.userHasChannelConsent(
+                    emailTeamData.user_tenant_id || tenantId,
+                    userToNotify.user_aadobject_id,
+                    "email",
+                    emailConfig,
+                  );
+                if (canSendEmail) {
                 try {
                   const userEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${userToNotify.user_aadobject_id}'`;
                   const userEmailResult = await db.getDataFromDB(
@@ -2602,6 +2735,7 @@ WHERE rn = 1;
                     notificationMessage,
                     JSON.stringify(emailErr.message),
                   );
+                }
                 }
               }
             }
