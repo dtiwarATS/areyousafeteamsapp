@@ -1636,6 +1636,74 @@ const sendApprovalResponseToSelectedTeams = async (
   }
 };
 
+/**
+ * Notify selected officers/channels after an SC response outside Bot Framework
+ * invoke (e.g. desktop agent). Mirrors sendApprovalResponse notify steps.
+ */
+const notifyIncidentResponseToSelectedAudiences = async ({
+  incId,
+  user,
+  responseText,
+  incTitle,
+  languageId,
+  translatedText,
+  teamId,
+}) => {
+  try {
+    if (!incId || !user || !teamId) {
+      return;
+    }
+
+    const compData = await incidentService.getCompanyData(teamId);
+    const serviceUrl = compData?.serviceUrl;
+    if (!serviceUrl) {
+      console.log(
+        "[notifyIncidentResponseToSelectedAudiences] missing serviceUrl",
+        { incId, teamId },
+      );
+      return;
+    }
+
+    const context = {
+      activity: {
+        serviceUrl,
+        conversation: {
+          tenantId: compData.userTenantId,
+        },
+      },
+    };
+
+    const approvalCardResponse = buildUserRespondedCard(
+      user,
+      String(responseText || "").trim(),
+      incTitle,
+      languageId,
+      translatedText,
+    );
+
+    await sendApprovalResponseToSelectedMembers(incId, context, null, {
+      user,
+      responseText: String(responseText || "").trim(),
+      incTitle,
+      translatedText,
+    });
+    await sendApprovalResponseToSelectedTeams(
+      incId,
+      serviceUrl,
+      approvalCardResponse,
+      user.aadObjectId || user.id,
+    );
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      teamId || "",
+      "",
+      user?.aadObjectId || user?.id || "",
+      "notifyIncidentResponseToSelectedAudiences",
+    );
+  }
+};
+
 const updateIncResponseOfSelectedMembers = async (
   incId,
   runAt,
@@ -7754,6 +7822,7 @@ module.exports = {
   acknowledgeSMSReplyInTeams,
   processCommentViaLink,
   proccessWhatsappClick,
+  notifyIncidentResponseToSelectedAudiences,
   getUserPhone,
   resolveUserPhonesForMessaging,
   sendSafetyCheckMsgViaWhatsapp,

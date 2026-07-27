@@ -54,6 +54,7 @@ async function loadIncidentFollowUpContext(incId, userAadObjectId) {
     .query(`
       SELECT TOP 1
         i.id,
+        i.team_id,
         i.created_by,
         i.CREATED_BY_NAME,
         i.RESPONSE_OPTIONS,
@@ -112,6 +113,7 @@ async function loadIncidentFollowUpContext(incId, userAadObjectId) {
     translatedText,
     responseOptions: responseLabel,
     incTitle: incRow?.inc_name || "",
+    teamId: incRow?.team_id || "",
     creator: creatorName
       ? {
           name: creatorName,
@@ -907,6 +909,36 @@ const handlerForSafetyBotTab = (app) => {
             responseLabel = matched.option;
           }
         }
+
+        // Same bot notify as Teams adaptive-card responses (selected officers + channels).
+        const notifyTeamId = followUpCtx.teamId || normalizedTeamId;
+        void bot
+          .notifyIncidentResponseToSelectedAudiences({
+            incId: parsedIncId,
+            user: {
+              id: userRow.user_id,
+              name: userRow.user_name || "",
+              aadObjectId: normalizedUserAadObjectId,
+            },
+            responseText: responseLabel,
+            incTitle: followUpCtx.incTitle,
+            languageId: followUpCtx.languageId || DEFAULT_LANGUAGE_ID,
+            translatedText: followUpCtx.translatedText,
+            teamId: notifyTeamId,
+          })
+          .catch((notifyErr) => {
+            console.error(
+              "[DESKTOP] incident response bot notify failed",
+              notifyErr,
+            );
+            processSafetyBotError(
+              notifyErr,
+              notifyTeamId,
+              "",
+              normalizedUserAadObjectId,
+              "desktop submit-desktop-incident-response notify",
+            );
+          });
 
         console.log("[DESKTOP] incident response submitted", {
           incId: parsedIncId,
@@ -2991,17 +3023,38 @@ const handlerForSafetyBotTab = (app) => {
               userAadObjId,
               TeamId,
             );
-            if (
-              admins != null ||
-              (Array.isArray(admins) && admins.length > 0) ||
-              admins[0].length > 0
-            ) {
+            const hasAdmins =
+              Array.isArray(admins) &&
+              Array.isArray(admins[0]) &&
+              admins[0].length > 0 &&
+              Array.isArray(admins[1]) &&
+              admins[1].length > 0;
+            if (hasAdmins) {
               const tabObj = new tab.AreYouSafeTab();
-              tabObj.sendUserCommentToAdmin(
-                admins,
-                reqBody.comment,
-                userAadObjId,
-                assistId,
+              try {
+                await tabObj.sendUserCommentToAdmin(
+                  admins,
+                  reqBody.comment,
+                  userAadObjId,
+                  assistId,
+                );
+              } catch (notifyErr) {
+                console.error(
+                  "[addCommentToAssistance] bot notify failed",
+                  notifyErr,
+                );
+                processSafetyBotError(
+                  notifyErr,
+                  TeamId,
+                  "",
+                  userAadObjId,
+                  "error in /areyousafetabhandler/addCommentToAssistance notify",
+                );
+              }
+            } else {
+              console.log(
+                "[addCommentToAssistance] no admins to notify",
+                { userAadObjId, TeamId, assistId },
               );
             }
             res.send(true);
