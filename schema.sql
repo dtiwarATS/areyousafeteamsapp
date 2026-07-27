@@ -967,3 +967,39 @@ BEGIN
   ALTER TABLE MSTeamsTeamsUsers ADD PHONE_NUMBER NVARCHAR(50) NULL
 END
 GO
+
+IF NOT EXISTS (
+  SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'UserNotificationConsent'
+)
+BEGIN
+  CREATE TABLE [dbo].[UserNotificationConsent] (
+    [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [TenantId] NVARCHAR(100) NOT NULL,
+    [UserId] NVARCHAR(255) NOT NULL,
+    [NotificationChannel] NVARCHAR(50) NOT NULL,
+    [ConsentStatus] NVARCHAR(50) NOT NULL,
+    [ConsentDate] DATETIME2 NULL,
+    [CreatedDate] DATETIME2 NOT NULL CONSTRAINT DF_UserNotificationConsent_CreatedDate DEFAULT (SYSUTCDATETIME()),
+    [LastUpdatedDate] DATETIME2 NOT NULL CONSTRAINT DF_UserNotificationConsent_LastUpdatedDate DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT UQ_UserNotificationConsent_TenantUserChannel UNIQUE ([TenantId], [UserId], [NotificationChannel])
+  );
+END
+GO
+
+IF NOT EXISTS (
+  SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'UserNotificationConsentHistory'
+)
+BEGIN
+  CREATE TABLE [dbo].[UserNotificationConsentHistory] (
+    [Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    [TenantId] NVARCHAR(100) NOT NULL,
+    [UserId] NVARCHAR(255) NOT NULL,
+    [NotificationChannel] NVARCHAR(50) NOT NULL,
+    [Action] NVARCHAR(50) NOT NULL,
+    [TeamsMessageId] NVARCHAR(255) NULL,
+    [ConversationId] NVARCHAR(255) NULL,
+    [ActionDate] DATETIME2 NOT NULL CONSTRAINT DF_UserNotificationConsentHistory_ActionDate DEFAULT (SYSUTCDATETIME()),
+    [PerformedBy] NVARCHAR(255) NULL
+  );
+END
+GO
