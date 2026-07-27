@@ -236,6 +236,8 @@ async function setDeviceOffline({ deviceId }) {
 }
 
 /**
+ * Active paired devices for these users (any team/tenant).
+ * Lookup is by user_aadobject_id only — stored device team_id is not filtered.
  * @param {string[]} userAadObjectIds
  * @returns {Promise<Array<{ device_id: string, user_aadobject_id: string, tenant_id: string, socket_id: string | null }>>}
  */

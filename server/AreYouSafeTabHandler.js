@@ -3067,8 +3067,10 @@ const handlerForSafetyBotTab = (app) => {
         });
       }
 
-      // Get admin info by phone or aadObjectId
-      let adminInfo = null;
+      // Get all valid installs for this officer (multi-team users have multiple rows).
+      // Prefer the install whose Teams user_id is in this SOS sent_to_ids so shared
+      // handleRespondToAssistanceAsync skip/ack (user.id === admin.user_id) works.
+      let adminCandidates = [];
       if (adminAadObjId) {
         const adminQuery = `SELECT u.user_id, u.user_name, u.user_aadobject_id, u.email, 
           d.serviceUrl, d.user_tenant_id, d.team_id
@@ -3079,7 +3081,7 @@ const handlerForSafetyBotTab = (app) => {
           AND d.uninstallation_date IS NULL`;
         const adminResult = await db.getDataFromDB(adminQuery, adminAadObjId);
         if (adminResult && adminResult.length > 0) {
-          adminInfo = adminResult[0];
+          adminCandidates = adminResult;
         }
       } else if (adminPhone) {
         // Try to find admin by phone number (this would require phone lookup)
@@ -3101,7 +3103,7 @@ const handlerForSafetyBotTab = (app) => {
         });
       }
 
-      if (!adminInfo) {
+      if (!adminCandidates?.length) {
         return respond(404, {
           html: `
           <html>
@@ -3119,11 +3121,11 @@ const handlerForSafetyBotTab = (app) => {
         });
       }
 
-      // Get assistance request info
+      // Get assistance request info (needed to pick the correct multi-team install).
       const assistanceQuery = `SELECT user_id, sent_to_ids FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
       const assistanceData = await db.getDataFromDB(
         assistanceQuery,
-        adminInfo.user_aadobject_id,
+        adminAadObjId || adminCandidates[0].user_aadobject_id,
       );
 
       if (!assistanceData || assistanceData.length === 0) {
@@ -3143,6 +3145,17 @@ const handlerForSafetyBotTab = (app) => {
           },
         });
       }
+
+      const sentToIdSet = new Set(
+        String(assistanceData[0].sent_to_ids || "")
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id && id !== ""),
+      );
+
+      let adminInfo =
+        adminCandidates.find((row) => sentToIdSet.has(String(row.user_id).trim())) ||
+        adminCandidates[0];
 
       // Check if already responded
       const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
@@ -3290,7 +3303,7 @@ const handlerForSafetyBotTab = (app) => {
       const { BotActivityHandler } = require("./bot/botActivityHandler");
       const botHandler = new BotActivityHandler();
 
-      // Create a mock user object for the handler
+      // Create a mock user object for the handler (user_id must match sent_to_ids entry)
       const mockUser = {
         id: adminInfo.user_id,
         name: adminInfo.user_name,
