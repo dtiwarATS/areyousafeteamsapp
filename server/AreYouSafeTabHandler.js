@@ -338,7 +338,7 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   const LOGIN_CODE_LENGTH = 6;
-  const DEFAULT_LOGIN_CODE_EXPIRY_SECONDS = 300;
+  const DEFAULT_LOGIN_CODE_EXPIRY_SECONDS = 600;
   const LOGIN_CODE_EXPIRY_SECONDS =
     Number.parseInt(process.env.LOGIN_CODE_EXPIRY_SECONDS, 10) ||
     DEFAULT_LOGIN_CODE_EXPIRY_SECONDS;
@@ -425,7 +425,8 @@ const handlerForSafetyBotTab = (app) => {
           SELECT TOP 1 team_id, user_aadobject_id, user_name, email,tenantid
           FROM MSTeamsTeamsUsers
           WHERE Generated_code = @code
-            AND (Generated_code_expires_at IS NULL OR Generated_code_expires_at > SYSUTCDATETIME())
+            AND Generated_code_expires_at IS NOT NULL
+            AND Generated_code_expires_at > SYSUTCDATETIME()
         `);
 
       const user = userResult?.recordset?.[0];
@@ -528,7 +529,8 @@ const handlerForSafetyBotTab = (app) => {
             SELECT TOP 1 team_id, user_aadobject_id, user_name, email, tenantid
             FROM MSTeamsTeamsUsers
             WHERE Generated_code = @code
-              AND (Generated_code_expires_at IS NULL OR Generated_code_expires_at > SYSUTCDATETIME())
+              AND Generated_code_expires_at IS NOT NULL
+              AND Generated_code_expires_at > SYSUTCDATETIME()
           `);
 
         const user = userResult?.recordset?.[0];
@@ -3029,15 +3031,27 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  // Web endpoint to accept SOS via link (for SMS/Email)
+  // Web endpoint to accept SOS via link (for SMS/Email) — also JSON for desktop (`format=json`)
   app.get("/acceptSOS", async (req, res) => {
+    const wantsJson =
+      String(req.query.format || "").toLowerCase() === "json" ||
+      String(req.headers.accept || "").includes("application/json");
+
+    const respond = (status, { html, json }) => {
+      if (wantsJson) {
+        return res.status(status).json(json);
+      }
+      return res.status(status).send(html);
+    };
+
     try {
       const requestAssistanceid = req.query.id;
       const adminAadObjId = req.query.adminId;
       const adminPhone = req.query.phone;
 
       if (!requestAssistanceid) {
-        return res.status(400).send(`
+        return respond(400, {
+          html: `
           <html>
             <head><title>SOS Response</title></head>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3045,7 +3059,12 @@ const handlerForSafetyBotTab = (app) => {
               <p>Missing required parameters.</p>
             </body>
           </html>
-        `);
+        `,
+          json: {
+            success: false,
+            message: "Missing required parameters.",
+          },
+        });
       }
 
       // Get admin info by phone or aadObjectId
@@ -3065,7 +3084,8 @@ const handlerForSafetyBotTab = (app) => {
       } else if (adminPhone) {
         // Try to find admin by phone number (this would require phone lookup)
         // For now, we'll need adminAadObjId - but we can enhance this later
-        return res.status(400).send(`
+        return respond(400, {
+          html: `
           <html>
             <head><title>SOS Response</title></head>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3073,11 +3093,17 @@ const handlerForSafetyBotTab = (app) => {
               <p>Please use the admin ID parameter.</p>
             </body>
           </html>
-        `);
+        `,
+          json: {
+            success: false,
+            message: "Please use the admin ID parameter.",
+          },
+        });
       }
 
       if (!adminInfo) {
-        return res.status(404).send(`
+        return respond(404, {
+          html: `
           <html>
             <head><title>SOS Response</title></head>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3085,7 +3111,12 @@ const handlerForSafetyBotTab = (app) => {
               <p>Admin not found. Please ensure you're using the correct link.</p>
             </body>
           </html>
-        `);
+        `,
+          json: {
+            success: false,
+            message: "Admin not found. Please ensure you're using the correct link.",
+          },
+        });
       }
 
       // Get assistance request info
@@ -3096,7 +3127,8 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       if (!assistanceData || assistanceData.length === 0) {
-        return res.status(404).send(`
+        return respond(404, {
+          html: `
           <html>
             <head><title>SOS Response</title></head>
             <body style="font-family: Arial, sans-serif; padding: 20px;">
@@ -3104,7 +3136,12 @@ const handlerForSafetyBotTab = (app) => {
               <p>SOS request not found.</p>
             </body>
           </html>
-        `);
+        `,
+          json: {
+            success: false,
+            message: "SOS request not found.",
+          },
+        });
       }
 
       // Check if already responded
@@ -3114,40 +3151,7 @@ const handlerForSafetyBotTab = (app) => {
         adminInfo.user_aadobject_id,
       );
 
-      if (
-        existingResponse &&
-        existingResponse.length > 0 &&
-        existingResponse[0].FIRST_RESPONDER
-      ) {
-        const firstResponderId = existingResponse[0].FIRST_RESPONDER;
-        if (firstResponderId === adminInfo.user_aadobject_id) {
-          return res.send(`
-            <html>
-              <head><title>SOS Response</title></head>
-              <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-                <h2 style="color: #28a745;">✓ You are already the first responder for this SOS.</h2>
-                <p>Thank you for your response.</p>
-              </body>
-            </html>
-          `);
-        } else {
-          return res.send(`
-            <html>
-              <head><title>SOS Response</title></head>
-              <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-                <h2 style="color: #ffc107;">⚠ Someone else has already responded to this SOS.</h2>
-                <p>Another responder is handling this request.</p>
-              </body>
-            </html>
-          `);
-        }
-      }
-
-      // // Process acceptance - update database
-      // const updateQuery = `UPDATE MSTeamsAssistance SET FIRST_RESPONDER = '${adminInfo.user_aadobject_id}', FIRST_RESPONDER_RESPONDED_AT = GETDATE() WHERE id = ${requestAssistanceid}`;
-      // await db.updateDataIntoDB(updateQuery, adminInfo.user_aadobject_id);
-
-      // Get requester info
+      // Requester info (needed for acknowledgment Chat/Call links)
       const requesterQuery = `SELECT user_id, user_name, user_aadobject_id, email FROM MSTeamsTeamsUsers WHERE user_id = '${assistanceData[0].user_id}'`;
       const requesterInfo = await db.getDataFromDB(
         requesterQuery,
@@ -3155,6 +3159,59 @@ const handlerForSafetyBotTab = (app) => {
       );
       const requester =
         requesterInfo && requesterInfo.length > 0 ? requesterInfo[0] : null;
+
+      const {
+        buildOfficerAcceptAcknowledgment,
+      } = require("./utils/desktopSosChatCopy");
+
+      if (
+        existingResponse &&
+        existingResponse.length > 0 &&
+        existingResponse[0].FIRST_RESPONDER
+      ) {
+        const firstResponderId = existingResponse[0].FIRST_RESPONDER;
+        if (firstResponderId === adminInfo.user_aadobject_id) {
+          const acknowledgment = buildOfficerAcceptAcknowledgment({
+            admin: adminInfo,
+            requester,
+            alreadyAcceptedBySelf: true,
+          });
+          return respond(200, {
+            html: `
+            <html>
+              <head><title>SOS Response</title></head>
+              <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                <h2 style="color: #28a745;">✓ You are already the first responder for this SOS.</h2>
+                <p>Thank you for your response.</p>
+              </body>
+            </html>
+          `,
+            json: {
+              success: true,
+              alreadyAcceptedBySelf: true,
+              message: "You are already the first responder for this SOS.",
+              acknowledgment,
+            },
+          });
+        } else {
+          return respond(200, {
+            html: `
+            <html>
+              <head><title>SOS Response</title></head>
+              <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
+                <h2 style="color: #ffc107;">⚠ Someone else has already responded to this SOS.</h2>
+                <p>Another responder is handling this request.</p>
+              </body>
+            </html>
+          `,
+            json: {
+              success: false,
+              alreadyAcceptedByOther: true,
+              message: "Someone else has already responded to this SOS.",
+            },
+          });
+        }
+      }
 
       // Get list of other admins/responders who were notified
       let otherAdminNames = [];
@@ -3222,6 +3279,13 @@ const handlerForSafetyBotTab = (app) => {
         }
       }
 
+      const acknowledgment = buildOfficerAcceptAcknowledgment({
+        admin: adminInfo,
+        requester,
+        notificationMessage,
+        alreadyAcceptedBySelf: false,
+      });
+
       // Import botActivityHandler to use the notification logic
       const { BotActivityHandler } = require("./bot/botActivityHandler");
       const botHandler = new BotActivityHandler();
@@ -3254,8 +3318,8 @@ const handlerForSafetyBotTab = (app) => {
           );
         });
 
-      // Return success page
-      res.send(`
+      return respond(200, {
+        html: `
         <html>
           <head>
             <title>SOS Response Accepted</title>
@@ -3268,10 +3332,26 @@ const handlerForSafetyBotTab = (app) => {
             </div>
           </body>
         </html>
-      `);
+      `,
+        json: {
+          success: true,
+          message: notificationMessage,
+          acknowledgment,
+        },
+      });
     } catch (err) {
       console.log("Error in /acceptSOS:", err);
       processSafetyBotError(err, "", "", "", "error in /acceptSOS");
+      const wantsJsonFallback =
+        String(req.query.format || "").toLowerCase() === "json" ||
+        String(req.headers.accept || "").includes("application/json");
+      if (wantsJsonFallback) {
+        return res.status(500).json({
+          success: false,
+          message:
+            "An error occurred while processing your response. Please try again or contact support.",
+        });
+      }
       res.status(500).send(`
         <html>
           <head><title>SOS Response Error</title></head>
@@ -5812,7 +5892,21 @@ ORDER BY ACL.EventDateTime DESC;
         const removedCountryCodes = Array.isArray(body.removedCountryCodes)
           ? body.removedCountryCodes
           : [];
+        const addedLocationKeys = Array.isArray(body.addedLocationKeys)
+          ? body.addedLocationKeys.map((k) => String(k || "").trim()).filter(Boolean)
+          : [];
+        const addedCountryCodes = Array.isArray(body.addedCountryCodes)
+          ? body.addedCountryCodes
+              .map((c) =>
+                String(c || "")
+                  .trim()
+                  .toUpperCase(),
+              )
+              .filter(Boolean)
+          : [];
         const replaceSelections = body.replaceSelections === true;
+        const hasTravelAddDelta =
+          addedLocationKeys.length > 0 || addedCountryCodes.length > 0;
 
         if (!tenantId) {
           return res.status(400).json({
@@ -5962,19 +6056,59 @@ ORDER BY ACL.EventDateTime DESC;
                 }
               }
             } else if (filtered.length > 0) {
-              const advisories = await travelAdvisory.getProcessedAdvisories();
-              const advisoryByCode = {};
-              for (const adv of advisories) {
-                const code = (adv.countryCode || "").toUpperCase();
-                if (code) advisoryByCode[code] = adv;
+              const addedKeySet = new Set(addedLocationKeys);
+              const addedCodeSet = new Set(addedCountryCodes);
+
+              // When client sends add-delta, only third-party sync newly added locations.
+              // Otherwise (backward compatible) sync the full selection.
+              const syncUsCityLocs = hasTravelAddDelta
+                ? usCityLocs.filter((l) => addedKeySet.has(travelLocKey(l)))
+                : usCityLocs;
+              const syncNonUsCodes = hasTravelAddDelta
+                ? nonUsCodes.filter(
+                    (code) =>
+                      addedCodeSet.has(code) ||
+                      addedKeySet.has(`${code}||`),
+                  )
+                : nonUsCodes;
+              const syncUsCountryOnly = hasTravelAddDelta
+                ? hasUsCountryOnly &&
+                  (addedCodeSet.has("US") ||
+                    addedCodeSet.has("USA") ||
+                    addedKeySet.has("US||") ||
+                    addedKeySet.has("USA||"))
+                : hasUsCountryOnly;
+
+              const needsStateDept =
+                syncNonUsCodes.length > 0 || syncUsCountryOnly;
+              const needsIpaws = syncUsCityLocs.length > 0;
+
+              console.log("[Travel] saveTravel sync scope", {
+                hasTravelAddDelta,
+                addedLocationKeys,
+                addedCountryCodes,
+                syncNonUsCodes,
+                syncUsCountryOnly,
+                syncUsCityCount: syncUsCityLocs.length,
+                totalUsCityCount: usCityLocs.length,
+              });
+
+              let advisoryByCode = {};
+              if (needsStateDept) {
+                const advisories =
+                  await travelAdvisory.getProcessedAdvisories();
+                for (const adv of advisories) {
+                  const code = (adv.countryCode || "").toUpperCase();
+                  if (code) advisoryByCode[code] = adv;
+                }
               }
               const now = new Date();
 
               for (const row of filtered) {
                 const selectedId = row.TravelAdvisorySelectedCountriesId;
 
-                // Non-U.S. countries → State Dept country advisory
-                for (const code of nonUsCodes) {
+                // Non-U.S. countries → State Dept country advisory (new only when delta)
+                for (const code of syncNonUsCodes) {
                   const advisory = advisoryByCode[code];
                   if (advisory) {
                     await travelSelectedDb.upsertSavedAdvisory(
@@ -5989,7 +6123,7 @@ ORDER BY ACL.EventDateTime DESC;
                 }
 
                 // U.S. country-only chip → State Dept U.S. advisory
-                if (hasUsCountryOnly) {
+                if (syncUsCountryOnly) {
                   const usAdv = advisoryByCode.US || advisoryByCode.USA || null;
                   if (usAdv) {
                     await travelSelectedDb.upsertSavedAdvisory(
@@ -6003,32 +6137,120 @@ ORDER BY ACL.EventDateTime DESC;
                   }
                 }
 
-                // U.S. cities → FEMA IPAWS per city LocationKey
-                for (const loc of usCityLocs) {
-                  const locKey = travelLocKey(loc);
-                  let alerts = [];
+                // U.S. cities → FEMA IPAWS (new cities only when delta)
+                if (needsIpaws) {
+                  console.log("[IPAWS] saveTravel sync US cities", {
+                    usCityCount: syncUsCityLocs.length,
+                    cities: syncUsCityLocs.map((l) => ({
+                      city: l.cityName,
+                      state: l.state,
+                      countryCode: l.countryCode,
+                      lat: l.latitude,
+                      lon: l.longitude,
+                      key: travelLocKey(l),
+                    })),
+                  });
+                  const ipawsCacheDb = require("./travelServices/ipaws-alert-cache-db");
+
+                  // Prefer shared DB cache (cron-warmed); one live CAP fetch if needed.
+                  let matchAlerts = [];
+                  let alertSource = "cache";
                   try {
-                    alerts = await ipawsFeed.getIpawsAlertsForLocation(loc);
-                  } catch (err) {
+                    matchAlerts = await ipawsCacheDb.getActiveIpawsAlerts();
+                  } catch (cacheErr) {
                     console.error(
-                      `saveTravelAdvisorySelection IPAWS fetch failed for ${locKey}:`,
-                      err && err.message,
+                      "saveTravelAdvisorySelection IPAWS cache load failed:",
+                      cacheErr && cacheErr.message,
                     );
-                    alerts = [];
+                    matchAlerts = [];
                   }
-                  if (!Array.isArray(alerts) || alerts.length === 0) {
-                    continue;
-                  }
-                  const advisory = ipawsFeed.toTravelAdvisory(alerts, loc);
-                  await travelSelectedDb.upsertSavedAdvisory(
-                    selectedId,
-                    "US",
-                    advisory,
-                    now,
-                    "Travel",
-                    locKey,
+
+                  const anyCacheMatch = syncUsCityLocs.some(
+                    (loc) =>
+                      ipawsFeed.getIpawsAlertsForLocationFromAlerts(
+                        matchAlerts,
+                        loc,
+                      ).length > 0,
                   );
-                  detailSavedCount++;
+
+                  if (!anyCacheMatch || !Array.isArray(matchAlerts) || matchAlerts.length === 0) {
+                    try {
+                      const parsed =
+                        await ipawsFeed.fetchAndParseRecentAlerts();
+                      const liveAlerts = Array.isArray(parsed.alerts)
+                        ? parsed.alerts
+                        : [];
+                      if (liveAlerts.length > 0) {
+                        matchAlerts = liveAlerts;
+                        alertSource = "live";
+                        try {
+                          await ipawsCacheDb.upsertIpawsAlerts(
+                            liveAlerts,
+                            now,
+                          );
+                        } catch (upsertCacheErr) {
+                          console.error(
+                            "saveTravelAdvisorySelection IPAWS cache upsert failed:",
+                            upsertCacheErr && upsertCacheErr.message,
+                          );
+                        }
+                      }
+                    } catch (liveErr) {
+                      console.error(
+                        "saveTravelAdvisorySelection IPAWS live fetch failed:",
+                        liveErr && liveErr.message,
+                      );
+                    }
+                  }
+
+                  const cityKeysWithAlerts = [];
+                  for (const loc of syncUsCityLocs) {
+                    const locKey = travelLocKey(loc);
+                    const alerts =
+                      ipawsFeed.getIpawsAlertsForLocationFromAlerts(
+                        matchAlerts,
+                        loc,
+                      );
+                    console.log("[IPAWS] saveTravel city outcome", {
+                      locKey,
+                      alertCount: Array.isArray(alerts) ? alerts.length : 0,
+                      source: alertSource,
+                      note:
+                        !Array.isArray(alerts) || alerts.length === 0
+                          ? "EMPTY — skip upsert (no Travel card)"
+                          : "upserting IPAWS advisory",
+                    });
+                    if (!Array.isArray(alerts) || alerts.length === 0) {
+                      continue;
+                    }
+                    const advisory = ipawsFeed.toTravelAdvisory(alerts, loc);
+                    if (!advisory) {
+                      console.log("[IPAWS] toTravelAdvisory returned null", {
+                        locKey,
+                      });
+                      continue;
+                    }
+                    if (locKey) cityKeysWithAlerts.push(locKey);
+                    console.log("[IPAWS] upserting advisory", {
+                      locKey,
+                      title: advisory.title,
+                      hasLink: Boolean(advisory.link),
+                      source: alertSource,
+                    });
+                    await travelSelectedDb.upsertSavedAdvisory(
+                      selectedId,
+                      "US",
+                      advisory,
+                      now,
+                      "Travel",
+                      locKey,
+                    );
+                    detailSavedCount++;
+                  }
+                  console.log("[IPAWS] saveTravel cityKeysWithAlerts", {
+                    cityKeysWithAlerts,
+                    keepCityKeys,
+                  });
                 }
 
                 if (

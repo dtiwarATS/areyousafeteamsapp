@@ -84,6 +84,11 @@ function initJob() {
         cron: "*/30 * * * *",
       },
       {
+        name: "ipaws-advisory-sync-job",
+        path: path.join(__dirname, "jobs", "ipaws-advisory-sync-job.js"),
+        cron: "*/25 * * * *",
+      },
+      {
         name: "GetAllUser-job",
         path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
         cron: "*/15 * * * *",
@@ -141,6 +146,46 @@ app.get("/", (req, res) => {
 const server = app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
   socketService.attach(server);
+
+  // Warm CountryList/CityList catalogs so first location search is fast.
+  const travelLocationsDb = require("./travelServices/travel-advisory-locations-db");
+  const weatherLocationsDb = require("./travelServices/weather-alert-locations-db");
+
+  const travelWarmStartedAt = Date.now();
+  travelLocationsDb
+    .warmTravelAdvisoryLocationsCache()
+    .then((catalog) => {
+      const ms = Date.now() - travelWarmStartedAt;
+      const countries = catalog?.countries?.length ?? 0;
+      const cities = catalog?.cities?.length ?? 0;
+      console.log(
+        `Travel advisory locations cache warmed in ${ms}ms (countries=${countries}, cities=${cities})`,
+      );
+    })
+    .catch((err) => {
+      console.error(
+        "Travel advisory locations cache warm-up failed:",
+        err?.message || err,
+      );
+    });
+
+  const weatherWarmStartedAt = Date.now();
+  weatherLocationsDb
+    .warmWeatherAlertLocationsCache()
+    .then((catalog) => {
+      const ms = Date.now() - weatherWarmStartedAt;
+      const countries = catalog?.countries?.length ?? 0;
+      const cities = catalog?.cities?.length ?? 0;
+      console.log(
+        `Weather alert locations cache warmed in ${ms}ms (countries=${countries}, cities=${cities})`,
+      );
+    })
+    .catch((err) => {
+      console.error(
+        "Weather alert locations cache warm-up failed:",
+        err?.message || err,
+      );
+    });
 });
 
 server.keepAliveTimeout = 61 * 1000;

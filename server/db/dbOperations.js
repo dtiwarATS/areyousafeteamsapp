@@ -539,19 +539,19 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
       },
       {
         type: "TextBlock",
-        text: "To finish setting things up and get quick access to the Dashboard tab with the SOS button, Teams will ask for your permission.",
+        text: "To get started, click the button below, then select **Add** and **Open**.",
         wrap: true,
       },
       {
         type: "TextBlock",
-        text: "It’s a quick, one-time step. Just click the button below and hit **Agree** when prompted.",
+        text: "This is a quick, one-time step.",
         wrap: true,
       },
     ],
     actions: [
       {
         type: "Action.OpenUrl",
-        title: "Complete Setup",
+        title: "Get Started",
         url: "https://teams.microsoft.com/l/app/884e521a-dadc-41e9-a8af-fcaa907e783e?source=app-details-dialog",
       },
     ],
