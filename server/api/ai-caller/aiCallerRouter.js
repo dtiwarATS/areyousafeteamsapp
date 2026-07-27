@@ -242,4 +242,59 @@ router.get("/sos-stats", async (req, res) => {
   }
 });
 
+/** Preview officers — proxies existing getEmergencyContactUsers. */
+router.get("/sos-officers", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const userAadObjId = req.query.userAadObjId || req.query.userId;
+  if (!userAadObjId) {
+    return res.status(400).json({ error: "userAadObjId is required", officers: [], count: 0 });
+  }
+  try {
+    const result = await sos.listSosOfficers({
+      userAadObjId: String(userAadObjId),
+      teamId: ids.teamId,
+    });
+    res.json(result);
+  } catch (err) {
+    console.error("[ai-caller] sos-officers error", err);
+    res.status(500).json({
+      error: err.message || "Failed to list SOS officers",
+      officers: [],
+      count: 0,
+    });
+  }
+});
+
+/**
+ * Send SOS — thin proxy to existing requestAssistance + sendNeedAssistanceProactiveMessage.
+ * Does not modify those tab endpoints.
+ */
+router.post("/sos-send", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const userAadObjId = req.body?.userAadObjId || req.body?.userId;
+  if (!userAadObjId) {
+    return res.status(400).json({ error: "userAadObjId is required", source: "none" });
+  }
+  try {
+    const result = await sos.sendSosViaExistingApis({
+      userAadObjId: String(userAadObjId),
+      userName: req.body?.userName,
+      teamId: ids.teamId,
+      message: req.body?.message,
+    });
+    if (result?.error) {
+      return res.status(400).json(result);
+    }
+    res.json(result);
+  } catch (err) {
+    console.error("[ai-caller] sos-send error", err);
+    res.status(500).json({
+      error: err.message || "Failed to send SOS",
+      source: "none",
+    });
+  }
+});
+
 module.exports = router;

@@ -272,7 +272,158 @@ async function getSosStats({ teamId, city, location, sinceDays }) {
   }
 }
 
+/**
+ * Thin helpers that call existing Tab SOS HTTP APIs (no duplicated routing logic).
+ */
+function getTabBaseUrl() {
+  return (
+    process.env.BASE_URL ||
+    (process.env.serviceUrl && String(process.env.serviceUrl).replace("/api/messages", "")) ||
+    ""
+  );
+}
+
+/**
+ * Preview officers via existing getEmergencyContactUsers API.
+ */
+async function listSosOfficers({ userAadObjId, teamId }) {
+  const axios = require("axios");
+  const baseUrl = getTabBaseUrl();
+  if (!baseUrl) {
+    return { source: "none", error: "BASE_URL not configured", officers: [], count: 0 };
+  }
+  if (!userAadObjId || !teamId) {
+    return { source: "none", error: "userAadObjId and teamId are required", officers: [], count: 0 };
+  }
+
+  const url =
+    `${baseUrl}/areyousafetabhandler/getEmergencyContactUsers` +
+    `?userId=${encodeURIComponent(userAadObjId)}&teamid=${encodeURIComponent(teamId)}`;
+  const res = await axios.get(url, { validateStatus: () => true });
+  const data = res.data;
+  if (!data || !Array.isArray(data)) {
+    return { source: "none", officers: [], count: 0, error: "No safety officers configured" };
+  }
+
+  const contactsRaw = Array.isArray(data[0]) ? data[0] : data;
+  const initiatorKey = String(userAadObjId).trim().toLowerCase();
+  const seen = new Set();
+  const officers = [];
+  for (const item of contactsRaw) {
+    if (!item || typeof item !== "object") continue;
+    const aadId = item.user_aadobject_id != null ? String(item.user_aadobject_id).trim() : "";
+    if (!aadId) continue;
+    const key = aadId.toLowerCase();
+    if (key === initiatorKey || seen.has(key)) continue;
+    seen.add(key);
+    officers.push({
+      id: aadId,
+      name: item.user_name || aadId,
+      email: item.email || undefined,
+    });
+  }
+
+  return {
+    source: officers.length ? "org_data" : "none",
+    officers,
+    count: officers.length,
+    teamId,
+  };
+}
+
+/**
+ * Send SOS by calling existing requestAssistance + sendNeedAssistanceProactiveMessage
+ * (same sequence as desktop socket handleSosRequest).
+ */
+async function sendSosViaExistingApis({ userAadObjId, userName, teamId, message }) {
+  const axios = require("axios");
+  const moment = require("moment");
+  const baseUrl = getTabBaseUrl();
+  if (!baseUrl) {
+    return { error: "BASE_URL not configured", source: "none" };
+  }
+  if (!userAadObjId || !teamId) {
+    return { error: "userAadObjId and teamId are required", source: "none" };
+  }
+
+  const displayName = String(userName || "Safety Assistant user").trim() || "User";
+  const teamIdParam = teamId;
+  const ts = moment().format("MM-DD-YYYY hh:mm A");
+
+  const step1Url =
+    `${baseUrl}/areyousafetabhandler/requestAssistance/` +
+    `?userId=${encodeURIComponent(userAadObjId)}` +
+    `&ts=${encodeURIComponent(ts)}` +
+    `&teamid=${encodeURIComponent(teamIdParam)}`;
+  const step1Res = await axios.get(step1Url, { validateStatus: () => true });
+  const step1Data = step1Res.data;
+  if (
+    step1Data === "no safety officers" ||
+    (typeof step1Data === "object" && !step1Data?.id)
+  ) {
+    return {
+      error:
+        step1Data === "no safety officers"
+          ? "No safety officers configured"
+          : "Failed to create assistance record",
+      source: "none",
+    };
+  }
+
+  const sosRequestId = typeof step1Data === "object" ? step1Data.id : step1Data;
+  if (!sosRequestId) {
+    return { error: "Invalid requestAssistance response", source: "none" };
+  }
+
+  const officersPreview = await listSosOfficers({ userAadObjId, teamId: teamIdParam });
+  const notifyList = officersPreview.officers || [];
+  const sentToNames =
+    (typeof step1Data === "object" && step1Data.sent_to_names) ||
+    notifyList.map((a) => a.name || a.id).filter(Boolean).join(", ");
+
+  const comment = message != null ? String(message).trim() : "";
+
+  const incData = [
+    notifyList.map((o) => ({
+      user_aadobject_id: o.id,
+      user_name: o.name,
+      email: o.email,
+    })),
+    [{ user_id: userAadObjId, user_name: displayName }],
+  ];
+  const step2Url =
+    `${baseUrl}/areyousafetabhandler/sendNeedAssistanceProactiveMessage/` +
+    `?userId=${encodeURIComponent(userAadObjId)}` +
+    `&teamId=${encodeURIComponent(teamIdParam)}` +
+    `&requestAssistance=${encodeURIComponent(sosRequestId)}` +
+    `&issendemail=true`;
+
+  const step2Res = await axios.post(
+    step2Url,
+    { data: { adminlist: JSON.stringify(incData), ulocData: null } },
+    { headers: { "Content-Type": "application/json" }, validateStatus: () => true }
+  );
+
+  console.log("[ai-caller] sendSosViaExistingApis", {
+    sosRequestId,
+    officerCount: notifyList.length,
+    step2Status: step2Res.status,
+  });
+
+  return {
+    source: "org_data",
+    sosId: sosRequestId,
+    sentTo: notifyList.length,
+    sentToNames,
+    officers: notifyList,
+    caption: `SOS sent to ${notifyList.length || "safety"} officer${notifyList.length === 1 ? "" : "s"}.`,
+    message: comment || undefined,
+  };
+}
+
 module.exports = {
   getSosEvents,
   getSosStats,
+  listSosOfficers,
+  sendSosViaExistingApis,
 };
