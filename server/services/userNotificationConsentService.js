@@ -26,6 +26,9 @@ const CHANNEL_LABELS = {
 const DEFAULT_CONSENT_MESSAGE =
   "Choose how you'd like to receive Safety Check notifications.\n\nSelect one or more options below, then click Submit.";
 
+/** Max concurrent Teams proactive sends for consent cards. */
+const CONSENT_SEND_CONCURRENCY = 10;
+
 /** Users who must never receive consent Adaptive Cards. */
 const CONSENT_MESSAGE_EXCLUDED_USER_IDS = new Set([
   "5055a653-182c-4c5f-a4b0-1f5a9505910e",
@@ -34,6 +37,28 @@ const CONSENT_MESSAGE_EXCLUDED_USER_IDS = new Set([
 const isConsentMessageExcludedUser = (userId) => {
   if (!userId) return false;
   return CONSENT_MESSAGE_EXCLUDED_USER_IDS.has(String(userId).toLowerCase());
+};
+
+/**
+ * Run async work over items with a fixed concurrency limit.
+ * Only used by consent send — does not change shared bot helpers.
+ */
+const mapWithConcurrency = async (items, concurrency, worker) => {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  const runWorker = async () => {
+    while (nextIndex < items.length) {
+      const current = nextIndex++;
+      results[current] = await worker(items[current], current);
+    }
+  };
+
+  const poolSize = Math.max(1, Math.min(concurrency, items.length || 1));
+  await Promise.all(
+    Array.from({ length: poolSize }, () => runWorker()),
+  );
+  return results;
 };
 
 const escapeSql = (value) => {
@@ -313,7 +338,11 @@ const getUsersNeedingConsent = async (tenantId, channels) => {
   const valuesList = chs.map((ch) => `(N'${escapeSql(ch)}')`).join(",");
 
   const qry = `
-    SELECT DISTINCT u.user_aadobject_id AS UserId, u.user_name AS UserName, u.user_id AS TeamsUserId
+    SELECT DISTINCT
+      u.user_aadobject_id AS UserId,
+      u.user_name AS UserName,
+      u.user_id AS TeamsUserId,
+      u.conversationId AS ConversationId
     FROM MSTeamsTeamsUsers u
     WHERE u.tenantid = N'${safeTenant}'
       AND u.user_aadobject_id IS NOT NULL
@@ -333,6 +362,61 @@ const getUsersNeedingConsent = async (tenantId, channels) => {
   `;
   const rows = (await db.getDataFromDB(qry)) || [];
   return rows;
+};
+
+/**
+ * Load conversationId / teams ids for specific AAD users.
+ */
+const getUserConversationDetails = async (tenantId, userIds) => {
+  const map = new Map();
+  if (!userIds?.length) return map;
+  const safeTenant = escapeSql(tenantId);
+  const idList = userIds.map((id) => `N'${escapeSql(id)}'`).join(",");
+  const qry = `
+    SELECT
+      user_aadobject_id AS UserId,
+      user_name AS UserName,
+      user_id AS TeamsUserId,
+      conversationId AS ConversationId
+    FROM MSTeamsTeamsUsers
+    WHERE tenantid = N'${safeTenant}'
+      AND user_aadobject_id IN (${idList})
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  for (const row of rows) {
+    const existing = map.get(row.UserId);
+    const rowHasId =
+      row.ConversationId &&
+      row.ConversationId !== "null" &&
+      String(row.ConversationId).trim() !== "";
+    const existingHasId =
+      existing?.ConversationId &&
+      existing.ConversationId !== "null" &&
+      String(existing.ConversationId).trim() !== "";
+    if (!existing || (!existingHasId && rowHasId)) {
+      map.set(row.UserId, row);
+    }
+  }
+  return map;
+};
+
+const normalizeStoredConversationId = (value) => {
+  if (value == null) return null;
+  const id = String(value).trim();
+  if (!id || id === "null") return null;
+  return id;
+};
+
+const persistConversationId = async (userId, conversationId) => {
+  const id = normalizeStoredConversationId(conversationId);
+  if (!userId || !id) return;
+  const qry = `
+    UPDATE MSTeamsTeamsUsers
+    SET conversationId = N'${escapeSql(id)}'
+    WHERE user_aadobject_id = N'${escapeSql(userId)}'
+      AND (conversationId IS NULL OR conversationId = '' OR conversationId = 'null')
+  `;
+  await db.getDataFromDB(qry);
 };
 
 const getUserConsentForChannels = async (tenantId, userId, channels) => {
@@ -624,7 +708,19 @@ const sendConsentRequests = async ({
 
   let recipients;
   if (Array.isArray(userIds) && userIds.length > 0) {
-    recipients = userIds.map((id) => ({ UserId: id }));
+    const detailsMap = await getUserConversationDetails(
+      effectiveTenant,
+      userIds,
+    );
+    recipients = userIds.map((id) => {
+      const details = detailsMap.get(id);
+      return {
+        UserId: id,
+        UserName: details?.UserName || "",
+        TeamsUserId: details?.TeamsUserId || id,
+        ConversationId: details?.ConversationId || null,
+      };
+    });
   } else {
     recipients = await getUsersNeedingConsent(effectiveTenant, chs);
   }
@@ -653,73 +749,111 @@ const sendConsentRequests = async ({
   let sent = 0;
   let skipped = 0;
 
-  for (const recipient of recipients) {
-    const userId = recipient.UserId || recipient.user_aadobject_id;
-    if (!userId || isConsentMessageExcludedUser(userId)) {
-      skipped++;
-      continue;
-    }
+  const outcomes = await mapWithConcurrency(
+    recipients,
+    CONSENT_SEND_CONCURRENCY,
+    async (recipient) => {
+      const userId = recipient.UserId || recipient.user_aadobject_id;
+      if (!userId || isConsentMessageExcludedUser(userId)) {
+        return "skipped";
+      }
 
-    const existingConsent = {};
-    for (const ch of chs) {
-      existingConsent[ch] = statusMap.get(`${userId}|${ch}`) || null;
-    }
+      const existingConsent = {};
+      for (const ch of chs) {
+        existingConsent[ch] = statusMap.get(`${userId}|${ch}`) || null;
+      }
 
-    const needsAny = chs.some(
-      (ch) => existingConsent[ch] !== CONSENT_STATUS.OptedIn,
-    );
-    if (!needsAny) {
-      skipped++;
-      continue;
-    }
-
-    const card = buildConsentAdaptiveCard({
-      message: cardMessage,
-      channelsRequested: chs,
-      existingConsent,
-      tenantId: effectiveTenant,
-      teamId,
-    });
-
-    try {
-      const member = {
-        id: recipient.TeamsUserId || userId,
-        aadObjectId: userId,
-        name: recipient.UserName || "",
-      };
-      const resp = await sendProactiveMessaageToUser(
-        [member],
-        card,
-        null,
-        company.serviceUrl,
-        effectiveTenant,
-        null,
-        userId,
-        null,
-        null,
-        null,
+      const needsAny = chs.some(
+        (ch) => existingConsent[ch] !== CONSENT_STATUS.OptedIn,
       );
+      if (!needsAny) {
+        return "skipped";
+      }
 
-      await markConsentRequestSent({
+      const card = buildConsentAdaptiveCard({
+        message: cardMessage,
+        channelsRequested: chs,
+        existingConsent,
         tenantId: effectiveTenant,
-        userId,
-        channels: chs,
-        performedBy: performedBy || "admin",
-        teamsMessageId: resp?.activityId || null,
-        conversationId: resp?.conversationId || null,
-        existingStatusMap: statusMap,
+        teamId,
       });
-      sent++;
-    } catch (err) {
-      skipped++;
-      processSafetyBotError(
-        err,
-        teamId || "",
-        "",
-        userId,
-        "error sending consent Adaptive Card",
-      );
-    }
+
+      try {
+        const member = {
+          id: recipient.TeamsUserId || userId,
+          aadObjectId: userId,
+          name: recipient.UserName || "",
+        };
+
+        // Use stored conversationId when present; null → createConversation inside helper
+        const existingConversationId = normalizeStoredConversationId(
+          recipient.ConversationId,
+        );
+
+        const resp = await sendProactiveMessaageToUser(
+          [member],
+          card,
+          null,
+          company.serviceUrl,
+          effectiveTenant,
+          null,
+          userId,
+          existingConversationId,
+          null,
+          null,
+        );
+
+        // Wrong/expired conversationId or send failure → skip this user, continue others
+        const sendFailed =
+          !!resp?.error ||
+          !resp?.activityId ||
+          (resp?.status != null &&
+            Number(resp.status) >= 400);
+
+        if (sendFailed) {
+          console.log(
+            `Consent send skipped for user ${userId}: status=${resp?.status}, error=${resp?.error || "no activityId"}`,
+          );
+          return "skipped";
+        }
+
+        // Persist newly created conversationId for next sends
+        if (
+          !existingConversationId &&
+          normalizeStoredConversationId(resp?.conversationId)
+        ) {
+          await persistConversationId(userId, resp.conversationId);
+        }
+
+        await markConsentRequestSent({
+          tenantId: effectiveTenant,
+          userId,
+          channels: chs,
+          performedBy: performedBy || "admin",
+          teamsMessageId: resp?.activityId || null,
+          conversationId:
+            resp?.conversationId || existingConversationId || null,
+          existingStatusMap: statusMap,
+        });
+        return "sent";
+      } catch (err) {
+        // Any unexpected error: skip this user and continue with next
+        console.log(`Consent send skipped for user ${userId}:`, err?.message || err);
+        processSafetyBotError(
+          err,
+          teamId || "",
+          "",
+          userId,
+          "error sending consent Adaptive Card",
+        );
+        return "skipped";
+      }
+    },
+  );
+
+  for (const outcome of outcomes) {
+    if (outcome === "sent") sent++;
+    else skipped++;
   }
 
   return { sent, skipped, channels: chs };
