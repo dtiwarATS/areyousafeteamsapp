@@ -1347,7 +1347,9 @@ WHEN NOT MATCHED THEN
         const user = context.activity.from;
         const userId = user?.aadObjectId || user?.id;
         const tenantId = actionData.tenantId;
+        const teamId = actionData.teamId || null;
         const channelsRequested = actionData.channelsRequested || [];
+        const cardMessage = actionData.message || null;
         let selectedChannels = actionData.selectedChannels;
         if (typeof selectedChannels === "string") {
           selectedChannels = selectedChannels
@@ -1359,20 +1361,41 @@ WHEN NOT MATCHED THEN
           selectedChannels = selectedChannels ? [selectedChannels] : [];
         }
 
+        let justSavedChannels = [];
+        let existingConsent = {};
         if (tenantId && userId) {
-          await userNotificationConsentService.recordConsentResponse({
-            tenantId,
-            userId,
-            channelsRequested,
-            selectedChannels,
-            performedBy: userId,
-          });
+          existingConsent =
+            await userNotificationConsentService.getUserConsentForChannels(
+              tenantId,
+              userId,
+              channelsRequested,
+            );
+          justSavedChannels =
+            await userNotificationConsentService.recordConsentResponse({
+              tenantId,
+              userId,
+              selectedChannels,
+              performedBy: userId,
+              existingConsent,
+            });
+          // Refresh map so rebuilt card shows all OptedIn (previous + new).
+          existingConsent =
+            await userNotificationConsentService.getUserConsentForChannels(
+              tenantId,
+              userId,
+              channelsRequested,
+            );
         }
 
         adaptiveCard =
-          userNotificationConsentService.buildConsentConfirmationCard(
-            selectedChannels,
-          );
+          userNotificationConsentService.buildConsentAdaptiveCard({
+            message: cardMessage,
+            channelsRequested,
+            existingConsent,
+            tenantId,
+            teamId,
+            justSavedChannels,
+          });
         const cards = CardFactory.adaptiveCard(adaptiveCard);
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;

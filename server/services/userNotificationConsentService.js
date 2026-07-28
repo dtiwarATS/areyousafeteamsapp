@@ -337,28 +337,45 @@ const getUsersNeedingConsent = async (tenantId, channels) => {
   const safeTenant = escapeSql(tenantId);
   const valuesList = chs.map((ch) => `(N'${escapeSql(ch)}')`).join(",");
 
+  // One row per AAD user even when MSTeamsTeamsUsers has multiple team rows.
+  // Prefer a row that already has conversationId.
   const qry = `
-    SELECT DISTINCT
-      u.user_aadobject_id AS UserId,
-      u.user_name AS UserName,
-      u.user_id AS TeamsUserId,
-      u.conversationId AS ConversationId
-    FROM MSTeamsTeamsUsers u
-    WHERE u.tenantid = N'${safeTenant}'
-      AND u.user_aadobject_id IS NOT NULL
-      AND u.user_aadobject_id <> ''
-      AND EXISTS (
-        SELECT 1
-        FROM (VALUES ${valuesList}) AS req(Channel)
-        WHERE NOT EXISTS (
+    SELECT UserId, UserName, TeamsUserId, ConversationId
+    FROM (
+      SELECT
+        u.user_aadobject_id AS UserId,
+        u.user_name AS UserName,
+        u.user_id AS TeamsUserId,
+        u.conversationId AS ConversationId,
+        ROW_NUMBER() OVER (
+          PARTITION BY u.user_aadobject_id
+          ORDER BY
+            CASE
+              WHEN u.conversationId IS NOT NULL
+                AND LTRIM(RTRIM(u.conversationId)) <> ''
+                AND u.conversationId <> 'null'
+              THEN 0 ELSE 1
+            END,
+            u.id DESC
+        ) AS rn
+      FROM MSTeamsTeamsUsers u
+      WHERE u.tenantid = N'${safeTenant}'
+        AND u.user_aadobject_id IS NOT NULL
+        AND u.user_aadobject_id <> ''
+        AND EXISTS (
           SELECT 1
-          FROM UserNotificationConsent c
-          WHERE c.TenantId = N'${safeTenant}'
-            AND c.UserId = u.user_aadobject_id
-            AND c.NotificationChannel = req.Channel
-            AND c.ConsentStatus = N'${CONSENT_STATUS.OptedIn}'
+          FROM (VALUES ${valuesList}) AS req(Channel)
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM UserNotificationConsent c
+            WHERE c.TenantId = N'${safeTenant}'
+              AND c.UserId = u.user_aadobject_id
+              AND c.NotificationChannel = req.Channel
+              AND c.ConsentStatus = N'${CONSENT_STATUS.OptedIn}'
+          )
         )
-      )
+    ) ranked
+    WHERE ranked.rn = 1
   `;
   const rows = (await db.getDataFromDB(qry)) || [];
   return rows;
@@ -407,6 +424,36 @@ const normalizeStoredConversationId = (value) => {
   return id;
 };
 
+/**
+ * One Adaptive Card per AAD user. Same person can have multiple
+ * MSTeamsTeamsUsers rows (multi-team).
+ */
+const dedupeRecipientsByUserId = (recipients) => {
+  const map = new Map();
+  for (const r of recipients || []) {
+    const userId = r.UserId || r.user_aadobject_id;
+    if (!userId) continue;
+    const existing = map.get(userId);
+    const rowHasId = !!normalizeStoredConversationId(r.ConversationId);
+    const existingHasId = !!normalizeStoredConversationId(
+      existing?.ConversationId,
+    );
+    if (!existing || (!existingHasId && rowHasId)) {
+      map.set(userId, {
+        UserId: userId,
+        UserName: r.UserName || r.user_name || existing?.UserName || "",
+        TeamsUserId:
+          r.TeamsUserId || r.user_id || existing?.TeamsUserId || userId,
+        ConversationId:
+          normalizeStoredConversationId(r.ConversationId) ||
+          existing?.ConversationId ||
+          null,
+      });
+    }
+  }
+  return Array.from(map.values());
+};
+
 const persistConversationId = async (userId, conversationId) => {
   const id = normalizeStoredConversationId(conversationId);
   if (!userId || !id) return;
@@ -436,14 +483,19 @@ const buildConsentAdaptiveCard = ({
   existingConsent = {},
   tenantId,
   teamId = null,
+  justSavedChannels = null,
 }) => {
   const chs = normalizeChannels(channelsRequested);
   const defaultTitle =
     "Choose how you'd like to receive Safety Check notifications.";
   const defaultInstruction =
     "Select one or more options below, then click Submit.";
+  const cardMessage =
+    message && String(message).trim()
+      ? String(message).trim()
+      : DEFAULT_CONSENT_MESSAGE;
 
-  const raw = message && String(message).trim() ? String(message).trim() : "";
+  const raw = cardMessage;
   const paragraphs = raw
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -471,48 +523,76 @@ const buildConsentAdaptiveCard = ({
     }
   }
 
-  const choices = chs.map((ch) => {
-    const optedIn = existingConsent[ch] === CONSENT_STATUS.OptedIn;
-    return {
-      title: optedIn
-        ? `${CHANNEL_LABELS[ch]} ✓ Consented`
-        : CHANNEL_LABELS[ch],
-      value: ch,
-    };
-  });
+  const savedChannels = chs.filter(
+    (ch) => existingConsent[ch] === CONSENT_STATUS.OptedIn,
+  );
+  const remainingChannels = chs.filter(
+    (ch) => existingConsent[ch] !== CONSENT_STATUS.OptedIn,
+  );
 
-  const preselected = chs
-    .filter((ch) => existingConsent[ch] === CONSENT_STATUS.OptedIn)
-    .join(",");
+  const body = [
+    {
+      type: "TextBlock",
+      text: title,
+      weight: "Bolder",
+      wrap: true,
+      size: "Medium",
+    },
+    {
+      type: "TextBlock",
+      text: instruction,
+      wrap: true,
+      spacing: "Small",
+    },
+  ];
+
+  // Saved options: checked + disabled (Teams cannot disable per-choice).
+  if (savedChannels.length) {
+    body.push({
+      type: "Input.ChoiceSet",
+      id: "savedChannels",
+      style: "expanded",
+      isMultiSelect: true,
+      isEnabled: false,
+      value: savedChannels.join(","),
+      choices: savedChannels.map((ch) => ({
+        title: CHANNEL_LABELS[ch],
+        value: ch,
+      })),
+    });
+  }
+
+  // Remaining options stay selectable.
+  if (remainingChannels.length) {
+    body.push({
+      type: "Input.ChoiceSet",
+      id: "selectedChannels",
+      style: "expanded",
+      isMultiSelect: true,
+      choices: remainingChannels.map((ch) => ({
+        title: CHANNEL_LABELS[ch],
+        value: ch,
+      })),
+    });
+  }
+
+  const justSaved = normalizeChannels(justSavedChannels || []);
+  if (justSaved.length) {
+    const labels = justSaved.map((ch) => CHANNEL_LABELS[ch]).join(", ");
+    body.push({
+      type: "TextBlock",
+      text: `✓ Your preferences have been saved: ${labels}.`,
+      wrap: true,
+      spacing: "Medium",
+    });
+  }
 
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     type: "AdaptiveCard",
     version: "1.4",
     appId: process.env.MicrosoftAppId,
-    body: [
-      {
-        type: "TextBlock",
-        text: title,
-        weight: "Bolder",
-        wrap: true,
-        size: "Medium",
-      },
-      {
-        type: "TextBlock",
-        text: instruction,
-        wrap: true,
-        spacing: "Small",
-      },
-      {
-        type: "Input.ChoiceSet",
-        id: "selectedChannels",
-        style: "expanded",
-        isMultiSelect: true,
-        value: preselected,
-        choices,
-      },
-    ],
+    body,
     actions: [
       {
         type: "Action.Execute",
@@ -523,28 +603,8 @@ const buildConsentAdaptiveCard = ({
           tenantId,
           teamId,
           channelsRequested: chs,
+          message: cardMessage,
         },
-      },
-    ],
-  };
-};
-
-const buildConsentConfirmationCard = (selectedChannels) => {
-  const labels = normalizeChannels(selectedChannels)
-    .map((ch) => CHANNEL_LABELS[ch])
-    .join(", ");
-  const text = labels
-    ? `✔️ Your notification preferences have been saved: ${labels}.`
-    : "✔️ Your notification preferences have been saved. You will only receive Safety Check notifications via Microsoft Teams until you opt in to other channels.";
-  return {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    type: "AdaptiveCard",
-    version: "1.4",
-    body: [
-      {
-        type: "TextBlock",
-        text,
-        wrap: true,
       },
     ],
   };
@@ -591,33 +651,48 @@ const markConsentRequestSent = async ({
   }
 };
 
+/**
+ * Additive-only: mark newly selected channels as OptedIn.
+ * Does not opt out or overwrite previously saved selections.
+ * @returns {string[]} channels that were newly saved as OptedIn
+ */
 const recordConsentResponse = async ({
   tenantId,
   userId,
-  channelsRequested,
   selectedChannels,
   performedBy = null,
+  existingConsent = null,
 }) => {
-  const requested = normalizeChannels(channelsRequested);
-  const selected = new Set(normalizeChannels(selectedChannels));
+  const selected = normalizeChannels(selectedChannels);
+  if (!selected.length) return [];
 
-  for (const ch of requested) {
-    const optedIn = selected.has(ch);
+  let consentMap = existingConsent;
+  if (!consentMap) {
+    consentMap = await getUserConsentForChannels(tenantId, userId, selected);
+  }
+
+  const newlySaved = [];
+  for (const ch of selected) {
+    if (consentMap[ch] === CONSENT_STATUS.OptedIn) {
+      continue;
+    }
     await upsertConsentStatus({
       tenantId,
       userId,
       channel: ch,
-      status: optedIn ? CONSENT_STATUS.OptedIn : CONSENT_STATUS.OptedOut,
+      status: CONSENT_STATUS.OptedIn,
       setConsentDate: true,
     });
     await insertHistory({
       tenantId,
       userId,
       channel: ch,
-      action: optedIn ? CONSENT_ACTION.Accepted : CONSENT_ACTION.Declined,
+      action: CONSENT_ACTION.Accepted,
       performedBy: performedBy || userId,
     });
+    newlySaved.push(ch);
   }
+  return newlySaved;
 };
 
 const updateIntegrationOptInFlags = async (
@@ -725,10 +800,12 @@ const sendConsentRequests = async ({
     recipients = await getUsersNeedingConsent(effectiveTenant, chs);
   }
 
-  recipients = (recipients || []).filter((r) => {
-    const id = r.UserId || r.user_aadobject_id;
-    return !isConsentMessageExcludedUser(id);
-  });
+  recipients = dedupeRecipientsByUserId(
+    (recipients || []).filter((r) => {
+      const id = r.UserId || r.user_aadobject_id;
+      return !isConsentMessageExcludedUser(id);
+    }),
+  );
 
   if (!recipients.length) {
     return { sent: 0, skipped: 0, message: "No users need consent" };
@@ -877,7 +954,6 @@ module.exports = {
   getUsersNeedingConsent,
   getUserConsentForChannels,
   buildConsentAdaptiveCard,
-  buildConsentConfirmationCard,
   markConsentRequestSent,
   recordConsentResponse,
   updateIntegrationOptInFlags,
