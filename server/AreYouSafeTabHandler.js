@@ -1112,6 +1112,8 @@ const handlerForSafetyBotTab = (app) => {
         return res.status(200).json({
           success: true,
           confirmationMessage: followUp.confirmationMessage,
+          additionalCommentsLabel: followUp.additionalCommentsLabel ?? null,
+          additionalComment: followUp.additionalComment ?? null,
           creator: followUpCtx.creator,
         });
       } catch (err) {
@@ -3080,10 +3082,15 @@ const handlerForSafetyBotTab = (app) => {
                 const {
                   buildSosCommentDesktopPayload,
                 } = require("./utils/desktopSosChatCopy");
-                const commentDate =
-                  ts != null
-                    ? new Date(ts).toISOString()
-                    : new Date().toISOString();
+                const commentDate = (() => {
+                  if (ts != null) {
+                    const parsed = new Date(ts);
+                    if (!Number.isNaN(parsed.getTime())) {
+                      return parsed.toISOString();
+                    }
+                  }
+                  return new Date().toISOString();
+                })();
                 const commentPayload = buildSosCommentDesktopPayload({
                   requestAssistanceid: assistId,
                   userAadObjId,

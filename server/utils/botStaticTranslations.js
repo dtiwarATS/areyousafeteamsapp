@@ -272,23 +272,61 @@ const buildSubmitCommentResponseText = (
 };
 
 /**
- * Same confirmation text the bot shows after submit_comment.
+ * Desktop confirmation after submit_comment.
+ * Intro is plain text; Additional Comments are separate fields so the agent
+ * can render a newline + bold label (Teams keeps markdown in Adaptive Cards).
  */
 const buildDesktopSubmitCommentFollowUp = (
   commentVal,
   incCreatedBy,
   languageId,
   translatedText,
-) => ({
-  confirmationMessage: stripTeamsMarkupForPlainText(
-    buildSubmitCommentResponseText(
-      commentVal,
-      incCreatedBy,
-      languageId,
-      translatedText,
-    ),
-  ),
-});
+) => {
+  const resolvedLanguageId = languageId || DEFAULT_LANGUAGE_ID;
+  const trimmedComment =
+    commentVal != null && String(commentVal).trim()
+      ? String(commentVal).trim()
+      : "";
+
+  if (!trimmedComment) {
+    return {
+      confirmationMessage: stripTeamsMarkupForPlainText(
+        buildSubmitCommentResponseText(
+          null,
+          incCreatedBy,
+          resolvedLanguageId,
+          translatedText,
+        ),
+      ),
+      additionalCommentsLabel: null,
+      additionalComment: null,
+    };
+  }
+
+  const additionalCommentsLabel = getBotStaticTextWithIncident(
+    "additionalComments",
+    resolvedLanguageId,
+    translatedText,
+    "Additional Comments",
+  );
+  const fullText = buildSubmitCommentResponseText(
+    trimmedComment,
+    incCreatedBy,
+    resolvedLanguageId,
+    translatedText,
+  );
+  // Drop the Additional Comments block; desktop renders it separately.
+  const intro = fullText
+    .replace(/\n\n[\s\S]*$/, "")
+    .replace(/\s*\*\*[^*]+\*\*\s*:\s*[\s\S]*$/i, "")
+    .trim();
+
+  return {
+    confirmationMessage: stripTeamsMarkupForPlainText(intro || fullText),
+    additionalCommentsLabel,
+    additionalComment: trimmedComment,
+  };
+};
 
 /**
  * Plain-text closed/unavailable incident message for desktop API 409 responses.
