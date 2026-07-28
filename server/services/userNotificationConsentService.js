@@ -540,6 +540,7 @@ const buildConsentAdaptiveCard = ({
   ];
 
   // Preserve channelsRequested order: OptedIn locked with green label; others selectable.
+  // Teams ignores isEnabled on Input.ChoiceSet, so consented rows use TextBlocks only (read-only).
   for (const ch of chs) {
     const optedIn = existingConsent[ch] === CONSENT_STATUS.OptedIn;
     if (optedIn) {
@@ -550,15 +551,12 @@ const buildConsentAdaptiveCard = ({
           {
             type: "Column",
             width: "stretch",
+            verticalContentAlignment: "Center",
             items: [
               {
-                type: "Input.ChoiceSet",
-                id: `saved_${ch}`,
-                style: "expanded",
-                isMultiSelect: true,
-                isEnabled: false,
-                value: ch,
-                choices: [{ title: CHANNEL_LABELS[ch], value: ch }],
+                type: "TextBlock",
+                text: `☑ ${CHANNEL_LABELS[ch]}`,
+                wrap: true,
               },
             ],
           },
