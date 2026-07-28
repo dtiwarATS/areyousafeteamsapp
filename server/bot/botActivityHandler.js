@@ -1350,16 +1350,32 @@ WHEN NOT MATCHED THEN
         const teamId = actionData.teamId || null;
         const channelsRequested = actionData.channelsRequested || [];
         const cardMessage = actionData.message || null;
-        let selectedChannels = actionData.selectedChannels;
-        if (typeof selectedChannels === "string") {
-          selectedChannels = selectedChannels
+
+        // Per-channel inputs (new cards) + legacy selectedChannels (old cards).
+        const selectedFromPerChannel = (channelsRequested || []).filter(
+          (ch) => {
+            const v = actionData[`selectedChannel_${ch}`];
+            if (v == null || v === "") return false;
+            if (Array.isArray(v)) return v.includes(ch);
+            return String(v)
+              .split(",")
+              .map((s) => s.trim())
+              .includes(ch);
+          },
+        );
+        let legacySelected = actionData.selectedChannels;
+        if (typeof legacySelected === "string") {
+          legacySelected = legacySelected
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean);
         }
-        if (!Array.isArray(selectedChannels)) {
-          selectedChannels = selectedChannels ? [selectedChannels] : [];
+        if (!Array.isArray(legacySelected)) {
+          legacySelected = legacySelected ? [legacySelected] : [];
         }
+        const selectedChannels = [
+          ...new Set([...selectedFromPerChannel, ...legacySelected]),
+        ];
 
         let justSavedChannels = [];
         let existingConsent = {};

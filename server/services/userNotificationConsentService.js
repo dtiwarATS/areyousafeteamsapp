@@ -523,13 +523,6 @@ const buildConsentAdaptiveCard = ({
     }
   }
 
-  const savedChannels = chs.filter(
-    (ch) => existingConsent[ch] === CONSENT_STATUS.OptedIn,
-  );
-  const remainingChannels = chs.filter(
-    (ch) => existingConsent[ch] !== CONSENT_STATUS.OptedIn,
-  );
-
   const body = [
     {
       type: "TextBlock",
@@ -546,34 +539,54 @@ const buildConsentAdaptiveCard = ({
     },
   ];
 
-  // Saved options: checked + disabled (Teams cannot disable per-choice).
-  if (savedChannels.length) {
-    body.push({
-      type: "Input.ChoiceSet",
-      id: "savedChannels",
-      style: "expanded",
-      isMultiSelect: true,
-      isEnabled: false,
-      value: savedChannels.join(","),
-      choices: savedChannels.map((ch) => ({
-        title: CHANNEL_LABELS[ch],
-        value: ch,
-      })),
-    });
-  }
-
-  // Remaining options stay selectable.
-  if (remainingChannels.length) {
-    body.push({
-      type: "Input.ChoiceSet",
-      id: "selectedChannels",
-      style: "expanded",
-      isMultiSelect: true,
-      choices: remainingChannels.map((ch) => ({
-        title: CHANNEL_LABELS[ch],
-        value: ch,
-      })),
-    });
+  // Preserve channelsRequested order: OptedIn locked with green label; others selectable.
+  for (const ch of chs) {
+    const optedIn = existingConsent[ch] === CONSENT_STATUS.OptedIn;
+    if (optedIn) {
+      body.push({
+        type: "ColumnSet",
+        spacing: "Small",
+        columns: [
+          {
+            type: "Column",
+            width: "stretch",
+            items: [
+              {
+                type: "Input.ChoiceSet",
+                id: `saved_${ch}`,
+                style: "expanded",
+                isMultiSelect: true,
+                isEnabled: false,
+                value: ch,
+                choices: [{ title: CHANNEL_LABELS[ch], value: ch }],
+              },
+            ],
+          },
+          {
+            type: "Column",
+            width: "auto",
+            verticalContentAlignment: "Center",
+            items: [
+              {
+                type: "TextBlock",
+                text: "✓ Consented",
+                color: "Good",
+                wrap: false,
+              },
+            ],
+          },
+        ],
+      });
+    } else {
+      body.push({
+        type: "Input.ChoiceSet",
+        id: `selectedChannel_${ch}`,
+        style: "expanded",
+        isMultiSelect: true,
+        spacing: "Small",
+        choices: [{ title: CHANNEL_LABELS[ch], value: ch }],
+      });
+    }
   }
 
   const justSaved = normalizeChannels(justSavedChannels || []);
