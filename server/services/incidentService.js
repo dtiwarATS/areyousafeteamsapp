@@ -1164,6 +1164,7 @@ const updateIncResponseComment = async (
   userId,
   commentText = "",
   incData,
+  userAadObjId = "",
 ) => {
   pool = await poolPromise;
 
@@ -1182,12 +1183,12 @@ const updateIncResponseComment = async (
         incData.runAt
       }' ) ` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
-      `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
+      `WHERE INC_ID = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}'))`;
   } else {
     query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText.replace(
       /'/g,
       "''",
-    )}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+    )}' WHERE inc_id = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}')`;
   }
 
   console.log("update query >> ", query);

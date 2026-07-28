@@ -1074,6 +1074,7 @@ const handlerForSafetyBotTab = (app) => {
           userRow.user_id,
           normalizedComment,
           null,
+          normalizedUserAadObjectId,
         );
 
         incidentService.saveAllTypeQuerylogs(

@@ -6263,9 +6263,10 @@ const submitComment = async (context, user, companyData) => {
       });
       await incidentService.updateIncResponseComment(
         incId,
-        userId,
+        user.id,
         commentVal,
         inc,
+        user.aadObjectId,
       );
       await sendApprovalResponseToSelectedTeams(
         incId,
@@ -6424,9 +6425,10 @@ const Question1safetyVisitor = async (
       await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
       await incidentService.updateIncResponseComment(
         incId,
-        userId,
+        user.id,
         commentVal,
         inc,
+        user.aadObjectId,
       );
 
       await sendApprovalResponseToSelectedTeams(
