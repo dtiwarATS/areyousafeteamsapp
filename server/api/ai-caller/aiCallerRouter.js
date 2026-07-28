@@ -104,10 +104,15 @@ router.get("/checkin-status", async (req, res) => {
   const ids = requireMappedIds(req, res);
   if (!ids) return;
   const incidentId = req.query.incidentId;
+  const name =
+    typeof req.query.name === "string" && req.query.name.trim()
+      ? req.query.name.trim()
+      : undefined;
   const result = await service.getCheckinStatus({
     teamId: ids.teamId,
     incidentId: incidentId || undefined,
     userAadObjId: req.query.userAadObjId,
+    name,
   });
   if (result?.error) {
     return res.status(result.error.includes("No safety-check") || result.error.includes("not found") ? 404 : 400).json(result);

@@ -756,7 +756,153 @@ function buildStatusSummary(payload) {
   ].join(" — ");
 }
 
-async function getCheckinStatus({ teamId, incidentId, userAadObjId }) {
+const PERSON_LOOKUP_LIMIT = 5;
+
+function memberIds(m) {
+  const ids = [
+    m?.user_id,
+    m?.userId,
+    m?.user_aadobject_id,
+    m?.userAadObjId,
+    m?.userAadObjectId,
+  ]
+    .map((v) => (v != null ? String(v).trim().toLowerCase() : ""))
+    .filter(Boolean);
+  return [...new Set(ids)];
+}
+
+function nameMatchesQuery(displayName, query) {
+  const n = String(displayName || "")
+    .trim()
+    .toLowerCase();
+  const q = String(query || "")
+    .trim()
+    .toLowerCase();
+  if (!n || !q) return false;
+  return n.includes(q) || q.includes(n);
+}
+
+function classifyMemberResponseStatus(m, sorted) {
+  const name = memberDisplayName(m);
+  const inList = (list) =>
+    (list || []).some((x) => memberDisplayName(x) === name || x === m);
+  if (inList(sorted.membersSafe)) return "safe";
+  if (inList(sorted.membersUnsafe)) return "need_help";
+  return "pending";
+}
+
+function deliveredFlag(m) {
+  const v = m?.is_message_delivered;
+  if (v === true || v === 1 || v === "1" || String(v).toLowerCase() === "true") return true;
+  if (v === false || v === 0 || v === "0" || String(v).toLowerCase() === "false") return false;
+  return null;
+}
+
+function deliveryStatusOf(m) {
+  return (
+    trimOrNull(m?.msgStatus) ||
+    trimOrNull(m?.message_delivery_status) ||
+    trimOrNull(m?.messageDeliveryStatus) ||
+    null
+  );
+}
+
+function friendlyChannelVia(raw) {
+  const s = String(raw || "")
+    .trim()
+    .toUpperCase();
+  if (!s) return null;
+  if (s.includes("WHATSAPP")) return "WhatsApp";
+  if (s.includes("SMS")) return "SMS";
+  if (s.includes("EMAIL")) return "Email";
+  if (s.includes("VOICE") || s.includes("CALL")) return "Voice";
+  if (s.includes("TEAMS") || s === "TEAMS") return "Teams";
+  return String(raw).trim();
+}
+
+function activityLogMatchesMember(row, m) {
+  const name = memberDisplayName(m).toLowerCase();
+  const ids = new Set(memberIds(m));
+  const rowName = String(
+    row.UserName || row.user_name || row.userName || row.RecipientName || ""
+  )
+    .trim()
+    .toLowerCase();
+  const rowIds = [
+    row.UserId,
+    row.userId,
+    row.user_id,
+    row.UserAadObjectId,
+    row.user_aadobject_id,
+  ]
+    .map((v) => (v != null ? String(v).trim().toLowerCase() : ""))
+    .filter(Boolean);
+
+  if (rowName && (rowName === name || rowName.includes(name) || name.includes(rowName))) {
+    return true;
+  }
+  return rowIds.some((id) => ids.has(id));
+}
+
+function channelsForMember(activityRows, m) {
+  const channels = [];
+  const seen = new Set();
+  for (const row of activityRows || []) {
+    if (!activityLogMatchesMember(row, m)) continue;
+    const via = friendlyChannelVia(row.MessageSentVia || row.messageSentVia || row.Channel);
+    if (!via) continue;
+    const deliveryStatus = String(
+      row.DeliveryStatus || row.deliveryStatus || row.Status || ""
+    ).trim() || null;
+    const at =
+      row.MessageSendDateTime ||
+      row.messageSendDateTime ||
+      row.EventDateTime ||
+      row.eventDateTime ||
+      null;
+    const key = `${via}|${deliveryStatus || ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    channels.push({
+      via,
+      deliveryStatus,
+      ...(at ? { at: String(at) } : {}),
+    });
+  }
+  return channels;
+}
+
+function buildPersonLookupSummary(query, matches) {
+  if (!matches.length) {
+    return `No recipient matching "${query}" on this safety check.`;
+  }
+  if (matches.length > 1) {
+    const names = matches.map((m) => m.name).join(", ");
+    return `Multiple matches for "${query}": ${names}. Ask which person if needed.`;
+  }
+  const m = matches[0];
+  const statusLabel =
+    m.responseStatus === "safe"
+      ? "Safe"
+      : m.responseStatus === "need_help"
+        ? "Need help"
+        : "Pending (not responded)";
+  const deliveredPart =
+    m.delivered === true
+      ? "message marked delivered"
+      : m.delivered === false
+        ? "message not marked delivered"
+        : "delivery flag unknown";
+  const channelPart =
+    m.channels?.length > 0
+      ? `channels: ${m.channels
+          .map((c) => `${c.via}${c.deliveryStatus ? ` (${c.deliveryStatus})` : ""}`)
+          .join(", ")}`
+      : "no SMS/WhatsApp/Teams channel log recorded for this person";
+  return `${m.name}: ${statusLabel}; ${deliveredPart}; ${channelPart}.`;
+}
+
+async function getCheckinStatus({ teamId, incidentId, userAadObjId, name }) {
   try {
     const incidentService = require("../../services/incidentService");
     const { AreYouSafeTab } = require("../../tab/areYouSafeTab");
@@ -783,6 +929,48 @@ async function getCheckinStatus({ teamId, incidentId, userAadObjId }) {
       membersUnsafe: [],
       membersNotResponded: [],
     };
+
+    const nameQuery = trimOrNull(name);
+    if (nameQuery) {
+      let activityRows = [];
+      try {
+        activityRows = await incidentService.getMessageActivityLogByIncidentId(
+          inc.incId || resolvedId
+        );
+      } catch (err) {
+        console.warn("[ai-caller] MessageActivityLog lookup failed:", err.message);
+        activityRows = [];
+      }
+
+      const matchedMembers = members.filter((m) =>
+        nameMatchesQuery(memberDisplayName(m), nameQuery)
+      );
+      const matches = matchedMembers.slice(0, PERSON_LOOKUP_LIMIT).map((m) => ({
+        name: memberDisplayName(m),
+        responseStatus: classifyMemberResponseStatus(m, sorted),
+        included: true,
+        delivered: deliveredFlag(m),
+        deliveryStatus: deliveryStatusOf(m),
+        responseVia: trimOrNull(m?.response_via) || trimOrNull(m?.responseVia) || null,
+        channels: channelsForMember(activityRows, m),
+      }));
+
+      const personLookup = {
+        query: nameQuery,
+        matched: matches.length > 0,
+        matches,
+      };
+      const summary = buildPersonLookupSummary(nameQuery, matches);
+
+      return {
+        incidentId: inc.incId || resolvedId,
+        title: inc.incTitle || null,
+        teamId,
+        latest,
+        personLookup,
+        summary,
+      };
+    }
 
     const safe = namesFromMembers(sorted.membersSafe);
     const needAssistance = namesFromMembers(sorted.membersUnsafe);
