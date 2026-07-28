@@ -452,6 +452,7 @@ async function createAndSendSafetyCheck(payload) {
     state,
     department,
     memberIds,
+    createdByName: createdByNameRaw,
   } = payload;
 
   const { AreYouSafeTab } = require("../../tab/areYouSafeTab");
@@ -527,7 +528,21 @@ async function createAndSendSafetyCheck(payload) {
   }
 
   const selectedIds = users.map((u) => u.id);
-  const createdByName = "Safety Assistant";
+  let createdByName = trimOrNull(createdByNameRaw);
+  if (!createdByName && userAadObjId) {
+    try {
+      const members = await loadTeamMembers(teamId);
+      const me = (members || []).find(
+        (m) =>
+          String(m.user_aadobject_id || "").toLowerCase() ===
+          String(userAadObjId).toLowerCase()
+      );
+      createdByName = trimOrNull(me?.user_name);
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!createdByName) createdByName = "Safety Assistant";
   const incData = buildOnetimeIncDataLikeTab({
     title,
     message,
