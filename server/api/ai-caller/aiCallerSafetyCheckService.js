@@ -728,6 +728,118 @@ async function resolveLatestSafetyCheckIncidentId(teamId) {
   }
 }
 
+/**
+ * Latest incident matching location/office/department/title keyword (LIKE on name/desc).
+ * Prefer in-progress (INC_STATUS_ID=1), then any non-draft.
+ */
+async function resolveIncidentIdByLocation(teamId, location) {
+  const loc = trimOrNull(location);
+  if (!loc) return null;
+  try {
+    const pool = await poolPromise;
+    const run = async (inProgressOnly) => {
+      const req = pool
+        .request()
+        .input("teamId", sql.NVarChar(256), String(teamId))
+        .input("loc", sql.NVarChar(256), `%${loc}%`);
+      let sqlText = `
+        SELECT TOP 1 id AS incidentId, inc_name AS title
+        FROM dbo.MSTeamsIncidents
+        WHERE team_id = @teamId
+          AND ISNULL(isSavedAsDraft, 0) = 0
+          AND ISNULL(isSaveAsTemplate, 0) = 0
+          AND (
+            inc_name LIKE @loc
+            OR inc_desc LIKE @loc
+            OR ISNULL(situation, '') LIKE @loc
+            OR ISNULL(additionalInfo, '') LIKE @loc
+          )
+      `;
+      if (inProgressOnly) {
+        sqlText += ` AND INC_STATUS_ID = 1`;
+      }
+      sqlText += ` ORDER BY CAST(created_date AS datetime) DESC, id DESC`;
+      const result = await req.query(sqlText);
+      return result.recordset?.[0] || null;
+    };
+    const hit = (await run(true)) || (await run(false));
+    return hit?.incidentId ?? null;
+  } catch (err) {
+    console.warn("[ai-caller] resolveIncidentIdByLocation failed:", err.message);
+    return null;
+  }
+}
+
+function normalizeStatusFilter(raw) {
+  const s = String(raw || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (!s) return null;
+  if (s === "safe" || s === "members_safe") return "safe";
+  if (
+    s === "need_help" ||
+    s === "need_assistance" ||
+    s === "needassistance" ||
+    s === "unsafe" ||
+    s === "assistance"
+  ) {
+    return "need_help";
+  }
+  if (
+    s === "pending" ||
+    s === "not_responded" ||
+    s === "notresponded" ||
+    s === "no_response" ||
+    s === "unresponded"
+  ) {
+    return "pending";
+  }
+  return null;
+}
+
+const STATUS_LIST_CAP = 100;
+
+function buildNameBuckets(members, sorted) {
+  const safe = namesFromMembers(sorted.membersSafe);
+  const needAssistance = namesFromMembers(sorted.membersUnsafe);
+  let notResponded = namesFromMembers(sorted.membersNotResponded);
+  const named = new Set([...safe, ...needAssistance, ...notResponded]);
+  for (const m of members) {
+    const n = memberDisplayName(m);
+    if (!named.has(n)) {
+      notResponded.push(n);
+      named.add(n);
+    }
+  }
+  return {
+    safe,
+    needAssistance,
+    notResponded,
+    counts: {
+      safe: safe.length,
+      needAssistance: needAssistance.length,
+      notResponded: notResponded.length,
+    },
+  };
+}
+
+function buildStatusListSummary(filter, title, names, count, moreCount) {
+  const label =
+    filter === "safe"
+      ? "safe"
+      : filter === "need_help"
+        ? "need help"
+        : "have not responded";
+  const titlePart = title ? ` on ${title}` : "";
+  if (!count) {
+    return `No one ${filter === "pending" ? "is pending" : `is marked ${label}`}${titlePart}.`;
+  }
+  const shown = names.join(", ");
+  const more = moreCount > 0 ? ` (+${moreCount} more)` : "";
+  return `${count} people ${label}${titlePart}: ${shown}${more}.`;
+}
+
 function memberDisplayName(m) {
   return (
     trimOrNull(m?.userName) ||
@@ -902,13 +1014,35 @@ function buildPersonLookupSummary(query, matches) {
   return `${m.name}: ${statusLabel}; ${deliveredPart}; ${channelPart}.`;
 }
 
-async function getCheckinStatus({ teamId, incidentId, userAadObjId, name }) {
+async function getCheckinStatus({
+  teamId,
+  incidentId,
+  userAadObjId,
+  name,
+  location,
+  statusFilter,
+}) {
   try {
     const incidentService = require("../../services/incidentService");
     const { AreYouSafeTab } = require("../../tab/areYouSafeTab");
 
+    const locationQuery = trimOrNull(location);
+    const filter = normalizeStatusFilter(statusFilter);
+
     let resolvedId = incidentId ? Number(incidentId) || incidentId : null;
     let latest = false;
+    let locationMatched = false;
+    if (!resolvedId && locationQuery) {
+      resolvedId = await resolveIncidentIdByLocation(teamId, locationQuery);
+      locationMatched = Boolean(resolvedId);
+      if (!resolvedId) {
+        return {
+          error: `No safety-check incident found matching "${locationQuery}"`,
+          teamId,
+          location: locationQuery,
+        };
+      }
+    }
     if (!resolvedId) {
       resolvedId = await resolveLatestSafetyCheckIncidentId(teamId);
       latest = true;
@@ -967,41 +1101,59 @@ async function getCheckinStatus({ teamId, incidentId, userAadObjId, name }) {
         title: inc.incTitle || null,
         teamId,
         latest,
+        locationMatched: locationMatched || undefined,
+        location: locationQuery || undefined,
         personLookup,
         summary,
       };
     }
 
-    const safe = namesFromMembers(sorted.membersSafe);
-    const needAssistance = namesFromMembers(sorted.membersUnsafe);
-    let notResponded = namesFromMembers(sorted.membersNotResponded);
+    const buckets = buildNameBuckets(members, sorted);
+    const title = inc.incTitle || null;
 
-    // Members not classified by sortMembers → treat as not responded
-    const named = new Set([...safe, ...needAssistance, ...notResponded]);
-    for (const m of members) {
-      const n = memberDisplayName(m);
-      if (!named.has(n)) {
-        notResponded.push(n);
-        named.add(n);
-      }
+    if (filter) {
+      const fullNames =
+        filter === "safe"
+          ? buckets.safe
+          : filter === "need_help"
+            ? buckets.needAssistance
+            : buckets.notResponded;
+      const count = fullNames.length;
+      const names = fullNames.slice(0, STATUS_LIST_CAP);
+      const moreCount = Math.max(0, count - names.length);
+      const statusList = {
+        filter,
+        names,
+        count,
+        moreCount,
+      };
+      return {
+        incidentId: inc.incId || resolvedId,
+        title,
+        teamId,
+        latest,
+        locationMatched: locationMatched || undefined,
+        location: locationQuery || undefined,
+        statusList,
+        counts: buckets.counts,
+        summary: buildStatusListSummary(filter, title, names, count, moreCount),
+      };
     }
 
     const status = {
-      safe,
-      needAssistance,
-      notResponded,
-      counts: {
-        safe: safe.length,
-        needAssistance: needAssistance.length,
-        notResponded: notResponded.length,
-      },
+      safe: buckets.safe,
+      needAssistance: buckets.needAssistance,
+      notResponded: buckets.notResponded,
+      counts: buckets.counts,
     };
 
     return {
       incidentId: inc.incId || resolvedId,
-      title: inc.incTitle || null,
+      title,
       teamId,
       latest,
+      locationMatched: locationMatched || undefined,
+      location: locationQuery || undefined,
       status,
       ...status,
       summary: buildStatusSummary(status),

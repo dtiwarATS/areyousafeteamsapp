@@ -108,11 +108,21 @@ router.get("/checkin-status", async (req, res) => {
     typeof req.query.name === "string" && req.query.name.trim()
       ? req.query.name.trim()
       : undefined;
+  const location =
+    typeof req.query.location === "string" && req.query.location.trim()
+      ? req.query.location.trim()
+      : undefined;
+  const statusFilter =
+    typeof req.query.statusFilter === "string" && req.query.statusFilter.trim()
+      ? req.query.statusFilter.trim()
+      : undefined;
   const result = await service.getCheckinStatus({
     teamId: ids.teamId,
     incidentId: incidentId || undefined,
     userAadObjId: req.query.userAadObjId,
     name,
+    location,
+    statusFilter,
   });
   if (result?.error) {
     return res.status(result.error.includes("No safety-check") || result.error.includes("not found") ? 404 : 400).json(result);
