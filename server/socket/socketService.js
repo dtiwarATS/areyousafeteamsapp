@@ -31,6 +31,7 @@ const EVENT_TEST_MESSAGE = "test_message";
 const EVENT_SOS_ASSISTANCE_UPDATE = "sos_assistance_update";
 const EVENT_INCOMING_SOS = "incoming_sos";
 const EVENT_SOS_TAKEN = "sos_taken";
+const EVENT_SOS_COMMENT = "sos_comment";
 
 /** Dedupe desktop incoming_sos emits (Tab + socket SOS both notify). */
 const recentIncomingSosEmits = new Map();
@@ -554,6 +555,49 @@ async function emitIncomingSosToUsers(userAadObjectIds, payload) {
 }
 
 /**
+ * Push a victim SOS comment to paired desktop officers.
+ * @param {string[]} userAadObjectIds
+ * @param {object} payload
+ */
+async function emitSosCommentToUsers(userAadObjectIds, payload) {
+  if (!desktopIo || !payload?.requestAssistanceid) {
+    return;
+  }
+
+  const comment =
+    typeof payload.comment === "string" ? payload.comment.trim() : "";
+  if (!comment) {
+    return;
+  }
+
+  const ids = [
+    ...new Set(
+      (userAadObjectIds || [])
+        .map((id) => (id != null ? String(id).trim() : ""))
+        .filter(Boolean),
+    ),
+  ];
+  if (ids.length === 0) {
+    return;
+  }
+
+  const devices =
+    await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
+
+  for (const device of devices) {
+    const room = deviceRoom(device.device_id);
+    desktopIo.to(room).emit(EVENT_SOS_COMMENT, payload);
+    console.log("[SOCKET][desktop] emitSosCommentToUsers", {
+      deviceId: device.device_id,
+      room,
+      requestAssistanceid: payload.requestAssistanceid,
+      userAadObjId: payload.userAadObjId,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+/**
  * Notify other paired officers that someone accepted the SOS.
  * @param {string[]} userAadObjectIds
  * @param {object} payload
@@ -597,6 +641,7 @@ module.exports = {
   emitCommandToDevice,
   emitSosAssistanceUpdateToUser,
   emitIncomingSosToUsers,
+  emitSosCommentToUsers,
   emitSosTakenToUsers,
   isDeviceSocketConnected,
   EVENT_HELLO,
@@ -606,5 +651,6 @@ module.exports = {
   EVENT_REGISTER_DEVICE,
   EVENT_HEARTBEAT,
   EVENT_INCOMING_SOS,
+  EVENT_SOS_COMMENT,
   EVENT_SOS_TAKEN,
 };
