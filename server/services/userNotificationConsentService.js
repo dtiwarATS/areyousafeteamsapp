@@ -587,23 +587,9 @@ const buildConsentAdaptiveCard = ({
     }
   }
 
-  const justSaved = normalizeChannels(justSavedChannels || []);
-  if (justSaved.length) {
-    const labels = justSaved.map((ch) => CHANNEL_LABELS[ch]).join(", ");
-    body.push({
-      type: "TextBlock",
-      text: `✓ Your preferences have been saved: ${labels}.`,
-      wrap: true,
-      spacing: "Medium",
-    });
-  }
-
-  return {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    type: "AdaptiveCard",
-    version: "1.4",
-    appId: process.env.MicrosoftAppId,
-    body,
+  body.push({
+    type: "ActionSet",
+    spacing: "Medium",
     actions: [
       {
         type: "Action.Execute",
@@ -618,6 +604,24 @@ const buildConsentAdaptiveCard = ({
         },
       },
     ],
+  });
+
+  const justSaved = normalizeChannels(justSavedChannels || []);
+  if (justSaved.length) {
+    body.push({
+      type: "TextBlock",
+      text: "✓ Your preferences have been saved.",
+      wrap: true,
+      spacing: "Small",
+    });
+  }
+
+  return {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    type: "AdaptiveCard",
+    version: "1.4",
+    appId: process.env.MicrosoftAppId,
+    body,
   };
 };
 
