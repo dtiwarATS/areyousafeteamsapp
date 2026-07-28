@@ -1026,12 +1026,24 @@ async function getCheckinStatus({
     const incidentService = require("../../services/incidentService");
     const { AreYouSafeTab } = require("../../tab/areYouSafeTab");
 
-    const locationQuery = trimOrNull(location);
+    let locationQuery = trimOrNull(location);
     const filter = normalizeStatusFilter(statusFilter);
 
-    let resolvedId = incidentId ? Number(incidentId) || incidentId : null;
+    // Only numeric ids are valid; titles like "Test incident 27" must use location resolve
+    let resolvedId = null;
     let latest = false;
     let locationMatched = false;
+    if (incidentId != null && String(incidentId).trim() !== "") {
+      const raw = String(incidentId).trim();
+      const asNum = Number(raw);
+      if (Number.isFinite(asNum) && /^\d+$/.test(raw)) {
+        resolvedId = asNum;
+      } else {
+        // Model often passes the incident title as incidentId — treat as location
+        locationQuery = locationQuery || raw;
+      }
+    }
+
     if (!resolvedId && locationQuery) {
       resolvedId = await resolveIncidentIdByLocation(teamId, locationQuery);
       locationMatched = Boolean(resolvedId);
