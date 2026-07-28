@@ -240,6 +240,124 @@ const getConsentStats = async (tenantId) => {
   return stats;
 };
 
+/**
+ * Per-user consent list for a channel (admin popup).
+ * status filter: "consented" | "no_response" | null (all)
+ */
+const getConsentUserList = async ({
+  tenantId,
+  channel,
+  search = "",
+  statuses = null,
+  page = 1,
+  pageSize = 10,
+  sortBy = "status",
+  sortDir = "asc",
+}) => {
+  const ch = normalizeChannel(channel);
+  if (!tenantId || !ch) {
+    return { users: [], total: 0, page: 1, pageSize, optedIn: 0, totalUsers: 0 };
+  }
+
+  const safeTenant = escapeSql(tenantId);
+  const safeChannel = escapeSql(ch);
+  const safeSearch = escapeSql(String(search || "").trim());
+  const pageNum = Math.max(1, Number(page) || 1);
+  const size = Math.min(100, Math.max(1, Number(pageSize) || 10));
+  const offset = (pageNum - 1) * size;
+  const dir = String(sortDir).toLowerCase() === "desc" ? "DESC" : "ASC";
+  const orderCol = String(sortBy).toLowerCase() === "name" ? "name" : "status";
+
+  // Normalize status filters: consented | not_consented (alias: no_response)
+  let statusList = [];
+  if (Array.isArray(statuses)) {
+    statusList = statuses;
+  } else if (typeof statuses === "string" && statuses.trim()) {
+    statusList = statuses.split(",").map((s) => s.trim()).filter(Boolean);
+  }
+  statusList = statusList.map((s) => {
+    const v = String(s).toLowerCase();
+    if (v === "no_response" || v === "not_consented") return "not_consented";
+    if (v === "consented") return "consented";
+    return null;
+  }).filter(Boolean);
+  const wantConsented = statusList.includes("consented");
+  const wantNotConsented = statusList.includes("not_consented");
+  // Both or neither => no status filter (show all)
+  const filterByStatus =
+    (wantConsented || wantNotConsented) && !(wantConsented && wantNotConsented);
+
+  let whereExtra = "";
+  if (safeSearch) {
+    whereExtra += `
+      AND ISNULL(u.user_name, '') LIKE N'%${safeSearch}%'`;
+  }
+  if (filterByStatus && wantConsented) {
+    whereExtra += ` AND c.ConsentStatus = N'${CONSENT_STATUS.OptedIn}'`;
+  } else if (filterByStatus && wantNotConsented) {
+    whereExtra += ` AND (c.ConsentStatus IS NULL OR c.ConsentStatus <> N'${CONSENT_STATUS.OptedIn}')`;
+  }
+
+  const orderBySql =
+    orderCol === "name"
+      ? `UserName ${dir}`
+      : `CASE WHEN ConsentStatus = N'${CONSENT_STATUS.OptedIn}' THEN 0 ELSE 1 END ${dir}, UserName ASC`;
+
+  const baseCte = `
+    WITH DistinctUsers AS (
+      SELECT
+        u.user_aadobject_id AS UserId,
+        MAX(u.user_name) AS UserName,
+        MAX(c.ConsentStatus) AS ConsentStatus
+      FROM MSTeamsTeamsUsers u
+      LEFT JOIN UserNotificationConsent c
+        ON c.TenantId = u.tenantid
+       AND c.UserId = u.user_aadobject_id
+       AND c.NotificationChannel = N'${safeChannel}'
+      WHERE u.tenantid = N'${safeTenant}'
+        AND u.user_aadobject_id IS NOT NULL
+        AND u.user_aadobject_id <> ''
+        ${whereExtra}
+      GROUP BY u.user_aadobject_id
+    )
+  `;
+
+  const countQry = `
+    ${baseCte}
+    SELECT COUNT(*) AS total FROM DistinctUsers
+  `;
+  const countRows = (await db.getDataFromDB(countQry)) || [];
+  const total = Number(countRows[0]?.total || 0);
+
+  const listQry = `
+    ${baseCte}
+    SELECT UserId, UserName, ConsentStatus
+    FROM DistinctUsers
+    ORDER BY ${orderBySql}
+    OFFSET ${offset} ROWS FETCH NEXT ${size} ROWS ONLY
+  `;
+  const rows = (await db.getDataFromDB(listQry)) || [];
+
+  const stats = await getConsentStats(tenantId);
+  const channelStats = stats[ch] || { optedIn: 0, total: 0 };
+
+  return {
+    users: rows.map((r) => ({
+      userId: r.UserId,
+      userName: r.UserName || "",
+      status:
+        r.ConsentStatus === CONSENT_STATUS.OptedIn
+          ? "consented"
+          : "not_consented",
+    })),
+    total,
+    page: pageNum,
+    pageSize: size,
+    optedIn: channelStats.optedIn,
+    totalUsers: channelStats.total,
+  };
+};
+
 const getExistingConsentMap = async (tenantId, userIds, channels) => {
   const map = new Map();
   if (!userIds?.length || !channels?.length) return map;
@@ -483,7 +601,6 @@ const buildConsentAdaptiveCard = ({
   existingConsent = {},
   tenantId,
   teamId = null,
-  justSavedChannels = null,
 }) => {
   const chs = normalizeChannels(channelsRequested);
   const defaultTitle =
@@ -541,6 +658,7 @@ const buildConsentAdaptiveCard = ({
 
   // Preserve channelsRequested order: OptedIn locked with green label; others selectable.
   // Teams ignores isEnabled on Input.ChoiceSet, so consented rows use TextBlocks only (read-only).
+  // Use the same ColumnSet shape for every row so checkboxes/labels stay aligned.
   for (const ch of chs) {
     const optedIn = existingConsent[ch] === CONSENT_STATUS.OptedIn;
     if (optedIn) {
@@ -555,14 +673,15 @@ const buildConsentAdaptiveCard = ({
             items: [
               {
                 type: "TextBlock",
-                text: `☑ ${CHANNEL_LABELS[ch]}`,
+                text: `☑  ${CHANNEL_LABELS[ch]}`,
                 wrap: true,
+                spacing: "None",
               },
             ],
           },
           {
             type: "Column",
-            width: "auto",
+            width: "110px",
             verticalContentAlignment: "Center",
             items: [
               {
@@ -570,6 +689,8 @@ const buildConsentAdaptiveCard = ({
                 text: "✓ Consented",
                 color: "Good",
                 wrap: false,
+                horizontalAlignment: "Right",
+                spacing: "None",
               },
             ],
           },
@@ -577,12 +698,38 @@ const buildConsentAdaptiveCard = ({
       });
     } else {
       body.push({
-        type: "Input.ChoiceSet",
-        id: `selectedChannel_${ch}`,
-        style: "expanded",
-        isMultiSelect: true,
+        type: "ColumnSet",
         spacing: "Small",
-        choices: [{ title: CHANNEL_LABELS[ch], value: ch }],
+        columns: [
+          {
+            type: "Column",
+            width: "stretch",
+            verticalContentAlignment: "Center",
+            items: [
+              {
+                type: "Input.ChoiceSet",
+                id: `selectedChannel_${ch}`,
+                style: "expanded",
+                isMultiSelect: true,
+                spacing: "None",
+                choices: [{ title: CHANNEL_LABELS[ch], value: ch }],
+              },
+            ],
+          },
+          {
+            type: "Column",
+            width: "110px",
+            verticalContentAlignment: "Center",
+            items: [
+              {
+                type: "TextBlock",
+                text: " ",
+                wrap: false,
+                spacing: "None",
+              },
+            ],
+          },
+        ],
       });
     }
   }
@@ -605,16 +752,6 @@ const buildConsentAdaptiveCard = ({
       },
     ],
   });
-
-  const justSaved = normalizeChannels(justSavedChannels || []);
-  if (justSaved.length) {
-    body.push({
-      type: "TextBlock",
-      text: "✓ Your preferences have been saved.",
-      wrap: true,
-      spacing: "Small",
-    });
-  }
 
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -966,6 +1103,7 @@ module.exports = {
   filterUsersByConsent,
   userHasChannelConsent,
   getConsentStats,
+  getConsentUserList,
   getUsersNeedingConsent,
   getUserConsentForChannels,
   buildConsentAdaptiveCard,

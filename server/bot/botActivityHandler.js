@@ -1377,7 +1377,6 @@ WHEN NOT MATCHED THEN
           ...new Set([...selectedFromPerChannel, ...legacySelected]),
         ];
 
-        let justSavedChannels = [];
         let existingConsent = {};
         if (tenantId && userId) {
           existingConsent =
@@ -1386,14 +1385,13 @@ WHEN NOT MATCHED THEN
               userId,
               channelsRequested,
             );
-          justSavedChannels =
-            await userNotificationConsentService.recordConsentResponse({
-              tenantId,
-              userId,
-              selectedChannels,
-              performedBy: userId,
-              existingConsent,
-            });
+          await userNotificationConsentService.recordConsentResponse({
+            tenantId,
+            userId,
+            selectedChannels,
+            performedBy: userId,
+            existingConsent,
+          });
           // Refresh map so rebuilt card shows all OptedIn (previous + new).
           existingConsent =
             await userNotificationConsentService.getUserConsentForChannels(
@@ -1410,7 +1408,6 @@ WHEN NOT MATCHED THEN
             existingConsent,
             tenantId,
             teamId,
-            justSavedChannels,
           });
         const cards = CardFactory.adaptiveCard(adaptiveCard);
         const message = MessageFactory.attachment(cards);
