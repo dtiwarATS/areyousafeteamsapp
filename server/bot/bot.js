@@ -12,6 +12,7 @@ const {
 } = require("botframework-connector");
 const incidentService = require("../services/incidentService");
 const fcmService = require("../services/fcmService");
+const userNotificationConsentService = require("../services/userNotificationConsentService");
 const path = require("path");
 const FormData = require("form-data");
 const mail = require("../utils/mail");
@@ -2533,6 +2534,22 @@ const resolveUserPhonesForMessaging = async (companyData, userAadObjIds) => {
   );
 };
 
+const getIntegrationConfigFromCompany = (companyData) =>
+  userNotificationConsentService.parseIntegrationConfig(
+    companyData?.INTEGRATION_CONFIGURE,
+  );
+
+const filterUserIdsForChannelConsent = async (companyData, userIds, channel) => {
+  const tenantId =
+    companyData?.userTenantId || companyData?.user_tenant_id || "";
+  return userNotificationConsentService.filterUserIdsByConsent(
+    tenantId,
+    userIds,
+    channel,
+    getIntegrationConfigFromCompany(companyData),
+  );
+};
+
 const sendSafetyCheckMsgViaSMS = async (
   companyData,
   users,
@@ -2543,7 +2560,15 @@ const sendSafetyCheckMsgViaSMS = async (
 ) => {
   let tenantId = companyData.userTenantId;
   let IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
-  let usrPhones = await resolveUserPhonesForMessaging(companyData, users);
+  const consentedUsers = await filterUserIdsForChannelConsent(
+    companyData,
+    users,
+    "sms",
+  );
+  let usrPhones = await resolveUserPhonesForMessaging(
+    companyData,
+    consentedUsers,
+  );
   let counter = Number(
     companyData.sent_sms_count && companyData.sent_sms_count != ""
       ? companyData.sent_sms_count
@@ -2835,7 +2860,15 @@ const sendSafetyCheckMsgViaVoice = async (
   const tenantId = companyData.userTenantId;
   const IS_APP_PERMISSION_GRANTED = companyData.IS_APP_PERMISSION_GRANTED;
 
-  const usrPhones = await resolveUserPhonesForMessaging(companyData, users);
+  const consentedUsers = await filterUserIdsForChannelConsent(
+    companyData,
+    users,
+    "voice",
+  );
+  const usrPhones = await resolveUserPhonesForMessaging(
+    companyData,
+    consentedUsers,
+  );
 
   for (const user of usrPhones) {
     let phone =
@@ -3037,7 +3070,15 @@ const sendSafetyCheckMsgViaWhatsapp = async (
     companyData?.INTEGRATION_CONFIGURE,
   );
   if (IS_APP_PERMISSION_GRANTED || phoneSource === "spreadsheet") {
-    let usrPhones = await resolveUserPhonesForMessaging(companyData, users);
+    const consentedUsers = await filterUserIdsForChannelConsent(
+      companyData,
+      users,
+      "whatsapp",
+    );
+    let usrPhones = await resolveUserPhonesForMessaging(
+      companyData,
+      consentedUsers,
+    );
     for (let user of usrPhones) {
       try {
         let phone =
@@ -3143,8 +3184,19 @@ const sendSafetyCheckMsgViaEmail = async (
   incObj,
   isfrominctype = "onetime",
 ) => {
-  if (users?.length || users) {
-    for (let user of users) {
+  const userIds = (users || []).map(
+    (u) => u.userAadObjId || u.user_aadobj_id || u.user_aadobject_id || u.id,
+  );
+  const allowedIds = new Set(
+    await filterUserIdsForChannelConsent(companyData, userIds, "email"),
+  );
+  const consentedUsers = (users || []).filter((u) => {
+    const id =
+      u.userAadObjId || u.user_aadobj_id || u.user_aadobject_id || u.id;
+    return allowedIds.has(id);
+  });
+  if (consentedUsers?.length || consentedUsers) {
+    for (let user of consentedUsers) {
       try {
         if (
           isfrominctype == "Follow-up" ||

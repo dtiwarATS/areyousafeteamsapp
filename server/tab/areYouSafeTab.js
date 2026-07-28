@@ -8,6 +8,7 @@ const {
 const incidentService = require("../services/incidentService");
 const socketService = require("../socket/socketService");
 const fcmService = require("../services/fcmService");
+const userNotificationConsentService = require("../services/userNotificationConsentService");
 
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const path = require("path");
@@ -815,6 +816,14 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               IntegrationConfigure?.channels?.sms?.events?.sos &&
               sendonetime == "true"
             ) {
+              const canSendSmsConsent =
+                await userNotificationConsentService.userHasChannelConsent(
+                  admins[i].user_tenant_id,
+                  admins[i].user_aadobject_id,
+                  "sms",
+                  IntegrationConfigure,
+                );
+              if (canSendSmsConsent) {
               usrPhones.map(async (userpho) => {
                 if (userpho.id == admins[i].user_aadobject_id) {
                   var num =
@@ -907,12 +916,21 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   }
                 }
               });
+              }
             }
             if (
               IntegrationConfigure?.channels?.email?.enabled &&
               IntegrationConfigure?.channels?.email?.events?.sos &&
               sendonetime == "true"
             ) {
+              const canSendEmailConsent =
+                await userNotificationConsentService.userHasChannelConsent(
+                  admins[i].user_tenant_id,
+                  admins[i].user_aadobject_id,
+                  "email",
+                  IntegrationConfigure,
+                );
+              if (canSendEmailConsent) {
               try {
                 var useremail = admins[i].email;
                 if (useremail) {
@@ -1028,12 +1046,21 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   "error in sending safety check via EMAIL",
                 );
               }
+              }
             }
             if (
               IntegrationConfigure?.channels?.whatsapp?.enabled &&
               IntegrationConfigure?.channels?.whatsapp?.events?.sos &&
               sendonetime == "true"
             ) {
+              const canSendWhatsappConsent =
+                await userNotificationConsentService.userHasChannelConsent(
+                  admins[i].user_tenant_id,
+                  admins[i].user_aadobject_id,
+                  "whatsapp",
+                  IntegrationConfigure,
+                );
+              if (canSendWhatsappConsent) {
               usrPhones.map(async (userpho) => {
                 if (userpho.id == admins[i].user_aadobject_id) {
                   var num =
@@ -1172,6 +1199,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   }
                 }
               });
+              }
             }
           }
         }
@@ -1417,6 +1445,18 @@ WHERE id = ${res[0].id}`;
               );
             }
             if (admins[i].SOS_NOTIFICATION.includes("SMS")) {
+              const commentSmsConfig =
+                userNotificationConsentService.parseIntegrationConfig(
+                  admins[i].INTEGRATION_CONFIGURE,
+                );
+              const canSendCommentSms =
+                await userNotificationConsentService.userHasChannelConsent(
+                  admins[i].user_tenant_id,
+                  admins[i].user_aadobject_id,
+                  "sms",
+                  commentSmsConfig,
+                );
+              if (canSendCommentSms) {
               usrPhones.map(async (userpho) => {
                 if (userpho.id == admins[i].user_aadobject_id) {
                   var num =
@@ -1503,6 +1543,7 @@ WHERE id = ${res[0].id}`;
                   }
                 }
               });
+              }
             }
             // if (
             //   admins[i].SOS_NOTIFICATION.includes("WhatsApp") &&
