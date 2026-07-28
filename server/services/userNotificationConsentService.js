@@ -55,9 +55,7 @@ const mapWithConcurrency = async (items, concurrency, worker) => {
   };
 
   const poolSize = Math.max(1, Math.min(concurrency, items.length || 1));
-  await Promise.all(
-    Array.from({ length: poolSize }, () => runWorker()),
-  );
+  await Promise.all(Array.from({ length: poolSize }, () => runWorker()));
   return results;
 };
 
@@ -144,13 +142,7 @@ const filterUserIdsByConsent = async (
     const allowed = new Set(rows.map((r) => r.UserId));
     return userIds.filter((id) => allowed.has(id));
   } catch (err) {
-    processSafetyBotError(
-      err,
-      "",
-      "",
-      "",
-      "error in filterUserIdsByConsent",
-    );
+    processSafetyBotError(err, "", "", "", "error in filterUserIdsByConsent");
     if (isOptInRequired(integrationConfig, channel)) {
       return [];
     }
@@ -238,6 +230,136 @@ const getConsentStats = async (tenantId) => {
       stats[ch].optedOut = cnt;
   }
   return stats;
+};
+
+/**
+ * Per-user consent list for a channel (admin popup).
+ * status filter: "consented" | "no_response" | null (all)
+ */
+const getConsentUserList = async ({
+  tenantId,
+  channel,
+  search = "",
+  statuses = null,
+  page = 1,
+  pageSize = 10,
+  sortBy = "status",
+  sortDir = "asc",
+}) => {
+  const ch = normalizeChannel(channel);
+  if (!tenantId || !ch) {
+    return {
+      users: [],
+      total: 0,
+      page: 1,
+      pageSize,
+      optedIn: 0,
+      totalUsers: 0,
+    };
+  }
+
+  const safeTenant = escapeSql(tenantId);
+  const safeChannel = escapeSql(ch);
+  const safeSearch = escapeSql(String(search || "").trim());
+  const pageNum = Math.max(1, Number(page) || 1);
+  const size = Math.min(100, Math.max(1, Number(pageSize) || 10));
+  const offset = (pageNum - 1) * size;
+  const dir = String(sortDir).toLowerCase() === "desc" ? "DESC" : "ASC";
+  const orderCol = String(sortBy).toLowerCase() === "name" ? "name" : "status";
+
+  // Normalize status filters: consented | not_consented (alias: no_response)
+  let statusList = [];
+  if (Array.isArray(statuses)) {
+    statusList = statuses;
+  } else if (typeof statuses === "string" && statuses.trim()) {
+    statusList = statuses
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  statusList = statusList
+    .map((s) => {
+      const v = String(s).toLowerCase();
+      if (v === "no_response" || v === "not_consented") return "not_consented";
+      if (v === "consented") return "consented";
+      return null;
+    })
+    .filter(Boolean);
+  const wantConsented = statusList.includes("consented");
+  const wantNotConsented = statusList.includes("not_consented");
+  // Both or neither => no status filter (show all)
+  const filterByStatus =
+    (wantConsented || wantNotConsented) && !(wantConsented && wantNotConsented);
+
+  let whereExtra = "";
+  if (safeSearch) {
+    whereExtra += `
+      AND ISNULL(u.user_name, '') LIKE N'%${safeSearch}%'`;
+  }
+  if (filterByStatus && wantConsented) {
+    whereExtra += ` AND c.ConsentStatus = N'${CONSENT_STATUS.OptedIn}'`;
+  } else if (filterByStatus && wantNotConsented) {
+    whereExtra += ` AND (c.ConsentStatus IS NULL OR c.ConsentStatus <> N'${CONSENT_STATUS.OptedIn}')`;
+  }
+
+  const orderBySql =
+    orderCol === "name"
+      ? `UserName ${dir}`
+      : `CASE WHEN ConsentStatus = N'${CONSENT_STATUS.OptedIn}' THEN 0 ELSE 1 END ${dir}, UserName ASC`;
+
+  const baseCte = `
+    WITH DistinctUsers AS (
+      SELECT
+        u.user_aadobject_id AS UserId,
+        MAX(u.user_name) AS UserName,
+        MAX(c.ConsentStatus) AS ConsentStatus
+      FROM MSTeamsTeamsUsers u
+      LEFT JOIN UserNotificationConsent c
+        ON c.TenantId = u.tenantid
+       AND c.UserId = u.user_aadobject_id
+       AND c.NotificationChannel = N'${safeChannel}'
+      WHERE u.tenantid = N'${safeTenant}'
+        AND u.user_aadobject_id IS NOT NULL
+        AND u.user_aadobject_id <> ''
+        ${whereExtra}
+      GROUP BY u.user_aadobject_id
+    )
+  `;
+
+  const countQry = `
+    ${baseCte}
+    SELECT COUNT(*) AS total FROM DistinctUsers
+  `;
+  const countRows = (await db.getDataFromDB(countQry)) || [];
+  const total = Number(countRows[0]?.total || 0);
+
+  const listQry = `
+    ${baseCte}
+    SELECT UserId, UserName, ConsentStatus
+    FROM DistinctUsers
+    ORDER BY ${orderBySql}
+    OFFSET ${offset} ROWS FETCH NEXT ${size} ROWS ONLY
+  `;
+  const rows = (await db.getDataFromDB(listQry)) || [];
+
+  const stats = await getConsentStats(tenantId);
+  const channelStats = stats[ch] || { optedIn: 0, total: 0 };
+
+  return {
+    users: rows.map((r) => ({
+      userId: r.UserId,
+      userName: r.UserName || "",
+      status:
+        r.ConsentStatus === CONSENT_STATUS.OptedIn
+          ? "consented"
+          : "not_consented",
+    })),
+    total,
+    page: pageNum,
+    pageSize: size,
+    optedIn: channelStats.optedIn,
+    totalUsers: channelStats.total,
+  };
 };
 
 const getExistingConsentMap = async (tenantId, userIds, channels) => {
@@ -337,28 +459,45 @@ const getUsersNeedingConsent = async (tenantId, channels) => {
   const safeTenant = escapeSql(tenantId);
   const valuesList = chs.map((ch) => `(N'${escapeSql(ch)}')`).join(",");
 
+  // One row per AAD user even when MSTeamsTeamsUsers has multiple team rows.
+  // Prefer a row that already has conversationId.
   const qry = `
-    SELECT DISTINCT
-      u.user_aadobject_id AS UserId,
-      u.user_name AS UserName,
-      u.user_id AS TeamsUserId,
-      u.conversationId AS ConversationId
-    FROM MSTeamsTeamsUsers u
-    WHERE u.tenantid = N'${safeTenant}'
-      AND u.user_aadobject_id IS NOT NULL
-      AND u.user_aadobject_id <> ''
-      AND EXISTS (
-        SELECT 1
-        FROM (VALUES ${valuesList}) AS req(Channel)
-        WHERE NOT EXISTS (
+    SELECT UserId, UserName, TeamsUserId, ConversationId
+    FROM (
+      SELECT
+        u.user_aadobject_id AS UserId,
+        u.user_name AS UserName,
+        u.user_id AS TeamsUserId,
+        u.conversationId AS ConversationId,
+        ROW_NUMBER() OVER (
+          PARTITION BY u.user_aadobject_id
+          ORDER BY
+            CASE
+              WHEN u.conversationId IS NOT NULL
+                AND LTRIM(RTRIM(u.conversationId)) <> ''
+                AND u.conversationId <> 'null'
+              THEN 0 ELSE 1
+            END,
+            u.id DESC
+        ) AS rn
+      FROM MSTeamsTeamsUsers u
+      WHERE u.tenantid = N'${safeTenant}'
+        AND u.user_aadobject_id IS NOT NULL
+        AND u.user_aadobject_id <> ''
+        AND EXISTS (
           SELECT 1
-          FROM UserNotificationConsent c
-          WHERE c.TenantId = N'${safeTenant}'
-            AND c.UserId = u.user_aadobject_id
-            AND c.NotificationChannel = req.Channel
-            AND c.ConsentStatus = N'${CONSENT_STATUS.OptedIn}'
+          FROM (VALUES ${valuesList}) AS req(Channel)
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM UserNotificationConsent c
+            WHERE c.TenantId = N'${safeTenant}'
+              AND c.UserId = u.user_aadobject_id
+              AND c.NotificationChannel = req.Channel
+              AND c.ConsentStatus = N'${CONSENT_STATUS.OptedIn}'
+          )
         )
-      )
+    ) ranked
+    WHERE ranked.rn = 1
   `;
   const rows = (await db.getDataFromDB(qry)) || [];
   return rows;
@@ -411,6 +550,7 @@ const normalizeStoredConversationId = (value) => {
  * One Adaptive Card per AAD user. Same person can have multiple
  * MSTeamsTeamsUsers rows (multi-team) — DISTINCT on all columns still
  * returns duplicates and caused double notifications.
+ * MSTeamsTeamsUsers rows (multi-team).
  */
 const dedupeRecipientsByUserId = (recipients) => {
   const map = new Map();
@@ -473,8 +613,12 @@ const buildConsentAdaptiveCard = ({
     "Choose how you'd like to receive Safety Check notifications.";
   const defaultInstruction =
     "Select one or more options below, then click Submit.";
+  const cardMessage =
+    message && String(message).trim()
+      ? String(message).trim()
+      : DEFAULT_CONSENT_MESSAGE;
 
-  const raw = message && String(message).trim() ? String(message).trim() : "";
+  const raw = cardMessage;
   const paragraphs = raw
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -493,57 +637,113 @@ const buildConsentAdaptiveCard = ({
       paragraphs[0].startsWith(defaultTitle) &&
       paragraphs[0].length > defaultTitle.length
     ) {
-      instruction = paragraphs[0]
-        .slice(defaultTitle.length)
-        .replace(/^\.\s*/, "")
-        .trim() || defaultInstruction;
+      instruction =
+        paragraphs[0]
+          .slice(defaultTitle.length)
+          .replace(/^\.\s*/, "")
+          .trim() || defaultInstruction;
     } else {
       instruction = paragraphs[0];
     }
   }
 
-  const choices = chs.map((ch) => {
+  const body = [
+    {
+      type: "TextBlock",
+      text: title,
+      weight: "Bolder",
+      wrap: true,
+      size: "Medium",
+    },
+    {
+      type: "TextBlock",
+      text: instruction,
+      wrap: true,
+      spacing: "Small",
+    },
+  ];
+
+  // Preserve channelsRequested order: OptedIn locked with green label; others selectable.
+  // Teams ignores isEnabled on Input.ChoiceSet, so consented rows use TextBlocks only (read-only).
+  // Use the same ColumnSet shape for every row so checkboxes/labels stay aligned.
+  for (const ch of chs) {
     const optedIn = existingConsent[ch] === CONSENT_STATUS.OptedIn;
-    return {
-      title: optedIn
-        ? `${CHANNEL_LABELS[ch]} ✓ Consented`
-        : CHANNEL_LABELS[ch],
-      value: ch,
-    };
-  });
-
-  const preselected = chs
-    .filter((ch) => existingConsent[ch] === CONSENT_STATUS.OptedIn)
-    .join(",");
-
-  return {
-    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-    type: "AdaptiveCard",
-    version: "1.4",
-    appId: process.env.MicrosoftAppId,
-    body: [
-      {
-        type: "TextBlock",
-        text: title,
-        weight: "Bolder",
-        wrap: true,
-        size: "Medium",
-      },
-      {
-        type: "TextBlock",
-        text: instruction,
-        wrap: true,
+    if (optedIn) {
+      body.push({
+        type: "ColumnSet",
         spacing: "Small",
-      },
-      {
-        type: "Input.ChoiceSet",
-        id: "selectedChannels",
-        style: "expanded",
-        isMultiSelect: true,
-        value: preselected,
-        choices,
-      },
-    ],
+        columns: [
+          {
+            type: "Column",
+            width: "stretch",
+            verticalContentAlignment: "Center",
+            items: [
+              {
+                type: "TextBlock",
+                text: `☑  ${CHANNEL_LABELS[ch]}`,
+                wrap: true,
+                spacing: "None",
+              },
+            ],
+          },
+          {
+            type: "Column",
+            width: "110px",
+            verticalContentAlignment: "Center",
+            items: [
+              {
+                type: "TextBlock",
+                text: "✓ Consented",
+                color: "Good",
+                wrap: false,
+                horizontalAlignment: "Right",
+                spacing: "None",
+              },
+            ],
+          },
+        ],
+      });
+    } else {
+      body.push({
+        type: "ColumnSet",
+        spacing: "Small",
+        columns: [
+          {
+            type: "Column",
+            width: "stretch",
+            verticalContentAlignment: "Center",
+            items: [
+              {
+                type: "Input.ChoiceSet",
+                id: `selectedChannel_${ch}`,
+                style: "expanded",
+                isMultiSelect: true,
+                spacing: "None",
+                choices: [{ title: CHANNEL_LABELS[ch], value: ch }],
+              },
+            ],
+          },
+          {
+            type: "Column",
+            width: "110px",
+            verticalContentAlignment: "Center",
+            items: [
+              {
+                type: "TextBlock",
+                text: " ",
+                wrap: false,
+                spacing: "None",
+              },
+            ],
+          },
+        ],
+      });
+    }
+  }
+
+  body.push({
+    type: "ActionSet",
+    spacing: "Medium",
     actions: [
       {
         type: "Action.Execute",
@@ -554,30 +754,18 @@ const buildConsentAdaptiveCard = ({
           tenantId,
           teamId,
           channelsRequested: chs,
+          message: cardMessage,
         },
       },
     ],
-  };
-};
+  });
 
-const buildConsentConfirmationCard = (selectedChannels) => {
-  const labels = normalizeChannels(selectedChannels)
-    .map((ch) => CHANNEL_LABELS[ch])
-    .join(", ");
-  const text = labels
-    ? `✔️ Your notification preferences have been saved: ${labels}.`
-    : "✔️ Your notification preferences have been saved. You will only receive Safety Check notifications via Microsoft Teams until you opt in to other channels.";
   return {
     $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
     type: "AdaptiveCard",
     version: "1.4",
-    body: [
-      {
-        type: "TextBlock",
-        text,
-        wrap: true,
-      },
-    ],
+    appId: process.env.MicrosoftAppId,
+    body,
   };
 };
 
@@ -592,8 +780,7 @@ const markConsentRequestSent = async ({
 }) => {
   const chs = normalizeChannels(channels);
   const statusMap =
-    existingStatusMap ||
-    (await getExistingConsentMap(tenantId, [userId], chs));
+    existingStatusMap || (await getExistingConsentMap(tenantId, [userId], chs));
 
   for (const ch of chs) {
     const current = statusMap.get(`${userId}|${ch}`);
@@ -601,8 +788,7 @@ const markConsentRequestSent = async ({
       continue;
     }
     const isReminder =
-      current === CONSENT_STATUS.Pending ||
-      current === CONSENT_STATUS.OptedOut;
+      current === CONSENT_STATUS.Pending || current === CONSENT_STATUS.OptedOut;
     await upsertConsentStatus({
       tenantId,
       userId,
@@ -622,33 +808,48 @@ const markConsentRequestSent = async ({
   }
 };
 
+/**
+ * Additive-only: mark newly selected channels as OptedIn.
+ * Does not opt out or overwrite previously saved selections.
+ * @returns {string[]} channels that were newly saved as OptedIn
+ */
 const recordConsentResponse = async ({
   tenantId,
   userId,
-  channelsRequested,
   selectedChannels,
   performedBy = null,
+  existingConsent = null,
 }) => {
-  const requested = normalizeChannels(channelsRequested);
-  const selected = new Set(normalizeChannels(selectedChannels));
+  const selected = normalizeChannels(selectedChannels);
+  if (!selected.length) return [];
 
-  for (const ch of requested) {
-    const optedIn = selected.has(ch);
+  let consentMap = existingConsent;
+  if (!consentMap) {
+    consentMap = await getUserConsentForChannels(tenantId, userId, selected);
+  }
+
+  const newlySaved = [];
+  for (const ch of selected) {
+    if (consentMap[ch] === CONSENT_STATUS.OptedIn) {
+      continue;
+    }
     await upsertConsentStatus({
       tenantId,
       userId,
       channel: ch,
-      status: optedIn ? CONSENT_STATUS.OptedIn : CONSENT_STATUS.OptedOut,
+      status: CONSENT_STATUS.OptedIn,
       setConsentDate: true,
     });
     await insertHistory({
       tenantId,
       userId,
       channel: ch,
-      action: optedIn ? CONSENT_ACTION.Accepted : CONSENT_ACTION.Declined,
+      action: CONSENT_ACTION.Accepted,
       performedBy: performedBy || userId,
     });
+    newlySaved.push(ch);
   }
+  return newlySaved;
 };
 
 const updateIntegrationOptInFlags = async (
@@ -840,8 +1041,7 @@ const sendConsentRequests = async ({
         const sendFailed =
           !!resp?.error ||
           !resp?.activityId ||
-          (resp?.status != null &&
-            Number(resp.status) >= 400);
+          (resp?.status != null && Number(resp.status) >= 400);
 
         if (sendFailed) {
           console.log(
@@ -871,7 +1071,10 @@ const sendConsentRequests = async ({
         return "sent";
       } catch (err) {
         // Any unexpected error: skip this user and continue with next
-        console.log(`Consent send skipped for user ${userId}:`, err?.message || err);
+        console.log(
+          `Consent send skipped for user ${userId}:`,
+          err?.message || err,
+        );
         processSafetyBotError(
           err,
           teamId || "",
@@ -907,10 +1110,10 @@ module.exports = {
   filterUsersByConsent,
   userHasChannelConsent,
   getConsentStats,
+  getConsentUserList,
   getUsersNeedingConsent,
   getUserConsentForChannels,
   buildConsentAdaptiveCard,
-  buildConsentConfirmationCard,
   markConsentRequestSent,
   recordConsentResponse,
   updateIntegrationOptInFlags,

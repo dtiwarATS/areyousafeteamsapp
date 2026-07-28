@@ -1347,32 +1347,68 @@ WHEN NOT MATCHED THEN
         const user = context.activity.from;
         const userId = user?.aadObjectId || user?.id;
         const tenantId = actionData.tenantId;
+        const teamId = actionData.teamId || null;
         const channelsRequested = actionData.channelsRequested || [];
-        let selectedChannels = actionData.selectedChannels;
-        if (typeof selectedChannels === "string") {
-          selectedChannels = selectedChannels
+        const cardMessage = actionData.message || null;
+
+        // Per-channel inputs (new cards) + legacy selectedChannels (old cards).
+        const selectedFromPerChannel = (channelsRequested || []).filter(
+          (ch) => {
+            const v = actionData[`selectedChannel_${ch}`];
+            if (v == null || v === "") return false;
+            if (Array.isArray(v)) return v.includes(ch);
+            return String(v)
+              .split(",")
+              .map((s) => s.trim())
+              .includes(ch);
+          },
+        );
+        let legacySelected = actionData.selectedChannels;
+        if (typeof legacySelected === "string") {
+          legacySelected = legacySelected
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean);
         }
-        if (!Array.isArray(selectedChannels)) {
-          selectedChannels = selectedChannels ? [selectedChannels] : [];
+        if (!Array.isArray(legacySelected)) {
+          legacySelected = legacySelected ? [legacySelected] : [];
         }
+        const selectedChannels = [
+          ...new Set([...selectedFromPerChannel, ...legacySelected]),
+        ];
 
+        let existingConsent = {};
         if (tenantId && userId) {
+          existingConsent =
+            await userNotificationConsentService.getUserConsentForChannels(
+              tenantId,
+              userId,
+              channelsRequested,
+            );
           await userNotificationConsentService.recordConsentResponse({
             tenantId,
             userId,
-            channelsRequested,
             selectedChannels,
             performedBy: userId,
+            existingConsent,
           });
+          // Refresh map so rebuilt card shows all OptedIn (previous + new).
+          existingConsent =
+            await userNotificationConsentService.getUserConsentForChannels(
+              tenantId,
+              userId,
+              channelsRequested,
+            );
         }
 
         adaptiveCard =
-          userNotificationConsentService.buildConsentConfirmationCard(
-            selectedChannels,
-          );
+          userNotificationConsentService.buildConsentAdaptiveCard({
+            message: cardMessage,
+            channelsRequested,
+            existingConsent,
+            tenantId,
+            teamId,
+          });
         const cards = CardFactory.adaptiveCard(adaptiveCard);
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;

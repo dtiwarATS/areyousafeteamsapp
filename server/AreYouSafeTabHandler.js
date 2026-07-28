@@ -4342,6 +4342,48 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getUserConsentList", async (req, res) => {
+    const tenantId = req.query.tenantId;
+    const channel = req.query.channel;
+    const search = req.query.search || "";
+    const statuses = req.query.statuses || req.query.status || null;
+    const page = req.query.page;
+    const pageSize = req.query.pageSize;
+    const sortBy = req.query.sortBy || "status";
+    const sortDir = req.query.sortDir || "asc";
+    try {
+      if (!tenantId) {
+        res.status(400).send({ error: "tenantId is required" });
+        return;
+      }
+      if (!channel) {
+        res.status(400).send({ error: "channel is required" });
+        return;
+      }
+      const userNotificationConsentService = require("./services/userNotificationConsentService");
+      const result = await userNotificationConsentService.getConsentUserList({
+        tenantId,
+        channel,
+        search,
+        statuses,
+        page,
+        pageSize,
+        sortBy,
+        sortDir,
+      });
+      res.send(result);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        null,
+        "error in /areyousafetabhandler/getUserConsentList",
+      );
+      res.status(500).send({ error: "Error fetching consent user list" });
+    }
+  });
+
   app.post("/areyousafetabhandler/sendUserConsentRequest", async (req, res) => {
     const {
       teamId,
