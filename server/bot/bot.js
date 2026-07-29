@@ -6255,18 +6255,20 @@ const submitComment = async (context, user, companyData) => {
         translatedText,
       );
       const serviceUrl = context?.activity?.serviceUrl;
+      // Persist comment first so dashboard data is correct even if notify fails
+      await incidentService.updateIncResponseComment(
+        incId,
+        userId || user.id,
+        commentVal,
+        inc,
+        user.aadObjectId,
+      );
       await sendCommentToSelectedMembers(incId, context, null, {
         user: commentUser,
         commentVal,
         incTitle,
         translatedText,
       });
-      await incidentService.updateIncResponseComment(
-        incId,
-        userId,
-        commentVal,
-        inc,
-      );
       await sendApprovalResponseToSelectedTeams(
         incId,
         serviceUrl,
@@ -6424,9 +6426,10 @@ const Question1safetyVisitor = async (
       await sendCommentToSelectedMembers(incId, context, approvalCardResponse);
       await incidentService.updateIncResponseComment(
         incId,
-        userId,
+        userId || user.id,
         commentVal,
         inc,
+        user.aadObjectId,
       );
 
       await sendApprovalResponseToSelectedTeams(

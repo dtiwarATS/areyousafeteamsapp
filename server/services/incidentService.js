@@ -1164,34 +1164,84 @@ const updateIncResponseComment = async (
   userId,
   commentText = "",
   incData,
+  userAadObjId = "",
 ) => {
   pool = await poolPromise;
 
-  let query = null;
-  if (
-    incData != null &&
-    incData.incType == "recurringIncident" &&
-    incData.runAt != null
-  ) {
-    console.log("test updateIncResponseComment");
-    query =
-      `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${commentText.replace(
-        /'/g,
-        "''",
-      )}' WHERE convert(datetime, runAt) = convert(datetime, '${
-        incData.runAt
-      }' ) ` +
-      `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
-      `WHERE INC_ID = ${incidentId} AND user_id = '${userId}')`;
-  } else {
-    query = `UPDATE MSTeamsMemberResponses SET comment = '${commentText.replace(
-      /'/g,
-      "''",
-    )}' WHERE inc_id = ${incidentId} AND user_id = '${userId}'`;
+  const escapedComment = String(commentText || "").replace(/'/g, "''");
+  const escapeId = (id) => String(id).replace(/'/g, "''");
+
+  const idSet = new Set();
+  if (userId != null && String(userId).trim() !== "") {
+    idSet.add(String(userId).trim());
+  }
+  if (userAadObjId != null && String(userAadObjId).trim() !== "") {
+    idSet.add(String(userAadObjId).trim());
   }
 
-  console.log("update query >> ", query);
-  await pool.request().query(query);
+  // Resolve Teams roster user_id from AAD (same approach as SMS comment updates)
+  if (userAadObjId && String(userAadObjId).trim() !== "") {
+    try {
+      const resolveResult = await pool.request().query(`
+        SELECT DISTINCT user_id
+        FROM MSTeamsTeamsUsers
+        WHERE user_aadobject_id = '${escapeId(userAadObjId)}'
+          AND team_id = (SELECT team_id FROM MSTeamsIncidents WHERE id = ${incidentId})
+      `);
+      (resolveResult?.recordset || []).forEach((row) => {
+        if (row?.user_id) idSet.add(String(row.user_id));
+      });
+    } catch (err) {
+      console.log("updateIncResponseComment resolve user_id error", err);
+    }
+  }
+
+  if (idSet.size === 0) {
+    console.log("updateIncResponseComment: no user ids to match", {
+      incidentId,
+      userId,
+      userAadObjId,
+    });
+    return Promise.resolve();
+  }
+
+  const userIdMatch = Array.from(idSet)
+    .map((id) => `user_id = '${escapeId(id)}'`)
+    .join(" OR ");
+
+  // Match updateIncResponseData: recurring when type is recurring OR runAt is present
+  const isRecurringPath =
+    incData != null &&
+    (incData.incType == "recurringIncident" || incData.runAt != null);
+
+  // Always update parent row (one-time dashboard reads m.comment)
+  const mainQuery = `UPDATE MSTeamsMemberResponses SET comment = '${escapedComment}' WHERE inc_id = ${incidentId} AND (${userIdMatch})`;
+  console.log("updateIncResponseComment main >> ", mainQuery);
+  const mainResult = await pool.request().query(mainQuery);
+  console.log(
+    "updateIncResponseComment main rowsAffected >> ",
+    mainResult?.rowsAffected,
+  );
+
+  // Recurring dashboard overwrites with commentR — update Recurr as well
+  if (isRecurringPath) {
+    let recurrQuery;
+    if (incData.runAt != null) {
+      recurrQuery =
+        `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${escapedComment}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}') ` +
+        `AND memberResponsesId IN (SELECT ID FROM MSTeamsMemberResponses WHERE INC_ID = ${incidentId} AND (${userIdMatch}))`;
+    } else {
+      recurrQuery =
+        `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${escapedComment}' ` +
+        `WHERE memberResponsesId IN (SELECT ID FROM MSTeamsMemberResponses WHERE INC_ID = ${incidentId} AND (${userIdMatch}))`;
+    }
+    console.log("updateIncResponseComment recurr >> ", recurrQuery);
+    const recurrResult = await pool.request().query(recurrQuery);
+    console.log(
+      "updateIncResponseComment recurr rowsAffected >> ",
+      recurrResult?.rowsAffected,
+    );
+  }
 
   return Promise.resolve();
 };
