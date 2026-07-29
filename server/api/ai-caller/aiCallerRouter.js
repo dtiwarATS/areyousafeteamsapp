@@ -312,4 +312,33 @@ router.post("/sos-send", async (req, res) => {
   }
 });
 
+/** Close SOS — updates MSTeamsAssistance status for the mapped team. */
+router.post("/sos-close", async (req, res) => {
+  const ids = requireMappedIds(req, res);
+  if (!ids) return;
+  const sosId = req.body?.sosId ?? req.body?.assistId;
+  const closedByUserAad = req.body?.closedByUserAad || req.body?.userAadObjId;
+  if (!sosId) {
+    return res.status(400).json({ error: "sosId is required", ok: false });
+  }
+  if (!closedByUserAad) {
+    return res.status(400).json({ error: "closedByUserAad is required", ok: false });
+  }
+  try {
+    const result = await sos.closeSos({
+      teamId: ids.teamId,
+      sosId,
+      closedByUserAad: String(closedByUserAad),
+      closedByUserName: req.body?.closedByUserName,
+    });
+    if (result?.error) {
+      return res.status(400).json(result);
+    }
+    res.json(result);
+  } catch (err) {
+    console.error("[ai-caller] sos-close error", err);
+    res.status(500).json({ error: err.message || "Failed to close SOS", ok: false });
+  }
+});
+
 module.exports = router;
