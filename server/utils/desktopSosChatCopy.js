@@ -430,12 +430,42 @@ function buildDesktopSosClosedPayload({
   };
 }
 
+/**
+ * Payload for officers' desktop when the SOS victim adds a comment.
+ * Mirrors Teams Adaptive Card: "User {name} has commented : {comment}"
+ */
+function buildSosCommentDesktopPayload(input) {
+  const userName =
+    typeof input?.userName === "string" ? input.userName.trim() : "";
+  const comment =
+    typeof input?.comment === "string" ? input.comment.trim() : "";
+  const commentDate =
+    typeof input?.commentDate === "string" && input.commentDate.trim()
+      ? input.commentDate.trim()
+      : new Date().toISOString();
+
+  const messageBody = userName
+    ? `${userName} has commented: ${comment}`
+    : `Someone has commented: ${comment}`;
+
+  return {
+    requestAssistanceid: input?.requestAssistanceid ?? null,
+    userAadObjId: input?.userAadObjId || null,
+    userName: userName || null,
+    teamId: input?.teamId ?? null,
+    comment,
+    commentDate,
+    messageBody,
+  };
+}
+
 module.exports = {
   SOS_UI_FALLBACKS,
   SOS_ATTRIBUTE_KEYS,
   loadAttributeTranslations,
   buildDesktopSosAcceptPayload,
   buildIncomingSosDesktopPayload,
+  buildSosCommentDesktopPayload,
   buildDesktopSosChatSnapshot,
   buildDesktopSosClosedPayload,
   buildOfficerAcceptAcknowledgment,

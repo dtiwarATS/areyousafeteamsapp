@@ -100,8 +100,10 @@ async function getSosEvents({ teamId, status, city, location, sinceDays }) {
         u.CITY AS city,
         u.COUNTRY AS country,
         u.DEPARTMENT AS department,
+        NULLIF(LTRIM(RTRIM(u.DYNAMIC_LOCATION)), '') AS dynamicLocation,
         ISNULL(NULLIF(LTRIM(RTRIM(a.status)), ''), 'Open') AS status,
         TRY_CONVERT(datetime, a.requested_date) AS requestedAt,
+        NULLIF(LTRIM(RTRIM(a.comments)), '') AS comments,
         (
           SELECT TOP 1 tu.user_name
           FROM dbo.MSTeamsTeamsUsers tu
@@ -109,6 +111,13 @@ async function getSosEvents({ teamId, status, city, location, sinceDays }) {
             AND LTRIM(RTRIM(ISNULL(tu.user_name, ''))) <> ''
         ) AS firstResponderName,
         a.FIRST_RESPONDER_RESPONDED_AT AS respondedAt,
+        TRY_CONVERT(datetime, a.closed_at) AS closedAt,
+        (
+          SELECT TOP 1 tu.user_name
+          FROM dbo.MSTeamsTeamsUsers tu
+          WHERE tu.user_aadobject_id = a.closed_by_user
+            AND LTRIM(RTRIM(ISNULL(tu.user_name, ''))) <> ''
+        ) AS closedByName,
         CASE
           WHEN a.FIRST_RESPONDER_RESPONDED_AT IS NOT NULL
             AND TRY_CONVERT(datetime, a.requested_date) IS NOT NULL
@@ -139,10 +148,15 @@ async function getSosEvents({ teamId, status, city, location, sinceDays }) {
         city: row.city || undefined,
         country: row.country || undefined,
         department: row.department || undefined,
+        location: row.dynamicLocation || row.city || undefined,
         status: row.status || "Open",
+        description: row.comments || undefined,
+        comment: row.comments || undefined,
         requestedAt: toIso(row.requestedAt),
         firstResponderName: row.firstResponderName || undefined,
         respondedAt: toIso(row.respondedAt),
+        closedAt: toIso(row.closedAt),
+        closedByName: row.closedByName || undefined,
         responseTimeMinutes: mins,
       });
     }
@@ -421,9 +435,81 @@ async function sendSosViaExistingApis({ userAadObjId, userName, teamId, message 
   };
 }
 
+/**
+ * Close an SOS / need-assistance record for the mapped Teams team.
+ * Updates MSTeamsAssistance only (does not send Teams cards).
+ */
+async function closeSos({ teamId, sosId, closedByUserAad, closedByUserName }) {
+  const id = Number(sosId);
+  if (!Number.isFinite(id) || id <= 0) {
+    return { error: "Invalid sosId", ok: false };
+  }
+  const closerAad = trimOrNull(closedByUserAad);
+  if (!closerAad) {
+    return { error: "closedByUserAad is required", ok: false };
+  }
+
+  try {
+    const pool = await poolPromise;
+    const existing = await pool
+      .request()
+      .input("sosId", sql.Int, id)
+      .input("teamId", sql.NVarChar(256), String(teamId))
+      .query(`
+        SELECT TOP 1
+          a.id AS sosId,
+          ISNULL(NULLIF(LTRIM(RTRIM(a.status)), ''), 'Open') AS status
+        FROM dbo.MSTeamsAssistance a
+        WHERE a.id = @sosId
+          AND LTRIM(RTRIM(ISNULL(a.team_ids, ''))) = @teamId
+      `);
+    const row = existing.recordset?.[0];
+    if (!row) {
+      return { error: "SOS event not found for this team", ok: false };
+    }
+    if (String(row.status || "").toLowerCase() === "closed") {
+      return {
+        ok: true,
+        alreadyClosed: true,
+        sosId: id,
+        status: "Closed",
+        closedByName: closedByUserName || undefined,
+      };
+    }
+
+    const closedAt = new Date();
+    await pool
+      .request()
+      .input("sosId", sql.Int, id)
+      .input("teamId", sql.NVarChar(256), String(teamId))
+      .input("closedBy", sql.NVarChar(256), closerAad)
+      .input("closedAt", sql.DateTime, closedAt)
+      .query(`
+        UPDATE dbo.MSTeamsAssistance
+        SET status = 'Closed',
+            closed_by_user = @closedBy,
+            closed_at = @closedAt
+        WHERE id = @sosId
+          AND LTRIM(RTRIM(ISNULL(team_ids, ''))) = @teamId
+      `);
+
+    return {
+      ok: true,
+      sosId: id,
+      status: "Closed",
+      closedAt: closedAt.toISOString(),
+      closedByName: closedByUserName || undefined,
+    };
+  } catch (err) {
+    console.warn("[ai-caller] closeSos failed:", err.message);
+    return { error: err.message || "Failed to close SOS", ok: false };
+  }
+}
+
 module.exports = {
   getSosEvents,
   getSosStats,
   listSosOfficers,
   sendSosViaExistingApis,
+  closeSos,
 };

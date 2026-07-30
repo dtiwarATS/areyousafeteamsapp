@@ -1112,6 +1112,8 @@ const handlerForSafetyBotTab = (app) => {
         return res.status(200).json({
           success: true,
           confirmationMessage: followUp.confirmationMessage,
+          additionalCommentsLabel: followUp.additionalCommentsLabel ?? null,
+          additionalComment: followUp.additionalComment ?? null,
           creator: followUpCtx.creator,
         });
       } catch (err) {
@@ -3024,10 +3026,18 @@ const handlerForSafetyBotTab = (app) => {
               userAadObjId,
               TeamId,
             );
-            const hasAdmins =
+            const officerList =
+              Array.isArray(admins) && Array.isArray(admins[0])
+                ? admins[0]
+                : [];
+            const victimRow =
               Array.isArray(admins) &&
-              Array.isArray(admins[0]) &&
-              admins[0].length > 0 &&
+              Array.isArray(admins[1]) &&
+              admins[1].length > 0
+                ? admins[1][0]
+                : null;
+            const hasAdmins =
+              officerList.length > 0 &&
               Array.isArray(admins[1]) &&
               admins[1].length > 0;
             if (hasAdmins) {
@@ -3058,6 +3068,49 @@ const handlerForSafetyBotTab = (app) => {
                 { userAadObjId, TeamId, assistId },
               );
             }
+
+            // Paired desktop officers — emit even if Teams Adaptive Card notify failed.
+            try {
+              const officerAads = [
+                ...new Set(
+                  officerList
+                    .map((a) => a?.user_aadobject_id)
+                    .filter((id) => id != null && String(id).trim() !== ""),
+                ),
+              ];
+              if (officerAads.length > 0) {
+                const {
+                  buildSosCommentDesktopPayload,
+                } = require("./utils/desktopSosChatCopy");
+                const commentDate = (() => {
+                  if (ts != null) {
+                    const parsed = new Date(ts);
+                    if (!Number.isNaN(parsed.getTime())) {
+                      return parsed.toISOString();
+                    }
+                  }
+                  return new Date().toISOString();
+                })();
+                const commentPayload = buildSosCommentDesktopPayload({
+                  requestAssistanceid: assistId,
+                  userAadObjId,
+                  userName: victimRow?.user_name,
+                  teamId: TeamId,
+                  comment: reqBody.comment,
+                  commentDate,
+                });
+                await socketService.emitSosCommentToUsers(
+                  officerAads,
+                  commentPayload,
+                );
+              }
+            } catch (desktopEmitErr) {
+              console.error(
+                "[addCommentToAssistance] desktop sos_comment emit failed",
+                desktopEmitErr?.message || desktopEmitErr,
+              );
+            }
+
             res.send(true);
           })
           .catch((err) => {
