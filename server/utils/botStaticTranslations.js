@@ -1,32 +1,25 @@
-const path = require("path");
-const botStaticTranslations = require(path.join(
-  __dirname,
-  "../locales/botStaticTranslations.json",
-));
-const cardStaticTranslations = require(path.join(
-  __dirname,
-  "../locales/cardStaticTranslations.json",
-));
+const attributeTranslationService = require("./attributeTranslationService");
 
-const mergedStaticTranslations = {
-  ...botStaticTranslations,
-  ...cardStaticTranslations,
+const DEFAULT_LANGUAGE_ID =
+  attributeTranslationService.DEFAULT_LANGUAGE_ID;
+
+const resolveLanguageId = (languageId) => {
+  if (languageId == null || languageId === "") return DEFAULT_LANGUAGE_ID;
+  const n = Number(languageId);
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_LANGUAGE_ID;
 };
 
-const DEFAULT_LANGUAGE_ID = 10000;
-
+/**
+ * Sync lookup against the in-memory attribute cache.
+ * Prefer awaiting attributeTranslationService.loadLanguage(languageId)
+ * (or getUserLanguageIdByAadObjId) before building cards so the cache is warm.
+ */
 const getBotStaticText = (key, languageId, fallback) => {
-  const field = mergedStaticTranslations[key];
-  if (!field) return fallback;
-  const langKey =
-    languageId != null && languageId !== ""
-      ? String(languageId)
-      : String(DEFAULT_LANGUAGE_ID);
-  const value = field[langKey];
-  if (value != null && value !== "") return value;
-  const defaultValue = field[String(DEFAULT_LANGUAGE_ID)];
-  if (defaultValue != null && defaultValue !== "") return defaultValue;
-  return fallback;
+  const resolved = resolveLanguageId(languageId);
+  if (!attributeTranslationService.isLanguageCached(resolved)) {
+    void attributeTranslationService.loadLanguage(resolved);
+  }
+  return attributeTranslationService.getTextCached(key, resolved, fallback);
 };
 
 const getIncidentTranslatedText = (incObj) =>

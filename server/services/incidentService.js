@@ -3241,15 +3241,22 @@ const setSuperAdmin = async (superAdmins, teamId, userAadObjId) => {
   return Promise.resolve(result);
 };
 const getUserLanguageIdByAadObjId = async (userAadObjId) => {
-  const DEFAULT_LANGUAGE_ID = 10000;
+  const attributeTranslationService = require("../utils/attributeTranslationService");
+  const DEFAULT_LANGUAGE_ID =
+    attributeTranslationService.DEFAULT_LANGUAGE_ID;
   try {
-    if (!userAadObjId) return DEFAULT_LANGUAGE_ID;
+    if (!userAadObjId) {
+      await attributeTranslationService.loadLanguage(DEFAULT_LANGUAGE_ID);
+      return DEFAULT_LANGUAGE_ID;
+    }
     const sql = `SELECT TOP 1 LANGUAGE_ID FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${userAadObjId}' ORDER BY id DESC`;
     const result = await db.getDataFromDB(sql, userAadObjId);
-    const languageId = result?.[0]?.LANGUAGE_ID;
-    return languageId != null && languageId !== ""
-      ? languageId
-      : DEFAULT_LANGUAGE_ID;
+    const languageId =
+      result?.[0]?.LANGUAGE_ID != null && result?.[0]?.LANGUAGE_ID !== ""
+        ? result[0].LANGUAGE_ID
+        : DEFAULT_LANGUAGE_ID;
+    await attributeTranslationService.loadLanguage(languageId);
+    return languageId;
   } catch (err) {
     console.log(err);
     processSafetyBotError(

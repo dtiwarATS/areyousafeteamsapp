@@ -147,6 +147,15 @@ const server = app.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
   socketService.attach(server);
 
+  // Warm English UI/bot attribute translations from SYS_ATTRIBUTE_DEF_TRANS.
+  const attributeTranslationService = require("./utils/attributeTranslationService");
+  attributeTranslationService.warmCache().catch((err) => {
+    console.error(
+      "Attribute translation cache warm-up failed:",
+      err?.message || err,
+    );
+  });
+
   // Warm CountryList/CityList catalogs so first location search is fast.
   const travelLocationsDb = require("./travelServices/travel-advisory-locations-db");
   const weatherLocationsDb = require("./travelServices/weather-alert-locations-db");
