@@ -1444,7 +1444,7 @@ WHERE id = ${res[0].id}`;
                 JSON.stringify(ex),
               );
             }
-            if (admins[i].SOS_NOTIFICATION.includes("SMS")) {
+            if ((admins[i].SOS_NOTIFICATION || "").includes("SMS")) {
               const commentSmsConfig =
                 userNotificationConsentService.parseIntegrationConfig(
                   admins[i].INTEGRATION_CONFIGURE,
@@ -1456,7 +1456,7 @@ WHERE id = ${res[0].id}`;
                   "sms",
                   commentSmsConfig,
                 );
-              if (canSendCommentSms) {
+              if (canSendCommentSms && Array.isArray(usrPhones)) {
               usrPhones.map(async (userpho) => {
                 if (userpho.id == admins[i].user_aadobject_id) {
                   var num =
