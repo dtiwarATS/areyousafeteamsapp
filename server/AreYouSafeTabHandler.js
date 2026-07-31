@@ -1112,8 +1112,6 @@ const handlerForSafetyBotTab = (app) => {
         return res.status(200).json({
           success: true,
           confirmationMessage: followUp.confirmationMessage,
-          additionalCommentsLabel: followUp.additionalCommentsLabel ?? null,
-          additionalComment: followUp.additionalComment ?? null,
           creator: followUpCtx.creator,
         });
       } catch (err) {
@@ -1453,13 +1451,13 @@ const handlerForSafetyBotTab = (app) => {
           response.errors = errors;
         }
 
-        console.log({ flattenedData, errors, accessTokenError });
+        // console.log({ flattenedData, errors, accessTokenError });
         res.send(response);
       } else {
         res.send({ data: [], errors: [] });
       }
 
-      console.log(teamInfo);
+      // console.log(teamInfo);
     } catch (err) {
       processSafetyBotError(
         err,
@@ -1891,6 +1889,10 @@ const handlerForSafetyBotTab = (app) => {
       const tabObj = new tab.AreYouSafeTab();
       await tabObj.deleteSOSResponder(teamId, city, country, department);
       res.send("success");
+      void socketService.emitSosContactsUpdatedForTeam(
+        teamId,
+        "deleteSOSResponder",
+      );
     } catch (err) {
       processSafetyBotError(
         err,
@@ -1908,6 +1910,10 @@ const handlerForSafetyBotTab = (app) => {
       const tabObj = new tab.AreYouSafeTab();
       await tabObj.saveSOSResponder(teamId, rowsToSave);
       res.send("success");
+      void socketService.emitSosContactsUpdatedForTeam(
+        teamId,
+        "saveSOSResponder",
+      );
     } catch (err) {
       processSafetyBotError(
         err,
@@ -2184,6 +2190,7 @@ const handlerForSafetyBotTab = (app) => {
       const tabObj = new tab.AreYouSafeTab();
       await tabObj.setSuperAdmin(superAdmin, teamId, userAadObjId);
       res.send("success");
+      void socketService.emitSosContactsUpdatedForTeam(teamId, "setSuperAdmin");
     } catch (err) {
       processSafetyBotError(
         err,
@@ -2877,7 +2884,22 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
   app.get("/areyousafetabhandler/requestAssistance", async (req, res) => {
-    console.log("came in request");
+    await handleRequestAssistanceHttp(req, res, null);
+  });
+
+  /**
+   * Desktop fast path: create assistance from client-supplied adminlist
+   * (skips getAdminsOrEmergencyContacts). Body: { adminlist: [admins, [initiator]] }
+   */
+  app.post("/areyousafetabhandler/requestAssistance", async (req, res) => {
+    const clientIncData =
+      req.body?.adminlist ||
+      req.body?.data?.adminlist ||
+      null;
+    await handleRequestAssistanceHttp(req, res, clientIncData);
+  });
+
+  async function handleRequestAssistanceHttp(req, res, clientIncData) {
     const userAadObjId = req.query.userId;
     var userlocation = "null";
     const TeamId = req.query.teamid;
@@ -2889,20 +2911,42 @@ const handlerForSafetyBotTab = (app) => {
       UserDataUpdateID = req.query.ID;
     }
     try {
-      let incData = await incidentService.getAdminsOrEmergencyContacts(
-        userAadObjId,
-        TeamId,
-      );
+      let admins = null;
+      let user = null;
+
+      // Desktop cache path: [admins, [initiatorUser]]
       if (
-        incData === null ||
-        (Array.isArray(incData) && incData.length === 0) ||
-        incData[0].length === 0
+        Array.isArray(clientIncData) &&
+        Array.isArray(clientIncData[0]) &&
+        clientIncData[0].length > 0
       ) {
+        admins = clientIncData[0];
+        user =
+          Array.isArray(clientIncData[1]) && clientIncData[1][0]
+            ? clientIncData[1][0]
+            : null;
+      } else {
+        let incData = await incidentService.getAdminsOrEmergencyContacts(
+          userAadObjId,
+          TeamId,
+        );
+        if (
+          incData === null ||
+          (Array.isArray(incData) && incData.length === 0) ||
+          incData[0].length === 0
+        ) {
+          res.send("no safety officers");
+          return;
+        }
+        admins = incData[0];
+        user = incData[1][0];
+      }
+
+      if (!user || user.user_id == null) {
         res.send("no safety officers");
         return;
       }
-      let admins = incData[0];
-      let user = incData[1][0];
+
       let assistanceData = null;
       const tabObj = new tab.AreYouSafeTab();
       if (admins && admins.length > 0) {
@@ -2935,7 +2979,7 @@ const handlerForSafetyBotTab = (app) => {
         "error in /areyousafetabhandler/requestAssistance",
       );
     }
-  });
+  }
 
   app.post(
     "/areyousafetabhandler/sendNeedAssistanceProactiveMessage",
@@ -3022,96 +3066,123 @@ const handlerForSafetyBotTab = (app) => {
         incidentService
           .addComment(data.assistId, reqBody.comment, ts, userAadObjId)
           .then(async (respData) => {
-            let admins = await incidentService.getAdminsOrEmergencyContacts(
-              userAadObjId,
-              TeamId,
-            );
-            const officerList =
-              Array.isArray(admins) && Array.isArray(admins[0])
-                ? admins[0]
-                : [];
-            const victimRow =
-              Array.isArray(admins) &&
-              Array.isArray(admins[1]) &&
-              admins[1].length > 0
-                ? admins[1][0]
-                : null;
-            const hasAdmins =
-              officerList.length > 0 &&
-              Array.isArray(admins[1]) &&
-              admins[1].length > 0;
-            if (hasAdmins) {
-              const tabObj = new tab.AreYouSafeTab();
-              try {
-                await tabObj.sendUserCommentToAdmin(
-                  admins,
-                  reqBody.comment,
-                  userAadObjId,
-                  assistId,
-                );
-              } catch (notifyErr) {
-                console.error(
-                  "[addCommentToAssistance] bot notify failed",
-                  notifyErr,
-                );
-                processSafetyBotError(
-                  notifyErr,
-                  TeamId,
-                  "",
-                  userAadObjId,
-                  "error in /areyousafetabhandler/addCommentToAssistance notify",
-                );
-              }
-            } else {
-              console.log(
-                "[addCommentToAssistance] no admins to notify",
-                { userAadObjId, TeamId, assistId },
-              );
-            }
-
-            // Paired desktop officers — emit even if Teams Adaptive Card notify failed.
-            try {
-              const officerAads = [
-                ...new Set(
-                  officerList
-                    .map((a) => a?.user_aadobject_id)
-                    .filter((id) => id != null && String(id).trim() !== ""),
-                ),
-              ];
-              if (officerAads.length > 0) {
-                const {
-                  buildSosCommentDesktopPayload,
-                } = require("./utils/desktopSosChatCopy");
-                const commentDate = (() => {
-                  if (ts != null) {
-                    const parsed = new Date(ts);
-                    if (!Number.isNaN(parsed.getTime())) {
-                      return parsed.toISOString();
-                    }
-                  }
-                  return new Date().toISOString();
-                })();
-                const commentPayload = buildSosCommentDesktopPayload({
-                  requestAssistanceid: assistId,
-                  userAadObjId,
-                  userName: victimRow?.user_name,
-                  teamId: TeamId,
-                  comment: reqBody.comment,
-                  commentDate,
-                });
-                await socketService.emitSosCommentToUsers(
-                  officerAads,
-                  commentPayload,
-                );
-              }
-            } catch (desktopEmitErr) {
-              console.error(
-                "[addCommentToAssistance] desktop sos_comment emit failed",
-                desktopEmitErr?.message || desktopEmitErr,
-              );
-            }
-
+            // Ack immediately after DB write — notify officers in background.
             res.send(true);
+
+            void (async () => {
+              try {
+                let admins = null;
+                const clientIncData =
+                  reqBody?.adminlist || reqBody?.data?.adminlist || null;
+                if (
+                  Array.isArray(clientIncData) &&
+                  Array.isArray(clientIncData[0]) &&
+                  clientIncData[0].length > 0 &&
+                  Array.isArray(clientIncData[1]) &&
+                  clientIncData[1].length > 0
+                ) {
+                  admins = clientIncData;
+                } else {
+                  admins = await incidentService.getAdminsOrEmergencyContacts(
+                    userAadObjId,
+                    TeamId,
+                  );
+                }
+
+                const officerList =
+                  Array.isArray(admins) && Array.isArray(admins[0])
+                    ? admins[0]
+                    : [];
+                const victimRow =
+                  Array.isArray(admins) &&
+                  Array.isArray(admins[1]) &&
+                  admins[1].length > 0
+                    ? admins[1][0]
+                    : null;
+                const hasAdmins =
+                  officerList.length > 0 &&
+                  Array.isArray(admins?.[1]) &&
+                  admins[1].length > 0;
+
+                if (hasAdmins) {
+                  const tabObj = new tab.AreYouSafeTab();
+                  try {
+                    await tabObj.sendUserCommentToAdmin(
+                      admins,
+                      reqBody.comment,
+                      userAadObjId,
+                      assistId,
+                    );
+                  } catch (notifyErr) {
+                    console.error(
+                      "[addCommentToAssistance] bot notify failed",
+                      notifyErr,
+                    );
+                    processSafetyBotError(
+                      notifyErr,
+                      TeamId,
+                      "",
+                      userAadObjId,
+                      "error in /areyousafetabhandler/addCommentToAssistance notify",
+                    );
+                  }
+                } else {
+                  console.log("[addCommentToAssistance] no admins to notify", {
+                    userAadObjId,
+                    TeamId,
+                    assistId,
+                  });
+                }
+
+                try {
+                  const officerAads = [
+                    ...new Set(
+                      officerList
+                        .map((a) => a?.user_aadobject_id)
+                        .filter(
+                          (id) => id != null && String(id).trim() !== "",
+                        ),
+                    ),
+                  ];
+                  if (officerAads.length > 0) {
+                    const {
+                      buildSosCommentDesktopPayload,
+                    } = require("./utils/desktopSosChatCopy");
+                    const commentDate = (() => {
+                      if (ts != null) {
+                        const parsed = new Date(ts);
+                        if (!Number.isNaN(parsed.getTime())) {
+                          return parsed.toISOString();
+                        }
+                      }
+                      return new Date().toISOString();
+                    })();
+                    const commentPayload = buildSosCommentDesktopPayload({
+                      requestAssistanceid: assistId,
+                      userAadObjId,
+                      userName: victimRow?.user_name,
+                      teamId: TeamId,
+                      comment: reqBody.comment,
+                      commentDate,
+                    });
+                    await socketService.emitSosCommentToUsers(
+                      officerAads,
+                      commentPayload,
+                    );
+                  }
+                } catch (desktopEmitErr) {
+                  console.error(
+                    "[addCommentToAssistance] desktop sos_comment emit failed",
+                    desktopEmitErr?.message || desktopEmitErr,
+                  );
+                }
+              } catch (bgErr) {
+                console.error(
+                  "[addCommentToAssistance] background notify failed",
+                  bgErr?.message || bgErr,
+                );
+              }
+            })();
           })
           .catch((err) => {
             console.log(err);
@@ -4423,6 +4494,12 @@ const handlerForSafetyBotTab = (app) => {
       const isUpdated = await tabObj.saveUserSetting(reqBody);
       if (isUpdated) {
         res.send("Your App Settings have been saved successfully.");
+        if (reqBody?.teamId) {
+          void socketService.emitSosContactsUpdatedForTeam(
+            reqBody.teamId,
+            "saveUserSetting",
+          );
+        }
       } else {
         res.send({ error: "Error: Please try again" });
       }
