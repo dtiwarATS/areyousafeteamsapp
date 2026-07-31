@@ -209,6 +209,15 @@ function buildUiCopy(translations) {
   };
 }
 
+/** Translated SOS UI strings for a user (no assistance record required). */
+async function buildDesktopSosUiCopy(userAadObjId) {
+  const languageId =
+    (await incidentService.getUserLanguageIdByAadObjId(userAadObjId)) ||
+    DEFAULT_LANGUAGE_ID;
+  const translations = await loadAttributeTranslations(languageId);
+  return buildUiCopy(translations);
+}
+
 /**
  * Payload for officers' desktop incoming SOS (Chat tab / Teams-parity copy).
  * messageBody matches Adaptive Card / FCM: "{name} needs assistance."
@@ -440,6 +449,7 @@ module.exports = {
   SOS_UI_FALLBACKS,
   SOS_ATTRIBUTE_KEYS,
   loadAttributeTranslations,
+  buildDesktopSosUiCopy,
   buildDesktopSosAcceptPayload,
   buildIncomingSosDesktopPayload,
   buildSosCommentDesktopPayload,

@@ -39,6 +39,7 @@ const {
   DEFAULT_LANGUAGE_ID,
 } = require("./utils/botStaticTranslations");
 const {
+  buildDesktopSosUiCopy,
   buildDesktopSosChatSnapshot,
   buildDesktopSosClosedPayload,
 } = require("./utils/desktopSosChatCopy");
@@ -2615,6 +2616,42 @@ const handlerForSafetyBotTab = (app) => {
         userAadObjId,
         "error in /areyousafetabhandler/getAssistanceData",
       );
+    }
+  });
+
+  /**
+   * Preload translated SOS UI copy for the desktop agent (no active assist required).
+   * Used so first paint after SOS tap matches the user's language.
+   */
+  app.get("/areyousafetabhandler/get-desktop-sos-ui", async (req, res) => {
+    const userAadObjectId = req.query.userAadObjectId || req.query.userId || "";
+
+    try {
+      if (!userAadObjectId) {
+        return res.status(400).json({
+          success: false,
+          message: "userAadObjectId is required",
+        });
+      }
+
+      const ui = await buildDesktopSosUiCopy(userAadObjectId);
+      return res.status(200).json({
+        success: true,
+        ui,
+      });
+    } catch (err) {
+      console.error("Error in get-desktop-sos-ui:", err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjectId,
+        "error in /areyousafetabhandler/get-desktop-sos-ui",
+      );
+      return res.status(500).json({
+        success: false,
+        message: "Failed to load desktop SOS UI copy",
+      });
     }
   });
 
