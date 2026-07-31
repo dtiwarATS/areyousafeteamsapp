@@ -568,7 +568,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
       data[0][0].user_tenant_id,
       userAadObjIds,
     );
-    console.log({ usrPhones });
+    // console.log({ usrPhones });
     try {
       let admins = data[0];
       let user = data[1][0];

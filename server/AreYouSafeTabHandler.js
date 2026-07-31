@@ -2989,27 +2989,66 @@ const handlerForSafetyBotTab = (app) => {
       let incData = null;
       var requestAssistanceid = req.query.requestAssistance;
       var issendemail = req.query.issendemail;
-      try {
-        incData = await incidentService.getAdminsOrEmergencyContacts(
-          userAadObjId,
-          teamId,
-        );
-      } catch (err) {
-        console.log(err);
-        processSafetyBotError(
-          err,
-          teamId,
-          "",
-          userAadObjId,
-          "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> getEmergencyContacts",
-        );
+
+      // Desktop / socket fast path: prefer client-supplied adminlist (skip slow SQL).
+      const parseClientAdminlist = () => {
+        try {
+          const raw =
+            req.body?.data?.adminlist ?? req.body?.adminlist ?? null;
+          if (raw == null) {
+            return null;
+          }
+          const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+          if (
+            Array.isArray(parsed) &&
+            Array.isArray(parsed[0]) &&
+            parsed[0].length > 0 &&
+            Array.isArray(parsed[1]) &&
+            parsed[1].length > 0
+          ) {
+            return parsed;
+          }
+        } catch (parseErr) {
+          console.log(
+            "[sendNeedAssistanceProactiveMessage] adminlist parse failed",
+            parseErr?.message || parseErr,
+          );
+        }
+        return null;
+      };
+
+      incData = parseClientAdminlist();
+      if (!incData) {
+        try {
+          incData = await incidentService.getAdminsOrEmergencyContacts(
+            userAadObjId,
+            teamId,
+          );
+        } catch (err) {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            teamId,
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> getEmergencyContacts",
+          );
+        }
       }
       if (
         incData === null ||
         (Array.isArray(incData) && incData.length === 0) ||
+        !incData[0] ||
         incData[0].length === 0
       ) {
-        incData = JSON.parse(req.body.data.adminlist);
+        // Last resort: body may still have a usable list even if shape check above failed.
+        try {
+          if (req.body?.data?.adminlist) {
+            incData = JSON.parse(req.body.data.adminlist);
+          }
+        } catch {
+          // leave incData as-is
+        }
       }
       var userlocation = null;
       if (req.body.data.ulocData != undefined && req.body.data.ulocData != "") {
