@@ -6652,81 +6652,58 @@ ORDER BY ACL.EventDateTime DESC;
 
   app.get("/areyousafetabhandler/getSelectedLanguageData", async (req, res) => {
     const language = req.query.language;
+    const languageIdParam = req.query.languageId;
     const userAadObjId = req.query.userAadObjId || "";
 
     try {
-      if (!language) {
-        return res
-          .status(400)
-          .json({ error: "Language parameter is required" });
+      if (
+        (languageIdParam == null || languageIdParam === "") &&
+        (!language || String(language).trim() === "")
+      ) {
+        return res.status(400).json({
+          error: "languageId or language parameter is required",
+        });
       }
 
-      const pool = await poolPromise;
-      const sql = require("mssql");
-
-      // SQL query matching the C# version - using language parameter
-      // Note: The C# version has two SELECT statements, but we'll use the language parameter
-      const query = `
-SELECT 
-    'Language' AS AttributeName, 
-    SL.LANGUAGE AS TranslatedAttribute, 
-    SL.LANGUAGE AS Language,
-    SL.CULTURE_CODE AS CULTURECODE
-FROM 
-    SYS_LANGUAGE SL
-WHERE 
-    SL.LANGUAGE = @language
-UNION ALL
-SELECT 
-    SA.ATTRIBUTE AS AttributeName,
-    SADT.ATTRIBUTE AS TranslatedAttribute,
-    SL.LANGUAGE AS Language,
-    SL.CULTURE_CODE AS CULTURECODE
-FROM 
-    SYS_ATTRIBUTE_DEF SA
-INNER JOIN 
-    SYS_ATTRIBUTE_DEF_TRANS SADT 
-ON 
-    SA.ATTRIBUTE_ID = SADT.ATTRIBUTE_ID
-INNER JOIN 
-    SYS_LANGUAGE SL 
-ON 
-    SADT.LANGUAGE_ID = SL.LANGUAGE_ID
-WHERE 
-    SL.LANGUAGE = @language;`;
-
-      const result = await pool
-        .request()
-        .input("language", sql.NVarChar, language)
-        .query(query);
-
-      // Format the result similar to C# code structure
-      const formattedResult = {};
-
-      // Process the result set (C# code processes DataTable, we process recordset)
-      if (result.recordset && result.recordset.length > 0) {
-        const formattedResult1 = {};
-        let languageName = "";
-
-        result.recordset.forEach((row) => {
-          const key = row.AttributeName;
-          const value = {
-            AttributeName: row.AttributeName,
-            TranslatedAttribute: row.TranslatedAttribute,
-            Language: row.Language,
-            CULTURECODE: row.CULTURECODE,
-          };
-
-          languageName = row.Language;
-          // Add or overwrite the key in the dictionary
-          formattedResult1[key] = value;
+      const attributeTranslationService = require("./utils/attributeTranslationService");
+      const resolvedLanguageId =
+        await attributeTranslationService.resolveLanguageId({
+          languageId: languageIdParam,
+          languageName: language,
         });
 
-        formattedResult[languageName] = formattedResult1;
+      // Invalidate then reload so language switches always get fresh DB rows
+      if (req.query.refresh === "1" || req.query.refresh === "true") {
+        attributeTranslationService.invalidate(resolvedLanguageId);
       }
 
-      // Convert to JSON and send response (matching C# JsonConvert.SerializeObject)
-      res.json(formattedResult);
+      const {
+        languageId,
+        languageName,
+        cultureCode,
+        dictionary,
+      } = await attributeTranslationService.getUiTranslationDict(
+        resolvedLanguageId,
+      );
+
+      const dictWithMeta = {
+        Language: {
+          AttributeName: "Language",
+          TranslatedAttribute: languageName,
+          Language: languageName,
+          CULTURECODE: cultureCode,
+        },
+        ...dictionary,
+      };
+
+      const responseKey = languageName || String(languageId);
+      res.json({
+        [responseKey]: dictWithMeta,
+        languageId,
+        languageName,
+        cultureCode,
+        dictionary: dictWithMeta,
+      });
     } catch (err) {
       console.log(err);
       processSafetyBotError(

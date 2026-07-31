@@ -1,8 +1,10 @@
 const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 const incidentService = require("../services/incidentService");
+const attributeTranslationService = require("./attributeTranslationService");
 
-const DEFAULT_LANGUAGE_ID = 10000;
+const DEFAULT_LANGUAGE_ID =
+  attributeTranslationService.DEFAULT_LANGUAGE_ID;
 
 const SOS_UI_FALLBACKS = {
   iNeedAssistance: "I need assistance",
@@ -27,38 +29,13 @@ async function loadAttributeTranslations(languageId) {
   const fallbacks = { ...SOS_UI_FALLBACKS };
 
   try {
-    const pool = await poolPromise;
-    const result = await pool
-      .request()
-      .input("languageId", sql.Int, resolvedLanguageId)
-      .query(`
-        SELECT
-          SA.ATTRIBUTE AS AttributeName,
-          SADT.ATTRIBUTE AS TranslatedAttribute
-        FROM SYS_ATTRIBUTE_DEF SA
-        INNER JOIN SYS_ATTRIBUTE_DEF_TRANS SADT
-          ON SA.ATTRIBUTE_ID = SADT.ATTRIBUTE_ID
-        WHERE SADT.LANGUAGE_ID = @languageId
-          AND SA.ATTRIBUTE IN (
-            'iNeedAssistance',
-            'yourRequestForAssistanceHasBeenSentTo',
-            'ifThisIsAnEmergencyCallYourLocalEmergencyNumberPleaseDoNotWaitForSomeoneToReachOutToYou',
-            'isHandlingYourSOSRequest',
-            'chatFirstName',
-            'callFirstName',
-            'gotItIveSharedYourDetailsWithTheTeam',
-            'typeAdditionalDetailsHere',
-            'isYourFirstResponderAndIsHandlingYourSOS'
-          )
-      `);
-
-    for (const row of result.recordset || []) {
-      const key = row.AttributeName;
+    const dict = await attributeTranslationService.getDictionary(
+      resolvedLanguageId,
+    );
+    for (const key of SOS_ATTRIBUTE_KEYS) {
       const value =
-        typeof row.TranslatedAttribute === "string"
-          ? row.TranslatedAttribute.trim()
-          : "";
-      if (key && value) {
+        typeof dict[key] === "string" ? dict[key].trim() : "";
+      if (value) {
         fallbacks[key] = value;
       }
     }
