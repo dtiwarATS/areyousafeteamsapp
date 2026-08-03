@@ -2,10 +2,21 @@ const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 
 const DEFAULT_LANGUAGE_ID = 10000;
-const VISITOR_QUESTION_KEYS = [
+/** Attribute keys whose values are language-specific templates (not freeform team text). */
+const KNOWN_DEFAULT_ATTRIBUTE_KEYS = [
   "doYouHaveAnyVisitorsOnSite",
   "areAllYourVisitorsSafe",
   "howCanIHelp",
+  "iAmSafe",
+  "iNeedAssistance",
+  "acknowledged",
+  "thisIsASafetyCheckFrom",
+  "copyOf",
+  "travelAdvisory",
+  "safetyAlert",
+  "importantBulletin",
+  "stakeholderNotice",
+  "safetyCheck",
 ];
 
 /** @type {Map<number, Map<string, string>>} */
@@ -15,7 +26,7 @@ const cacheByLanguageId = new Map();
 const inflightLoads = new Map();
 
 /** @type {Promise<Record<string, string[]>> | null} */
-let visitorQuestionValuesPromise = null;
+let knownDefaultAttributeValuesPromise = null;
 
 function normalizeLanguageId(languageId) {
   const n = Number(languageId);
@@ -143,16 +154,16 @@ async function getDictionary(languageId) {
 }
 
 /**
- * All DB-backed default visitor-question values, across every installed
- * language. This lets the settings UI distinguish a translated default from
- * custom team text after a language change or page reload.
+ * All DB-backed default template values across every installed language.
+ * Lets the UI distinguish translated defaults from custom team text after a
+ * language change, copy, or page reload.
  */
 async function getVisitorQuestionValues() {
-  if (visitorQuestionValuesPromise) return visitorQuestionValuesPromise;
+  if (knownDefaultAttributeValuesPromise) return knownDefaultAttributeValuesPromise;
 
-  visitorQuestionValuesPromise = (async () => {
+  knownDefaultAttributeValuesPromise = (async () => {
     const values = Object.fromEntries(
-      VISITOR_QUESTION_KEYS.map((key) => [key, []]),
+      KNOWN_DEFAULT_ATTRIBUTE_KEYS.map((key) => [key, []]),
     );
     try {
       const pool = await poolPromise;
@@ -164,7 +175,17 @@ async function getVisitorQuestionValues() {
         WHERE SA.ATTRIBUTE IN (
           N'doYouHaveAnyVisitorsOnSite',
           N'areAllYourVisitorsSafe',
-          N'howCanIHelp'
+          N'howCanIHelp',
+          N'iAmSafe',
+          N'iNeedAssistance',
+          N'acknowledged',
+          N'thisIsASafetyCheckFrom',
+          N'copyOf',
+          N'travelAdvisory',
+          N'safetyAlert',
+          N'importantBulletin',
+          N'stakeholderNotice',
+          N'safetyCheck'
         )
           AND ISNULL(SADT.ATTRIBUTE, N'') <> N''
       `);
@@ -175,14 +196,14 @@ async function getVisitorQuestionValues() {
       }
     } catch (err) {
       console.error(
-        "[attributeTranslationService] visitor question defaults lookup failed:",
+        "[attributeTranslationService] known default attribute lookup failed:",
         err?.message || err,
       );
     }
     return values;
   })();
 
-  return visitorQuestionValuesPromise;
+  return knownDefaultAttributeValuesPromise;
 }
 
 /**
