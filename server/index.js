@@ -227,6 +227,13 @@ process.on("uncaughtException", function (err) {
   processSafetyBotError(err, "", "", "", "uncaughtException");
 });
 
+process.on("unhandledRejection", function (reason) {
+  const err =
+    reason instanceof Error ? reason : new Error(String(reason ?? "unhandledRejection"));
+  console.error("[PROCESS] unhandledRejection:", err.message);
+  processSafetyBotError(err, "", "", "", "unhandledRejection");
+});
+
 String.prototype.replaceApostrophe = function () {
   return this.replace(/'/g, "''");
 };

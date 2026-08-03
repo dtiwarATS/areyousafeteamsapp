@@ -230,6 +230,44 @@ async function handleSosRequest(payload, ack) {
 }
 
 /**
+ * Log socket errors without crashing the process.
+ * @param {string} event
+ * @param {unknown} err
+ */
+function logSocketError(event, err) {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`[SOCKET] unhandled ${event}:`, message);
+  try {
+    const { processSafetyBotError } = require("../models/processError");
+    processSafetyBotError(
+      err instanceof Error ? err : new Error(String(err)),
+      "",
+      "",
+      "",
+      `socket:${event}`,
+    );
+  } catch (_) {
+    // Never let logging take down the process.
+  }
+}
+
+/**
+ * Register a socket listener that never leaves unhandled rejections.
+ * @param {import("socket.io").Socket} socket
+ * @param {string} event
+ * @param {(...args: any[]) => any} handler
+ */
+function onSafe(socket, event, handler) {
+  socket.on(event, (...args) => {
+    Promise.resolve()
+      .then(() => handler(...args))
+      .catch((err) => {
+        logSocketError(event, err);
+      });
+  });
+}
+
+/**
  * Attach Socket.IO to the existing HTTP server. Call once from server/index.js.
  * @param {import("http").Server} server - HTTP server (e.g. from app.listen())
  */
@@ -247,36 +285,49 @@ function attach(server) {
   console.log("[SOCKET] Socket.IO attached to server");
 
   io.on("connection", (socket) => {
-    console.log("[SOCKET] client connected", { socketId: socket.id, timestamp: new Date().toISOString() });
-    socket.on("disconnect", () => {
-      console.log("[SOCKET] client disconnected", { socketId: socket.id, timestamp: new Date().toISOString() });
-    });
-
-    socket.on(EVENT_SUBSCRIBE_TENANT, (payload) => {
-      const tenantId = payload && payload.tenantId;
-      if (tenantId) {
-        const room = TENANT_ROOM_PREFIX + tenantId;
-        socket.join(room);
-        const roomSockets = io.sockets.adapter.rooms.get(room);
-        const roomSize = roomSockets ? roomSockets.size : 0;
-        console.log("[SOCKET] client joined room", {
-          socketId: socket.id,
-          tenantId,
-          room,
-          roomSize,
-          timestamp: new Date().toISOString(),
-        });
-      }
-    });
-
-    socket.on(EVENT_SOS_REQUEST, async (payload, ack) => {
-      await handleSosRequest(payload, ack);
-    });
+    Promise.resolve()
+      .then(() => attachDefaultNamespaceHandlers(socket))
+      .catch((err) => logSocketError("connection", err));
   });
 
   attachDesktopNamespace();
 
   return io;
+}
+
+function attachDefaultNamespaceHandlers(socket) {
+  console.log("[SOCKET] client connected", {
+    socketId: socket.id,
+    timestamp: new Date().toISOString(),
+  });
+
+  onSafe(socket, "disconnect", () => {
+    console.log("[SOCKET] client disconnected", {
+      socketId: socket.id,
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  onSafe(socket, EVENT_SUBSCRIBE_TENANT, (payload) => {
+    const tenantId = payload && payload.tenantId;
+    if (tenantId) {
+      const room = TENANT_ROOM_PREFIX + tenantId;
+      socket.join(room);
+      const roomSockets = io.sockets.adapter.rooms.get(room);
+      const roomSize = roomSockets ? roomSockets.size : 0;
+      console.log("[SOCKET] client joined room", {
+        socketId: socket.id,
+        tenantId,
+        room,
+        roomSize,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  });
+
+  onSafe(socket, EVENT_SOS_REQUEST, async (payload, ack) => {
+    await handleSosRequest(payload, ack);
+  });
 }
 
 function attachDesktopNamespace() {
@@ -287,123 +338,132 @@ function attachDesktopNamespace() {
   desktopIo = io.of("/desktop");
 
   desktopIo.on("connection", (socket) => {
-    let registeredDeviceId = null;
+    Promise.resolve()
+      .then(() => attachDesktopHandlers(socket))
+      .catch((err) => logSocketError("desktop:connection", err));
+  });
+}
 
-    console.log("[SOCKET][desktop] client connected", {
+function attachDesktopHandlers(socket) {
+  let registeredDeviceId = null;
+
+  console.log("[SOCKET][desktop] client connected", {
+    socketId: socket.id,
+    timestamp: new Date().toISOString(),
+  });
+
+  onSafe(socket, EVENT_REGISTER_DEVICE, async (payload, ack) => {
+    const safeAck = (response) => {
+      if (typeof ack === "function") {
+        ack(response);
+      }
+    };
+
+    try {
+      const deviceId =
+        typeof payload?.deviceId === "string" ? payload.deviceId.trim() : "";
+
+      if (!deviceId) {
+        safeAck({ success: false, error: "deviceId is required" });
+        return;
+      }
+
+      const device = await desktopDeviceStore.getActiveDeviceById(deviceId);
+      if (!device) {
+        safeAck({ success: false, error: "Device not found or revoked" });
+        return;
+      }
+
+      registeredDeviceId = normalizeDeviceId(deviceId);
+      const room = deviceRoom(deviceId);
+      socket.join(room);
+
+      await desktopDeviceStore.setDeviceOnline({
+        deviceId,
+        socketId: socket.id,
+      });
+
+      console.log("[SOCKET][desktop] device registered", {
+        socketId: socket.id,
+        deviceId,
+        room,
+        timestamp: new Date().toISOString(),
+      });
+
+      safeAck({ success: true, deviceId });
+    } catch (err) {
+      console.error("[SOCKET][desktop] register_device error:", err?.message);
+      safeAck({ success: false, error: err?.message || "Registration failed" });
+    }
+  });
+
+  onSafe(socket, EVENT_HEARTBEAT, async (payload) => {
+    try {
+      const deviceId =
+        typeof payload?.deviceId === "string" ? payload.deviceId.trim() : "";
+
+      if (!deviceId || normalizeDeviceId(deviceId) !== registeredDeviceId) {
+        return;
+      }
+
+      await desktopDeviceStore.touchHeartbeat({ deviceId });
+    } catch (err) {
+      console.error("[SOCKET][desktop] heartbeat error:", err?.message);
+    }
+  });
+
+  onSafe(socket, "command_ack", async (payload) => {
+    try {
+      const deviceId =
+        typeof payload?.deviceId === "string" ? payload.deviceId.trim() : "";
+      const commandId =
+        typeof payload?.commandId === "string" ? payload.commandId.trim() : "";
+      const status =
+        typeof payload?.status === "string" ? payload.status.trim() : "";
+
+      console.log("[SOCKET][desktop] command_ack received", {
+        deviceId,
+        commandId,
+        status,
+        timestamp: payload?.timestamp || new Date().toISOString(),
+      });
+
+      if (deviceId) {
+        await desktopDeviceStore.touchHeartbeat({ deviceId });
+      }
+    } catch (err) {
+      console.error("[SOCKET][desktop] command_ack error:", err?.message);
+    }
+  });
+
+  onSafe(socket, EVENT_SOS_REQUEST, async (payload, ack) => {
+    console.log("[SOCKET][desktop] sos_request received", {
       socketId: socket.id,
+      deviceId: registeredDeviceId,
+      timestamp: new Date().toISOString(),
+    });
+    await handleSosRequest(payload, ack);
+  });
+
+  onSafe(socket, "disconnect", async () => {
+    console.log("[SOCKET][desktop] client disconnected", {
+      socketId: socket.id,
+      deviceId: registeredDeviceId,
       timestamp: new Date().toISOString(),
     });
 
-    socket.on(EVENT_REGISTER_DEVICE, async (payload, ack) => {
-      const safeAck = (response) => {
-        if (typeof ack === "function") {
-          ack(response);
-        }
-      };
-
+    if (registeredDeviceId) {
       try {
-        const deviceId =
-          typeof payload?.deviceId === "string" ? payload.deviceId.trim() : "";
-
-        if (!deviceId) {
-          safeAck({ success: false, error: "deviceId is required" });
-          return;
-        }
-
-        const device = await desktopDeviceStore.getActiveDeviceById(deviceId);
-        if (!device) {
-          safeAck({ success: false, error: "Device not found or revoked" });
-          return;
-        }
-
-        registeredDeviceId = normalizeDeviceId(deviceId);
-        const room = deviceRoom(deviceId);
-        socket.join(room);
-
-        await desktopDeviceStore.setDeviceOnline({
-          deviceId,
-          socketId: socket.id,
+        await desktopDeviceStore.setDeviceOffline({
+          deviceId: registeredDeviceId,
         });
-
-        console.log("[SOCKET][desktop] device registered", {
-          socketId: socket.id,
-          deviceId,
-          room,
-          timestamp: new Date().toISOString(),
-        });
-
-        safeAck({ success: true, deviceId });
       } catch (err) {
-        console.error("[SOCKET][desktop] register_device error:", err?.message);
-        safeAck({ success: false, error: err?.message || "Registration failed" });
+        console.error(
+          "[SOCKET][desktop] disconnect cleanup error:",
+          err?.message,
+        );
       }
-    });
-
-    socket.on(EVENT_HEARTBEAT, async (payload) => {
-      try {
-        const deviceId =
-          typeof payload?.deviceId === "string" ? payload.deviceId.trim() : "";
-
-        if (!deviceId || normalizeDeviceId(deviceId) !== registeredDeviceId) {
-          return;
-        }
-
-        await desktopDeviceStore.touchHeartbeat({ deviceId });
-      } catch (err) {
-        console.error("[SOCKET][desktop] heartbeat error:", err?.message);
-      }
-    });
-
-    socket.on("command_ack", async (payload) => {
-      try {
-        const deviceId =
-          typeof payload?.deviceId === "string" ? payload.deviceId.trim() : "";
-        const commandId =
-          typeof payload?.commandId === "string" ? payload.commandId.trim() : "";
-        const status =
-          typeof payload?.status === "string" ? payload.status.trim() : "";
-
-        console.log("[SOCKET][desktop] command_ack received", {
-          deviceId,
-          commandId,
-          status,
-          timestamp: payload?.timestamp || new Date().toISOString(),
-        });
-
-        if (deviceId) {
-          await desktopDeviceStore.touchHeartbeat({ deviceId });
-        }
-      } catch (err) {
-        console.error("[SOCKET][desktop] command_ack error:", err?.message);
-      }
-    });
-
-    socket.on(EVENT_SOS_REQUEST, async (payload, ack) => {
-      console.log("[SOCKET][desktop] sos_request received", {
-        socketId: socket.id,
-        deviceId: registeredDeviceId,
-        timestamp: new Date().toISOString(),
-      });
-      await handleSosRequest(payload, ack);
-    });
-
-    socket.on("disconnect", async () => {
-      console.log("[SOCKET][desktop] client disconnected", {
-        socketId: socket.id,
-        deviceId: registeredDeviceId,
-        timestamp: new Date().toISOString(),
-      });
-
-      if (registeredDeviceId) {
-        try {
-          await desktopDeviceStore.setDeviceOffline({
-            deviceId: registeredDeviceId,
-          });
-        } catch (err) {
-          console.error("[SOCKET][desktop] disconnect cleanup error:", err?.message);
-        }
-      }
-    });
+    }
   });
 }
 
@@ -414,27 +474,33 @@ function attachDesktopNamespace() {
  * @param {object} payload - Data to send to mobile (requestAssistanceid, userAadObjId, clickedBy, etc.)
  */
 function emitRespondToAssistance(tenantId, payload) {
-  if (!io) {
-    console.log(
-      "[SOCKET] emitRespondToAssistance SKIPPED - io not initialized",
-    );
-    return;
+  try {
+    if (!io) {
+      console.log(
+        "[SOCKET] emitRespondToAssistance SKIPPED - io not initialized",
+      );
+      return;
+    }
+    const room = TENANT_ROOM_PREFIX + (tenantId || "");
+    const roomSockets = io.sockets.adapter.rooms.get(room);
+    const roomSize = roomSockets ? roomSockets.size : 0;
+    console.log("[SOCKET] emitRespondToAssistance", {
+      timestamp: new Date().toISOString(),
+      tenantId,
+      room,
+      roomSize,
+      hasPayload: !!payload,
+      payloadKeys: payload ? Object.keys(payload) : [],
+    });
+    if (roomSize === 0) {
+      console.log(
+        "[SOCKET] WARNING: No clients in room - event will not be received",
+      );
+    }
+    io.to(room).emit(EVENT_RESPOND_TO_ASSISTANCE, payload);
+  } catch (err) {
+    logSocketError("emitRespondToAssistance", err);
   }
-  const room = TENANT_ROOM_PREFIX + (tenantId || "");
-  const roomSockets = io.sockets.adapter.rooms.get(room);
-  const roomSize = roomSockets ? roomSockets.size : 0;
-  console.log("[SOCKET] emitRespondToAssistance", {
-    timestamp: new Date().toISOString(),
-    tenantId,
-    room,
-    roomSize,
-    hasPayload: !!payload,
-    payloadKeys: payload ? Object.keys(payload) : [],
-  });
-  if (roomSize === 0) {
-    console.log("[SOCKET] WARNING: No clients in room - event will not be received");
-  }
-  io.to(room).emit(EVENT_RESPOND_TO_ASSISTANCE, payload);
 }
 
 /**
@@ -444,37 +510,46 @@ function emitRespondToAssistance(tenantId, payload) {
  * @param {object} payload - Data to send (requestAssistanceid, userAadObjId, user, userlocation)
  */
 function emitNewSosTeams(tenantId, payload) {
-  if (!io) {
-    console.log(
-      "[SOCKET] emitNewSosTeams SKIPPED - io not initialized",
-    );
-    return;
+  try {
+    if (!io) {
+      console.log("[SOCKET] emitNewSosTeams SKIPPED - io not initialized");
+      return;
+    }
+    const room = TENANT_ROOM_PREFIX + (tenantId || "");
+    const roomSockets = io.sockets.adapter.rooms.get(room);
+    const roomSize = roomSockets ? roomSockets.size : 0;
+    console.log("[SOCKET] emitNewSosTeams", {
+      timestamp: new Date().toISOString(),
+      tenantId,
+      room,
+      roomSize,
+      hasPayload: !!payload,
+      payloadKeys: payload ? Object.keys(payload) : [],
+    });
+    if (roomSize === 0) {
+      console.log(
+        "[SOCKET] WARNING: No clients in room - event will not be received",
+      );
+    }
+    io.to(room).emit(EVENT_NEW_SOS_TEAMS, payload);
+  } catch (err) {
+    logSocketError("emitNewSosTeams", err);
   }
-  const room = TENANT_ROOM_PREFIX + (tenantId || "");
-  const roomSockets = io.sockets.adapter.rooms.get(room);
-  const roomSize = roomSockets ? roomSockets.size : 0;
-  console.log("[SOCKET] emitNewSosTeams", {
-    timestamp: new Date().toISOString(),
-    tenantId,
-    room,
-    roomSize,
-    hasPayload: !!payload,
-    payloadKeys: payload ? Object.keys(payload) : [],
-  });
-  if (roomSize === 0) {
-    console.log("[SOCKET] WARNING: No clients in room - event will not be received");
-  }
-  io.to(room).emit(EVENT_NEW_SOS_TEAMS, payload);
 }
 
 function isDeviceSocketConnected(deviceId) {
-  if (!desktopIo || !deviceId) {
+  try {
+    if (!desktopIo || !deviceId) {
+      return false;
+    }
+
+    const room = deviceRoom(deviceId);
+    const roomSockets = desktopIo.adapter.rooms.get(room);
+    return (roomSockets?.size || 0) > 0;
+  } catch (err) {
+    logSocketError("isDeviceSocketConnected", err);
     return false;
   }
-
-  const room = deviceRoom(deviceId);
-  const roomSockets = desktopIo.adapter.rooms.get(room);
-  return (roomSockets?.size || 0) > 0;
 }
 
 /**
@@ -483,37 +558,42 @@ function isDeviceSocketConnected(deviceId) {
  * @returns {boolean}
  */
 function emitCommandToDevice(deviceId, command) {
-  if (!desktopIo) {
-    console.log(
-      "[SOCKET][desktop] emitCommandToDevice SKIPPED - desktop namespace not initialized",
-    );
+  try {
+    if (!desktopIo) {
+      console.log(
+        "[SOCKET][desktop] emitCommandToDevice SKIPPED - desktop namespace not initialized",
+      );
+      return false;
+    }
+
+    if (!deviceId) {
+      return false;
+    }
+
+    const normalizedDeviceId = normalizeDeviceId(deviceId);
+    const room = deviceRoom(normalizedDeviceId);
+    const roomSockets = desktopIo.adapter.rooms.get(room);
+    const roomSize = roomSockets ? roomSockets.size : 0;
+
+    console.log("[SOCKET][desktop] emitCommandToDevice", {
+      deviceId: normalizedDeviceId,
+      room,
+      roomSize,
+      commandId: command?.commandId,
+      type: command?.type,
+      timestamp: new Date().toISOString(),
+    });
+
+    if (roomSize === 0) {
+      console.log("[SOCKET][desktop] WARNING: No clients in device room");
+    }
+
+    desktopIo.to(room).emit("command", command);
+    return true;
+  } catch (err) {
+    logSocketError("emitCommandToDevice", err);
     return false;
   }
-
-  if (!deviceId) {
-    return false;
-  }
-
-  const normalizedDeviceId = normalizeDeviceId(deviceId);
-  const room = deviceRoom(normalizedDeviceId);
-  const roomSockets = desktopIo.adapter.rooms.get(room);
-  const roomSize = roomSockets ? roomSockets.size : 0;
-
-  console.log("[SOCKET][desktop] emitCommandToDevice", {
-    deviceId: normalizedDeviceId,
-    room,
-    roomSize,
-    commandId: command?.commandId,
-    type: command?.type,
-    timestamp: new Date().toISOString(),
-  });
-
-  if (roomSize === 0) {
-    console.log("[SOCKET][desktop] WARNING: No clients in device room");
-  }
-
-  desktopIo.to(room).emit("command", command);
-  return true;
 }
 
 /**
@@ -522,25 +602,29 @@ function emitCommandToDevice(deviceId, command) {
  * @param {object} payload
  */
 async function emitSosAssistanceUpdateToUser(userAadObjectId, payload) {
-  if (!desktopIo || !userAadObjectId) {
-    return;
-  }
+  try {
+    if (!desktopIo || !userAadObjectId) {
+      return;
+    }
 
-  const devices =
-    await desktopDeviceStore.getActiveDevicesByUserAadObjectIds([
-      userAadObjectId,
-    ]);
+    const devices =
+      await desktopDeviceStore.getActiveDevicesByUserAadObjectIds([
+        userAadObjectId,
+      ]);
 
-  for (const device of devices) {
-    const room = deviceRoom(device.device_id);
-    desktopIo.to(room).emit(EVENT_SOS_ASSISTANCE_UPDATE, payload);
-    console.log("[SOCKET][desktop] emitSosAssistanceUpdateToUser", {
-      userAadObjectId,
-      deviceId: device.device_id,
-      room,
-      requestAssistanceid: payload?.requestAssistanceid,
-      timestamp: new Date().toISOString(),
-    });
+    for (const device of devices) {
+      const room = deviceRoom(device.device_id);
+      desktopIo.to(room).emit(EVENT_SOS_ASSISTANCE_UPDATE, payload);
+      console.log("[SOCKET][desktop] emitSosAssistanceUpdateToUser", {
+        userAadObjectId,
+        deviceId: device.device_id,
+        room,
+        requestAssistanceid: payload?.requestAssistanceid,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    logSocketError("emitSosAssistanceUpdateToUser", err);
   }
 }
 
@@ -550,50 +634,54 @@ async function emitSosAssistanceUpdateToUser(userAadObjectId, payload) {
  * @param {object} payload - { requestAssistanceid, userAadObjId, userName, teamId }
  */
 async function emitIncomingSosToUsers(userAadObjectIds, payload) {
-  if (!desktopIo || !payload?.requestAssistanceid) {
-    return;
-  }
-
-  const ids = [
-    ...new Set(
-      (userAadObjectIds || [])
-        .map((id) => (id != null ? String(id).trim() : ""))
-        .filter(Boolean),
-    ),
-  ];
-  if (ids.length === 0) {
-    return;
-  }
-
-  const dedupeKey = String(payload.requestAssistanceid);
-  const lastEmit = recentIncomingSosEmits.get(dedupeKey);
-  const now = Date.now();
-  if (lastEmit && now - lastEmit < INCOMING_SOS_DEDUPE_MS) {
-    console.log("[SOCKET][desktop] skip duplicate incoming_sos", {
-      requestAssistanceid: payload.requestAssistanceid,
-    });
-    return;
-  }
-  recentIncomingSosEmits.set(dedupeKey, now);
-  for (const [key, ts] of recentIncomingSosEmits) {
-    if (now - ts > INCOMING_SOS_DEDUPE_MS) {
-      recentIncomingSosEmits.delete(key);
+  try {
+    if (!desktopIo || !payload?.requestAssistanceid) {
+      return;
     }
-  }
 
-  const devices =
-    await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
+    const ids = [
+      ...new Set(
+        (userAadObjectIds || [])
+          .map((id) => (id != null ? String(id).trim() : ""))
+          .filter(Boolean),
+      ),
+    ];
+    if (ids.length === 0) {
+      return;
+    }
 
-  for (const device of devices) {
-    const room = deviceRoom(device.device_id);
-    desktopIo.to(room).emit(EVENT_INCOMING_SOS, payload);
-    console.log("[SOCKET][desktop] emitIncomingSosToUsers", {
-      deviceId: device.device_id,
-      room,
-      requestAssistanceid: payload.requestAssistanceid,
-      userAadObjId: payload.userAadObjId,
-      timestamp: new Date().toISOString(),
-    });
+    const dedupeKey = String(payload.requestAssistanceid);
+    const lastEmit = recentIncomingSosEmits.get(dedupeKey);
+    const now = Date.now();
+    if (lastEmit && now - lastEmit < INCOMING_SOS_DEDUPE_MS) {
+      console.log("[SOCKET][desktop] skip duplicate incoming_sos", {
+        requestAssistanceid: payload.requestAssistanceid,
+      });
+      return;
+    }
+    recentIncomingSosEmits.set(dedupeKey, now);
+    for (const [key, ts] of recentIncomingSosEmits) {
+      if (now - ts > INCOMING_SOS_DEDUPE_MS) {
+        recentIncomingSosEmits.delete(key);
+      }
+    }
+
+    const devices =
+      await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
+
+    for (const device of devices) {
+      const room = deviceRoom(device.device_id);
+      desktopIo.to(room).emit(EVENT_INCOMING_SOS, payload);
+      console.log("[SOCKET][desktop] emitIncomingSosToUsers", {
+        deviceId: device.device_id,
+        room,
+        requestAssistanceid: payload.requestAssistanceid,
+        userAadObjId: payload.userAadObjId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    logSocketError("emitIncomingSosToUsers", err);
   }
 }
 
@@ -603,40 +691,44 @@ async function emitIncomingSosToUsers(userAadObjectIds, payload) {
  * @param {object} payload
  */
 async function emitSosCommentToUsers(userAadObjectIds, payload) {
-  if (!desktopIo || !payload?.requestAssistanceid) {
-    return;
-  }
+  try {
+    if (!desktopIo || !payload?.requestAssistanceid) {
+      return;
+    }
 
-  const comment =
-    typeof payload.comment === "string" ? payload.comment.trim() : "";
-  if (!comment) {
-    return;
-  }
+    const comment =
+      typeof payload.comment === "string" ? payload.comment.trim() : "";
+    if (!comment) {
+      return;
+    }
 
-  const ids = [
-    ...new Set(
-      (userAadObjectIds || [])
-        .map((id) => (id != null ? String(id).trim() : ""))
-        .filter(Boolean),
-    ),
-  ];
-  if (ids.length === 0) {
-    return;
-  }
+    const ids = [
+      ...new Set(
+        (userAadObjectIds || [])
+          .map((id) => (id != null ? String(id).trim() : ""))
+          .filter(Boolean),
+      ),
+    ];
+    if (ids.length === 0) {
+      return;
+    }
 
-  const devices =
-    await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
+    const devices =
+      await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
 
-  for (const device of devices) {
-    const room = deviceRoom(device.device_id);
-    desktopIo.to(room).emit(EVENT_SOS_COMMENT, payload);
-    console.log("[SOCKET][desktop] emitSosCommentToUsers", {
-      deviceId: device.device_id,
-      room,
-      requestAssistanceid: payload.requestAssistanceid,
-      userAadObjId: payload.userAadObjId,
-      timestamp: new Date().toISOString(),
-    });
+    for (const device of devices) {
+      const room = deviceRoom(device.device_id);
+      desktopIo.to(room).emit(EVENT_SOS_COMMENT, payload);
+      console.log("[SOCKET][desktop] emitSosCommentToUsers", {
+        deviceId: device.device_id,
+        room,
+        requestAssistanceid: payload.requestAssistanceid,
+        userAadObjId: payload.userAadObjId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    logSocketError("emitSosCommentToUsers", err);
   }
 }
 
@@ -646,34 +738,38 @@ async function emitSosCommentToUsers(userAadObjectIds, payload) {
  * @param {object} payload
  */
 async function emitSosTakenToUsers(userAadObjectIds, payload) {
-  if (!desktopIo || !payload?.requestAssistanceid) {
-    return;
-  }
+  try {
+    if (!desktopIo || !payload?.requestAssistanceid) {
+      return;
+    }
 
-  const ids = [
-    ...new Set(
-      (userAadObjectIds || [])
-        .map((id) => (id != null ? String(id).trim() : ""))
-        .filter(Boolean),
-    ),
-  ];
-  if (ids.length === 0) {
-    return;
-  }
+    const ids = [
+      ...new Set(
+        (userAadObjectIds || [])
+          .map((id) => (id != null ? String(id).trim() : ""))
+          .filter(Boolean),
+      ),
+    ];
+    if (ids.length === 0) {
+      return;
+    }
 
-  const devices =
-    await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
+    const devices =
+      await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
 
-  for (const device of devices) {
-    const room = deviceRoom(device.device_id);
-    desktopIo.to(room).emit(EVENT_SOS_TAKEN, payload);
-    console.log("[SOCKET][desktop] emitSosTakenToUsers", {
-      deviceId: device.device_id,
-      room,
-      requestAssistanceid: payload.requestAssistanceid,
-      FIRST_RESPONDER: payload.FIRST_RESPONDER,
-      timestamp: new Date().toISOString(),
-    });
+    for (const device of devices) {
+      const room = deviceRoom(device.device_id);
+      desktopIo.to(room).emit(EVENT_SOS_TAKEN, payload);
+      console.log("[SOCKET][desktop] emitSosTakenToUsers", {
+        deviceId: device.device_id,
+        room,
+        requestAssistanceid: payload.requestAssistanceid,
+        FIRST_RESPONDER: payload.FIRST_RESPONDER,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  } catch (err) {
+    logSocketError("emitSosTakenToUsers", err);
   }
 }
 
@@ -684,11 +780,11 @@ async function emitSosTakenToUsers(userAadObjectIds, payload) {
  * @param {string} [reason]
  */
 async function emitSosContactsUpdatedForTeam(teamId, reason = "tab_update") {
-  if (!desktopIo || !teamId) {
-    return;
-  }
-
   try {
+    if (!desktopIo || !teamId) {
+      return;
+    }
+
     const db = require("../db");
     const safeTeamId = String(teamId).replace(/'/g, "''");
     const rows = await db.getDataFromDB(
@@ -696,15 +792,20 @@ async function emitSosContactsUpdatedForTeam(teamId, reason = "tab_update") {
     );
     const ids = (rows || [])
       .map((row) =>
-        row?.user_aadobject_id != null ? String(row.user_aadobject_id).trim() : "",
+        row?.user_aadobject_id != null
+          ? String(row.user_aadobject_id).trim()
+          : "",
       )
       .filter(Boolean);
 
     if (ids.length === 0) {
-      console.log("[SOCKET][desktop] sos_contacts_updated skipped (no members)", {
-        teamId,
-        reason,
-      });
+      console.log(
+        "[SOCKET][desktop] sos_contacts_updated skipped (no members)",
+        {
+          teamId,
+          reason,
+        },
+      );
       return;
     }
 
@@ -725,10 +826,7 @@ async function emitSosContactsUpdatedForTeam(teamId, reason = "tab_update") {
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    console.error(
-      "[SOCKET] emitSosContactsUpdatedForTeam failed:",
-      err?.message,
-    );
+    logSocketError("emitSosContactsUpdatedForTeam", err);
   }
 }
 
