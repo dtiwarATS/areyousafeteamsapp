@@ -2303,9 +2303,15 @@ const handlerForSafetyBotTab = (app) => {
         SELECT
           LANGUAGE_ID AS id,
           LANGUAGE AS label,
-          CULTURE_CODE AS value
+          CULTURE_CODE AS value,
+          NATIVE_NAME AS nativeName,
+          LANGUAGE_ID,
+          LANGUAGE AS EnglishName,
+          CULTURE_CODE AS LanguageCode,
+          NATIVE_NAME AS NativeName
         FROM SYS_LANGUAGE
-        ORDER BY LANGUAGE ASC
+        -- Teams-style: sort by native display name (not English LANGUAGE).
+        ORDER BY ISNULL(NULLIF(LTRIM(RTRIM(NATIVE_NAME)), N''), LANGUAGE) ASC, LANGUAGE ASC
       `);
       res.json(result.recordset || []);
     } catch (err) {
