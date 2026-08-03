@@ -6233,6 +6233,123 @@ ORDER BY ACL.EventDateTime DESC;
     },
   );
 
+  app.post(
+    "/areyousafetabhandler/deleteAdvisoryAlert/",
+    async (req, res) => {
+      try {
+        const body = req.body || {};
+        const tenantId = String(body.tenantId || "").trim();
+        const advisoryType = String(body.advisoryType || body.type || "").trim();
+        const detailId = body.detailId;
+        const alertId = body.alertId;
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: "tenantId is required",
+          });
+        }
+        if (advisoryType !== "Travel" && advisoryType !== "Weather") {
+          return res.status(400).json({
+            success: false,
+            error: "advisoryType must be Travel or Weather",
+          });
+        }
+
+        let result;
+        if (advisoryType === "Travel") {
+          if (detailId == null || String(detailId).trim() === "") {
+            return res.status(400).json({
+              success: false,
+              error: "detailId is required for Travel",
+            });
+          }
+          result = await travelSelectedDb.deleteTravelAdvisoryDetailForTenant({
+            tenantId,
+            detailId,
+          });
+        } else {
+          if (alertId == null || String(alertId).trim() === "") {
+            return res.status(400).json({
+              success: false,
+              error: "alertId is required for Weather",
+            });
+          }
+          result = await travelSelectedDb.removeWeatherAlertFromDetail({
+            tenantId,
+            alertId,
+          });
+        }
+
+        if (!result?.success) {
+          return res.status(400).json({
+            success: false,
+            error: result?.error || "Failed to delete alert",
+          });
+        }
+
+        res.json({ success: true });
+      } catch (err) {
+        console.error(
+          "Error in /areyousafetabhandler/deleteAdvisoryAlert:",
+          err,
+        );
+        res.status(500).json({
+          success: false,
+          error: err?.message || "Failed to delete alert",
+        });
+      }
+    },
+  );
+
+  app.get(
+    "/areyousafetabhandler/getDismissedAdvisoryAlerts/",
+    async (req, res) => {
+      try {
+        const tenantId = String(
+          req.query.tenantId || (req.body && req.body.tenantId) || "",
+        ).trim();
+        const advisoryType = String(
+          req.query.advisoryType ||
+            (req.body && req.body.advisoryType) ||
+            "",
+        ).trim();
+
+        if (!tenantId) {
+          return res.status(400).json({
+            success: false,
+            error: "tenantId is required",
+            dismissedAlertKeys: [],
+          });
+        }
+        if (advisoryType !== "Travel" && advisoryType !== "Weather") {
+          return res.status(400).json({
+            success: false,
+            error: "advisoryType must be Travel or Weather",
+            dismissedAlertKeys: [],
+          });
+        }
+
+        const dismissedAlertKeys =
+          await travelSelectedDb.listDismissedAlertKeys(
+            tenantId,
+            advisoryType,
+          );
+        res.json({ success: true, dismissedAlertKeys });
+      } catch (err) {
+        console.error(
+          "Error in /areyousafetabhandler/getDismissedAdvisoryAlerts:",
+          err,
+        );
+        res.status(500).json({
+          success: false,
+          error: err.message,
+          dismissedAlertKeys: [],
+        });
+      }
+    },
+  );
+
   app.get(
     "/areyousafetabhandler/getTravelAdvisorySelection/",
     async (req, res) => {

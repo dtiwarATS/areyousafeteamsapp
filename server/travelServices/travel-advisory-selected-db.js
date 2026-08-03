@@ -275,7 +275,273 @@ async function ensureAllTravelAdvisoryTables() {
   await ensureAdvisoryTable();
   await ensureAdvisoryDetailTable();
   await ensureAdvisoryChangeLogTable();
+  await ensureAdvisoryDismissedAlertTable();
 }
+
+const ENSURE_ADVISORY_DISMISSED_ALERT_TABLE_SQL = `
+IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'AdvisoryDismissedAlert')
+BEGIN
+    CREATE TABLE [dbo].[AdvisoryDismissedAlert] (
+        [Id] INT IDENTITY(1,1) NOT NULL,
+        [TenantId] NVARCHAR(256) NOT NULL,
+        [AdvisoryType] NVARCHAR(50) NOT NULL,
+        [AlertKey] NVARCHAR(256) NOT NULL,
+        [CreatedAtUtc] DATETIME NOT NULL DEFAULT GETUTCDATE(),
+        CONSTRAINT [PK_AdvisoryDismissedAlert] PRIMARY KEY CLUSTERED ([Id])
+    );
+    CREATE UNIQUE NONCLUSTERED INDEX [UX_AdvisoryDismissedAlert_Tenant_Type_Key]
+        ON [dbo].[AdvisoryDismissedAlert] ([TenantId], [AdvisoryType], [AlertKey]);
+    CREATE NONCLUSTERED INDEX [IX_AdvisoryDismissedAlert_Tenant_Type]
+        ON [dbo].[AdvisoryDismissedAlert] ([TenantId], [AdvisoryType]);
+END
+`;
+
+/**
+ * Ensure AdvisoryDismissedAlert table exists (create if not).
+ * @returns {Promise<void>}
+ */
+async function ensureAdvisoryDismissedAlertTable() {
+  const pool = await poolPromise;
+  await pool.request().query(ENSURE_ADVISORY_DISMISSED_ALERT_TABLE_SQL);
+}
+
+/**
+ * Persist a dismissed alert key so it stays hidden after reload / sync.
+ * @param {{ tenantId: string, advisoryType: string, alertKey: string }} args
+ */
+async function dismissAlert({ tenantId, advisoryType, alertKey }) {
+  const tid = String(tenantId || "").trim();
+  const type = String(advisoryType || "").trim();
+  const key = String(alertKey || "").trim();
+  if (!tid || !type || !key) return;
+  await ensureAdvisoryDismissedAlertTable();
+  const pool = await poolPromise;
+  await pool
+    .request()
+    .input("TenantId", sql.NVarChar(256), tid)
+    .input("AdvisoryType", sql.NVarChar(50), type)
+    .input("AlertKey", sql.NVarChar(256), key.slice(0, 256)).query(`
+      IF NOT EXISTS (
+        SELECT 1 FROM [dbo].[AdvisoryDismissedAlert]
+        WHERE TenantId = @TenantId
+          AND AdvisoryType = @AdvisoryType
+          AND AlertKey = @AlertKey
+      )
+      BEGIN
+        INSERT INTO [dbo].[AdvisoryDismissedAlert]
+          (TenantId, AdvisoryType, AlertKey)
+        VALUES (@TenantId, @AdvisoryType, @AlertKey);
+      END
+    `);
+}
+
+/**
+ * @param {string} tenantId
+ * @param {string} advisoryType
+ * @returns {Promise<string[]>}
+ */
+async function listDismissedAlertKeys(tenantId, advisoryType) {
+  const tid = String(tenantId || "").trim();
+  const type = String(advisoryType || "").trim();
+  if (!tid || !type) return [];
+  await ensureAdvisoryDismissedAlertTable();
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("TenantId", sql.NVarChar(256), tid)
+    .input("AdvisoryType", sql.NVarChar(50), type).query(`
+      SELECT AlertKey
+      FROM [dbo].[AdvisoryDismissedAlert]
+      WHERE TenantId = @TenantId AND AdvisoryType = @AdvisoryType
+    `);
+  return (result.recordset || [])
+    .map((r) => String(r.AlertKey || "").trim())
+    .filter(Boolean);
+}
+
+/**
+ * True when this Travel location/country was dismissed (skip re-upsert).
+ */
+async function isTravelUpsertDismissed(tenantId, countryCode, locationKey) {
+  const tid = String(tenantId || "").trim();
+  if (!tid) return false;
+  const locKey =
+    locationKey != null && String(locationKey).trim() !== ""
+      ? String(locationKey).trim()
+      : "";
+  const code = countryCode != null ? String(countryCode).trim().toUpperCase() : "";
+  const keys = await listDismissedAlertKeys(tid, "Travel");
+  if (keys.length === 0) return false;
+  const set = new Set(keys);
+  if (locKey && set.has(`lk:${locKey}`)) return true;
+  if (!locKey && code && set.has(`cc:${code}`)) return true;
+  return false;
+}
+
+/**
+ * Delete one Travel AdvisoryDetail for a tenant, then dismiss so sync does not recreate.
+ * @param {{ tenantId: string, detailId: string|number }} args
+ * @returns {Promise<{ success: boolean, error?: string }>}
+ */
+async function deleteTravelAdvisoryDetailForTenant({ tenantId, detailId }) {
+  const tid = String(tenantId || "").trim();
+  const id = Number(detailId);
+  if (!tid || !Number.isFinite(id) || id <= 0) {
+    return { success: false, error: "tenantId and detailId are required" };
+  }
+  try {
+    await ensureAllTravelAdvisoryTables();
+    const pool = await poolPromise;
+    const fkCol = await getAdvisoryDetailFkColumn();
+
+    const existing = await pool
+      .request()
+      .input("DetailId", sql.Int, id)
+      .input("TenantId", sql.NVarChar(256), tid).query(`
+      SELECT d.Id, d.FeedId, d.CountryCode, d.LocationKey, a.TenantId
+      FROM [dbo].[AdvisoryDetail] d
+      INNER JOIN [dbo].[Advisory] a ON a.Id = d.[${fkCol}]
+      WHERE d.Id = @DetailId AND a.TenantId = @TenantId
+    `);
+    const row = existing.recordset && existing.recordset[0];
+    if (!row) {
+      // Still record dismiss so UI can hide it even if the row is already gone.
+      await dismissAlert({
+        tenantId: tid,
+        advisoryType: "Travel",
+        alertKey: String(id),
+      });
+      return { success: true };
+    }
+
+    // Clear changelog references first (best-effort; schema may vary by environment).
+    try {
+      await pool.request().input("DetailId", sql.Int, id).query(`
+      IF OBJECT_ID(N'[dbo].[AdvisoryChangeLog]', N'U') IS NOT NULL
+      BEGIN
+        DELETE FROM [dbo].[AdvisoryChangeLog]
+        WHERE AdvisoryDetailId = @DetailId;
+      END
+    `);
+    } catch (err) {
+      console.warn(
+        "deleteTravelAdvisoryDetailForTenant changelog cleanup skipped:",
+        err?.message,
+      );
+    }
+
+    await pool.request().input("DetailId", sql.Int, id).query(`
+    DELETE FROM [dbo].[AdvisoryDetail]
+    WHERE Id = @DetailId;
+  `);
+
+    await dismissAlert({
+      tenantId: tid,
+      advisoryType: "Travel",
+      alertKey: String(id),
+    });
+    const locKey =
+      row.LocationKey != null && String(row.LocationKey).trim() !== ""
+        ? String(row.LocationKey).trim()
+        : "";
+    if (locKey) {
+      await dismissAlert({
+        tenantId: tid,
+        advisoryType: "Travel",
+        alertKey: `lk:${locKey}`,
+      });
+    } else {
+      const code = String(row.CountryCode || "")
+        .trim()
+        .toUpperCase();
+      if (code) {
+        await dismissAlert({
+          tenantId: tid,
+          advisoryType: "Travel",
+          alertKey: `cc:${code}`,
+        });
+      }
+    }
+
+    return { success: true };
+  } catch (err) {
+    console.error("deleteTravelAdvisoryDetailForTenant failed:", err);
+    return {
+      success: false,
+      error: err?.message || "Failed to delete travel alert",
+    };
+  }
+}
+
+/**
+ * Remove one weather alertId from city ApiResponseJson rows for the tenant, then dismiss.
+ * @param {{ tenantId: string, alertId: string|number }} args
+ * @returns {Promise<{ success: boolean, error?: string }>}
+ */
+async function removeWeatherAlertFromDetail({ tenantId, alertId }) {
+  const tid = String(tenantId || "").trim();
+  const aid = String(alertId ?? "").trim();
+  if (!tid || !aid) {
+    return { success: false, error: "tenantId and alertId are required" };
+  }
+  try {
+    await ensureAllTravelAdvisoryTables();
+    const pool = await poolPromise;
+    const fkCol = await getAdvisoryDetailFkColumn();
+
+    const rows = await pool
+      .request()
+      .input("TenantId", sql.NVarChar(256), tid).query(`
+      SELECT d.Id, d.ApiResponseJson
+      FROM [dbo].[AdvisoryDetail] d
+      INNER JOIN [dbo].[Advisory] a ON a.Id = d.[${fkCol}]
+      WHERE a.TenantId = @TenantId
+        AND a.AdvisoryType = N'Weather'
+        AND d.ApiResponseJson IS NOT NULL
+        AND LTRIM(RTRIM(d.ApiResponseJson)) <> N''
+    `);
+
+    let updated = 0;
+    for (const row of rows.recordset || []) {
+      let parsed;
+      try {
+        parsed = JSON.parse(row.ApiResponseJson);
+      } catch {
+        continue;
+      }
+      if (!Array.isArray(parsed)) continue;
+      const next = parsed.filter(
+        (item) => String(item?.alertId ?? item?.AlertId ?? "").trim() !== aid,
+      );
+      if (next.length === parsed.length) continue;
+      await pool
+        .request()
+        .input("DetailId", sql.Int, row.Id)
+        .input("ApiResponseJson", sql.NVarChar(sql.MAX), JSON.stringify(next))
+        .query(`
+        UPDATE [dbo].[AdvisoryDetail]
+        SET ApiResponseJson = @ApiResponseJson
+        WHERE Id = @DetailId
+      `);
+      updated += 1;
+    }
+
+    await dismissAlert({
+      tenantId: tid,
+      advisoryType: "Weather",
+      alertKey: aid,
+    });
+
+    return { success: true, updated };
+  } catch (err) {
+    console.error("removeWeatherAlertFromDetail failed:", err);
+    return {
+      success: false,
+      error: err?.message || "Failed to delete weather alert",
+    };
+  }
+}
+
 
 /**
  * Delete Advisory rows for a tenant where CountryCode is not in the given list.
@@ -984,6 +1250,30 @@ async function upsertSavedAdvisory(
       ? String(locationKey).trim()
       : null;
 
+  // Skip Travel re-upsert when this country/city was dismissed by the user.
+  if (AdvisoryType === "Travel" && selectedId != null) {
+    try {
+      const tenantRow = await pool
+        .request()
+        .input("AdvisoryId", sql.Int, selectedId)
+        .query(
+          `SELECT TenantId FROM [dbo].[Advisory] WHERE Id = @AdvisoryId`,
+        );
+      const tenantId =
+        tenantRow.recordset && tenantRow.recordset[0]
+          ? String(tenantRow.recordset[0].TenantId || "").trim()
+          : "";
+      if (
+        tenantId &&
+        (await isTravelUpsertDismissed(tenantId, code, locKey))
+      ) {
+        return null;
+      }
+    } catch (err) {
+      console.warn("upsertSavedAdvisory dismiss check failed:", err?.message);
+    }
+  }
+
   // Common
   const syncedAtUtc = jobRunAt instanceof Date ? jobRunAt : new Date(jobRunAt);
 
@@ -1043,8 +1333,43 @@ async function upsertSavedAdvisory(
         ? advisory.lastUpdated
         : new Date(advisory.lastUpdated)
       : null;
+
+  let weatherPayload = advisory;
+  if (isWeather && Array.isArray(advisory) && selectedId != null) {
+    try {
+      const tenantRow = await pool
+        .request()
+        .input("AdvisoryId", sql.Int, selectedId)
+        .query(
+          `SELECT TenantId FROM [dbo].[Advisory] WHERE Id = @AdvisoryId`,
+        );
+      const tenantId =
+        tenantRow.recordset && tenantRow.recordset[0]
+          ? String(tenantRow.recordset[0].TenantId || "").trim()
+          : "";
+      if (tenantId) {
+        const dismissed = new Set(
+          await listDismissedAlertKeys(tenantId, "Weather"),
+        );
+        if (dismissed.size > 0) {
+          weatherPayload = advisory.filter(
+            (item) =>
+              !dismissed.has(
+                String(item?.alertId ?? item?.AlertId ?? "").trim(),
+              ),
+          );
+        }
+      }
+    } catch (err) {
+      console.warn(
+        "upsertSavedAdvisory weather dismiss filter failed:",
+        err?.message,
+      );
+    }
+  }
+
   const ApiResponseJson = isWeather
-    ? JSON.stringify(advisory)
+    ? JSON.stringify(weatherPayload)
     : advisory?.apiResponseJson != null
       ? String(advisory.apiResponseJson)
       : advisory?.ApiResponseJson != null
@@ -1911,6 +2236,11 @@ module.exports = {
   ensureTravelAdvisoryDetailTable: ensureAdvisoryDetailTable,
   ensureTravelAdvisoryChangeLogTable: ensureAdvisoryChangeLogTable,
   ensureAllTravelAdvisoryTables,
+  ensureAdvisoryDismissedAlertTable,
+  dismissAlert,
+  listDismissedAlertKeys,
+  deleteTravelAdvisoryDetailForTenant,
+  removeWeatherAlertFromDetail,
   saveTravelAdvisorySelections,
   weatherLocationKey,
   travelLocationKey,
