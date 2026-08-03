@@ -6844,6 +6844,8 @@ ORDER BY ACL.EventDateTime DESC;
       } = await attributeTranslationService.getUiTranslationDict(
         resolvedLanguageId,
       );
+      const visitorQuestionValues =
+        await attributeTranslationService.getVisitorQuestionValues();
 
       const dictWithMeta = {
         Language: {
@@ -6862,6 +6864,7 @@ ORDER BY ACL.EventDateTime DESC;
         languageName,
         cultureCode,
         dictionary: dictWithMeta,
+        visitorQuestionValues,
       });
     } catch (err) {
       console.log(err);
