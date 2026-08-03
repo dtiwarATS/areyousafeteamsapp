@@ -2,12 +2,20 @@ const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 
 const DEFAULT_LANGUAGE_ID = 10000;
+const VISITOR_QUESTION_KEYS = [
+  "doYouHaveAnyVisitorsOnSite",
+  "areAllYourVisitorsSafe",
+  "howCanIHelp",
+];
 
 /** @type {Map<number, Map<string, string>>} */
 const cacheByLanguageId = new Map();
 
 /** @type {Map<number, Promise<Map<string, string>>>} */
 const inflightLoads = new Map();
+
+/** @type {Promise<Record<string, string[]>> | null} */
+let visitorQuestionValuesPromise = null;
 
 function normalizeLanguageId(languageId) {
   const n = Number(languageId);
@@ -132,6 +140,49 @@ async function getDictionary(languageId) {
     out[k] = v;
   }
   return out;
+}
+
+/**
+ * All DB-backed default visitor-question values, across every installed
+ * language. This lets the settings UI distinguish a translated default from
+ * custom team text after a language change or page reload.
+ */
+async function getVisitorQuestionValues() {
+  if (visitorQuestionValuesPromise) return visitorQuestionValuesPromise;
+
+  visitorQuestionValuesPromise = (async () => {
+    const values = Object.fromEntries(
+      VISITOR_QUESTION_KEYS.map((key) => [key, []]),
+    );
+    try {
+      const pool = await poolPromise;
+      const result = await pool.request().query(`
+        SELECT SA.ATTRIBUTE AS AttributeName, SADT.ATTRIBUTE AS TranslatedAttribute
+        FROM SYS_ATTRIBUTE_DEF SA
+        INNER JOIN SYS_ATTRIBUTE_DEF_TRANS SADT
+          ON SADT.ATTRIBUTE_ID = SA.ATTRIBUTE_ID
+        WHERE SA.ATTRIBUTE IN (
+          N'doYouHaveAnyVisitorsOnSite',
+          N'areAllYourVisitorsSafe',
+          N'howCanIHelp'
+        )
+          AND ISNULL(SADT.ATTRIBUTE, N'') <> N''
+      `);
+      for (const row of result.recordset || []) {
+        if (values[row.AttributeName]) {
+          values[row.AttributeName].push(String(row.TranslatedAttribute));
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[attributeTranslationService] visitor question defaults lookup failed:",
+        err?.message || err,
+      );
+    }
+    return values;
+  })();
+
+  return visitorQuestionValuesPromise;
 }
 
 /**
@@ -261,6 +312,7 @@ module.exports = {
   getText,
   getTextCached,
   getDictionary,
+  getVisitorQuestionValues,
   getUiTranslationDict,
   resolveLanguageId,
   invalidate,
