@@ -37,6 +37,11 @@ const EVENT_SOS_CONTACTS_UPDATED = "sos_contacts_updated";
 /** Dedupe desktop incoming_sos emits (Tab + socket SOS both notify). */
 const recentIncomingSosEmits = new Map();
 const INCOMING_SOS_DEDUPE_MS = 60_000;
+/** Mark DB online stale when last_seen older than this (client heartbeat is 30s). */
+const STALE_DEVICE_MS = 90_000;
+const STALE_SWEEP_INTERVAL_MS = 60_000;
+
+let staleDeviceSweepTimer = null;
 
 function getBaseUrl() {
   return process.env.BASE_URL ||
@@ -291,8 +296,39 @@ function attach(server) {
   });
 
   attachDesktopNamespace();
+  startStaleDeviceSweep();
 
   return io;
+}
+
+function startStaleDeviceSweep() {
+  if (staleDeviceSweepTimer) {
+    return;
+  }
+  const sweep = () => {
+    desktopDeviceStore
+      .markStaleDevicesOffline(STALE_DEVICE_MS)
+      .then((count) => {
+        if (count > 0) {
+          console.log("[SOCKET][desktop] marked stale devices offline", {
+            count,
+            thresholdMs: STALE_DEVICE_MS,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      })
+      .catch((err) => {
+        console.error(
+          "[SOCKET][desktop] stale device sweep failed:",
+          err?.message,
+        );
+      });
+  };
+  sweep();
+  staleDeviceSweepTimer = setInterval(sweep, STALE_SWEEP_INTERVAL_MS);
+  if (typeof staleDeviceSweepTimer.unref === "function") {
+    staleDeviceSweepTimer.unref();
+  }
 }
 
 function attachDefaultNamespaceHandlers(socket) {
@@ -397,18 +433,27 @@ function attachDesktopHandlers(socket) {
     }
   });
 
-  onSafe(socket, EVENT_HEARTBEAT, async (payload) => {
+  onSafe(socket, EVENT_HEARTBEAT, async (payload, ack) => {
+    const safeAck = (response) => {
+      if (typeof ack === "function") {
+        ack(response);
+      }
+    };
+
     try {
       const deviceId =
         typeof payload?.deviceId === "string" ? payload.deviceId.trim() : "";
 
       if (!deviceId || normalizeDeviceId(deviceId) !== registeredDeviceId) {
+        safeAck({ ok: false, error: "device not registered on this socket" });
         return;
       }
 
       await desktopDeviceStore.touchHeartbeat({ deviceId });
+      safeAck({ ok: true });
     } catch (err) {
       console.error("[SOCKET][desktop] heartbeat error:", err?.message);
+      safeAck({ ok: false, error: err?.message || "heartbeat failed" });
     }
   });
 
@@ -456,6 +501,7 @@ function attachDesktopHandlers(socket) {
       try {
         await desktopDeviceStore.setDeviceOffline({
           deviceId: registeredDeviceId,
+          socketId: socket.id,
         });
       } catch (err) {
         console.error(
@@ -659,7 +705,7 @@ async function emitIncomingSosToUsers(userAadObjectIds, payload) {
       });
       return;
     }
-    recentIncomingSosEmits.set(dedupeKey, now);
+
     for (const [key, ts] of recentIncomingSosEmits) {
       if (now - ts > INCOMING_SOS_DEDUPE_MS) {
         recentIncomingSosEmits.delete(key);
@@ -669,9 +715,24 @@ async function emitIncomingSosToUsers(userAadObjectIds, payload) {
     const devices =
       await desktopDeviceStore.getActiveDevicesByUserAadObjectIds(ids);
 
+    let delivered = 0;
     for (const device of devices) {
       const room = deviceRoom(device.device_id);
+      if (!isDeviceSocketConnected(device.device_id)) {
+        console.log(
+          "[SOCKET][desktop] skip incoming_sos — empty device room",
+          {
+            deviceId: device.device_id,
+            room,
+            requestAssistanceid: payload.requestAssistanceid,
+            timestamp: new Date().toISOString(),
+          },
+        );
+        continue;
+      }
+
       desktopIo.to(room).emit(EVENT_INCOMING_SOS, payload);
+      delivered += 1;
       console.log("[SOCKET][desktop] emitIncomingSosToUsers", {
         deviceId: device.device_id,
         room,
@@ -679,6 +740,20 @@ async function emitIncomingSosToUsers(userAadObjectIds, payload) {
         userAadObjId: payload.userAadObjId,
         timestamp: new Date().toISOString(),
       });
+    }
+
+    // Only lock out dual-path retries when at least one live socket got the event.
+    if (delivered > 0) {
+      recentIncomingSosEmits.set(dedupeKey, now);
+    } else {
+      console.log(
+        "[SOCKET][desktop] incoming_sos not delivered to any live room",
+        {
+          requestAssistanceid: payload.requestAssistanceid,
+          deviceCount: devices.length,
+          timestamp: new Date().toISOString(),
+        },
+      );
     }
   } catch (err) {
     logSocketError("emitIncomingSosToUsers", err);

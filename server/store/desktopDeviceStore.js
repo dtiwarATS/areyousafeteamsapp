@@ -217,14 +217,19 @@ async function setDeviceOnline({ deviceId, socketId }) {
 }
 
 /**
- * @param {{ deviceId: string }} params
+ * @param {{ deviceId: string, socketId?: string }} params
+ * If socketId is provided, only mark offline when it still matches the stored socket
+ * (avoids racing a newer connection offline).
  */
-async function setDeviceOffline({ deviceId }) {
+async function setDeviceOffline({ deviceId, socketId }) {
   const pool = await poolPromise;
-  await pool
+  const request = pool
     .request()
-    .input("device_id", sql.UniqueIdentifier, deviceId)
-    .query(`
+    .input("device_id", sql.UniqueIdentifier, deviceId);
+
+  if (socketId) {
+    request.input("socket_id", sql.NVarChar(128), socketId);
+    await request.query(`
       UPDATE desktop_agent_devices
       SET
         socket_id = NULL,
@@ -232,7 +237,47 @@ async function setDeviceOffline({ deviceId }) {
         last_seen_at = SYSUTCDATETIME()
       WHERE device_id = @device_id
         AND revoked_at IS NULL
+        AND socket_id = @socket_id
     `);
+    return;
+  }
+
+  await request.query(`
+    UPDATE desktop_agent_devices
+    SET
+      socket_id = NULL,
+      status = 'offline',
+      last_seen_at = SYSUTCDATETIME()
+    WHERE device_id = @device_id
+      AND revoked_at IS NULL
+  `);
+}
+
+/**
+ * Mark devices offline when last_seen_at is older than thresholdMs.
+ * @param {number} [thresholdMs=90000]
+ * @returns {Promise<number>} rows updated
+ */
+async function markStaleDevicesOffline(thresholdMs = 90_000) {
+  const thresholdSeconds = Math.max(1, Math.ceil(Number(thresholdMs) / 1000));
+  const pool = await poolPromise;
+  const result = await pool
+    .request()
+    .input("threshold_seconds", sql.Int, thresholdSeconds)
+    .query(`
+      UPDATE desktop_agent_devices
+      SET
+        socket_id = NULL,
+        status = 'offline'
+      WHERE revoked_at IS NULL
+        AND status = 'online'
+        AND (
+          last_seen_at IS NULL
+          OR last_seen_at < DATEADD(SECOND, -@threshold_seconds, SYSUTCDATETIME())
+        )
+    `);
+
+  return result?.rowsAffected?.[0] || 0;
 }
 
 /**
@@ -331,5 +376,6 @@ module.exports = {
   revokeDevice,
   setDeviceOnline,
   setDeviceOffline,
+  markStaleDevicesOffline,
   touchHeartbeat,
 };
