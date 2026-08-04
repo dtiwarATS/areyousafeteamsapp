@@ -117,10 +117,10 @@ async function loadIncidentFollowUpContext(incId, userAadObjectId) {
     teamId: incRow?.team_id || "",
     creator: creatorName
       ? {
-          name: creatorName,
-          id: creatorId || "",
-          email: creatorEmail || "",
-        }
+        name: creatorName,
+        id: creatorId || "",
+        email: creatorEmail || "",
+      }
       : null,
   };
 }
@@ -659,18 +659,18 @@ const handlerForSafetyBotTab = (app) => {
       const creatorBody = req.body?.creator;
       const creator =
         creatorBody &&
-        typeof creatorBody === "object" &&
-        typeof creatorBody.name === "string" &&
-        creatorBody.name.trim()
+          typeof creatorBody === "object" &&
+          typeof creatorBody.name === "string" &&
+          creatorBody.name.trim()
           ? {
-              name: creatorBody.name.trim(),
-              id:
-                typeof creatorBody.id === "string" ? creatorBody.id.trim() : "",
-              email:
-                typeof creatorBody.email === "string"
-                  ? creatorBody.email.trim()
-                  : "",
-            }
+            name: creatorBody.name.trim(),
+            id:
+              typeof creatorBody.id === "string" ? creatorBody.id.trim() : "",
+            email:
+              typeof creatorBody.email === "string"
+                ? creatorBody.email.trim()
+                : "",
+          }
           : null;
 
       if (!userAadObjectId) {
@@ -824,7 +824,7 @@ const handlerForSafetyBotTab = (app) => {
         if (
           !device ||
           String(device.user_aadobject_id).toLowerCase() !==
-            normalizedUserAadObjectId.toLowerCase()
+          normalizedUserAadObjectId.toLowerCase()
         ) {
           return res.status(403).json({
             success: false,
@@ -1028,7 +1028,7 @@ const handlerForSafetyBotTab = (app) => {
         if (
           !device ||
           String(device.user_aadobject_id).toLowerCase() !==
-            normalizedUserAadObjectId.toLowerCase()
+          normalizedUserAadObjectId.toLowerCase()
         ) {
           return res.status(403).json({
             success: false,
@@ -1231,9 +1231,9 @@ const handlerForSafetyBotTab = (app) => {
                       "",
                       "",
                       "error in get users phone number requestDateTime : " +
-                        requestDate +
-                        " ErrorDateTime: " +
-                        new Date(),
+                      requestDate +
+                      " ErrorDateTime: " +
+                      new Date(),
                       "",
                       false,
                       "",
@@ -1269,7 +1269,7 @@ const handlerForSafetyBotTab = (app) => {
               error.response.data.error_description
                 .toString()
                 .indexOf("The refresh token has expired due to inactivity.") >=
-                0
+              0
             ) {
               throw {
                 type: "authFailed",
@@ -1653,7 +1653,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/deleteIncident -> deleteInc then incId=" +
-              req.query.incid,
+            req.query.incid,
           );
         });
     } catch (err) {
@@ -1663,7 +1663,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/deleteIncident incId=" +
-          req.query.incid,
+        req.query.incid,
       );
     }
   });
@@ -1686,9 +1686,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/updateincstatus then -> incId=" +
-              incId +
-              " incStatus=" +
-              incStatus,
+            incId +
+            " incStatus=" +
+            incStatus,
           );
         });
     } catch (err) {
@@ -1698,9 +1698,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/updateincstatus -> incId=" +
-          incId +
-          " incStatus=" +
-          incStatus,
+        incId +
+        " incStatus=" +
+        incStatus,
       );
     }
   });
@@ -1791,9 +1791,9 @@ const handlerForSafetyBotTab = (app) => {
       );
       const sqlMessage = String(
         err?.originalError?.info?.message ||
-          err?.originalError?.message ||
-          err?.message ||
-          "",
+        err?.originalError?.message ||
+        err?.message ||
+        "",
       ).trim();
       const isMissingPhoneColumn =
         sqlMessage.includes("PHONE_NUMBER") &&
@@ -2780,9 +2780,8 @@ const handlerForSafetyBotTab = (app) => {
                   minute: "2-digit",
                   hour12: true,
                 },
-              )}** has been marked as closed by **<at>${
-                closedByUser.user_name
-              }</at>**.`,
+              )}** has been marked as closed by **<at>${closedByUser.user_name
+                }</at>**.`,
               wrap: true,
             },
             {
@@ -2910,7 +2909,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-                reqBody.comment,
+              reqBody.comment,
             );
             res.send(false);
           });
@@ -2922,7 +2921,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-          reqBody.comment,
+        reqBody.comment,
       );
     }
   });
@@ -3114,9 +3113,9 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userAadObjId,
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
-            userlocation +
-            " req.query.adminlist=" +
-            req.body.data,
+          userlocation +
+          " req.query.adminlist=" +
+          req.body.data,
         );
       }
     },
@@ -3177,8 +3176,8 @@ const handlerForSafetyBotTab = (app) => {
                     : [];
                 const victimRow =
                   Array.isArray(admins) &&
-                  Array.isArray(admins[1]) &&
-                  admins[1].length > 0
+                    Array.isArray(admins[1]) &&
+                    admins[1].length > 0
                     ? admins[1][0]
                     : null;
                 const hasAdmins =
@@ -3274,7 +3273,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-                reqBody.comment,
+              reqBody.comment,
             );
             res.send(false);
           });
@@ -3286,7 +3285,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-          reqBody.comment,
+        reqBody.comment,
       );
     }
   });
@@ -4001,7 +4000,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         qs.userAadObjId,
         "error in /areyousafetabhandler/checkduplicateInc -> qs.incTitle=" +
-          qs.incTitle,
+        qs.incTitle,
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -4362,7 +4361,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         req.query.userAadObjId,
         "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-          req.query.incId,
+        req.query.incId,
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -4410,7 +4409,7 @@ const handlerForSafetyBotTab = (app) => {
           "",
           req.query.userAadObjId,
           "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-            req.query.incId,
+          req.query.incId,
         );
         res.send({ error: "Error: Please try again" });
       }
@@ -4544,9 +4543,9 @@ const handlerForSafetyBotTab = (app) => {
         userName,
         userId,
         "error in /areyousafetabhandler/contactus -> email=" +
-          email +
-          " msg=" +
-          msg,
+        email +
+        " msg=" +
+        msg,
       );
       res.send(false);
     }
@@ -4600,6 +4599,7 @@ const handlerForSafetyBotTab = (app) => {
 
   app.get("/areyousafetabhandler/getUserConsentStats", async (req, res) => {
     const tenantId = req.query.tenantId;
+    console.log("[getUserConsentStats] request received", { tenantId });
     try {
       if (!tenantId) {
         res.status(400).send({ error: "tenantId is required" });
@@ -4612,8 +4612,19 @@ const handlerForSafetyBotTab = (app) => {
           await userNotificationConsentService.getPhoneIntegrationContextForTenant(
             tenantId,
           );
+        // Consent phone priority: spreadsheet → DB (handled in getConsentStats);
+        // Graph only when Office 365 is the effective phone source (not spreadsheet).
+        const consentPhoneSource =
+          userNotificationConsentService.resolveConsentPhoneSource(phoneCtx);
+        console.log("[getUserConsentStats] phone source resolved", {
+          tenantId,
+          phoneSourceFromConfig: phoneCtx.phoneSource,
+          consentPhoneSource,
+          isAppPermissionGranted: !!phoneCtx.isAppPermissionGranted,
+          phoneField: phoneCtx.phoneField,
+        });
         if (
-          phoneCtx.phoneSource === "office365" &&
+          consentPhoneSource === "office365" &&
           phoneCtx.isAppPermissionGranted
         ) {
           const userIdRows =
@@ -4636,9 +4647,34 @@ const handlerForSafetyBotTab = (app) => {
             office365PhoneEligibleTotal =
               userNotificationConsentService.countValidGraphPhones(
                 Array.isArray(graphUsers) ? graphUsers : [],
-                phoneCtx.phoneField,
               );
+            console.log(
+              "[getUserConsentStats] Office 365 users with phone number:",
+              {
+                tenantId,
+                phoneMatch: "either mobile or business",
+                teamUsersChecked: userAadObjIds.length,
+                graphUsersReturned: Array.isArray(graphUsers)
+                  ? graphUsers.length
+                  : 0,
+                usersWithPhoneInOffice365: office365PhoneEligibleTotal,
+              },
+            );
+          } else {
+            console.log(
+              "[getUserConsentStats] Office 365 phone count: no team users to check",
+              { tenantId },
+            );
           }
+        } else {
+          console.log(
+            "[getUserConsentStats] Skipping Office 365 phone count",
+            {
+              tenantId,
+              consentPhoneSource,
+              isAppPermissionGranted: !!phoneCtx.isAppPermissionGranted,
+            },
+          );
         }
       } catch (phoneErr) {
         console.log(
@@ -4652,6 +4688,14 @@ const handlerForSafetyBotTab = (app) => {
         tenantId,
         { office365PhoneEligibleTotal },
       );
+      console.log("[getUserConsentStats] response stats phone totals", {
+        tenantId,
+        office365PhoneEligibleTotal,
+        sms: stats?.sms?.total,
+        whatsapp: stats?.whatsapp?.total,
+        voice: stats?.voice?.total,
+        email: stats?.email?.total,
+      });
       res.send(stats);
     } catch (err) {
       processSafetyBotError(
@@ -4726,24 +4770,70 @@ const handlerForSafetyBotTab = (app) => {
         return;
       }
       const userNotificationConsentService = require("./services/userNotificationConsentService");
-      const result = await userNotificationConsentService.sendConsentRequests({
-        tenantId,
-        teamId,
-        channels,
-        message,
-        performedBy: userAadObjId || "admin",
-        userIds: Array.isArray(userIds) ? userIds : null,
-        persistOptInFlags: true,
-      });
-      if (result.error) {
-        res.status(400).send(result);
+      const chs = userNotificationConsentService.normalizeChannels(channels);
+      if (!chs.length) {
+        res.status(400).send({
+          sent: 0,
+          skipped: 0,
+          error: "No channels selected",
+        });
         return;
       }
+
+      // Persist opt-in flags synchronously, then ack so the UI is not blocked on Teams sends.
+      await userNotificationConsentService.updateIntegrationOptInFlags(
+        teamId,
+        chs,
+        message ??
+          userNotificationConsentService.DEFAULT_CONSENT_MESSAGE,
+      );
+
+      const incidentService = require("./services/incidentService");
+      const company = await incidentService.getCompanyData(teamId);
+      if (!company?.serviceUrl) {
+        res.status(400).send({
+          sent: 0,
+          skipped: 0,
+          error: "Company serviceUrl not found",
+        });
+        return;
+      }
+
+      const performedBy = userAadObjId || "admin";
+      const normalizedUserIds = Array.isArray(userIds) ? userIds : null;
+
       res.send({
         success: true,
-        ...result,
+        sent: 0,
+        skipped: 0,
+        channels: chs,
         message: "Consent request sent successfully.",
       });
+
+      void userNotificationConsentService
+        .sendConsentRequests({
+          tenantId,
+          teamId,
+          channels: chs,
+          message,
+          performedBy,
+          userIds: normalizedUserIds,
+          persistOptInFlags: false,
+          companyData: company,
+        })
+        .catch((bgErr) => {
+          console.log(
+            "sendUserConsentRequest background send failed",
+            bgErr?.message || bgErr,
+          );
+          processSafetyBotError(
+            bgErr,
+            teamId || "",
+            "",
+            userAadObjId,
+            "error in /areyousafetabhandler/sendUserConsentRequest background",
+          );
+        });
     } catch (err) {
       processSafetyBotError(
         err,
@@ -4752,7 +4842,9 @@ const handlerForSafetyBotTab = (app) => {
         userAadObjId,
         "error in /areyousafetabhandler/sendUserConsentRequest",
       );
-      res.status(500).send({ error: "Error sending consent request" });
+      if (!res.headersSent) {
+        res.status(500).send({ error: "Error sending consent request" });
+      }
     }
   });
 
@@ -4805,9 +4897,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-              incid +
-              " incType=" +
-              incType,
+            incid +
+            " incType=" +
+            incType,
           );
           res.send(0);
         });
@@ -4818,9 +4910,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-          incid +
-          " incType=" +
-          incType,
+        incid +
+        " incType=" +
+        incType,
       );
       res.send(0);
     }
@@ -4874,9 +4966,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-              serviceUrl +
-              " teamUserId=" +
-              teamUserId,
+            serviceUrl +
+            " teamUserId=" +
+            teamUserId,
           );
           res.send(0);
         });
@@ -4887,9 +4979,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-          serviceUrl +
-          " teamUserId=" +
-          teamUserId,
+        serviceUrl +
+        " teamUserId=" +
+        teamUserId,
       );
       res.send(0);
     }
@@ -5068,7 +5160,7 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userAadObjId ?? "",
           "error in /areyousafetabhandler/trackSafetyCheckResponse incId=" +
-            incId,
+          incId,
         );
         return res.send({
           success: false,
@@ -5314,7 +5406,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             "Error in Saving AllAdminConsentInfo_IsAppPermissionGranted: " +
-              IsAppPermissionGranted,
+            IsAppPermissionGranted,
           );
         });
     }
@@ -5397,11 +5489,9 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${
-        process.env.SMS_CONFIRMATION_URL
-      }?userId=${userId}&eventId=${eventId}&isfrom=${
-        isfromemail ? "Email" : "SMS"
-      }`;
+      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
+        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
+        }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -5715,11 +5805,9 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${
-        process.env.SMS_CONFIRMATION_URL
-      }?userId=${userId}&eventId=${eventId}&isfrom=${
-        isfromemail ? "Email" : "SMS"
-      }`;
+      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
+        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
+        }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -6355,8 +6443,8 @@ ORDER BY ACL.EventDateTime DESC;
         ).trim();
         const advisoryType = String(
           req.query.advisoryType ||
-            (req.body && req.body.advisoryType) ||
-            "",
+          (req.body && req.body.advisoryType) ||
+          "",
         ).trim();
 
         if (!tenantId) {
@@ -6451,12 +6539,12 @@ ORDER BY ACL.EventDateTime DESC;
           : [];
         const addedCountryCodes = Array.isArray(body.addedCountryCodes)
           ? body.addedCountryCodes
-              .map((c) =>
-                String(c || "")
-                  .trim()
-                  .toUpperCase(),
-              )
-              .filter(Boolean)
+            .map((c) =>
+              String(c || "")
+                .trim()
+                .toUpperCase(),
+            )
+            .filter(Boolean)
           : [];
         const replaceSelections = body.replaceSelections === true;
         const hasTravelAddDelta =
@@ -6522,16 +6610,16 @@ ORDER BY ACL.EventDateTime DESC;
             const filtered =
               requestedCodesSet.size > 0
                 ? selections.filter((row) => {
-                    const codes = (row.CountryCode || "")
-                      .split(",")
-                      .map((c) => c.trim().toUpperCase());
-                    return codes.some((code) => requestedCodesSet.has(code));
-                  })
+                  const codes = (row.CountryCode || "")
+                    .split(",")
+                    .map((c) => c.trim().toUpperCase());
+                  return codes.some((code) => requestedCodesSet.has(code));
+                })
                 : selections;
 
             const effectiveLocations =
               Array.isArray(result.locationSelections) &&
-              result.locationSelections.length > 0
+                result.locationSelections.length > 0
                 ? result.locationSelections
                 : Array.isArray(locationSelections)
                   ? locationSelections
@@ -6621,17 +6709,17 @@ ORDER BY ACL.EventDateTime DESC;
                 : usCityLocs;
               const syncNonUsCodes = hasTravelAddDelta
                 ? nonUsCodes.filter(
-                    (code) =>
-                      addedCodeSet.has(code) ||
-                      addedKeySet.has(`${code}||`),
-                  )
+                  (code) =>
+                    addedCodeSet.has(code) ||
+                    addedKeySet.has(`${code}||`),
+                )
                 : nonUsCodes;
               const syncUsCountryOnly = hasTravelAddDelta
                 ? hasUsCountryOnly &&
-                  (addedCodeSet.has("US") ||
-                    addedCodeSet.has("USA") ||
-                    addedKeySet.has("US||") ||
-                    addedKeySet.has("USA||"))
+                (addedCodeSet.has("US") ||
+                  addedCodeSet.has("USA") ||
+                  addedKeySet.has("US||") ||
+                  addedKeySet.has("USA||"))
                 : hasUsCountryOnly;
 
               const needsStateDept =
@@ -6874,7 +6962,7 @@ ORDER BY ACL.EventDateTime DESC;
 
             const effectiveLocations =
               Array.isArray(result.locationSelections) &&
-              result.locationSelections.length > 0
+                result.locationSelections.length > 0
                 ? result.locationSelections
                 : locationSelections;
 
@@ -6884,8 +6972,7 @@ ORDER BY ACL.EventDateTime DESC;
               ((loc) =>
                 `${String(loc.countryCode || "")
                   .trim()
-                  .toUpperCase()}|${String(loc.cityName || "").trim()}|${
-                  loc.state != null ? String(loc.state).trim() : ""
+                  .toUpperCase()}|${String(loc.cityName || "").trim()}|${loc.state != null ? String(loc.state).trim() : ""
                 }`);
 
             // One AdvisoryDetail row per city LocationKey (not one per country)
@@ -7065,7 +7152,7 @@ ORDER BY ACL.EventDateTime DESC;
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguageData -> language=" +
-          language,
+        language,
       );
       res.status(500).json({ error: "Error fetching language data" });
     }
@@ -7148,9 +7235,9 @@ ORDER BY ACL.EventDateTime DESC;
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguage -> teamId=" +
-          teamId +
-          " userId=" +
-          userId,
+        teamId +
+        " userId=" +
+        userId,
       );
       res.status(500).json({ error: "Error fetching selected language" });
     }
@@ -7269,8 +7356,8 @@ ORDER BY ACL.EventDateTime DESC;
         locationData: result.recordsets[0] || [],
         filterEnabled:
           userAadObjId &&
-          result.recordsets[1] &&
-          result.recordsets[1].length > 0
+            result.recordsets[1] &&
+            result.recordsets[1].length > 0
             ? result.recordsets[1][0].FILTER_ENABLED
             : null,
       };

@@ -41,7 +41,7 @@ const parsePhoneSourceFromIntegrationConfig = (raw) => {
 };
 
 /** Max concurrent Teams proactive sends for consent cards. */
-const CONSENT_SEND_CONCURRENCY = 10;
+const CONSENT_SEND_CONCURRENCY = 30;
 
 /** Users who must never receive consent Adaptive Cards. */
 const CONSENT_MESSAGE_EXCLUDED_USER_IDS = new Set([
@@ -222,7 +222,7 @@ const getPhoneIntegrationContextForTenant = async (tenantId) => {
       team_id AS teamId
     FROM MSTeamsInstallationDetails
     WHERE user_tenant_id = N'${safeTenant}'
-    ORDER BY created_date DESC
+    ORDER BY created_date asc
   `;
   const rows = (await db.getDataFromDB(qry)) || [];
   const row = rows[0] || null;
@@ -232,6 +232,7 @@ const getPhoneIntegrationContextForTenant = async (tenantId) => {
       phoneField: "businessPhones",
       isAppPermissionGranted: null,
       teamId: null,
+      integrationConfigure: null,
     };
   }
   return {
@@ -242,7 +243,54 @@ const getPhoneIntegrationContextForTenant = async (tenantId) => {
       row.PHONE_FIELD === "mobilePhone" ? "mobilePhone" : "businessPhones",
     isAppPermissionGranted: row.IS_APP_PERMISSION_GRANTED,
     teamId: row.teamId || null,
+    integrationConfigure: row.INTEGRATION_CONFIGURE,
   };
+};
+
+/**
+ * Consent phone denominator priority:
+ * 1) spreadsheet selected → always DB imported phones (wins over O365 Integrations ON)
+ * 2) else office365 selected (or legacy config without phone.key + Graph permission) → Graph
+ * 3) else → 0 / null
+ */
+const isLegacyPhoneIntegrationConfig = (raw) => {
+  try {
+    if (raw == null) return false;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    return Boolean(parsed && typeof parsed === "object" && !("phone" in parsed));
+  } catch {
+    return false;
+  }
+};
+
+const resolveConsentPhoneSource = (phoneCtx) => {
+  const explicit = phoneCtx?.phoneSource || null;
+  if (explicit === "spreadsheet") return "spreadsheet";
+  if (explicit === "office365") return "office365";
+  if (
+    isLegacyPhoneIntegrationConfig(phoneCtx?.integrationConfigure) &&
+    phoneCtx?.isAppPermissionGranted
+  ) {
+    return "office365";
+  }
+  return null;
+};
+
+/**
+ * @param {string} tenantId
+ * @param {{ office365PhoneEligibleTotal?: number }} [options]
+ */
+const resolvePhoneEligibleTotal = async (tenantId, options = {}) => {
+  const phoneCtx = await getPhoneIntegrationContextForTenant(tenantId);
+  const source = resolveConsentPhoneSource(phoneCtx);
+  // Spreadsheet always wins when selected — do not consult FILTER_ENABLED / office365.enabled.
+  if (source === "spreadsheet") {
+    return countValidSpreadsheetPhones(tenantId);
+  }
+  if (source === "office365") {
+    return Number(options.office365PhoneEligibleTotal || 0);
+  }
+  return 0;
 };
 
 const countValidSpreadsheetPhones = async (tenantId) => {
@@ -272,6 +320,40 @@ const countValidSpreadsheetPhones = async (tenantId) => {
   return count;
 };
 
+/** Matches email send path: non-empty, not literal "null", basic address shape. */
+const isValidEmailAddress = (email) => {
+  const value = String(email || "").trim();
+  if (!value || value.toLowerCase() === "null") return false;
+  // Practical check aligned with delivery eligibility (local@domain).
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+};
+
+const countValidEmails = async (tenantId) => {
+  const safeTenant = escapeSql(tenantId);
+  const qry = `
+    SELECT DISTINCT
+      user_aadobject_id AS userId,
+      email AS email
+    FROM MSTeamsTeamsUsers
+    WHERE tenantid = N'${safeTenant}'
+      AND user_aadobject_id IS NOT NULL
+      AND user_aadobject_id <> ''
+      AND email IS NOT NULL
+      AND LTRIM(RTRIM(email)) <> ''
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  let count = 0;
+  const seen = new Set();
+  for (const row of rows) {
+    const userId = String(row.userId || "").trim();
+    if (!userId || seen.has(userId)) continue;
+    if (!isValidEmailAddress(row.email)) continue;
+    seen.add(userId);
+    count += 1;
+  }
+  return count;
+};
+
 const extractGraphPhoneValue = (user, phoneField) => {
   if (!user) return "";
   if (phoneField === "mobilePhone") {
@@ -284,23 +366,40 @@ const extractGraphPhoneValue = (user, phoneField) => {
   return first ? String(first).trim() : "";
 };
 
+/** True if phone passes validatePhoneNumber or has enough digits (O365 often omits +). */
+const isUsableGraphPhoneValue = (phone) => {
+  if (!phone) return false;
+  const validation = validatePhoneNumber(phone);
+  const digitCount = String(phone).replace(/\D/g, "").length;
+  return validation.valid || digitCount >= 7;
+};
+
 /**
- * Count Graph users with an available phone for the configured PHONE_FIELD.
+ * Consent eligibility: user counts if either mobilePhone or businessPhones has a usable number.
+ */
+const userHasValidGraphPhone = (user) => {
+  const mobile = extractGraphPhoneValue(user, "mobilePhone");
+  const business = extractGraphPhoneValue(user, "businessPhones");
+  return (
+    isUsableGraphPhoneValue(mobile) || isUsableGraphPhoneValue(business)
+  );
+};
+
+/**
+ * Count unique Graph users with either mobilePhone or businessPhones available.
  * Accepts validatePhoneNumber-valid numbers, or non-empty Graph values with enough digits
  * (O365 often stores numbers without a + prefix).
+ * @param {Array} graphUsers
+ * @param {string} [_phoneField] unused — kept for call-site compatibility
  */
-const countValidGraphPhones = (graphUsers, phoneField = "businessPhones") => {
+const countValidGraphPhones = (graphUsers, _phoneField) => {
   if (!Array.isArray(graphUsers) || graphUsers.length === 0) return 0;
   let count = 0;
   const seen = new Set();
   for (const user of graphUsers) {
     const id = String(user?.id || "").trim();
     if (!id || seen.has(id)) continue;
-    const phone = extractGraphPhoneValue(user, phoneField);
-    if (!phone) continue;
-    const validation = validatePhoneNumber(phone);
-    const digitCount = phone.replace(/\D/g, "").length;
-    if (!validation.valid && digitCount < 7) continue;
+    if (!userHasValidGraphPhone(user)) continue;
     seen.add(id);
     count += 1;
   }
@@ -313,15 +412,6 @@ const countValidGraphPhones = (graphUsers, phoneField = "businessPhones") => {
  */
 const getConsentStats = async (tenantId, options = {}) => {
   const safeTenant = escapeSql(tenantId);
-  const totalQry = `
-    SELECT COUNT(DISTINCT user_aadobject_id) AS totalUsers
-    FROM MSTeamsTeamsUsers
-    WHERE tenantid = N'${safeTenant}'
-      AND user_aadobject_id IS NOT NULL
-      AND user_aadobject_id <> ''
-  `;
-  const totalRows = (await db.getDataFromDB(totalQry)) || [];
-  const totalUsers = Number(totalRows[0]?.totalUsers || 0);
 
   const consentQry = `
     SELECT NotificationChannel, ConsentStatus, COUNT(*) AS cnt
@@ -333,12 +423,7 @@ const getConsentStats = async (tenantId, options = {}) => {
 
   let phoneEligibleTotal = 0;
   try {
-    const phoneCtx = await getPhoneIntegrationContextForTenant(tenantId);
-    if (phoneCtx.phoneSource === "spreadsheet") {
-      phoneEligibleTotal = await countValidSpreadsheetPhones(tenantId);
-    } else if (phoneCtx.phoneSource === "office365") {
-      phoneEligibleTotal = Number(options.office365PhoneEligibleTotal || 0);
-    }
+    phoneEligibleTotal = await resolvePhoneEligibleTotal(tenantId, options);
   } catch (err) {
     processSafetyBotError(
       err,
@@ -350,6 +435,20 @@ const getConsentStats = async (tenantId, options = {}) => {
     phoneEligibleTotal = 0;
   }
 
+  let emailEligibleTotal = 0;
+  try {
+    emailEligibleTotal = await countValidEmails(tenantId);
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error resolving emailEligibleTotal in getConsentStats",
+    );
+    emailEligibleTotal = 0;
+  }
+
   const stats = {};
   for (const ch of CONSENT_CHANNELS) {
     stats[ch] = {
@@ -358,7 +457,7 @@ const getConsentStats = async (tenantId, options = {}) => {
       optedOut: 0,
       total: PHONE_CONSENT_CHANNELS.includes(ch)
         ? phoneEligibleTotal
-        : totalUsers,
+        : emailEligibleTotal,
     };
   }
   for (const row of consentRows) {
@@ -576,9 +675,8 @@ const upsertConsentStatus = async ({
     WHEN MATCHED THEN
       UPDATE SET
         ConsentStatus = N'${safeStatus}',
-        ConsentDate = ${
-          setConsentDate ? "SYSUTCDATETIME()" : "target.ConsentDate"
-        },
+        ConsentDate = ${setConsentDate ? "SYSUTCDATETIME()" : "target.ConsentDate"
+    },
         LastUpdatedDate = SYSUTCDATETIME()
     WHEN NOT MATCHED THEN
       INSERT (TenantId, UserId, NotificationChannel, ConsentStatus, ConsentDate, CreatedDate, LastUpdatedDate)
@@ -908,30 +1006,33 @@ const markConsentRequestSent = async ({
   const statusMap =
     existingStatusMap || (await getExistingConsentMap(tenantId, [userId], chs));
 
-  for (const ch of chs) {
-    const current = statusMap.get(`${userId}|${ch}`);
-    if (current === CONSENT_STATUS.OptedIn) {
-      continue;
-    }
-    const isReminder =
-      current === CONSENT_STATUS.Pending || current === CONSENT_STATUS.OptedOut;
-    await upsertConsentStatus({
-      tenantId,
-      userId,
-      channel: ch,
-      status: CONSENT_STATUS.Pending,
-      setConsentDate: false,
-    });
-    await insertHistory({
-      tenantId,
-      userId,
-      channel: ch,
-      action: isReminder ? CONSENT_ACTION.ReminderSent : CONSENT_ACTION.Sent,
-      teamsMessageId,
-      conversationId,
-      performedBy,
-    });
-  }
+  await Promise.all(
+    chs.map(async (ch) => {
+      const current = statusMap.get(`${userId}|${ch}`);
+      if (current === CONSENT_STATUS.OptedIn) {
+        return;
+      }
+      const isReminder =
+        current === CONSENT_STATUS.Pending ||
+        current === CONSENT_STATUS.OptedOut;
+      await upsertConsentStatus({
+        tenantId,
+        userId,
+        channel: ch,
+        status: CONSENT_STATUS.Pending,
+        setConsentDate: false,
+      });
+      await insertHistory({
+        tenantId,
+        userId,
+        channel: ch,
+        action: isReminder ? CONSENT_ACTION.ReminderSent : CONSENT_ACTION.Sent,
+        teamsMessageId,
+        conversationId,
+        performedBy,
+      });
+    }),
+  );
 };
 
 /**
@@ -1109,6 +1210,27 @@ const sendConsentRequests = async ({
   let sent = 0;
   let skipped = 0;
 
+  // One ConnectorClient for the whole batch (avoids recreating credentials per user).
+  let batchConnectorClient = null;
+  try {
+    const {
+      ConnectorClient,
+      MicrosoftAppCredentials,
+    } = require("botframework-connector");
+    const credentials = new MicrosoftAppCredentials(
+      process.env.MicrosoftAppId,
+      process.env.MicrosoftAppPassword,
+    );
+    batchConnectorClient = new ConnectorClient(credentials, {
+      baseUri: company.serviceUrl,
+    });
+  } catch (clientErr) {
+    console.log(
+      "Consent send: failed to create shared ConnectorClient, falling back per-user",
+      clientErr?.message || clientErr,
+    );
+  }
+
   const outcomes = await mapWithConcurrency(
     recipients,
     CONSENT_SEND_CONCURRENCY,
@@ -1159,7 +1281,7 @@ const sendConsentRequests = async ({
           null,
           userId,
           existingConversationId,
-          null,
+          batchConnectorClient,
           null,
         );
 
@@ -1237,6 +1359,7 @@ module.exports = {
   userHasChannelConsent,
   getConsentStats,
   getPhoneIntegrationContextForTenant,
+  resolveConsentPhoneSource,
   countValidGraphPhones,
   getConsentUserList,
   getUsersNeedingConsent,
