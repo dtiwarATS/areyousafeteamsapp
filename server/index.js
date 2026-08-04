@@ -98,6 +98,11 @@ function initJob() {
         path: path.join(__dirname, "jobs", "DeleteTrialTeams-job.js"),
         cron: "0 12 * * *",
       },
+      {
+        name: "consentPhoneEligible-job",
+        path: path.join(__dirname, "jobs", "consentPhoneEligible-job.js"),
+        cron: "0 * * * *",
+      },
     ],
   });
   //cron1: "*/1 * * * *"

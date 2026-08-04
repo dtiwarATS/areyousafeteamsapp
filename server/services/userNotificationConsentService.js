@@ -16,7 +16,19 @@ const CONSENT_ACTION = {
   Accepted: "Accepted",
   Declined: "Declined",
   Expired: "Expired",
+  /** Hourly job: first sight while user had no phone (no send). */
+  PhoneEligibleNoPhone: "PhoneEligibleNoPhone",
+  /** Hourly job: first sight while user already had a phone (baseline, no send). */
+  PhoneEligibleHadPhoneBaseline: "PhoneEligibleHadPhoneBaseline",
+  /** Hourly job: consent card sent after phone appeared (dedupe). */
+  PhoneEligibleSent: "PhoneEligibleSent",
 };
+
+/** History channel used only for phone-eligibility job markers (not a real opt-in channel). */
+const PHONE_ELIGIBILITY_HISTORY_CHANNEL = "_eligibility";
+
+const JOB_PERFORMED_BY = "consent-phone-eligible-job";
+
 
 const CHANNEL_LABELS = {
   sms: "SMS",
@@ -1340,7 +1352,384 @@ const sendConsentRequests = async ({
     else skipped++;
   }
 
-  return { sent, skipped, channels: chs };
+  const sentUserIds = [];
+  for (let i = 0; i < outcomes.length; i++) {
+    if (outcomes[i] !== "sent") continue;
+    const id =
+      recipients[i]?.UserId || recipients[i]?.user_aadobject_id || null;
+    if (id) sentUserIds.push(String(id));
+  }
+
+  return { sent, skipped, channels: chs, sentUserIds };
+};
+
+/**
+ * Fetch Graph users' phones for the given AAD ids (batches of 14).
+ * @returns {Promise<Array>} Graph user objects with id, businessPhones, mobilePhone
+ */
+const fetchGraphUsersPhones = async (tenantId, arrIds) => {
+  const phone = [];
+  if (!tenantId || !Array.isArray(arrIds) || !arrIds.length) return phone;
+
+  const axios = require("axios");
+  const FormData = require("form-data");
+  const data = new FormData();
+  data.append("grant_type", "client_credentials");
+  data.append("client_Id", process.env.MicrosoftAppId);
+  data.append("client_secret", process.env.MicrosoftAppPassword);
+  data.append("scope", "https://graph.microsoft.com/.default");
+
+  const tokenResp = await axios.request({
+    method: "post",
+    maxBodyLength: Infinity,
+    url: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+    data,
+  });
+
+  const scopeStr = tokenResp.data?.scope || "";
+  if (scopeStr.indexOf("User.Read.All") === -1) {
+    throw {
+      type: "NoPhonePermission",
+      message: "No phone permission granted",
+    };
+  }
+
+  const accessToken = tokenResp.data.access_token;
+  let startIndex = 0;
+  let endIndex = Math.min(14, arrIds.length);
+  while (startIndex < arrIds.length && startIndex !== endIndex) {
+    const slice = arrIds.slice(startIndex, endIndex);
+    startIndex = endIndex;
+    endIndex = Math.min(startIndex + 14, arrIds.length);
+    if (!slice.length) break;
+    const userIds = "'" + slice.join("','") + "'";
+    const listResp = await axios.request({
+      method: "get",
+      maxBodyLength: Infinity,
+      url:
+        "https://graph.microsoft.com/v1.0/users?$select=displayName,id,businessPhones,mobilePhone" +
+        "&$filter=id in (" +
+        userIds +
+        ")",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + accessToken,
+      },
+    });
+    if (Array.isArray(listResp.data?.value)) {
+      phone.push(...listResp.data.value);
+    }
+  }
+  return phone;
+};
+
+/** Spreadsheet: set of user ids among candidates who currently have a valid phone. */
+const getSpreadsheetPhoneUserIdSet = async (tenantId, candidateUserIds) => {
+  const withPhone = new Set();
+  if (!candidateUserIds?.length) return withPhone;
+  const safeTenant = escapeSql(tenantId);
+  const idList = candidateUserIds.map((id) => `N'${escapeSql(id)}'`).join(",");
+  const qry = `
+    SELECT DISTINCT
+      user_aadobject_id AS userId,
+      PHONE_NUMBER AS phoneNumber
+    FROM MSTeamsTeamsUsers
+    WHERE tenantid = N'${safeTenant}'
+      AND user_aadobject_id IN (${idList})
+      AND PHONE_NUMBER IS NOT NULL
+      AND LTRIM(RTRIM(PHONE_NUMBER)) <> ''
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  for (const row of rows) {
+    const userId = String(row.userId || "").trim();
+    if (!userId) continue;
+    const validation = validatePhoneNumber(row.phoneNumber);
+    if (validation.valid) withPhone.add(userId);
+  }
+  return withPhone;
+};
+
+/** O365: set of candidate user ids who currently have a usable Graph phone. */
+const getOffice365PhoneUserIdSet = async (tenantId, candidateUserIds, isAppPermissionGranted) => {
+  const withPhone = new Set();
+  if (!candidateUserIds?.length || !isAppPermissionGranted) return withPhone;
+  try {
+    const graphUsers = await fetchGraphUsersPhones(tenantId, candidateUserIds);
+    for (const user of graphUsers || []) {
+      const id = String(user?.id || "").trim();
+      if (!id || !userHasValidGraphPhone(user)) continue;
+      withPhone.add(id);
+    }
+  } catch (err) {
+    console.log(
+      "getOffice365PhoneUserIdSet failed:",
+      err?.message || err?.type || err,
+    );
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error fetching Graph phones for consent phone-eligible job",
+    );
+  }
+  return withPhone;
+};
+
+const loadPhoneEligibilityHistoryMarkers = async (tenantId, userIds) => {
+  const map = new Map(); // userId -> { noPhone, hadPhoneBaseline, sent }
+  if (!userIds?.length) return map;
+  const safeTenant = escapeSql(tenantId);
+  const idList = userIds.map((id) => `N'${escapeSql(id)}'`).join(",");
+  const qry = `
+    SELECT UserId, Action
+    FROM UserNotificationConsentHistory
+    WHERE TenantId = N'${safeTenant}'
+      AND UserId IN (${idList})
+      AND NotificationChannel = N'${escapeSql(PHONE_ELIGIBILITY_HISTORY_CHANNEL)}'
+      AND Action IN (
+        N'${CONSENT_ACTION.PhoneEligibleNoPhone}',
+        N'${CONSENT_ACTION.PhoneEligibleHadPhoneBaseline}',
+        N'${CONSENT_ACTION.PhoneEligibleSent}'
+      )
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  for (const row of rows) {
+    const userId = String(row.UserId || "").trim();
+    if (!userId) continue;
+    const entry = map.get(userId) || {
+      noPhone: false,
+      hadPhoneBaseline: false,
+      sent: false,
+    };
+    if (row.Action === CONSENT_ACTION.PhoneEligibleNoPhone) entry.noPhone = true;
+    if (row.Action === CONSENT_ACTION.PhoneEligibleHadPhoneBaseline) {
+      entry.hadPhoneBaseline = true;
+    }
+    if (row.Action === CONSENT_ACTION.PhoneEligibleSent) entry.sent = true;
+    map.set(userId, entry);
+  }
+  return map;
+};
+
+const recordPhoneEligibilityMarker = async (tenantId, userId, action) => {
+  await insertHistory({
+    tenantId,
+    userId,
+    channel: PHONE_ELIGIBILITY_HISTORY_CHANNEL,
+    action,
+    performedBy: JOB_PERFORMED_BY,
+  });
+};
+
+/**
+ * List distinct tenants that may need newly-phone-eligible consent processing.
+ */
+const listTenantsForPhoneEligibleConsentJob = async () => {
+  // One installation row per tenant (oldest), matching getPhoneIntegrationContextForTenant.
+  const qry = `
+    SELECT tenantId, teamId, integrationConfigure, isAppPermissionGranted, phoneField
+    FROM (
+      SELECT
+        user_tenant_id AS tenantId,
+        team_id AS teamId,
+        INTEGRATION_CONFIGURE AS integrationConfigure,
+        IS_APP_PERMISSION_GRANTED AS isAppPermissionGranted,
+        PHONE_FIELD AS phoneField,
+        ROW_NUMBER() OVER (
+          PARTITION BY user_tenant_id
+          ORDER BY created_date ASC
+        ) AS rn
+      FROM MSTeamsInstallationDetails
+      WHERE user_tenant_id IS NOT NULL
+        AND user_tenant_id <> ''
+        AND team_id IS NOT NULL
+        AND team_id <> ''
+    ) ranked
+    WHERE ranked.rn = 1
+  `;
+  return (await db.getDataFromDB(qry)) || [];
+};
+
+const getCandidateUsersNeedingPhoneConsent = async (tenantId, phoneChannels) => {
+  const chs = normalizeChannels(phoneChannels).filter((ch) =>
+    PHONE_CONSENT_CHANNELS.includes(ch),
+  );
+  if (!chs.length) return [];
+  const safeTenant = escapeSql(tenantId);
+  const channelList = chs.map((ch) => `N'${escapeSql(ch)}'`).join(",");
+  const qry = `
+    SELECT DISTINCT UserId
+    FROM UserNotificationConsent
+    WHERE TenantId = N'${safeTenant}'
+      AND NotificationChannel IN (${channelList})
+      AND ConsentStatus IN (
+        N'${CONSENT_STATUS.Pending}',
+        N'${CONSENT_STATUS.OptedOut}'
+      )
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  return rows
+    .map((r) => String(r.UserId || "").trim())
+    .filter((id) => id && !isConsentMessageExcludedUser(id));
+};
+
+/**
+ * Hourly job entry: baseline users who already have phone-channel consent requests,
+ * then send once when a phone appears after a no-phone baseline (history markers only).
+ */
+const processNewlyPhoneEligibleConsent = async () => {
+  const summary = {
+    tenantsChecked: 0,
+    tenantsProcessed: 0,
+    baselined: 0,
+    queued: 0,
+    sent: 0,
+    skipped: 0,
+  };
+
+  const rows = await listTenantsForPhoneEligibleConsentJob();
+  summary.tenantsChecked = rows.length;
+
+  const incidentService = require("./incidentService");
+
+  for (const row of rows) {
+    const tenantId = String(row.tenantId || "").trim();
+    const teamId = String(row.teamId || "").trim();
+    if (!tenantId || !teamId) continue;
+
+    try {
+      const phoneCtx = {
+        phoneSource: parsePhoneSourceFromIntegrationConfig(
+          row.integrationConfigure,
+        ),
+        phoneField:
+          row.phoneField === "mobilePhone" ? "mobilePhone" : "businessPhones",
+        isAppPermissionGranted: row.isAppPermissionGranted,
+        teamId,
+        integrationConfigure: row.integrationConfigure,
+      };
+      const phoneSource = resolveConsentPhoneSource(phoneCtx);
+      if (phoneSource !== "office365" && phoneSource !== "spreadsheet") {
+        continue;
+      }
+
+      const integrationConfig = parseIntegrationConfig(row.integrationConfigure);
+      const phoneOptInChannels = PHONE_CONSENT_CHANNELS.filter((ch) =>
+        isOptInRequired(integrationConfig, ch),
+      );
+      if (!phoneOptInChannels.length) continue;
+
+      summary.tenantsProcessed += 1;
+
+      const candidates = await getCandidateUsersNeedingPhoneConsent(
+        tenantId,
+        phoneOptInChannels,
+      );
+      if (!candidates.length) continue;
+
+      let withPhoneSet;
+      if (phoneSource === "spreadsheet") {
+        withPhoneSet = await getSpreadsheetPhoneUserIdSet(tenantId, candidates);
+      } else {
+        withPhoneSet = await getOffice365PhoneUserIdSet(
+          tenantId,
+          candidates,
+          phoneCtx.isAppPermissionGranted,
+        );
+      }
+
+      const markers = await loadPhoneEligibilityHistoryMarkers(
+        tenantId,
+        candidates,
+      );
+
+      const toSend = [];
+      for (const userId of candidates) {
+        const hasPhone = withPhoneSet.has(userId);
+        const m = markers.get(userId) || {
+          noPhone: false,
+          hadPhoneBaseline: false,
+          sent: false,
+        };
+
+        if (m.sent) continue;
+
+        const hasAnyBaseline = m.noPhone || m.hadPhoneBaseline;
+        if (!hasAnyBaseline) {
+          // First observation — baseline only, never send.
+          await recordPhoneEligibilityMarker(
+            tenantId,
+            userId,
+            hasPhone
+              ? CONSENT_ACTION.PhoneEligibleHadPhoneBaseline
+              : CONSENT_ACTION.PhoneEligibleNoPhone,
+          );
+          summary.baselined += 1;
+          continue;
+        }
+
+        if (m.noPhone && hasPhone && !m.sent) {
+          toSend.push(userId);
+        }
+      }
+
+      if (!toSend.length) continue;
+      summary.queued += toSend.length;
+
+      let company = null;
+      try {
+        company = await incidentService.getCompanyData(teamId);
+      } catch (companyErr) {
+        console.log(
+          `consent phone-eligible job: getCompanyData failed for ${teamId}`,
+          companyErr?.message || companyErr,
+        );
+        continue;
+      }
+      if (!company?.serviceUrl) continue;
+
+      const result = await sendConsentRequests({
+        tenantId,
+        teamId,
+        channels: phoneOptInChannels,
+        message:
+          integrationConfig?.userConsent?.message || DEFAULT_CONSENT_MESSAGE,
+        performedBy: JOB_PERFORMED_BY,
+        userIds: toSend,
+        persistOptInFlags: false,
+        companyData: company,
+      });
+
+      summary.sent += Number(result?.sent || 0);
+      summary.skipped += Number(result?.skipped || 0);
+
+      const sentIds = Array.isArray(result?.sentUserIds)
+        ? result.sentUserIds
+        : [];
+      for (const userId of sentIds) {
+        await recordPhoneEligibilityMarker(
+          tenantId,
+          userId,
+          CONSENT_ACTION.PhoneEligibleSent,
+        );
+      }
+    } catch (tenantErr) {
+      console.log(
+        `consent phone-eligible job failed for tenant ${tenantId}:`,
+        tenantErr?.message || tenantErr,
+      );
+      processSafetyBotError(
+        tenantErr,
+        teamId || "",
+        "",
+        "",
+        "error in processNewlyPhoneEligibleConsent for tenant " + tenantId,
+      );
+    }
+  }
+
+  return summary;
 };
 
 module.exports = {
@@ -1349,6 +1738,7 @@ module.exports = {
   CONSENT_ACTION,
   CHANNEL_LABELS,
   DEFAULT_CONSENT_MESSAGE,
+  PHONE_ELIGIBILITY_HISTORY_CHANNEL,
   normalizeChannel,
   normalizeChannels,
   parseIntegrationConfig,
@@ -1369,4 +1759,5 @@ module.exports = {
   recordConsentResponse,
   updateIntegrationOptInFlags,
   sendConsentRequests,
+  processNewlyPhoneEligibleConsent,
 };
