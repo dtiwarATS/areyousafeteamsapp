@@ -1,8 +1,10 @@
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
+const { validatePhoneNumber } = require("../utils/phoneValidation");
 
 const CONSENT_CHANNELS = ["sms", "whatsapp", "email", "voice"];
+const PHONE_CONSENT_CHANNELS = ["sms", "whatsapp", "voice"];
 const CONSENT_STATUS = {
   Pending: "Pending",
   OptedIn: "OptedIn",
@@ -24,7 +26,19 @@ const CHANNEL_LABELS = {
 };
 
 const DEFAULT_CONSENT_MESSAGE =
-  "Choose how you'd like to receive Safety Check notifications.\n\nSelect one or more options below, then click Submit.";
+  "By clicking Submit, I consent to receive Safety Check notifications through the selected notification channels.";
+
+const parsePhoneSourceFromIntegrationConfig = (raw) => {
+  try {
+    if (raw == null) return null;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+    const source = parsed?.phone?.source;
+    if (source === "office365" || source === "spreadsheet") return source;
+    return null;
+  } catch {
+    return null;
+  }
+};
 
 /** Max concurrent Teams proactive sends for consent cards. */
 const CONSENT_SEND_CONCURRENCY = 10;
@@ -195,7 +209,109 @@ const userHasChannelConsent = async (
   return allowed.includes(userId);
 };
 
-const getConsentStats = async (tenantId) => {
+/**
+ * Resolve phone.source + installation fields used for consent phone counts.
+ */
+const getPhoneIntegrationContextForTenant = async (tenantId) => {
+  const safeTenant = escapeSql(tenantId);
+  const qry = `
+    SELECT TOP 1
+      INTEGRATION_CONFIGURE,
+      PHONE_FIELD,
+      IS_APP_PERMISSION_GRANTED,
+      team_id AS teamId
+    FROM MSTeamsInstallationDetails
+    WHERE user_tenant_id = N'${safeTenant}'
+    ORDER BY created_date DESC
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  const row = rows[0] || null;
+  if (!row) {
+    return {
+      phoneSource: null,
+      phoneField: "businessPhones",
+      isAppPermissionGranted: null,
+      teamId: null,
+    };
+  }
+  return {
+    phoneSource: parsePhoneSourceFromIntegrationConfig(
+      row.INTEGRATION_CONFIGURE,
+    ),
+    phoneField:
+      row.PHONE_FIELD === "mobilePhone" ? "mobilePhone" : "businessPhones",
+    isAppPermissionGranted: row.IS_APP_PERMISSION_GRANTED,
+    teamId: row.teamId || null,
+  };
+};
+
+const countValidSpreadsheetPhones = async (tenantId) => {
+  const safeTenant = escapeSql(tenantId);
+  const qry = `
+    SELECT DISTINCT
+      user_aadobject_id AS userId,
+      PHONE_NUMBER AS phoneNumber
+    FROM MSTeamsTeamsUsers
+    WHERE tenantid = N'${safeTenant}'
+      AND user_aadobject_id IS NOT NULL
+      AND user_aadobject_id <> ''
+      AND PHONE_NUMBER IS NOT NULL
+      AND LTRIM(RTRIM(PHONE_NUMBER)) <> ''
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  let count = 0;
+  const seen = new Set();
+  for (const row of rows) {
+    const userId = String(row.userId || "").trim();
+    if (!userId || seen.has(userId)) continue;
+    const validation = validatePhoneNumber(row.phoneNumber);
+    if (!validation.valid) continue;
+    seen.add(userId);
+    count += 1;
+  }
+  return count;
+};
+
+const extractGraphPhoneValue = (user, phoneField) => {
+  if (!user) return "";
+  if (phoneField === "mobilePhone") {
+    return user.mobilePhone ? String(user.mobilePhone).trim() : "";
+  }
+  const business = Array.isArray(user.businessPhones)
+    ? user.businessPhones
+    : [];
+  const first = business.find((p) => p != null && String(p).trim() !== "");
+  return first ? String(first).trim() : "";
+};
+
+/**
+ * Count Graph users with an available phone for the configured PHONE_FIELD.
+ * Accepts validatePhoneNumber-valid numbers, or non-empty Graph values with enough digits
+ * (O365 often stores numbers without a + prefix).
+ */
+const countValidGraphPhones = (graphUsers, phoneField = "businessPhones") => {
+  if (!Array.isArray(graphUsers) || graphUsers.length === 0) return 0;
+  let count = 0;
+  const seen = new Set();
+  for (const user of graphUsers) {
+    const id = String(user?.id || "").trim();
+    if (!id || seen.has(id)) continue;
+    const phone = extractGraphPhoneValue(user, phoneField);
+    if (!phone) continue;
+    const validation = validatePhoneNumber(phone);
+    const digitCount = phone.replace(/\D/g, "").length;
+    if (!validation.valid && digitCount < 7) continue;
+    seen.add(id);
+    count += 1;
+  }
+  return count;
+};
+
+/**
+ * @param {string} tenantId
+ * @param {{ office365PhoneEligibleTotal?: number }} [options]
+ */
+const getConsentStats = async (tenantId, options = {}) => {
   const safeTenant = escapeSql(tenantId);
   const totalQry = `
     SELECT COUNT(DISTINCT user_aadobject_id) AS totalUsers
@@ -215,9 +331,35 @@ const getConsentStats = async (tenantId) => {
   `;
   const consentRows = (await db.getDataFromDB(consentQry)) || [];
 
+  let phoneEligibleTotal = 0;
+  try {
+    const phoneCtx = await getPhoneIntegrationContextForTenant(tenantId);
+    if (phoneCtx.phoneSource === "spreadsheet") {
+      phoneEligibleTotal = await countValidSpreadsheetPhones(tenantId);
+    } else if (phoneCtx.phoneSource === "office365") {
+      phoneEligibleTotal = Number(options.office365PhoneEligibleTotal || 0);
+    }
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error resolving phoneEligibleTotal in getConsentStats",
+    );
+    phoneEligibleTotal = 0;
+  }
+
   const stats = {};
   for (const ch of CONSENT_CHANNELS) {
-    stats[ch] = { optedIn: 0, pending: 0, optedOut: 0, total: totalUsers };
+    stats[ch] = {
+      optedIn: 0,
+      pending: 0,
+      optedOut: 0,
+      total: PHONE_CONSENT_CHANNELS.includes(ch)
+        ? phoneEligibleTotal
+        : totalUsers,
+    };
   }
   for (const row of consentRows) {
     const ch = normalizeChannel(row.NotificationChannel);
@@ -609,10 +751,6 @@ const buildConsentAdaptiveCard = ({
   teamId = null,
 }) => {
   const chs = normalizeChannels(channelsRequested);
-  const defaultTitle =
-    "Choose how you'd like to receive Safety Check notifications.";
-  const defaultInstruction =
-    "Select one or more options below, then click Submit.";
   const cardMessage =
     message && String(message).trim()
       ? String(message).trim()
@@ -624,48 +762,35 @@ const buildConsentAdaptiveCard = ({
     .map((p) => p.trim())
     .filter(Boolean);
 
-  let title = defaultTitle;
-  let instruction = defaultInstruction;
+  const body = [];
   if (paragraphs.length >= 2) {
-    title = paragraphs[0];
-    instruction = paragraphs.slice(1).join("\n\n");
-  } else if (paragraphs.length === 1) {
-    // Prefer custom body under the default title unless the single block is only the title.
-    if (paragraphs[0] === defaultTitle) {
-      instruction = defaultInstruction;
-    } else if (
-      paragraphs[0].startsWith(defaultTitle) &&
-      paragraphs[0].length > defaultTitle.length
-    ) {
-      instruction =
-        paragraphs[0]
-          .slice(defaultTitle.length)
-          .replace(/^\.\s*/, "")
-          .trim() || defaultInstruction;
-    } else {
-      instruction = paragraphs[0];
-    }
-  }
-
-  const body = [
-    {
+    body.push({
       type: "TextBlock",
-      text: title,
+      text: paragraphs[0],
       weight: "Bolder",
       wrap: true,
       size: "Medium",
-    },
-    {
+    });
+    body.push({
       type: "TextBlock",
-      text: instruction,
+      text: paragraphs.slice(1).join("\n\n"),
       wrap: true,
       spacing: "Small",
-    },
-  ];
+    });
+  } else {
+    // Single-paragraph messages (including the FCC default) render as one primary block.
+    body.push({
+      type: "TextBlock",
+      text: paragraphs[0] || DEFAULT_CONSENT_MESSAGE,
+      wrap: true,
+      size: "Medium",
+    });
+  }
 
   // Preserve channelsRequested order: OptedIn locked with green label; others selectable.
   // Teams ignores isEnabled on Input.ChoiceSet, so consented rows use TextBlocks only (read-only).
   // Use the same ColumnSet shape for every row so checkboxes/labels stay aligned.
+  // Selectable channels start checked (value = channel id); users may deselect before Submit.
   for (const ch of chs) {
     const optedIn = existingConsent[ch] === CONSENT_STATUS.OptedIn;
     if (optedIn) {
@@ -719,6 +844,7 @@ const buildConsentAdaptiveCard = ({
                 style: "expanded",
                 isMultiSelect: true,
                 spacing: "None",
+                value: ch,
                 choices: [{ title: CHANNEL_LABELS[ch], value: ch }],
               },
             ],
@@ -1110,6 +1236,8 @@ module.exports = {
   filterUsersByConsent,
   userHasChannelConsent,
   getConsentStats,
+  getPhoneIntegrationContextForTenant,
+  countValidGraphPhones,
   getConsentUserList,
   getUsersNeedingConsent,
   getUserConsentForChannels,

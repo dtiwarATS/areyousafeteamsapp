@@ -4606,8 +4606,52 @@ const handlerForSafetyBotTab = (app) => {
         return;
       }
       const userNotificationConsentService = require("./services/userNotificationConsentService");
-      const stats =
-        await userNotificationConsentService.getConsentStats(tenantId);
+      let office365PhoneEligibleTotal = 0;
+      try {
+        const phoneCtx =
+          await userNotificationConsentService.getPhoneIntegrationContextForTenant(
+            tenantId,
+          );
+        if (
+          phoneCtx.phoneSource === "office365" &&
+          phoneCtx.isAppPermissionGranted
+        ) {
+          const userIdRows =
+            (await db.getDataFromDB(
+              `SELECT DISTINCT user_aadobject_id AS userId
+               FROM MSTeamsTeamsUsers
+               WHERE tenantid = N'${String(tenantId).replace(/'/g, "''")}'
+                 AND user_aadobject_id IS NOT NULL
+                 AND user_aadobject_id <> ''`,
+            )) || [];
+          const userAadObjIds = userIdRows
+            .map((r) => r.userId)
+            .filter(Boolean);
+          if (userAadObjIds.length) {
+            const graphUsers = await getUserPhone(
+              phoneCtx.isAppPermissionGranted,
+              tenantId,
+              userAadObjIds,
+            );
+            office365PhoneEligibleTotal =
+              userNotificationConsentService.countValidGraphPhones(
+                Array.isArray(graphUsers) ? graphUsers : [],
+                phoneCtx.phoneField,
+              );
+          }
+        }
+      } catch (phoneErr) {
+        console.log(
+          "getUserConsentStats: office365 phone count failed",
+          phoneErr?.message || phoneErr,
+        );
+        office365PhoneEligibleTotal = 0;
+      }
+
+      const stats = await userNotificationConsentService.getConsentStats(
+        tenantId,
+        { office365PhoneEligibleTotal },
+      );
       res.send(stats);
     } catch (err) {
       processSafetyBotError(
