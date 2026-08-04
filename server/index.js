@@ -21,83 +21,83 @@ function initJob() {
   const bree = new Bree({
     root: false,
     jobs: [
-      {
-        name: "recurr-job",
-        path: path.join(__dirname, "jobs", "recurr-job.js"),
-        cron: "*/15 * * * *",
-      },
-      {
-        name: "newSubcriptionAdded-job",
-        path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
-        cron: "*/10 * * * *",
-      },
-      {
-        name: "subscription-job",
-        path: path.join(__dirname, "jobs", "subscription-job.js"),
-        cron: "0 0 * * *",
-      },
       // {
-      //   name: "postInstallation-job",
-      //   path: path.join(__dirname, "jobs", "postInstallation-job.js"),
-      //   cron: "* 1 * * *",
+      //   name: "recurr-job",
+      //   path: path.join(__dirname, "jobs", "recurr-job.js"),
+      //   cron: "*/15 * * * *",
       // },
-      {
-        name: "SendRemainder-job",
-        path: path.join(__dirname, "jobs", "SendRemainder-job.js"),
-        cron: "*/3 * * * *",
-      },
-      {
-        name: "SosBeforeAcknowledgementReminder-job",
-        path: path.join(
-          __dirname,
-          "jobs",
-          "SosBeforeAcknowledgementReminder-job.js",
-        ),
-        cron: "*/2 * * * *",
-      },
-      {
-        name: "SosAfterAcknowledgementReminder-job",
-        path: path.join(
-          __dirname,
-          "jobs",
-          "SosAfterAcknowledgementReminder-job.js",
-        ),
-        cron: "*/2 * * * *",
-      },
-      {
-        name: "updateTeamMembers-job",
-        path: path.join(__dirname, "jobs", "updateTeamMembers-job.js"),
-        cron: "0 */12 * * *",
-      },
-      {
-        name: "updateUserDetails-job",
-        path: path.join(__dirname, "jobs", "updateUserDetails-job.js"),
-        cron: "0 */1 * * *",
-      },
-      {
-        name: "travelAdvisorySelectedCountries-job",
-        path: path.join(
-          __dirname,
-          "jobs",
-          "travelAdvisorySelectedCountries-job.js",
-        ),
-        cron: "*/30 * * * *",
-      },
-      {
-        name: "ipaws-advisory-sync-job",
-        path: path.join(__dirname, "jobs", "ipaws-advisory-sync-job.js"),
-        cron: "*/25 * * * *",
-      },
-      {
-        name: "GetAllUser-job",
-        path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
-        cron: "*/15 * * * *",
-      },
-      {
-        name: "DeleteTrialTeams-job",
-        path: path.join(__dirname, "jobs", "DeleteTrialTeams-job.js"),
-        cron: "0 12 * * *",
-      },
+      // {
+      //   name: "newSubcriptionAdded-job",
+      //   path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
+      //   cron: "*/10 * * * *",
+      // },
+      // {
+      //   name: "subscription-job",
+      //   path: path.join(__dirname, "jobs", "subscription-job.js"),
+      //   cron: "0 0 * * *",
+      // },
+      // // {
+      // //   name: "postInstallation-job",
+      // //   path: path.join(__dirname, "jobs", "postInstallation-job.js"),
+      // //   cron: "* 1 * * *",
+      // // },
+      // {
+      //   name: "SendRemainder-job",
+      //   path: path.join(__dirname, "jobs", "SendRemainder-job.js"),
+      //   cron: "*/3 * * * *",
+      // },
+      // {
+      //   name: "SosBeforeAcknowledgementReminder-job",
+      //   path: path.join(
+      //     __dirname,
+      //     "jobs",
+      //     "SosBeforeAcknowledgementReminder-job.js",
+      //   ),
+      //   cron: "*/2 * * * *",
+      // },
+      // {
+      //   name: "SosAfterAcknowledgementReminder-job",
+      //   path: path.join(
+      //     __dirname,
+      //     "jobs",
+      //     "SosAfterAcknowledgementReminder-job.js",
+      //   ),
+      //   cron: "*/2 * * * *",
+      // },
+      // {
+      //   name: "updateTeamMembers-job",
+      //   path: path.join(__dirname, "jobs", "updateTeamMembers-job.js"),
+      //   cron: "0 */12 * * *",
+      // },
+      // {
+      //   name: "updateUserDetails-job",
+      //   path: path.join(__dirname, "jobs", "updateUserDetails-job.js"),
+      //   cron: "0 */1 * * *",
+      // },
+      // {
+      //   name: "travelAdvisorySelectedCountries-job",
+      //   path: path.join(
+      //     __dirname,
+      //     "jobs",
+      //     "travelAdvisorySelectedCountries-job.js",
+      //   ),
+      //   cron: "*/30 * * * *",
+      // },
+      // {
+      //   name: "ipaws-advisory-sync-job",
+      //   path: path.join(__dirname, "jobs", "ipaws-advisory-sync-job.js"),
+      //   cron: "*/25 * * * *",
+      // },
+      // {
+      //   name: "GetAllUser-job",
+      //   path: path.join(__dirname, "jobs", "GetAllUser-job.js"),
+      //   cron: "*/15 * * * *",
+      // },
+      // {
+      //   name: "DeleteTrialTeams-job",
+      //   path: path.join(__dirname, "jobs", "DeleteTrialTeams-job.js"),
+      //   cron: "0 12 * * *",
+      // },
     ],
   });
   //cron1: "*/1 * * * *"
@@ -224,14 +224,20 @@ function shutDown() {
 // });
 
 process.on("uncaughtException", function (err) {
-  processSafetyBotError(err, "", "", "", "uncaughtException");
+  console.error("[PROCESS] uncaughtException:", err?.message || err);
+  processSafetyBotError(err, "", "", "", "uncaughtException").catch((e) => {
+    console.warn("[PROCESS] processSafetyBotError failed:", e?.message || e);
+  });
 });
 
 process.on("unhandledRejection", function (reason) {
   const err =
     reason instanceof Error ? reason : new Error(String(reason ?? "unhandledRejection"));
   console.error("[PROCESS] unhandledRejection:", err.message);
-  processSafetyBotError(err, "", "", "", "unhandledRejection");
+  // Fire-and-forget but swallow reporter failures so they cannot recurse.
+  processSafetyBotError(err, "", "", "", "unhandledRejection").catch((e) => {
+    console.warn("[PROCESS] processSafetyBotError failed:", e?.message || e);
+  });
 });
 
 String.prototype.replaceApostrophe = function () {

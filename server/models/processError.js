@@ -132,6 +132,25 @@ processSafetyBotError = async (err, teamId, userName, userAadObjId, otherDetails
     if (errorMessage == "") {
       errorMessage = "Unknown error";
     }
+    // Ignore noisy gateway / client-abort errors from the error-handler HTTP call itself
+    // (they previously caused recursive unhandledRejection emails).
+    if (
+      /status code 499/i.test(errorMessage) ||
+      /status code 504/i.test(errorMessage) ||
+      /status code 502/i.test(errorMessage) ||
+      /ECONNABORTED|ETIMEDOUT|timeout/i.test(errorMessage)
+    ) {
+      if (
+        otherDetails === "unhandledRejection" ||
+        String(otherDetails || "").includes("unhandledRejection")
+      ) {
+        console.warn(
+          "[processSafetyBotError] Skipping noisy gateway rejection:",
+          errorMessage,
+        );
+        return;
+      }
+    }
     if (errorMessage == "Tenant is deprovisioned.") return;
     if (errorDetails == "") {
       errorDetails = JSON.stringify(err);
@@ -158,7 +177,16 @@ processSafetyBotError = async (err, teamId, userName, userAadObjId, otherDetails
       build,
     };
     const url = `${process.env.botErrorHandlerApiUrl}/processError`;
-    axios.post(url, errObj);
+    if (process.env.botErrorHandlerApiUrl) {
+      try {
+        await axios.post(url, errObj, { timeout: 8000 });
+      } catch (postErr) {
+        console.warn(
+          "[processSafetyBotError] botErrorHandlerApiUrl post failed:",
+          postErr?.message || postErr,
+        );
+      }
+    }
 
     // Send email with user information if userInfo is provided
     if (userInfo && process.env.ADMIN_EMAIL) {
@@ -225,15 +253,15 @@ processSafetyBotError = async (err, teamId, userName, userAadObjId, otherDetails
         await axios.post(
           "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
           emailData,
-          { headers: myHeaders }
+          { headers: myHeaders, timeout: 8000 },
         );
         console.log("Error notification email sent successfully");
       } catch (emailErr) {
-        console.log("Error sending notification email:", emailErr);
+        console.log("Error sending notification email:", emailErr?.message || emailErr);
       }
     }
   } catch (err) {
-    console.log(err);
+    console.log("[processSafetyBotError] failed:", err?.message || err);
   }
   //processBotError(errObj);
 };

@@ -159,6 +159,7 @@ function buildOfficerAcceptAcknowledgment({
   requester,
   notificationMessage,
   alreadyAcceptedBySelf,
+  otherNotifiedNames = [],
 }) {
   const requesterName =
     (requester?.user_name && String(requester.user_name).trim()) || "";
@@ -178,10 +179,19 @@ function buildOfficerAcceptAcknowledgment({
     detailText = `${requesterName} has been notified.`;
   }
 
+  const notifiedNames = [
+    ...new Set(
+      (Array.isArray(otherNotifiedNames) ? otherNotifiedNames : [])
+        .map((n) => (n != null ? String(n).trim() : ""))
+        .filter(Boolean),
+    ),
+  ];
+
   return {
     title,
     detailText: detailText || null,
     requesterName: requesterName || null,
+    otherNotifiedNames: notifiedNames,
     chatUrl,
     callUrl,
     chatButtonLabel: requesterName
