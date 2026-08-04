@@ -6487,6 +6487,7 @@ ORDER BY ACL.EventDateTime DESC;
         let detailSavedCount = 0;
         let advisoriesList = undefined;
         let locationSelectionsOut = null;
+        let lastSyncedAtOut = null;
         let travelAdvisoriesLoaded = false;
         const requestedCodesSet = new Set(
           [
@@ -6844,6 +6845,8 @@ ORDER BY ACL.EventDateTime DESC;
                 )
                   ? teamData.locationSelections
                   : [];
+                lastSyncedAtOut =
+                  teamData.lastSyncedAt != null ? teamData.lastSyncedAt : null;
                 travelAdvisoriesLoaded = true;
               } catch (loadErr) {
                 console.error(
@@ -6928,6 +6931,32 @@ ORDER BY ACL.EventDateTime DESC;
                 keepKeys,
               );
             }
+
+            // Return advisories so client can show Last Refresh from SyncedAtUtc.
+            try {
+              const teamData =
+                await travelSelectedDb.getTravelAdvisoryByTeamData(
+                  "",
+                  tenantId,
+                  "Weather",
+                );
+              advisoriesList = Array.isArray(teamData.advisories)
+                ? teamData.advisories
+                : [];
+              locationSelectionsOut = Array.isArray(
+                teamData.locationSelections,
+              )
+                ? teamData.locationSelections
+                : [];
+              lastSyncedAtOut =
+                teamData.lastSyncedAt != null ? teamData.lastSyncedAt : null;
+              travelAdvisoriesLoaded = true;
+            } catch (loadErr) {
+              console.error(
+                "saveTravelAdvisorySelection load weather advisories failed:",
+                loadErr && loadErr.message,
+              );
+            }
           } catch (weatherErr) {
             // Selection/JSON already saved — do not fail the whole Save on detail sync
             console.error(
@@ -6953,6 +6982,7 @@ ORDER BY ACL.EventDateTime DESC;
               ? result.invalidCodes
               : undefined,
           advisories: travelAdvisoriesLoaded ? advisoriesList : undefined,
+          lastSyncedAt: travelAdvisoriesLoaded ? lastSyncedAtOut : undefined,
           locationSelections: travelAdvisoriesLoaded
             ? locationSelectionsOut
             : Array.isArray(result.locationSelections)

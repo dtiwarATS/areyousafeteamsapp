@@ -1647,6 +1647,12 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
   }
 
   const fkCol = await getAdvisoryDetailFkColumn();
+  // Filter by parent Advisory.AdvisoryType (source of truth). Detail.AdvisoryType can be
+  // null/blank on older Weather rows, which previously hid SyncedAtUtc from the UI.
+  const typeFilterSql = `
+    UPPER(LTRIM(RTRIM(s.AdvisoryType))) = UPPER(LTRIM(RTRIM(@AdvisoryType)))
+  `;
+
   const advPromise = pool
     .request()
     .input("TenantId", sql.NVarChar(256), tenantIdTrimmed)
@@ -1659,8 +1665,21 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     INNER JOIN [dbo].[Advisory] s ON s.Id = d.[${fkCol}]
     -- CountryList is the ISO source of truth (Countries table is deprecated/dropped)
     LEFT JOIN [dbo].[CountryList] c ON UPPER(LTRIM(RTRIM(c.Code))) = UPPER(LTRIM(RTRIM(d.CountryCode)))
-    WHERE s.TenantId = @TenantId AND s.IsActive = 1 and d.AdvisoryType=@AdvisoryType
+    WHERE s.TenantId = @TenantId AND s.IsActive = 1
+      AND ${typeFilterSql}
     ORDER BY ISNULL(c.CountryName, d.CountryCode)
+  `);
+
+  const lastSyncPromise = pool
+    .request()
+    .input("TenantId", sql.NVarChar(256), tenantIdTrimmed)
+    .input("AdvisoryType", sql.NVarChar(256), AdvisoryType)
+    .query(`
+    SELECT MAX(d.SyncedAtUtc) AS LastSyncedAtUtc
+    FROM [dbo].[AdvisoryDetail] d
+    INNER JOIN [dbo].[Advisory] s ON s.Id = d.[${fkCol}]
+    WHERE s.TenantId = @TenantId AND s.IsActive = 1
+      AND ${typeFilterSql}
   `);
 
   const countryCodesPromise = pool
@@ -1674,9 +1693,10 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     ORDER BY CountryCode
   `);
 
-  const [advResult, countryCodesResult] = await Promise.all([
+  const [advResult, countryCodesResult, lastSyncResult] = await Promise.all([
     advPromise,
     countryCodesPromise,
+    lastSyncPromise,
   ]);
 
   const rows = advResult.recordset || [];
@@ -1717,6 +1737,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
             .map((s) => s.trim())
             .filter(Boolean)
         : [];
+    const syncedAtIso = toSyncedAtIso(r.SyncedAtUtc);
     return {
       country: r.CountryName || "",
       countryCode: (r.CountryCode || "").trim(),
@@ -1728,7 +1749,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
       link: r.Link != null ? r.Link : undefined,
       description: r.Description != null ? r.Description : undefined,
       lastUpdated: r.LastUpdatedAtUtc != null ? r.LastUpdatedAtUtc : undefined,
-      syncedAt: r.SyncedAtUtc != null ? r.SyncedAtUtc : undefined,
+      syncedAt: syncedAtIso,
       restrictions: restrictions.length ? restrictions : undefined,
       recommendations: recommendations.length ? recommendations : undefined,
       id: r.Id != null ? String(r.Id) : undefined,
@@ -1738,6 +1759,18 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     };
   });
 
+  let lastSyncedAt = toSyncedAtIso(
+    lastSyncResult?.recordset && lastSyncResult.recordset[0]
+      ? lastSyncResult.recordset[0].LastSyncedAtUtc
+      : null,
+  );
+  for (const a of advisories) {
+    if (!a.syncedAt) continue;
+    if (!lastSyncedAt || String(a.syncedAt) > String(lastSyncedAt)) {
+      lastSyncedAt = a.syncedAt;
+    }
+  }
+
   // Backfill State Dept rows that were saved before RSS content/description fix
   if (
     String(AdvisoryType || "").trim().toLowerCase() === "travel" &&
@@ -1746,7 +1779,33 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     await backfillEmptyTravelDescriptionsFromFeed(advisories);
   }
 
-  return { advisories, countryCodes, locationSelections };
+  return { advisories, countryCodes, locationSelections, lastSyncedAt };
+}
+
+/**
+ * Normalize AdvisoryDetail.SyncedAtUtc to an ISO UTC string.
+ * @param {Date|string|null|undefined} value
+ * @returns {string|undefined}
+ */
+function toSyncedAtIso(value) {
+  if (value == null || value === "") return undefined;
+  try {
+    if (value instanceof Date) {
+      if (Number.isNaN(value.getTime())) return undefined;
+      return value.toISOString();
+    }
+    const raw = String(value).trim();
+    if (!raw) return undefined;
+    if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(raw)) {
+      const d = new Date(raw);
+      return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+    }
+    const iso = raw.includes("T") ? raw : raw.replace(" ", "T");
+    const d = new Date(`${iso}Z`);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  } catch {
+    return undefined;
+  }
 }
 
 /**
