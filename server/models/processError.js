@@ -158,7 +158,12 @@ processSafetyBotError = async (err, teamId, userName, userAadObjId, otherDetails
       build,
     };
     const url = `${process.env.botErrorHandlerApiUrl}/processError`;
-    axios.post(url, errObj);
+    axios.post(url, errObj).catch((reportErr) => {
+      console.error(
+        "Failed to report error to botErrorHandlerApi:",
+        reportErr?.message || reportErr,
+      );
+    });
 
     // Send email with user information if userInfo is provided
     if (userInfo && process.env.ADMIN_EMAIL) {

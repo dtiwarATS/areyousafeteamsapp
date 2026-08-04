@@ -236,6 +236,10 @@ process.on("unhandledRejection", function (reason) {
   const err =
     reason instanceof Error ? reason : new Error(String(reason ?? "unhandledRejection"));
   console.error("[PROCESS] unhandledRejection:", err.message);
+  if (err.stack) {
+    console.error("[PROCESS] unhandledRejection stack:", err.stack);
+  }
+  // Keep remote reporting off here — avoids recursive 499 spam from processError.
   //processSafetyBotError(err, "", "", "", "unhandledRejection");
 });
 
