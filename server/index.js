@@ -224,14 +224,14 @@ function shutDown() {
 // });
 
 process.on("uncaughtException", function (err) {
-  processSafetyBotError(err, "", "", "", "uncaughtException");
+  //processSafetyBotError(err, "", "", "", "uncaughtException");
 });
 
 process.on("unhandledRejection", function (reason) {
   const err =
     reason instanceof Error ? reason : new Error(String(reason ?? "unhandledRejection"));
   console.error("[PROCESS] unhandledRejection:", err.message);
-  processSafetyBotError(err, "", "", "", "unhandledRejection");
+  //processSafetyBotError(err, "", "", "", "unhandledRejection");
 });
 
 String.prototype.replaceApostrophe = function () {
