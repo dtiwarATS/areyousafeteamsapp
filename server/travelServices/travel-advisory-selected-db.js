@@ -1653,7 +1653,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
     .input("AdvisoryType", sql.NVarChar(256), AdvisoryType)
     .query(`
     SELECT d.Id, d.Title, d.Level, d.LevelNumber, d.Link, d.PublishedDate, d.Description, d.Summary,d.AdvisoryType,d.ApiResponseJson,
-           d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc, d.LocationKey,
+           d.Restrictions, d.Recommendations, d.LastUpdatedAtUtc, d.SyncedAtUtc, d.LocationKey,
            ISNULL(c.CountryName, d.CountryCode) AS CountryName, d.CountryCode
     FROM [dbo].[AdvisoryDetail] d
     INNER JOIN [dbo].[Advisory] s ON s.Id = d.[${fkCol}]
@@ -1728,6 +1728,7 @@ async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
       link: r.Link != null ? r.Link : undefined,
       description: r.Description != null ? r.Description : undefined,
       lastUpdated: r.LastUpdatedAtUtc != null ? r.LastUpdatedAtUtc : undefined,
+      syncedAt: r.SyncedAtUtc != null ? r.SyncedAtUtc : undefined,
       restrictions: restrictions.length ? restrictions : undefined,
       recommendations: recommendations.length ? recommendations : undefined,
       id: r.Id != null ? String(r.Id) : undefined,

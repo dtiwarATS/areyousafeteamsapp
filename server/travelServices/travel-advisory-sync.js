@@ -11,7 +11,6 @@ const {
   getActiveSelectedCountries,
   getSavedAdvisoryForSelectedIdAndCountry,
   advisoryToSnapshot,
-  snapshotsEqual,
   upsertSavedAdvisory,
   insertSelectedCountryLog,
 } = require("./travel-advisory-selected-db");
@@ -23,18 +22,6 @@ function splitCountryCodes(raw) {
     .split(",")
     .map((c) => c.trim().toUpperCase())
     .filter(Boolean);
-}
-
-function isEmptySummaryOrDescription(summary, description) {
-  const sum = String(summary || "").trim();
-  const desc = String(description || "").trim();
-  return (
-    !desc ||
-    !sum ||
-    sum === "No summary available" ||
-    sum === "-" ||
-    desc === "-"
-  );
 }
 
 /**
@@ -139,30 +126,18 @@ async function runSync() {
             })
           : null;
 
-        const needsEmptyBackfill =
-          saved &&
-          isEmptySummaryOrDescription(saved.Summary, saved.Description);
+        // Always upsert (same as Weather) so SyncedAtUtc reflects every cron run.
+        const advisoryDetailId = await upsertSavedAdvisory(
+          selectedId,
+          countryCode,
+          advisory,
+          jobRunAt,
+          "Travel",
+        );
 
         if (!saved) {
-          await upsertSavedAdvisory(
-            selectedId,
-            countryCode,
-            advisory,
-            jobRunAt,
-            "Travel",
-          );
           insertCount++;
-        } else if (
-          needsEmptyBackfill ||
-          !snapshotsEqual(oldSnapshot, newSnapshot)
-        ) {
-          const advisoryDetailId = await upsertSavedAdvisory(
-            selectedId,
-            countryCode,
-            advisory,
-            jobRunAt,
-            "Travel",
-          );
+        } else {
           if (
             oldSnapshot &&
             oldSnapshot.levelNumber !== newSnapshot.levelNumber
