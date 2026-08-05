@@ -7788,6 +7788,7 @@ WHERE ID.user_obj_id = @userAadObjId;
     const buildResponse = (row) => {
       const subscriptionType = Number(row.SubscriptionType);
       const daysRemaining = Number(row.DAYS_REMAINING);
+      const memberCount = Number(row.MEMBER_COUNT);
       const userEmailId = row.UserEmailId || "";
       const renewUrl =
         "https://teams.microsoft.com/l/app/884e521a-dadc-41e9-a8af-fcaa907e783e?source=agent-details-page";
@@ -7818,6 +7819,15 @@ WHERE ID.user_obj_id = @userAadObjId;
         };
       }
 
+      if (subscriptionType === 1 && !Number.isNaN(memberCount) && memberCount > 10) {
+        return {
+          bannerType: "freeLimit",
+          daysRemaining: 0,
+          expiryDate: null,
+          renewUrl,
+        };
+      }
+
       return noBanner;
     };
 
@@ -7838,7 +7848,8 @@ WHERE ID.user_obj_id = @userAadObjId;
             SD.SubscriptionType,
             SD.ExpiryDate,
             SD.UserEmailId,
-            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING
+            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING,
+            (SELECT COUNT(id) FROM MSTeamsTeamsUsers WHERE team_id = ID.TEAM_ID) AS MEMBER_COUNT
           FROM MSTeamsInstallationDetails ID
           INNER JOIN MSTeamsSubscriptionDetails SD
             ON ID.SubscriptionDetailsId = SD.ID
@@ -7851,7 +7862,8 @@ WHERE ID.user_obj_id = @userAadObjId;
             SD.SubscriptionType,
             SD.ExpiryDate,
             SD.UserEmailId,
-            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING
+            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING,
+            (SELECT COUNT(id) FROM MSTeamsTeamsUsers WHERE team_id = ID.TEAM_ID) AS MEMBER_COUNT
           FROM MSTeamsTeamsUsers TU
           INNER JOIN MSTeamsInstallationDetails ID
             ON TU.TEAM_ID = ID.TEAM_ID
