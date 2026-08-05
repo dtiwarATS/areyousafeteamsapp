@@ -560,15 +560,15 @@ class BotActivityHandler extends TeamsActivityHandler {
                 id: adminUserInfo.id,
                 name: adminUserInfo.name,
               };
-              await sendProactiveMessaageToUser(
-                [userObj],
-                LicenseLimitCard,
-                null,
-                serviceUrl,
-                userTenantId,
-                null,
-                null,
-              );
+              // await sendProactiveMessaageToUser(
+              //   [userObj],
+              //   LicenseLimitCard,
+              //   null,
+              //   serviceUrl,
+              //   userTenantId,
+              //   null,
+              //   null,
+              // );
             } catch (err) {}
           }
         } else if (
