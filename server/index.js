@@ -225,9 +225,8 @@ function shutDown() {
 
 process.on("uncaughtException", function (err) {
   console.error("[PROCESS] uncaughtException:", err?.message || err);
-  processSafetyBotError(err, "", "", "", "uncaughtException").catch((e) => {
-    console.warn("[PROCESS] processSafetyBotError failed:", e?.message || e);
-  });
+  //processSafetyBotError(err, "", "", "", "uncaughtException").catch((e) => {
+  console.warn("[PROCESS] processSafetyBotError failed:", e?.message || e);
 });
 
 process.on("unhandledRejection", function (reason) {
@@ -237,9 +236,8 @@ process.on("unhandledRejection", function (reason) {
       : new Error(String(reason ?? "unhandledRejection"));
   console.error("[PROCESS] unhandledRejection:", err.message);
   // Fire-and-forget but swallow reporter failures so they cannot recurse.
-  processSafetyBotError(err, "", "", "", "unhandledRejection").catch((e) => {
-    console.warn("[PROCESS] processSafetyBotError failed:", e?.message || e);
-  });
+  //processSafetyBotError(err, "", "", "", "unhandledRejection").catch((e) => {
+  console.warn("[PROCESS] processSafetyBotError failed:", e?.message || e);
 });
 
 String.prototype.replaceApostrophe = function () {
