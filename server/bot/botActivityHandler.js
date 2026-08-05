@@ -508,7 +508,10 @@ class BotActivityHandler extends TeamsActivityHandler {
                     try {
                       const companyFromDb =
                         await incidentService.getCompanyData(teamId);
-                      if (companyFromDb?.serviceUrl || companyFromDb?.INTEGRATION_CONFIGURE) {
+                      if (
+                        companyFromDb?.serviceUrl ||
+                        companyFromDb?.INTEGRATION_CONFIGURE
+                      ) {
                         companyForConsent = {
                           ...companyDataObj,
                           ...companyFromDb,
@@ -1401,14 +1404,13 @@ WHEN NOT MATCHED THEN
             );
         }
 
-        adaptiveCard =
-          userNotificationConsentService.buildConsentAdaptiveCard({
-            message: cardMessage,
-            channelsRequested,
-            existingConsent,
-            tenantId,
-            teamId,
-          });
+        adaptiveCard = userNotificationConsentService.buildConsentAdaptiveCard({
+          message: cardMessage,
+          channelsRequested,
+          existingConsent,
+          tenantId,
+          teamId,
+        });
         const cards = CardFactory.adaptiveCard(adaptiveCard);
         const message = MessageFactory.attachment(cards);
         message.id = context.activity.replyToId;
@@ -2561,62 +2563,66 @@ WHERE rn = 1;
                 if (!canSendSms) {
                   // skip — opt-in required and user has not consented
                 } else {
-                const num =
-                  smsTeamData.PHONE_FIELD == "businessPhones"
-                    ? userPhone.businessPhones && userPhone.businessPhones[0]
-                    : userPhone.mobilePhone;
+                  const num =
+                    smsTeamData.PHONE_FIELD == "businessPhones"
+                      ? userPhone.businessPhones && userPhone.businessPhones[0]
+                      : userPhone.mobilePhone;
 
-                if (num) {
-                  try {
-                    const accountSid = process.env.TWILIO_ACCOUNT_ID;
-                    const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
-                    const tClient = require("twilio")(accountSid, authToken);
-                    const maskedNum = num.slice(-4).padStart(num.length, "x");
+                  if (num) {
+                    try {
+                      const accountSid = process.env.TWILIO_ACCOUNT_ID;
+                      const authToken = process.env.TWILIO_ACCOUNT_AUTH_TOKEN;
+                      const tClient = require("twilio")(accountSid, authToken);
+                      const maskedNum = num.slice(-4).padStart(num.length, "x");
 
-                    const { sanitizedBody } = await sendTwilioMessage(tClient, {
-                      body: notificationMessage,
-                      logContext: {
-                        eventId: requestAssistanceid,
-                        userId: userToNotify.user_aadobject_id,
-                        phone: maskedNum,
-                        smsType: "SOS_RESPONSE",
-                      },
-                      from: "+18023277232",
-                      shortenUrls: true,
-                      messagingServiceSid: "MGdf47b6f3eb771ed026921c6e71017771",
-                      to: num,
-                    });
+                      const { sanitizedBody } = await sendTwilioMessage(
+                        tClient,
+                        {
+                          body: notificationMessage,
+                          logContext: {
+                            eventId: requestAssistanceid,
+                            userId: userToNotify.user_aadobject_id,
+                            phone: maskedNum,
+                            smsType: "SOS_RESPONSE",
+                          },
+                          from: "+18023277232",
+                          shortenUrls: true,
+                          messagingServiceSid:
+                            "MGdf47b6f3eb771ed026921c6e71017771",
+                          to: num,
+                        },
+                      );
 
-                    incidentService.saveAllTypeQuerylogs(
-                      userToNotify.user_aadobject_id,
-                      "",
-                      "SOS_RESPONSE_SMS",
-                      maskedNum,
-                      requestAssistanceid,
-                      "SEND_SUCCESS",
-                      "",
-                      "",
-                      "",
-                      sanitizedBody,
-                      "",
-                    );
-                  } catch (smsErr) {
-                    console.log("Error sending SMS notification:", smsErr);
-                    incidentService.saveAllTypeQuerylogs(
-                      userToNotify.user_aadobject_id,
-                      "",
-                      "SOS_RESPONSE_SMS",
-                      "",
-                      requestAssistanceid,
-                      "SEND_FAILED",
-                      "",
-                      "",
-                      "",
-                      notificationMessage,
-                      JSON.stringify(smsErr.message),
-                    );
+                      incidentService.saveAllTypeQuerylogs(
+                        userToNotify.user_aadobject_id,
+                        "",
+                        "SOS_RESPONSE_SMS",
+                        maskedNum,
+                        requestAssistanceid,
+                        "SEND_SUCCESS",
+                        "",
+                        "",
+                        "",
+                        sanitizedBody,
+                        "",
+                      );
+                    } catch (smsErr) {
+                      console.log("Error sending SMS notification:", smsErr);
+                      incidentService.saveAllTypeQuerylogs(
+                        userToNotify.user_aadobject_id,
+                        "",
+                        "SOS_RESPONSE_SMS",
+                        "",
+                        requestAssistanceid,
+                        "SEND_FAILED",
+                        "",
+                        "",
+                        "",
+                        notificationMessage,
+                        JSON.stringify(smsErr.message),
+                      );
+                    }
                   }
-                }
                 }
               }
 
@@ -2634,59 +2640,62 @@ WHERE rn = 1;
                     waConfig,
                   );
                 if (canSendWa) {
-                const num =
-                  whatsappTeamData.PHONE_FIELD == "businessPhones"
-                    ? userPhone.businessPhones && userPhone.businessPhones[0]
-                    : userPhone.mobilePhone;
+                  const num =
+                    whatsappTeamData.PHONE_FIELD == "businessPhones"
+                      ? userPhone.businessPhones && userPhone.businessPhones[0]
+                      : userPhone.mobilePhone;
 
-                if (num) {
-                  try {
-                    let payload = {
-                      messaging_product: "whatsapp",
-                      recipient_type: "individual",
-                      to: num,
-                      type: "text",
-                      text: {
-                        body: notificationMessage,
-                      },
-                    };
+                  if (num) {
+                    try {
+                      let payload = {
+                        messaging_product: "whatsapp",
+                        recipient_type: "individual",
+                        to: num,
+                        type: "text",
+                        text: {
+                          body: notificationMessage,
+                        },
+                      };
 
-                    await bot.sendWhatsappMessage(
-                      payload,
-                      userToNotify.user_aadobject_id,
-                      whatsappTeamData,
-                    );
+                      await bot.sendWhatsappMessage(
+                        payload,
+                        userToNotify.user_aadobject_id,
+                        whatsappTeamData,
+                      );
 
-                    incidentService.saveAllTypeQuerylogs(
-                      userToNotify.user_aadobject_id,
-                      "",
-                      "SOS_RESPONSE_WHATSAPP",
-                      num.slice(-4).padStart(num.length, "x"),
-                      requestAssistanceid,
-                      "SEND_SUCCESS",
-                      "",
-                      "",
-                      "",
-                      notificationMessage,
-                      "",
-                    );
-                  } catch (waErr) {
-                    console.log("Error sending WhatsApp notification:", waErr);
-                    incidentService.saveAllTypeQuerylogs(
-                      userToNotify.user_aadobject_id,
-                      "",
-                      "SOS_RESPONSE_WHATSAPP",
-                      "",
-                      requestAssistanceid,
-                      "SEND_FAILED",
-                      "",
-                      "",
-                      "",
-                      notificationMessage,
-                      JSON.stringify(waErr.message),
-                    );
+                      incidentService.saveAllTypeQuerylogs(
+                        userToNotify.user_aadobject_id,
+                        "",
+                        "SOS_RESPONSE_WHATSAPP",
+                        num.slice(-4).padStart(num.length, "x"),
+                        requestAssistanceid,
+                        "SEND_SUCCESS",
+                        "",
+                        "",
+                        "",
+                        notificationMessage,
+                        "",
+                      );
+                    } catch (waErr) {
+                      console.log(
+                        "Error sending WhatsApp notification:",
+                        waErr,
+                      );
+                      incidentService.saveAllTypeQuerylogs(
+                        userToNotify.user_aadobject_id,
+                        "",
+                        "SOS_RESPONSE_WHATSAPP",
+                        "",
+                        requestAssistanceid,
+                        "SEND_FAILED",
+                        "",
+                        "",
+                        "",
+                        notificationMessage,
+                        JSON.stringify(waErr.message),
+                      );
+                    }
                   }
-                }
                 }
               }
 
@@ -2704,19 +2713,19 @@ WHERE rn = 1;
                     emailConfig,
                   );
                 if (canSendEmail) {
-                try {
-                  const userEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${userToNotify.user_aadobject_id}'`;
-                  const userEmailResult = await db.getDataFromDB(
-                    userEmailQuery,
-                    userAadObjId,
-                  );
-                  const userEmail =
-                    userEmailResult && userEmailResult.length > 0
-                      ? userEmailResult[0].email
-                      : null;
+                  try {
+                    const userEmailQuery = `SELECT email FROM MSTeamsTeamsUsers WHERE user_aadobject_id = '${userToNotify.user_aadobject_id}'`;
+                    const userEmailResult = await db.getDataFromDB(
+                      userEmailQuery,
+                      userAadObjId,
+                    );
+                    const userEmail =
+                      userEmailResult && userEmailResult.length > 0
+                        ? userEmailResult[0].email
+                        : null;
 
-                  if (userEmail) {
-                    const emailBody = `
+                    if (userEmail) {
+                      const emailBody = `
                       <div style="font-family: Arial, sans-serif; padding: 20px;">
                         
                         <p>${notificationMessage}</p>
@@ -2724,54 +2733,54 @@ WHERE rn = 1;
                       </div>
                     `;
 
-                    const emailData = {
-                      projectName: "AYS",
-                      emailSubject: `Safety check - SOS Response`,
-                      emailBody: emailBody,
-                      emailTo: userEmail,
-                      emailFrom: "donotreply@safetycheck.in",
-                      authkey: "A9fG4dX2pL7qW8mZ",
-                    };
+                      const emailData = {
+                        projectName: "AYS",
+                        emailSubject: `Safety check - SOS Response`,
+                        emailBody: emailBody,
+                        emailTo: userEmail,
+                        emailFrom: "donotreply@safetycheck.in",
+                        authkey: "A9fG4dX2pL7qW8mZ",
+                      };
 
-                    const axios = require("axios");
-                    const myHeaders = { "Content-Type": "application/json" };
+                      const axios = require("axios");
+                      const myHeaders = { "Content-Type": "application/json" };
 
-                    await axios.post(
-                      "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
-                      emailData,
-                      { headers: myHeaders },
-                    );
+                      await axios.post(
+                        "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
+                        emailData,
+                        { headers: myHeaders },
+                      );
 
+                      incidentService.saveAllTypeQuerylogs(
+                        userToNotify.user_aadobject_id,
+                        "",
+                        "SOS_RESPONSE_EMAIL",
+                        userEmail,
+                        requestAssistanceid,
+                        "SEND_SUCCESS",
+                        "",
+                        "",
+                        "",
+                        notificationMessage,
+                        "",
+                      );
+                    }
+                  } catch (emailErr) {
+                    console.log("Error sending Email notification:", emailErr);
                     incidentService.saveAllTypeQuerylogs(
                       userToNotify.user_aadobject_id,
                       "",
                       "SOS_RESPONSE_EMAIL",
-                      userEmail,
+                      "",
                       requestAssistanceid,
-                      "SEND_SUCCESS",
+                      "SEND_FAILED",
                       "",
                       "",
                       "",
                       notificationMessage,
-                      "",
+                      JSON.stringify(emailErr.message),
                     );
                   }
-                } catch (emailErr) {
-                  console.log("Error sending Email notification:", emailErr);
-                  incidentService.saveAllTypeQuerylogs(
-                    userToNotify.user_aadobject_id,
-                    "",
-                    "SOS_RESPONSE_EMAIL",
-                    "",
-                    requestAssistanceid,
-                    "SEND_FAILED",
-                    "",
-                    "",
-                    "",
-                    notificationMessage,
-                    JSON.stringify(emailErr.message),
-                  );
-                }
                 }
               }
             }
@@ -3212,13 +3221,13 @@ WHERE rn = 1;
         );
       console.log({ teamMemberCount });
       if (teamMemberCount > 10) {
-        await this.sendSubscriptionSelectionCard(
-          context,
-          from,
-          teamMemberCount,
-          userEmail,
-          companyDataObj,
-        );
+        // await this.sendSubscriptionSelectionCard(
+        //   context,
+        //   from,
+        //   teamMemberCount,
+        //   userEmail,
+        //   companyDataObj,
+        // );
       }
     } catch (err) {
       processSafetyBotError(
