@@ -229,12 +229,16 @@ function shutDown() {
 // });
 
 process.on("uncaughtException", function (err) {
-  //processSafetyBotError(err, "", "", "", "uncaughtException");
+  console.error("[PROCESS] uncaughtException:", err?.message || err);
+  //processSafetyBotError(err, "", "", "", "uncaughtException").catch((e) => {
+  console.warn("[PROCESS] processSafetyBotError failed:", e?.message || e);
 });
 
 process.on("unhandledRejection", function (reason) {
   const err =
-    reason instanceof Error ? reason : new Error(String(reason ?? "unhandledRejection"));
+    reason instanceof Error
+      ? reason
+      : new Error(String(reason ?? "unhandledRejection"));
   console.error("[PROCESS] unhandledRejection:", err.message);
   if (err.stack) {
     console.error("[PROCESS] unhandledRejection stack:", err.stack);

@@ -368,7 +368,7 @@ const handlerForSafetyBotTab = (app) => {
 
     try {
       const pool = await poolPromise;
-      await pool
+      const updateResult = await pool
         .request()
         .input("code", sql.NVarChar(10), code)
         .input("expiresAt", sql.DateTime2, expiresAtUtc)
@@ -377,6 +377,13 @@ const handlerForSafetyBotTab = (app) => {
           SET Generated_code = @code, Generated_code_expires_at = @expiresAt 
           WHERE user_aadobject_id = @userId OR user_id = @userId
         `);
+      const rows = updateResult?.rowsAffected?.[0] || 0;
+      if (rows < 1) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found for login code",
+        });
+      }
     } catch (err) {
       console.error("Error saving login code to MSTeamsTeamsUsers:", err);
       processSafetyBotError(
@@ -405,6 +412,10 @@ const handlerForSafetyBotTab = (app) => {
     const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
     const fcmToken =
       typeof req.body?.fcmToken === "string" ? req.body.fcmToken.trim() : "";
+    const platform =
+      typeof req.body?.platform === "string"
+        ? req.body.platform.trim().toLowerCase()
+        : "";
 
     if (!code) {
       return res.status(400).json({
@@ -412,45 +423,42 @@ const handlerForSafetyBotTab = (app) => {
         message: "code is required",
       });
     }
-    if (!fcmToken) {
-      return res.status(400).json({
-        success: false,
-        message: "fcmToken is required to link the device to the user",
-      });
-    }
 
     try {
       const pool = await poolPromise;
 
+      // Match code as stored (string or numeric). Allow small clock skew on expiry.
       const userResult = await pool
         .request()
         .input("code", sql.NVarChar(10), code).query(`
-          SELECT TOP 1 team_id, user_aadobject_id, user_name, email,tenantid
+          SELECT TOP 1 team_id, user_aadobject_id, user_name, email, tenantid
           FROM MSTeamsTeamsUsers
-          WHERE Generated_code = @code
+          WHERE (
+              Generated_code = @code
+              OR LTRIM(RTRIM(CAST(Generated_code AS NVARCHAR(20)))) = @code
+              OR (
+                TRY_CAST(Generated_code AS INT) IS NOT NULL
+                AND TRY_CAST(@code AS INT) IS NOT NULL
+                AND TRY_CAST(Generated_code AS INT) = TRY_CAST(@code AS INT)
+              )
+            )
             AND Generated_code_expires_at IS NOT NULL
-            AND Generated_code_expires_at > SYSUTCDATETIME()
+            AND Generated_code_expires_at > DATEADD(minute, -5, SYSUTCDATETIME())
+          ORDER BY Generated_code_expires_at DESC
         `);
 
       const user = userResult?.recordset?.[0];
       if (!user) {
         return res.status(401).json({
           success: false,
-          message: "Invalid or expired code",
+          message:
+            "Invalid or expired code. Generate a new code in Teams and try again.",
         });
       }
 
-      const userAadObjectId = user.user_aadobject_id;
-
-      await pool
-        .request()
-        .input("user_aadobject_id", sql.NVarChar(256), userAadObjectId)
-        .input("fcm_token", sql.VarChar(500), fcmToken).query(`
-          UPDATE user_fcm_tokens
-          SET user_id = @user_aadobject_id
-          WHERE fcm_token = @fcm_token
-        `);
-
+      // Do NOT write FCM tokens here.
+      // saveToken can hit uk_user_id_fcm_token; the mobile app registers
+      // the token after login via /registerFcmToken.
       return res.status(200).json({
         success: true,
         team_id: user.team_id,
@@ -471,6 +479,7 @@ const handlerForSafetyBotTab = (app) => {
       return res.status(500).json({
         success: false,
         message: "Failed to verify login code",
+        detail: err?.message || String(err),
       });
     }
   });
@@ -2541,26 +2550,32 @@ const handlerForSafetyBotTab = (app) => {
     }
 
     const runWithTimeout = async () => {
-      let fcmToken = await getToken(userId);
-      if (!fcmToken) {
-        const tokens = await getFcmTokensForUsers([userId], "android");
-        fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
-      }
-      if (!fcmToken) {
+      const resolveTokens = async (id) => {
+        let token = await getToken(id);
+        if (token) return [token];
+        const [androidTokens, iosTokens] = await Promise.all([
+          getFcmTokensForUsers([id], "android"),
+          getFcmTokensForUsers([id], "ios"),
+        ]);
+        return [...(androidTokens || []), ...(iosTokens || [])]
+          .map((row) => row?.fcm_token)
+          .filter(Boolean);
+      };
+
+      let tokens = await resolveTokens(userId);
+      if (!tokens.length) {
         const aadObjectId = await resolveTeamsIdToAadObjectId(userId);
         if (aadObjectId) {
           console.log(
             "[sendNotification] resolved Teams ID to AAD Object ID, lookupMs:",
             Date.now() - startMs,
           );
-          fcmToken = await getToken(aadObjectId);
-          if (!fcmToken) {
-            const tokens = await getFcmTokensForUsers([aadObjectId], "android");
-            fcmToken = tokens && tokens.length > 0 ? tokens[0].fcm_token : null;
-          }
+          tokens = await resolveTokens(aadObjectId);
         }
       }
-      if (!fcmToken) {
+      // Deduplicate
+      tokens = [...new Set(tokens)];
+      if (!tokens.length) {
         console.log(
           "[sendNotification] no token, lookupMs:",
           Date.now() - startMs,
@@ -2572,10 +2587,31 @@ const handlerForSafetyBotTab = (app) => {
         };
       }
       console.log(
-        "[sendNotification] token found, lookupMs:",
+        "[sendNotification] token(s) found:",
+        tokens.length,
+        "lookupMs:",
         Date.now() - startMs,
       );
-      await sendPushNotification(fcmToken, title, body || "", data || {});
+      const payload = {
+        type: "SOS",
+        ...(data && typeof data === "object" ? data : {}),
+      };
+      // Prefer explicit userName; else derive from "X needs assistance" notification body
+      if (!payload.userName && typeof body === "string") {
+        const m = body.match(/^(.+?)\s+needs assistance/i);
+        if (m && m[1]) payload.userName = m[1].trim();
+      }
+      if (payload.adminId == null && userId) {
+        payload.adminId = String(userId);
+      }
+      await Promise.allSettled(
+        tokens.map((fcmToken) =>
+          sendPushNotification(fcmToken, title, body || "", payload, {
+            dataOnly: false,
+            androidPriority: 'high',
+          }),
+        ),
+      );
       return { ok: true, status: 200, body: { ok: true } };
     };
 
@@ -3453,6 +3489,7 @@ const handlerForSafetyBotTab = (app) => {
             admin: adminInfo,
             requester,
             alreadyAcceptedBySelf: true,
+            otherNotifiedNames: [],
           });
           return respond(200, {
             html: `
@@ -3562,6 +3599,7 @@ const handlerForSafetyBotTab = (app) => {
         requester,
         notificationMessage,
         alreadyAcceptedBySelf: false,
+        otherNotifiedNames: otherAdminNames,
       });
 
       // Import botActivityHandler to use the notification logic
@@ -7843,6 +7881,7 @@ WHERE ID.user_obj_id = @userAadObjId;
     const buildResponse = (row) => {
       const subscriptionType = Number(row.SubscriptionType);
       const daysRemaining = Number(row.DAYS_REMAINING);
+      const memberCount = Number(row.MEMBER_COUNT);
       const userEmailId = row.UserEmailId || "";
       const renewUrl =
         "https://teams.microsoft.com/l/app/884e521a-dadc-41e9-a8af-fcaa907e783e?source=agent-details-page";
@@ -7873,6 +7912,15 @@ WHERE ID.user_obj_id = @userAadObjId;
         };
       }
 
+      if (subscriptionType === 1 && !Number.isNaN(memberCount) && memberCount > 10) {
+        return {
+          bannerType: "freeLimit",
+          daysRemaining: 0,
+          expiryDate: null,
+          renewUrl,
+        };
+      }
+
       return noBanner;
     };
 
@@ -7893,7 +7941,8 @@ WHERE ID.user_obj_id = @userAadObjId;
             SD.SubscriptionType,
             SD.ExpiryDate,
             SD.UserEmailId,
-            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING
+            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING,
+            (SELECT COUNT(id) FROM MSTeamsTeamsUsers WHERE team_id = ID.TEAM_ID) AS MEMBER_COUNT
           FROM MSTeamsInstallationDetails ID
           INNER JOIN MSTeamsSubscriptionDetails SD
             ON ID.SubscriptionDetailsId = SD.ID
@@ -7906,7 +7955,8 @@ WHERE ID.user_obj_id = @userAadObjId;
             SD.SubscriptionType,
             SD.ExpiryDate,
             SD.UserEmailId,
-            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING
+            DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING,
+            (SELECT COUNT(id) FROM MSTeamsTeamsUsers WHERE team_id = ID.TEAM_ID) AS MEMBER_COUNT
           FROM MSTeamsTeamsUsers TU
           INNER JOIN MSTeamsInstallationDetails ID
             ON TU.TEAM_ID = ID.TEAM_ID

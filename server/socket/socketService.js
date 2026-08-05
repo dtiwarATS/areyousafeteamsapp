@@ -194,7 +194,13 @@ async function handleSosRequest(payload, ack) {
             userId: adminAadId,
             title: "SOS Alert",
             body: `${userName} needs assistance`,
-            data: { requestAssistanceid: sosRequestId, userAadObjId: userId },
+            data: {
+              type: "SOS",
+              requestAssistanceid: sosRequestId,
+              userAadObjId: userId,
+              userName: String(userName || ""),
+              adminId: String(adminAadId),
+            },
           },
           {
             headers: { "Content-Type": "application/json" },

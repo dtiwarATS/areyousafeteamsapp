@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const db = require('../db');
+const { deleteTokenByValue } = require('../store');
 
 /**
  * FCM (Firebase Cloud Messaging) send service using Firebase Admin SDK.
@@ -8,6 +9,38 @@ const db = require('../db');
  */
 let admin = null;
 let app = null;
+
+const STALE_TOKEN_ERROR_CODES = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token',
+]);
+
+function isStaleFcmTokenError(err) {
+  const code = err?.errorInfo?.code || err?.code || '';
+  if (STALE_TOKEN_ERROR_CODES.has(code)) return true;
+  const msg = String(err?.message || '').toLowerCase();
+  return msg.includes('notregistered') || msg.includes('registration-token-not-registered');
+}
+
+async function removeStaleFcmToken(fcmToken, context = '') {
+  if (!fcmToken) return;
+  try {
+    const deleted = await deleteTokenByValue(fcmToken);
+    console.warn(
+      '[fcmService] removed stale FCM token',
+      context ? `(${context})` : '',
+      'deletedRows=',
+      deleted,
+      'tokenPrefix=',
+      String(fcmToken).slice(0, 12) + '…',
+    );
+  } catch (cleanupErr) {
+    console.error(
+      '[fcmService] failed to delete stale FCM token:',
+      cleanupErr?.message || cleanupErr,
+    );
+  }
+}
 
 function getFirebaseApp() {
   if (app) return app;
@@ -114,11 +147,26 @@ async function sendPushNotification(fcmToken, title, body, data = {}, options = 
   };
   if (!options.dataOnly) {
     message.notification = { title, body };
+    message.android = {
+      priority: options.androidPriority === 'normal' ? 'normal' : 'high',
+      notification: {
+        channelId: options.androidChannelId || 'sos_alert_default',
+        priority: 'high',
+        defaultSound: true,
+      },
+    };
   } else {
     // High priority so Android wakes the app for data-only messages
     message.android = { priority: 'high' };
   }
-  await messaging.send(message);
+  try {
+    await messaging.send(message);
+  } catch (err) {
+    if (isStaleFcmTokenError(err)) {
+      await removeStaleFcmToken(fcmToken, 'sendPushNotification');
+    }
+    throw err;
+  }
 }
 
 /**
@@ -142,7 +190,7 @@ async function getFcmTokensForUsers(userAadObjectIds, platform = 'android') {
 }
 
 /**
- * Send SOS push notifications to admins who have Android FCM tokens.
+ * Send SOS push notifications to admins who have FCM tokens (Android + iOS).
  * @param {object[]} admins - Admin objects with user_aadobject_id, user_name
  * @param {object} user - Requester user object with user_name
  * @param {string} userAadObjId - Requester's AAD Object ID (person who clicked SOS)
@@ -156,66 +204,124 @@ async function sendSosPushToAdmins(admins, user, userAadObjId, requestAssistance
   if (adminIds.length === 0) return;
   let tokens;
   try {
-    tokens = await getFcmTokensForUsers(adminIds, 'android');
+    const [androidTokens, iosTokens] = await Promise.all([
+      getFcmTokensForUsers(adminIds, 'android'),
+      getFcmTokensForUsers(adminIds, 'ios'),
+    ]);
+    tokens = [...(androidTokens || []), ...(iosTokens || [])];
   } catch (err) {
     console.error('[sendSosPushToAdmins] getFcmTokensForUsers error:', err);
     return;
   }
-  if (!tokens || tokens.length === 0) return;
+  if (!tokens || tokens.length === 0) {
+    console.log(
+      '[sendSosPushToAdmins] no FCM tokens for admins, count=',
+      adminIds.length,
+    );
+    return;
+  }
+  // Deduplicate by token in case the same device appears twice
+  const seen = new Set();
+  const uniqueTokens = tokens.filter((row) => {
+    if (!row?.fcm_token || seen.has(row.fcm_token)) return false;
+    seen.add(row.fcm_token);
+    return true;
+  });
+  const userName =
+    (user && (user.user_name || user.userName)) || 'Someone';
+  const location =
+    (user &&
+      (user.DYNAMIC_LOCATION ||
+        user.dynamicLocation ||
+        user.location ||
+        '')) ||
+    '';
   const title = 'SOS Alert';
-  const body = `${user.user_name || 'Someone'} needs assistance`;
-  const pushTasks = tokens.map(async (row) => {
+  const body = `${userName} needs assistance`;
+  console.log(
+    '[sendSosPushToAdmins] sending to',
+    uniqueTokens.length,
+    'device(s) for requestAssistanceid=',
+    requestAssistanceid,
+  );
+  const pushTasks = uniqueTokens.map(async (row) => {
     const adminId = row.user_id;
     const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${adminId}`;
     const data = {
+      type: 'SOS',
       requestAssistanceid: String(requestAssistanceid),
       userAadObjId: String(userAadObjId || ''),
-      adminId,
+      adminId: String(adminId || ''),
       acceptLink,
+      userName: String(userName),
+      location: String(location || ''),
     };
     try {
-      incidentService.saveAllTypeQuerylogs(
-        adminId,
-        '',
-        'SOS_PUSH',
-        'FCM',
-        requestAssistanceid,
-        'SENDING',
-        '',
-        '',
-        '',
-        '',
-        '',
-      );
-      await sendPushNotification(row.fcm_token, title, body, data);
-      incidentService.saveAllTypeQuerylogs(
-        adminId,
-        '',
-        'SOS_PUSH',
-        'FCM',
-        requestAssistanceid,
-        'SEND_SUCCESS',
-        '',
-        '',
-        '',
-        '',
-        '',
-      );
+      if (incidentService?.saveAllTypeQuerylogs) {
+        incidentService.saveAllTypeQuerylogs(
+          adminId,
+          '',
+          'SOS_PUSH',
+          'FCM',
+          requestAssistanceid,
+          'SENDING',
+          '',
+          '',
+          '',
+          '',
+          '',
+        );
+      }
+      // Always include title/body in data for client-side display / tap routing
+      const dataWithCopy = {
+        ...data,
+        title: String(title),
+        body: String(body),
+      };
+      // Use system notification so Android shows the tray alert even when app is killed.
+      // (data-only often fails to wake OEM-killed apps.)
+      await sendPushNotification(row.fcm_token, title, body, dataWithCopy, {
+        dataOnly: false,
+        androidPriority: 'high',
+      });
+      if (incidentService?.saveAllTypeQuerylogs) {
+        incidentService.saveAllTypeQuerylogs(
+          adminId,
+          '',
+          'SOS_PUSH',
+          'FCM',
+          requestAssistanceid,
+          'SEND_SUCCESS',
+          '',
+          '',
+          '',
+          '',
+          '',
+        );
+      }
     } catch (err) {
-      console.error('[sendSosPushToAdmins] sendPushNotification error:', err);
-      incidentService.saveAllTypeQuerylogs(
+      const stale = isStaleFcmTokenError(err);
+      console.error(
+        '[sendSosPushToAdmins] sendPushNotification error for admin',
         adminId,
-        '',
-        'SOS_PUSH',
-        'FCM',
-        requestAssistanceid,
-        'SEND_FAILED',
-        '',
-        '',
-        '',
-        '',
-        String((err && err.message) || ''),
+        stale ? '(stale token removed)' : '',
+        err?.errorInfo?.code || err?.message || err,
       );
+      if (incidentService?.saveAllTypeQuerylogs) {
+        incidentService.saveAllTypeQuerylogs(
+          adminId,
+          '',
+          'SOS_PUSH',
+          'FCM',
+          requestAssistanceid,
+          stale ? 'SEND_FAILED_STALE_TOKEN' : 'SEND_FAILED',
+          '',
+          '',
+          '',
+          '',
+          String((err && err.message) || ''),
+        );
+      }
     }
   });
   await Promise.allSettled(pushTasks);
