@@ -364,10 +364,10 @@ class BotActivityHandler extends TeamsActivityHandler {
           try {
             let selectQuery = `select UserLimit from MSTeamsSubscriptionDetails where ID in (select SubscriptionDetailsId from MSTeamsInstallationDetails where team_id='${teamId}')`;
             let res = await db.getDataFromDB(selectQuery, "");
-            var LicenseLimitCard = await this.getLicenseLimitCard(
-              allMembersInfo.length,
-              res[0].UserLimit,
-            );
+            // var LicenseLimitCard = await this.getLicenseLimitCard(
+            //   allMembersInfo.length,
+            //   res[0].UserLimit,
+            // );
             var licensecount = res[0].UserLimit;
           } catch (err) {
             console.log({ err: err });
