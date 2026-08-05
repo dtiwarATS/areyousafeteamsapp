@@ -1181,24 +1181,24 @@ const handlerForSafetyBotTab = (app) => {
             };
           } else {
             let accessToken = response.data.access_token;
-            // console.log({ arrIds });
-            var startIndex = 0;
-            var endIndex = 14;
-            if (endIndex > arrIds.length) endIndex = arrIds.length;
-            // console.log({ endIndex });
-            while (endIndex <= arrIds.length && startIndex != endIndex) {
-              var userIds = arrIds.slice(startIndex, endIndex).toString();
-              if (userIds.length) {
-                userIds = "'" + userIds.replaceAll(",", "','") + "'";
-                // console.log({ userIds });
-                startIndex = endIndex;
-                endIndex = startIndex + 14;
-                if (endIndex > arrIds.length) endIndex = arrIds.length;
+            const ids = Array.isArray(arrIds) ? arrIds.filter(Boolean) : [];
+            // Graph `id in (...)` supports ~15 ids; keep batches of 14.
+            // Run several batches in parallel to cut consent count time (~1min → ~10-20s).
+            const GRAPH_PHONE_BATCH_SIZE = 14;
+            const GRAPH_PHONE_CONCURRENCY = 8;
+            const batches = [];
+            for (let i = 0; i < ids.length; i += GRAPH_PHONE_BATCH_SIZE) {
+              batches.push(ids.slice(i, i + GRAPH_PHONE_BATCH_SIZE));
+            }
 
-                let config = {
+            const fetchBatch = async (slice) => {
+              if (!slice.length) return [];
+              const userIds = "'" + slice.join("','") + "'";
+              const requestDate = new Date();
+              try {
+                const listResp = await axios.request({
                   method: "get",
                   maxBodyLength: Infinity,
-                  // timeout: 10000,
                   url:
                     "https://graph.microsoft.com/v1.0/users?$select=displayName,id,businessPhones,mobilePhone" +
                     "&$filter=id in (" +
@@ -1208,47 +1208,53 @@ const handlerForSafetyBotTab = (app) => {
                     "Content-Type": "application/json",
                     Authorization: "Bearer " + accessToken,
                   },
-                  // data: data,
+                });
+                return Array.isArray(listResp.data?.value)
+                  ? listResp.data.value
+                  : [];
+              } catch (error) {
+                console.log({
+                  "error in get users phone number requestDate": error,
+                });
+                processSafetyBotError(
+                  error,
+                  "",
+                  "",
+                  "",
+                  "error in get users phone number requestDateTime : " +
+                    requestDate +
+                    " ErrorDateTime: " +
+                    new Date(),
+                  "",
+                  false,
+                  "",
+                );
+                throw {
+                  type: "GraphApiError",
+                  error: error,
+                  message:
+                    "Error fetching user phone numbers from Graph API",
                 };
-                var requestDate = new Date();
-                var a = await axios
-                  .request(config)
-                  .then((response) => {
-                    phone.push(...response.data.value);
-                    // console.log({ phone });
-                    // var data = {
-                    //   status: status,
-                    //   teamData: teamData,
-                    // };
-                  })
-                  .catch((error) => {
-                    console.log({
-                      "error in get users phone number requestDate": error,
-                    });
-                    processSafetyBotError(
-                      error,
-                      "",
-                      "",
-                      "",
-                      "error in get users phone number requestDateTime : " +
-                      requestDate +
-                      " ErrorDateTime: " +
-                      new Date(),
-                      "",
-                      false,
-                      "",
-                    );
-                    throw {
-                      type: "GraphApiError",
-                      error: error,
-                      message:
-                        "Error fetching user phone numbers from Graph API",
-                    };
-                  });
-              } else {
-                return;
               }
-            }
+            };
+
+            let nextBatch = 0;
+            const workers = Array.from(
+              {
+                length: Math.max(
+                  1,
+                  Math.min(GRAPH_PHONE_CONCURRENCY, batches.length || 1),
+                ),
+              },
+              async () => {
+                while (nextBatch < batches.length) {
+                  const index = nextBatch++;
+                  const users = await fetchBatch(batches[index]);
+                  if (users.length) phone.push(...users);
+                }
+              },
+            );
+            await Promise.all(workers);
             // console.log({ finalphone: phone });
           }
         })
@@ -4607,6 +4613,7 @@ const handlerForSafetyBotTab = (app) => {
       }
       const userNotificationConsentService = require("./services/userNotificationConsentService");
       let office365PhoneEligibleTotal = 0;
+      let office365PhoneEligibleUserIds = [];
       try {
         const phoneCtx =
           await userNotificationConsentService.getPhoneIntegrationContextForTenant(
@@ -4644,10 +4651,12 @@ const handlerForSafetyBotTab = (app) => {
               tenantId,
               userAadObjIds,
             );
-            office365PhoneEligibleTotal =
-              userNotificationConsentService.countValidGraphPhones(
+            const phoneIdSet =
+              userNotificationConsentService.getValidGraphPhoneUserIdSet(
                 Array.isArray(graphUsers) ? graphUsers : [],
               );
+            office365PhoneEligibleUserIds = Array.from(phoneIdSet);
+            office365PhoneEligibleTotal = office365PhoneEligibleUserIds.length;
             console.log(
               "[getUserConsentStats] Office 365 users with phone number:",
               {
@@ -4682,11 +4691,15 @@ const handlerForSafetyBotTab = (app) => {
           phoneErr?.message || phoneErr,
         );
         office365PhoneEligibleTotal = 0;
+        office365PhoneEligibleUserIds = [];
       }
 
       const stats = await userNotificationConsentService.getConsentStats(
         tenantId,
-        { office365PhoneEligibleTotal },
+        {
+          office365PhoneEligibleTotal,
+          office365PhoneEligibleUserIds,
+        },
       );
       console.log("[getUserConsentStats] response stats phone totals", {
         tenantId,
@@ -4780,7 +4793,8 @@ const handlerForSafetyBotTab = (app) => {
         return;
       }
 
-      // Persist opt-in flags synchronously, then ack so the UI is not blocked on Teams sends.
+      // Persist opt-in flags, then send all consent cards before responding
+      // so the UI Send button can stay in loading until every card is sent.
       await userNotificationConsentService.updateIntegrationOptInFlags(
         teamId,
         chs,
@@ -4802,38 +4816,30 @@ const handlerForSafetyBotTab = (app) => {
       const performedBy = userAadObjId || "admin";
       const normalizedUserIds = Array.isArray(userIds) ? userIds : null;
 
-      res.send({
-        success: true,
-        sent: 0,
-        skipped: 0,
+      const result = await userNotificationConsentService.sendConsentRequests({
+        tenantId,
+        teamId,
         channels: chs,
-        message: "Consent request sent successfully.",
+        message,
+        performedBy,
+        userIds: normalizedUserIds,
+        persistOptInFlags: false,
+        companyData: company,
       });
 
-      void userNotificationConsentService
-        .sendConsentRequests({
-          tenantId,
-          teamId,
-          channels: chs,
-          message,
-          performedBy,
-          userIds: normalizedUserIds,
-          persistOptInFlags: false,
-          companyData: company,
-        })
-        .catch((bgErr) => {
-          console.log(
-            "sendUserConsentRequest background send failed",
-            bgErr?.message || bgErr,
-          );
-          processSafetyBotError(
-            bgErr,
-            teamId || "",
-            "",
-            userAadObjId,
-            "error in /areyousafetabhandler/sendUserConsentRequest background",
-          );
-        });
+      if (result?.error) {
+        res.status(400).send(result);
+        return;
+      }
+
+      res.send({
+        success: true,
+        sent: result?.sent ?? 0,
+        skipped: result?.skipped ?? 0,
+        channels: result?.channels || chs,
+        sentUserIds: result?.sentUserIds || [],
+        message: result?.message || "Consent request sent successfully.",
+      });
     } catch (err) {
       processSafetyBotError(
         err,

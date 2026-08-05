@@ -55,6 +55,40 @@ const parsePhoneSourceFromIntegrationConfig = (raw) => {
 /** Max concurrent Teams proactive sends for consent cards. */
 const CONSENT_SEND_CONCURRENCY = 30;
 
+/** In-memory eligibility sets from recent getConsentStats (reused by Send). */
+const ELIGIBILITY_CACHE_TTL_MS = 10 * 60 * 1000;
+/** @type {Map<string, { phoneEligibleIds: string[], emailEligibleIds: string[], expiresAt: number }>} */
+const eligibilityCacheByTenant = new Map();
+
+const getCachedConsentEligibility = (tenantId) => {
+  const key = String(tenantId || "").trim();
+  if (!key) return null;
+  const entry = eligibilityCacheByTenant.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    eligibilityCacheByTenant.delete(key);
+    return null;
+  }
+  return {
+    phoneEligibleSet: new Set(entry.phoneEligibleIds || []),
+    emailEligibleSet: new Set(entry.emailEligibleIds || []),
+  };
+};
+
+const setCachedConsentEligibility = (
+  tenantId,
+  phoneEligibleSet,
+  emailEligibleSet,
+) => {
+  const key = String(tenantId || "").trim();
+  if (!key) return;
+  eligibilityCacheByTenant.set(key, {
+    phoneEligibleIds: Array.from(phoneEligibleSet || []),
+    emailEligibleIds: Array.from(emailEligibleSet || []),
+    expiresAt: Date.now() + ELIGIBILITY_CACHE_TTL_MS,
+  });
+};
+
 /** Users who must never receive consent Adaptive Cards. */
 const CONSENT_MESSAGE_EXCLUDED_USER_IDS = new Set([
   "5055a653-182c-4c5f-a4b0-1f5a9505910e",
@@ -305,7 +339,8 @@ const resolvePhoneEligibleTotal = async (tenantId, options = {}) => {
   return 0;
 };
 
-const countValidSpreadsheetPhones = async (tenantId) => {
+const getAllSpreadsheetPhoneUserIdSet = async (tenantId) => {
+  const eligible = new Set();
   const safeTenant = escapeSql(tenantId);
   const qry = `
     SELECT DISTINCT
@@ -319,17 +354,19 @@ const countValidSpreadsheetPhones = async (tenantId) => {
       AND LTRIM(RTRIM(PHONE_NUMBER)) <> ''
   `;
   const rows = (await db.getDataFromDB(qry)) || [];
-  let count = 0;
-  const seen = new Set();
   for (const row of rows) {
     const userId = String(row.userId || "").trim();
-    if (!userId || seen.has(userId)) continue;
+    if (!userId || eligible.has(userId)) continue;
     const validation = validatePhoneNumber(row.phoneNumber);
     if (!validation.valid) continue;
-    seen.add(userId);
-    count += 1;
+    eligible.add(userId);
   }
-  return count;
+  return eligible;
+};
+
+const countValidSpreadsheetPhones = async (tenantId) => {
+  const set = await getAllSpreadsheetPhoneUserIdSet(tenantId);
+  return set.size;
 };
 
 /** Matches email send path: non-empty, not literal "null", basic address shape. */
@@ -340,7 +377,8 @@ const isValidEmailAddress = (email) => {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 };
 
-const countValidEmails = async (tenantId) => {
+const getAllEmailEligibleUserIdSet = async (tenantId) => {
+  const eligible = new Set();
   const safeTenant = escapeSql(tenantId);
   const qry = `
     SELECT DISTINCT
@@ -354,16 +392,176 @@ const countValidEmails = async (tenantId) => {
       AND LTRIM(RTRIM(email)) <> ''
   `;
   const rows = (await db.getDataFromDB(qry)) || [];
-  let count = 0;
-  const seen = new Set();
   for (const row of rows) {
     const userId = String(row.userId || "").trim();
-    if (!userId || seen.has(userId)) continue;
+    if (!userId || eligible.has(userId)) continue;
     if (!isValidEmailAddress(row.email)) continue;
-    seen.add(userId);
-    count += 1;
+    eligible.add(userId);
   }
-  return count;
+  return eligible;
+};
+
+const countValidEmails = async (tenantId) => {
+  const set = await getAllEmailEligibleUserIdSet(tenantId);
+  return set.size;
+};
+
+/**
+ * Among candidates, users with a valid email (same rules as countValidEmails).
+ * @param {string} tenantId
+ * @param {string[]} candidateUserIds
+ * @returns {Promise<Set<string>>}
+ */
+const getEmailEligibleUserIdSet = async (tenantId, candidateUserIds) => {
+  const eligible = new Set();
+  if (!candidateUserIds?.length) return eligible;
+  const safeTenant = escapeSql(tenantId);
+  const idList = candidateUserIds.map((id) => `N'${escapeSql(id)}'`).join(",");
+  const qry = `
+    SELECT DISTINCT
+      user_aadobject_id AS userId,
+      email AS email
+    FROM MSTeamsTeamsUsers
+    WHERE tenantid = N'${safeTenant}'
+      AND user_aadobject_id IN (${idList})
+      AND email IS NOT NULL
+      AND LTRIM(RTRIM(email)) <> ''
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  for (const row of rows) {
+    const userId = String(row.userId || "").trim();
+    if (!userId || eligible.has(userId)) continue;
+    if (!isValidEmailAddress(row.email)) continue;
+    eligible.add(userId);
+  }
+  return eligible;
+};
+
+/**
+ * Keep only channels the user is eligible for (phone → SMS/WhatsApp/Voice, email → Email).
+ */
+const filterChannelsByEligibility = (
+  channels,
+  userId,
+  phoneEligibleSet,
+  emailEligibleSet,
+) => {
+  const id = String(userId || "").trim();
+  if (!id) return [];
+  return (channels || []).filter((ch) => {
+    if (PHONE_CONSENT_CHANNELS.includes(ch)) {
+      return phoneEligibleSet.has(id);
+    }
+    if (ch === "email") {
+      return emailEligibleSet.has(id);
+    }
+    return false;
+  });
+};
+
+const getAllTenantUserIds = async (tenantId) => {
+  const safeTenant = escapeSql(tenantId);
+  const qry = `
+    SELECT DISTINCT user_aadobject_id AS userId
+    FROM MSTeamsTeamsUsers
+    WHERE tenantid = N'${safeTenant}'
+      AND user_aadobject_id IS NOT NULL
+      AND user_aadobject_id <> ''
+  `;
+  const rows = (await db.getDataFromDB(qry)) || [];
+  return rows
+    .map((r) => String(r.userId || "").trim())
+    .filter(Boolean);
+};
+
+/**
+ * Shared eligibility lists for consent count + send.
+ * @param {string} tenantId
+ * @param {{
+ *   office365PhoneEligibleUserIds?: string[]|Set<string>,
+ *   graphUsers?: Array,
+ *   useCache?: boolean,
+ *   writeCache?: boolean,
+ * }} [options]
+ * @returns {Promise<{ phoneEligibleSet: Set<string>, emailEligibleSet: Set<string> }>}
+ */
+const resolveConsentEligibility = async (tenantId, options = {}) => {
+  const useCache = options.useCache === true;
+  if (useCache) {
+    const cached = getCachedConsentEligibility(tenantId);
+    if (cached) {
+      console.log("[consent eligibility] cache hit", {
+        tenantId,
+        phone: cached.phoneEligibleSet.size,
+        email: cached.emailEligibleSet.size,
+      });
+      return cached;
+    }
+  }
+
+  let phoneEligibleSet = new Set();
+  try {
+    const phoneCtx = await getPhoneIntegrationContextForTenant(tenantId);
+    const source = resolveConsentPhoneSource(phoneCtx);
+    if (source === "spreadsheet") {
+      phoneEligibleSet = await getAllSpreadsheetPhoneUserIdSet(tenantId);
+    } else if (source === "office365") {
+      if (
+        options.office365PhoneEligibleUserIds &&
+        (Array.isArray(options.office365PhoneEligibleUserIds) ||
+          options.office365PhoneEligibleUserIds instanceof Set)
+      ) {
+        phoneEligibleSet = new Set(
+          Array.from(options.office365PhoneEligibleUserIds)
+            .map((id) => String(id || "").trim())
+            .filter(Boolean),
+        );
+      } else if (Array.isArray(options.graphUsers)) {
+        phoneEligibleSet = getValidGraphPhoneUserIdSet(options.graphUsers);
+      } else {
+        const allIds = await getAllTenantUserIds(tenantId);
+        phoneEligibleSet = await getOffice365PhoneUserIdSet(
+          tenantId,
+          allIds,
+          phoneCtx?.isAppPermissionGranted,
+        );
+      }
+    }
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error resolving phone eligibility in resolveConsentEligibility",
+    );
+    phoneEligibleSet = new Set();
+  }
+
+  let emailEligibleSet = new Set();
+  try {
+    emailEligibleSet = await getAllEmailEligibleUserIdSet(tenantId);
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error resolving email eligibility in resolveConsentEligibility",
+    );
+    emailEligibleSet = new Set();
+  }
+
+  if (options.writeCache !== false) {
+    setCachedConsentEligibility(tenantId, phoneEligibleSet, emailEligibleSet);
+    console.log("[consent eligibility] cache write", {
+      tenantId,
+      phone: phoneEligibleSet.size,
+      email: emailEligibleSet.size,
+    });
+  }
+
+  return { phoneEligibleSet, emailEligibleSet };
 };
 
 const extractGraphPhoneValue = (user, phoneField) => {
@@ -404,23 +602,29 @@ const userHasValidGraphPhone = (user) => {
  * @param {Array} graphUsers
  * @param {string} [_phoneField] unused — kept for call-site compatibility
  */
-const countValidGraphPhones = (graphUsers, _phoneField) => {
-  if (!Array.isArray(graphUsers) || graphUsers.length === 0) return 0;
-  let count = 0;
+const getValidGraphPhoneUserIdSet = (graphUsers) => {
   const seen = new Set();
+  if (!Array.isArray(graphUsers) || graphUsers.length === 0) return seen;
   for (const user of graphUsers) {
     const id = String(user?.id || "").trim();
     if (!id || seen.has(id)) continue;
     if (!userHasValidGraphPhone(user)) continue;
     seen.add(id);
-    count += 1;
   }
-  return count;
+  return seen;
+};
+
+const countValidGraphPhones = (graphUsers, _phoneField) => {
+  return getValidGraphPhoneUserIdSet(graphUsers).size;
 };
 
 /**
  * @param {string} tenantId
- * @param {{ office365PhoneEligibleTotal?: number }} [options]
+ * @param {{
+ *   office365PhoneEligibleTotal?: number,
+ *   office365PhoneEligibleUserIds?: string[]|Set<string>,
+ *   graphUsers?: Array,
+ * }} [options]
  */
 const getConsentStats = async (tenantId, options = {}) => {
   const safeTenant = escapeSql(tenantId);
@@ -434,31 +638,46 @@ const getConsentStats = async (tenantId, options = {}) => {
   const consentRows = (await db.getDataFromDB(consentQry)) || [];
 
   let phoneEligibleTotal = 0;
-  try {
-    phoneEligibleTotal = await resolvePhoneEligibleTotal(tenantId, options);
-  } catch (err) {
-    processSafetyBotError(
-      err,
-      "",
-      "",
-      "",
-      "error resolving phoneEligibleTotal in getConsentStats",
-    );
-    phoneEligibleTotal = 0;
-  }
-
   let emailEligibleTotal = 0;
   try {
-    emailEligibleTotal = await countValidEmails(tenantId);
+    const eligibility = await resolveConsentEligibility(tenantId, {
+      office365PhoneEligibleUserIds: options.office365PhoneEligibleUserIds,
+      graphUsers: options.graphUsers,
+      // Fresh lists for the panel; write cache so Send can reuse them.
+      useCache: false,
+      writeCache: true,
+    });
+    phoneEligibleTotal = eligibility.phoneEligibleSet.size;
+    emailEligibleTotal = eligibility.emailEligibleSet.size;
+    // Legacy callers that only pass a precomputed O365 total (no IDs) still work
+    // when spreadsheet/empty source already resolved; if O365 and only total given:
+    if (
+      options.office365PhoneEligibleTotal != null &&
+      !options.office365PhoneEligibleUserIds &&
+      !options.graphUsers &&
+      phoneEligibleTotal === 0 &&
+      Number(options.office365PhoneEligibleTotal) > 0
+    ) {
+      phoneEligibleTotal = Number(options.office365PhoneEligibleTotal);
+    }
   } catch (err) {
     processSafetyBotError(
       err,
       "",
       "",
       "",
-      "error resolving emailEligibleTotal in getConsentStats",
+      "error resolving eligibility in getConsentStats",
     );
-    emailEligibleTotal = 0;
+    try {
+      phoneEligibleTotal = await resolvePhoneEligibleTotal(tenantId, options);
+    } catch (_) {
+      phoneEligibleTotal = Number(options.office365PhoneEligibleTotal || 0);
+    }
+    try {
+      emailEligibleTotal = await countValidEmails(tenantId);
+    } catch (_) {
+      emailEligibleTotal = 0;
+    }
   }
 
   const stats = {};
@@ -1137,6 +1356,11 @@ const updateIntegrationOptInFlags = async (
 
 /**
  * Send consent Adaptive Cards to users needing consent for the selected channels.
+ * Per user, only eligible channels are requested:
+ * - SMS / WhatsApp / Voice → user must have a usable phone (O365 or spreadsheet)
+ * - Email → user must have a valid email
+ * Users without a phone still get a PhoneEligibleNoPhone history marker when phone
+ * channels are selected, so the hourly job can send once a phone appears later.
  */
 const sendConsentRequests = async ({
   tenantId,
@@ -1208,9 +1432,96 @@ const sendConsentRequests = async ({
   }
 
   const recipientIds = recipients.map((r) => r.UserId || r.user_aadobject_id);
+  const needsPhoneEligibility = chs.some((ch) =>
+    PHONE_CONSENT_CHANNELS.includes(ch),
+  );
+  const needsEmailEligibility = chs.includes("email");
+
+  let phoneEligibleSet = new Set();
+  let emailEligibleSet = new Set();
+  try {
+    // Prefer sets from a recent getConsentStats (same who-list as the UI counts).
+    const eligibility = await resolveConsentEligibility(effectiveTenant, {
+      useCache: true,
+      writeCache: true,
+    });
+    phoneEligibleSet = needsPhoneEligibility
+      ? eligibility.phoneEligibleSet
+      : new Set();
+    emailEligibleSet = needsEmailEligibility
+      ? eligibility.emailEligibleSet
+      : new Set();
+  } catch (eligErr) {
+    processSafetyBotError(
+      eligErr,
+      teamId || "",
+      "",
+      "",
+      "error resolving channel eligibility for consent send",
+    );
+  }
+
+  // Phone channels selected but user has no phone yet: baseline for hourly job
+  // (send only when a phone appears later). Do not create Pending phone rows.
+  if (needsPhoneEligibility) {
+    try {
+      const noPhoneIds = recipientIds
+        .map((id) => String(id || "").trim())
+        .filter((id) => id && !phoneEligibleSet.has(id));
+      if (noPhoneIds.length) {
+        const markers = await loadPhoneEligibilityHistoryMarkers(
+          effectiveTenant,
+          noPhoneIds,
+        );
+        for (const userId of noPhoneIds) {
+          const m = markers.get(userId);
+          if (m?.noPhone || m?.hadPhoneBaseline || m?.sent) continue;
+          await recordPhoneEligibilityMarker(
+            effectiveTenant,
+            userId,
+            CONSENT_ACTION.PhoneEligibleNoPhone,
+          );
+        }
+      }
+    } catch (markerErr) {
+      processSafetyBotError(
+        markerErr,
+        teamId || "",
+        "",
+        "",
+        "error recording phone-eligibility NoPhone markers on consent send",
+      );
+    }
+  }
+
+  // Attach per-user eligible channels; drop users with none.
+  recipients = recipients
+    .map((r) => {
+      const userId = r.UserId || r.user_aadobject_id;
+      const channelsForUser = filterChannelsByEligibility(
+        chs,
+        userId,
+        phoneEligibleSet,
+        emailEligibleSet,
+      );
+      return { ...r, channelsForUser };
+    })
+    .filter((r) => (r.channelsForUser || []).length > 0);
+
+  if (!recipients.length) {
+    return {
+      sent: 0,
+      skipped: 0,
+      message: "No eligible users need consent for the selected channels",
+    };
+  }
+
+  const eligibleRecipientIds = recipients.map(
+    (r) => r.UserId || r.user_aadobject_id,
+  );
   const statusMap = await getExistingConsentMap(
     effectiveTenant,
-    recipientIds,
+    eligibleRecipientIds,
     chs,
   );
 
@@ -1252,21 +1563,28 @@ const sendConsentRequests = async ({
         return "skipped";
       }
 
+      const channelsForUser = normalizeChannels(
+        recipient.channelsForUser || chs,
+      );
+      if (!channelsForUser.length) {
+        return "skipped";
+      }
+
       const existingConsent = {};
-      for (const ch of chs) {
+      for (const ch of channelsForUser) {
         existingConsent[ch] = statusMap.get(`${userId}|${ch}`) || null;
       }
 
-      const needsAny = chs.some(
+      const pendingChannels = channelsForUser.filter(
         (ch) => existingConsent[ch] !== CONSENT_STATUS.OptedIn,
       );
-      if (!needsAny) {
+      if (!pendingChannels.length) {
         return "skipped";
       }
 
       const card = buildConsentAdaptiveCard({
         message: cardMessage,
-        channelsRequested: chs,
+        channelsRequested: pendingChannels,
         existingConsent,
         tenantId: effectiveTenant,
         teamId,
@@ -1321,7 +1639,7 @@ const sendConsentRequests = async ({
         await markConsentRequestSent({
           tenantId: effectiveTenant,
           userId,
-          channels: chs,
+          channels: pendingChannels,
           performedBy: performedBy || "admin",
           teamsMessageId: resp?.activityId || null,
           conversationId:
@@ -1395,13 +1713,15 @@ const fetchGraphUsersPhones = async (tenantId, arrIds) => {
   }
 
   const accessToken = tokenResp.data.access_token;
-  let startIndex = 0;
-  let endIndex = Math.min(14, arrIds.length);
-  while (startIndex < arrIds.length && startIndex !== endIndex) {
-    const slice = arrIds.slice(startIndex, endIndex);
-    startIndex = endIndex;
-    endIndex = Math.min(startIndex + 14, arrIds.length);
-    if (!slice.length) break;
+  const GRAPH_PHONE_BATCH_SIZE = 14;
+  const GRAPH_PHONE_CONCURRENCY = 8;
+  const batches = [];
+  for (let i = 0; i < arrIds.length; i += GRAPH_PHONE_BATCH_SIZE) {
+    batches.push(arrIds.slice(i, i + GRAPH_PHONE_BATCH_SIZE));
+  }
+
+  const fetchBatch = async (slice) => {
+    if (!slice.length) return [];
     const userIds = "'" + slice.join("','") + "'";
     const listResp = await axios.request({
       method: "get",
@@ -1416,10 +1736,26 @@ const fetchGraphUsersPhones = async (tenantId, arrIds) => {
         Authorization: "Bearer " + accessToken,
       },
     });
-    if (Array.isArray(listResp.data?.value)) {
-      phone.push(...listResp.data.value);
-    }
-  }
+    return Array.isArray(listResp.data?.value) ? listResp.data.value : [];
+  };
+
+  let nextBatch = 0;
+  const workers = Array.from(
+    {
+      length: Math.max(
+        1,
+        Math.min(GRAPH_PHONE_CONCURRENCY, batches.length || 1),
+      ),
+    },
+    async () => {
+      while (nextBatch < batches.length) {
+        const index = nextBatch++;
+        const users = await fetchBatch(batches[index]);
+        if (users.length) phone.push(...users);
+      }
+    },
+  );
+  await Promise.all(workers);
   return phone;
 };
 
@@ -1474,6 +1810,40 @@ const getOffice365PhoneUserIdSet = async (tenantId, candidateUserIds, isAppPermi
     );
   }
   return withPhone;
+};
+
+/**
+ * Resolve which candidate users currently have a usable phone (spreadsheet or O365).
+ * @param {string} tenantId
+ * @param {string[]} candidateUserIds
+ * @returns {Promise<Set<string>>}
+ */
+const resolvePhoneEligibleUserIdSet = async (tenantId, candidateUserIds) => {
+  const empty = new Set();
+  if (!candidateUserIds?.length) return empty;
+  try {
+    const phoneCtx = await getPhoneIntegrationContextForTenant(tenantId);
+    const source = resolveConsentPhoneSource(phoneCtx);
+    if (source === "spreadsheet") {
+      return getSpreadsheetPhoneUserIdSet(tenantId, candidateUserIds);
+    }
+    if (source === "office365") {
+      return getOffice365PhoneUserIdSet(
+        tenantId,
+        candidateUserIds,
+        phoneCtx?.isAppPermissionGranted,
+      );
+    }
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error resolving phone-eligible user set for consent send",
+    );
+  }
+  return empty;
 };
 
 const loadPhoneEligibilityHistoryMarkers = async (tenantId, userIds) => {
@@ -1558,15 +1928,39 @@ const getCandidateUsersNeedingPhoneConsent = async (tenantId, phoneChannels) => 
   if (!chs.length) return [];
   const safeTenant = escapeSql(tenantId);
   const channelList = chs.map((ch) => `N'${escapeSql(ch)}'`).join(",");
+  const valuesList = chs.map((ch) => `(N'${escapeSql(ch)}')`).join(",");
+  // Pending/OptedOut rows (legacy or phone-eligible sends) OR NoPhone baseline
+  // markers from eligibility-filtered admin sends (phone appears later).
   const qry = `
     SELECT DISTINCT UserId
-    FROM UserNotificationConsent
-    WHERE TenantId = N'${safeTenant}'
-      AND NotificationChannel IN (${channelList})
-      AND ConsentStatus IN (
-        N'${CONSENT_STATUS.Pending}',
-        N'${CONSENT_STATUS.OptedOut}'
-      )
+    FROM (
+      SELECT UserId
+      FROM UserNotificationConsent
+      WHERE TenantId = N'${safeTenant}'
+        AND NotificationChannel IN (${channelList})
+        AND ConsentStatus IN (
+          N'${CONSENT_STATUS.Pending}',
+          N'${CONSENT_STATUS.OptedOut}'
+        )
+      UNION
+      SELECT h.UserId
+      FROM UserNotificationConsentHistory h
+      WHERE h.TenantId = N'${safeTenant}'
+        AND h.NotificationChannel = N'${escapeSql(PHONE_ELIGIBILITY_HISTORY_CHANNEL)}'
+        AND h.Action = N'${CONSENT_ACTION.PhoneEligibleNoPhone}'
+        AND EXISTS (
+          SELECT 1
+          FROM (VALUES ${valuesList}) AS req(Channel)
+          WHERE NOT EXISTS (
+            SELECT 1
+            FROM UserNotificationConsent c
+            WHERE c.TenantId = N'${safeTenant}'
+              AND c.UserId = h.UserId
+              AND c.NotificationChannel = req.Channel
+              AND c.ConsentStatus = N'${CONSENT_STATUS.OptedIn}'
+          )
+        )
+    ) candidates
   `;
   const rows = (await db.getDataFromDB(qry)) || [];
   return rows
@@ -1745,6 +2139,8 @@ module.exports = {
   getPhoneIntegrationContextForTenant,
   resolveConsentPhoneSource,
   countValidGraphPhones,
+  getValidGraphPhoneUserIdSet,
+  resolveConsentEligibility,
   getConsentUserList,
   getUsersNeedingConsent,
   getUserConsentForChannels,
