@@ -1719,13 +1719,7 @@ const processNewlyPhoneEligibleConsent = async () => {
         `consent phone-eligible job failed for tenant ${tenantId}:`,
         tenantErr?.message || tenantErr,
       );
-      processSafetyBotError(
-        tenantErr,
-        teamId || "",
-        "",
-        "",
-        "error in processNewlyPhoneEligibleConsent for tenant " + tenantId,
-      );
+
     }
   }
 
