@@ -4907,6 +4907,7 @@ const handlerForSafetyBotTab = (app) => {
       message,
       userAadObjId,
       userIds,
+      users,
     } = req.body || {};
     try {
       if (!teamId) {
@@ -4928,38 +4929,16 @@ const handlerForSafetyBotTab = (app) => {
         return;
       }
 
-      // Persist opt-in flags, then send all consent cards before responding
-      // so the UI Send button can stay in loading until every card is sent.
-      await userNotificationConsentService.updateIntegrationOptInFlags(
-        teamId,
-        chs,
-        message ??
-          userNotificationConsentService.DEFAULT_CONSENT_MESSAGE,
-      );
-
-      const incidentService = require("./services/incidentService");
-      const company = await incidentService.getCompanyData(teamId);
-      if (!company?.serviceUrl) {
-        res.status(400).send({
-          sent: 0,
-          skipped: 0,
-          error: "Company serviceUrl not found",
-        });
-        return;
-      }
-
-      const performedBy = userAadObjId || "admin";
-      const normalizedUserIds = Array.isArray(userIds) ? userIds : null;
-
+      // Opt-in flags + company lookup happen once inside sendConsentRequests.
+      // Await the full send so the UI Send button stays loading until done.
       const result = await userNotificationConsentService.sendConsentRequests({
         tenantId,
         teamId,
         channels: chs,
         message,
-        performedBy,
-        userIds: normalizedUserIds,
-        persistOptInFlags: false,
-        companyData: company,
+        performedBy: userAadObjId || "admin",
+        userIds: Array.isArray(userIds) ? userIds : null,
+        users: Array.isArray(users) ? users : null,
       });
 
       if (result?.error) {

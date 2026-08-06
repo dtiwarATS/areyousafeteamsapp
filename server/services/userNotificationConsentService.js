@@ -1010,6 +1010,36 @@ const getUserConversationDetails = async (tenantId, userIds) => {
   return map;
 };
 
+/**
+ * Normalize UI / caller recipient objects into the shape used for proactive send.
+ * Accepts camelCase (UI) or already-normalized UserId fields.
+ * Returns [] when input is missing/empty so callers can fall back.
+ */
+const normalizeRecipientObjects = (users) => {
+  if (!Array.isArray(users) || !users.length) return [];
+  const recipients = [];
+  for (const u of users) {
+    if (!u || typeof u !== "object") continue;
+    const userId = String(
+      u.UserId || u.userId || u.userAadObjId || u.user_aadobject_id || "",
+    ).trim();
+    if (!userId) continue;
+    recipients.push({
+      UserId: userId,
+      UserName: String(
+        u.UserName || u.userName || u.title || u.user_name || "",
+      ).trim(),
+      TeamsUserId: String(
+        u.TeamsUserId || u.teamsUserId || u.value || u.user_id || userId,
+      ).trim(),
+      ConversationId: normalizeStoredConversationId(
+        u.ConversationId || u.conversationId,
+      ),
+    });
+  }
+  return recipients;
+};
+
 const normalizeStoredConversationId = (value) => {
   if (value == null) return null;
   const id = String(value).trim();
@@ -1369,6 +1399,7 @@ const sendConsentRequests = async ({
   message,
   performedBy,
   userIds = null,
+  users = null,
   persistOptInFlags = true,
   companyData = null,
 }) => {
@@ -1401,8 +1432,12 @@ const sendConsentRequests = async ({
     return { sent: 0, skipped: 0, error: "TenantId not found" };
   }
 
+  // Recipients: prefer UI objects (skip DB) → bare userIds (DB lookup) → needing consent.
   let recipients;
-  if (Array.isArray(userIds) && userIds.length > 0) {
+  const fromUi = normalizeRecipientObjects(users);
+  if (fromUi.length > 0) {
+    recipients = fromUi;
+  } else if (Array.isArray(userIds) && userIds.length > 0) {
     const detailsMap = await getUserConversationDetails(
       effectiveTenant,
       userIds,
