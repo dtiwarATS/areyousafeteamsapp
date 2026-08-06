@@ -2602,7 +2602,7 @@ const handlerForSafetyBotTab = (app) => {
         tokens.map((fcmToken) =>
           sendPushNotification(fcmToken, title, body || "", payload, {
             dataOnly: false,
-            androidPriority: 'high',
+            androidPriority: "high",
           }),
         ),
       );
@@ -2972,9 +2972,7 @@ const handlerForSafetyBotTab = (app) => {
    */
   app.post("/areyousafetabhandler/requestAssistance", async (req, res) => {
     const clientIncData =
-      req.body?.adminlist ||
-      req.body?.data?.adminlist ||
-      null;
+      req.body?.adminlist || req.body?.data?.adminlist || null;
     await handleRequestAssistanceHttp(req, res, clientIncData);
   });
 
@@ -3072,8 +3070,7 @@ const handlerForSafetyBotTab = (app) => {
       // Desktop / socket fast path: prefer client-supplied adminlist (skip slow SQL).
       const parseClientAdminlist = () => {
         try {
-          const raw =
-            req.body?.data?.adminlist ?? req.body?.adminlist ?? null;
+          const raw = req.body?.data?.adminlist ?? req.body?.adminlist ?? null;
           if (raw == null) {
             return null;
           }
@@ -3257,9 +3254,7 @@ const handlerForSafetyBotTab = (app) => {
                     ...new Set(
                       officerList
                         .map((a) => a?.user_aadobject_id)
-                        .filter(
-                          (id) => id != null && String(id).trim() !== "",
-                        ),
+                        .filter((id) => id != null && String(id).trim() !== ""),
                     ),
                   ];
                   if (officerAads.length > 0) {
@@ -3412,7 +3407,8 @@ const handlerForSafetyBotTab = (app) => {
         `,
           json: {
             success: false,
-            message: "Admin not found. Please ensure you're using the correct link.",
+            message:
+              "Admin not found. Please ensure you're using the correct link.",
           },
         });
       }
@@ -3450,8 +3446,9 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       let adminInfo =
-        adminCandidates.find((row) => sentToIdSet.has(String(row.user_id).trim())) ||
-        adminCandidates[0];
+        adminCandidates.find((row) =>
+          sentToIdSet.has(String(row.user_id).trim()),
+        ) || adminCandidates[0];
 
       // Check if already responded
       const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
@@ -4662,9 +4659,7 @@ const handlerForSafetyBotTab = (app) => {
                  AND user_aadobject_id IS NOT NULL
                  AND user_aadobject_id <> ''`,
             )) || [];
-          const userAadObjIds = userIdRows
-            .map((r) => r.userId)
-            .filter(Boolean);
+          const userAadObjIds = userIdRows.map((r) => r.userId).filter(Boolean);
           if (userAadObjIds.length) {
             const graphUsers = await getUserPhone(
               phoneCtx.isAppPermissionGranted,
@@ -4746,14 +4741,8 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   app.post("/areyousafetabhandler/sendUserConsentRequest", async (req, res) => {
-    const {
-      teamId,
-      tenantId,
-      channels,
-      message,
-      userAadObjId,
-      userIds,
-    } = req.body || {};
+    const { teamId, tenantId, channels, message, userAadObjId, userIds } =
+      req.body || {};
     try {
       if (!teamId) {
         res.status(400).send({ error: "teamId is required" });
@@ -6315,74 +6304,68 @@ ORDER BY ACL.EventDateTime DESC;
     },
   );
 
-  app.post(
-    "/areyousafetabhandler/deleteAdvisoryAlert/",
-    async (req, res) => {
-      try {
-        const body = req.body || {};
-        const tenantId = String(body.tenantId || "").trim();
-        const advisoryType = String(body.advisoryType || body.type || "").trim();
-        const detailId = body.detailId;
-        const alertId = body.alertId;
+  app.post("/areyousafetabhandler/deleteAdvisoryAlert/", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const tenantId = String(body.tenantId || "").trim();
+      const advisoryType = String(body.advisoryType || body.type || "").trim();
+      const detailId = body.detailId;
+      const alertId = body.alertId;
 
-        if (!tenantId) {
-          return res.status(400).json({
-            success: false,
-            error: "tenantId is required",
-          });
-        }
-        if (advisoryType !== "Travel" && advisoryType !== "Weather") {
-          return res.status(400).json({
-            success: false,
-            error: "advisoryType must be Travel or Weather",
-          });
-        }
-
-        let result;
-        if (advisoryType === "Travel") {
-          if (detailId == null || String(detailId).trim() === "") {
-            return res.status(400).json({
-              success: false,
-              error: "detailId is required for Travel",
-            });
-          }
-          result = await travelSelectedDb.deleteTravelAdvisoryDetailForTenant({
-            tenantId,
-            detailId,
-          });
-        } else {
-          if (alertId == null || String(alertId).trim() === "") {
-            return res.status(400).json({
-              success: false,
-              error: "alertId is required for Weather",
-            });
-          }
-          result = await travelSelectedDb.removeWeatherAlertFromDetail({
-            tenantId,
-            alertId,
-          });
-        }
-
-        if (!result?.success) {
-          return res.status(400).json({
-            success: false,
-            error: result?.error || "Failed to delete alert",
-          });
-        }
-
-        res.json({ success: true });
-      } catch (err) {
-        console.error(
-          "Error in /areyousafetabhandler/deleteAdvisoryAlert:",
-          err,
-        );
-        res.status(500).json({
+      if (!tenantId) {
+        return res.status(400).json({
           success: false,
-          error: err?.message || "Failed to delete alert",
+          error: "tenantId is required",
         });
       }
-    },
-  );
+      if (advisoryType !== "Travel" && advisoryType !== "Weather") {
+        return res.status(400).json({
+          success: false,
+          error: "advisoryType must be Travel or Weather",
+        });
+      }
+
+      let result;
+      if (advisoryType === "Travel") {
+        if (detailId == null || String(detailId).trim() === "") {
+          return res.status(400).json({
+            success: false,
+            error: "detailId is required for Travel",
+          });
+        }
+        result = await travelSelectedDb.deleteTravelAdvisoryDetailForTenant({
+          tenantId,
+          detailId,
+        });
+      } else {
+        if (alertId == null || String(alertId).trim() === "") {
+          return res.status(400).json({
+            success: false,
+            error: "alertId is required for Weather",
+          });
+        }
+        result = await travelSelectedDb.removeWeatherAlertFromDetail({
+          tenantId,
+          alertId,
+        });
+      }
+
+      if (!result?.success) {
+        return res.status(400).json({
+          success: false,
+          error: result?.error || "Failed to delete alert",
+        });
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error in /areyousafetabhandler/deleteAdvisoryAlert:", err);
+      res.status(500).json({
+        success: false,
+        error: err?.message || "Failed to delete alert",
+      });
+    }
+  });
 
   app.get(
     "/areyousafetabhandler/getDismissedAdvisoryAlerts/",
@@ -6392,9 +6375,7 @@ ORDER BY ACL.EventDateTime DESC;
           req.query.tenantId || (req.body && req.body.tenantId) || "",
         ).trim();
         const advisoryType = String(
-          req.query.advisoryType ||
-            (req.body && req.body.advisoryType) ||
-            "",
+          req.query.advisoryType || (req.body && req.body.advisoryType) || "",
         ).trim();
 
         if (!tenantId) {
@@ -6413,10 +6394,7 @@ ORDER BY ACL.EventDateTime DESC;
         }
 
         const dismissedAlertKeys =
-          await travelSelectedDb.listDismissedAlertKeys(
-            tenantId,
-            advisoryType,
-          );
+          await travelSelectedDb.listDismissedAlertKeys(tenantId, advisoryType);
         res.json({ success: true, dismissedAlertKeys });
       } catch (err) {
         console.error(
@@ -6485,7 +6463,9 @@ ORDER BY ACL.EventDateTime DESC;
           ? body.removedCountryCodes
           : [];
         const addedLocationKeys = Array.isArray(body.addedLocationKeys)
-          ? body.addedLocationKeys.map((k) => String(k || "").trim()).filter(Boolean)
+          ? body.addedLocationKeys
+              .map((k) => String(k || "").trim())
+              .filter(Boolean)
           : [];
         const addedCountryCodes = Array.isArray(body.addedCountryCodes)
           ? body.addedCountryCodes
@@ -6660,8 +6640,7 @@ ORDER BY ACL.EventDateTime DESC;
               const syncNonUsCodes = hasTravelAddDelta
                 ? nonUsCodes.filter(
                     (code) =>
-                      addedCodeSet.has(code) ||
-                      addedKeySet.has(`${code}||`),
+                      addedCodeSet.has(code) || addedKeySet.has(`${code}||`),
                   )
                 : nonUsCodes;
               const syncUsCountryOnly = hasTravelAddDelta
@@ -6766,7 +6745,11 @@ ORDER BY ACL.EventDateTime DESC;
                       ).length > 0,
                   );
 
-                  if (!anyCacheMatch || !Array.isArray(matchAlerts) || matchAlerts.length === 0) {
+                  if (
+                    !anyCacheMatch ||
+                    !Array.isArray(matchAlerts) ||
+                    matchAlerts.length === 0
+                  ) {
                     try {
                       const parsed =
                         await ipawsFeed.fetchAndParseRecentAlerts();
@@ -6777,10 +6760,7 @@ ORDER BY ACL.EventDateTime DESC;
                         matchAlerts = liveAlerts;
                         alertSource = "live";
                         try {
-                          await ipawsCacheDb.upsertIpawsAlerts(
-                            liveAlerts,
-                            now,
-                          );
+                          await ipawsCacheDb.upsertIpawsAlerts(liveAlerts, now);
                         } catch (upsertCacheErr) {
                           console.error(
                             "saveTravelAdvisorySelection IPAWS cache upsert failed:",
@@ -6981,9 +6961,7 @@ ORDER BY ACL.EventDateTime DESC;
               advisoriesList = Array.isArray(teamData.advisories)
                 ? teamData.advisories
                 : [];
-              locationSelectionsOut = Array.isArray(
-                teamData.locationSelections,
-              )
+              locationSelectionsOut = Array.isArray(teamData.locationSelections)
                 ? teamData.locationSelections
                 : [];
               lastSyncedAtOut =
@@ -7065,14 +7043,10 @@ ORDER BY ACL.EventDateTime DESC;
         attributeTranslationService.invalidate(resolvedLanguageId);
       }
 
-      const {
-        languageId,
-        languageName,
-        cultureCode,
-        dictionary,
-      } = await attributeTranslationService.getUiTranslationDict(
-        resolvedLanguageId,
-      );
+      const { languageId, languageName, cultureCode, dictionary } =
+        await attributeTranslationService.getUiTranslationDict(
+          resolvedLanguageId,
+        );
       const visitorQuestionValues =
         await attributeTranslationService.getVisitorQuestionValues();
 
@@ -7220,13 +7194,12 @@ ORDER BY ACL.EventDateTime DESC;
       await axios.request(config).then(async (response) => {
         let accessToken = response.data.access_token;
 
-        res.send({ accessToken });
+        return res.send({ accessToken });
       });
     } catch (err) {
       console.log(err);
+      return res.send(false);
     }
-
-    res.send(false);
   });
 
   app.get("/areyousafetabhandler/SaveDynamicLocation", async (req, res) => {
