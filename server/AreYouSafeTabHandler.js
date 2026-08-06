@@ -1599,6 +1599,38 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get(
+    "/areyousafetabhandler/getRecurringOccurrencesBatch",
+    async (req, res) => {
+      const { incIds, month, year, userId } = req.query;
+      try {
+        const parsedIds = String(incIds || "")
+          .split(",")
+          .map((id) => Number(String(id).trim()))
+          .filter((id) => Number.isFinite(id) && id > 0);
+        if (parsedIds.length === 0) {
+          res.send({});
+          return;
+        }
+        const data = await incidentService.getRecurringOccurrencesBatch(
+          parsedIds,
+          month,
+          year,
+        );
+        res.send(data);
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          "",
+          "",
+          userId,
+          "error in /areyousafetabhandler/getRecurringOccurrencesBatch",
+        );
+        res.send({});
+      }
+    },
+  );
+
   app.get("/areyousafetabhandler/getIncOccurrenceData", async (req, res) => {
     const { incId, runAt, userId } = req.query;
     try {

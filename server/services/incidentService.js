@@ -1426,6 +1426,106 @@ const getRecurringOccurrences = async (incId, month = null, year = null) => {
   }
 };
 
+const getRecurringOccurrencesBatch = async (
+  incIds,
+  month = null,
+  year = null,
+) => {
+  const emptyResult = {};
+  try {
+    const ids = (Array.isArray(incIds) ? incIds : [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    if (ids.length === 0) {
+      return emptyResult;
+    }
+
+    const uniqueIds = [...new Set(ids)];
+    const idList = uniqueIds.join(",");
+
+    let filterSql = "";
+    if (month != null && month !== "" && !Number.isNaN(Number(month))) {
+      filterSql += ` AND MONTH(CONVERT(DATETIME, Mmrr.runAt)) = ${Number(month)}`;
+    }
+    if (year != null && year !== "" && !Number.isNaN(Number(year))) {
+      filterSql += ` AND YEAR(CONVERT(DATETIME, Mmrr.runAt)) = ${Number(year)}`;
+    }
+
+    const [runAtRows, lastRunRows, statusRows] = await Promise.all([
+      db.getDataFromDB(`
+        SELECT m.inc_id AS incId, Mmrr.runAt
+        FROM MSTeamsMemberResponsesRecurr Mmrr
+        INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
+        WHERE m.inc_id IN (${idList}) AND Mmrr.runAt IS NOT NULL ${filterSql}
+        GROUP BY m.inc_id, Mmrr.runAt
+        ORDER BY m.inc_id, CONVERT(DATETIME, Mmrr.runAt) DESC`),
+      db.getDataFromDB(`
+        SELECT INC_ID AS incId, LAST_RUN_AT AS lastRunAt
+        FROM MSTEAMS_SUB_EVENT
+        WHERE INC_ID IN (${idList})`),
+      db.getDataFromDB(`
+        SELECT id AS incId, inc_status_id AS incidentStatusId
+        FROM MSTeamsIncidents
+        WHERE id IN (${idList})`),
+    ]);
+
+    const lastRunByInc = {};
+    (lastRunRows || []).forEach((row) => {
+      lastRunByInc[Number(row.incId)] = row.lastRunAt || null;
+    });
+
+    const statusByInc = {};
+    (statusRows || []).forEach((row) => {
+      statusByInc[Number(row.incId)] = Number(row.incidentStatusId);
+    });
+
+    const runAtsByInc = {};
+    uniqueIds.forEach((id) => {
+      runAtsByInc[id] = [];
+    });
+    (runAtRows || []).forEach((row) => {
+      const id = Number(row.incId);
+      if (!runAtsByInc[id]) runAtsByInc[id] = [];
+      if (row.runAt != null && row.runAt !== "") {
+        runAtsByInc[id].push(row.runAt);
+      }
+    });
+
+    const byIncId = {};
+    uniqueIds.forEach((incId) => {
+      const runAtList = runAtsByInc[incId] || [];
+      let lastRunAt = lastRunByInc[incId] || null;
+      if (!lastRunAt && runAtList.length > 0) {
+        lastRunAt = runAtList[0];
+      }
+      const incStatusId =
+        statusByInc[incId] != null ? statusByInc[incId] : -1;
+      const incidentClosed = incStatusId === 2;
+      const occurrences = runAtList.map((runAt) => {
+        const isLatest = areRunAtEqual(runAt, lastRunAt);
+        const status = isLatest && !incidentClosed ? "Ongoing" : "Closed";
+        return { runAt, status, isLatest };
+      });
+      byIncId[String(incId)] = {
+        lastRunAt,
+        incidentStatusId: incStatusId,
+        occurrences,
+      };
+    });
+
+    return byIncId;
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in getRecurringOccurrencesBatch",
+    );
+    return emptyResult;
+  }
+};
+
 const getIncByOccurrenceRunAt = async (incId, runAt, userAadObjId = null) => {
   try {
     if (
@@ -5371,6 +5471,7 @@ module.exports = {
   getLastRunAt,
   areRunAtEqual,
   getRecurringOccurrences,
+  getRecurringOccurrencesBatch,
   getIncByOccurrenceRunAt,
   getIncGuidance,
   verifyDuplicateInc,
