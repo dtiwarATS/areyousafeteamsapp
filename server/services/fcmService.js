@@ -606,8 +606,12 @@ async function sendSafetyCheckPushToMembers(members, opts = {}) {
         pushTasks.push(
           (async () => {
             try {
+              // Use system notification so Android shows the tray even when app is killed.
+              // (data-only often fails to wake OEM-killed apps — same fix as SOS.)
               await sendPushNotification(row.fcm_token, title, body, data, {
-                dataOnly: true,
+                dataOnly: false,
+                androidPriority: 'high',
+                androidChannelId: 'safety_check_default',
               });
             } catch (err) {
               console.error(
