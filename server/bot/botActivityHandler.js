@@ -1623,7 +1623,10 @@ WHEN NOT MATCHED THEN
         log.addLog(
           `After Click On Im_Safte or need assistance start.:${incId} `,
         );
-        const incStatusId = await incidentService.getIncStatus(incId);
+        const incStatusId = await incidentService.getIncStatus(
+          incId,
+          inc?.runAt,
+        );
         if (incStatusId == -1 || incStatusId == 2) {
           await bot.sendIncStatusValidation(context, incStatusId);
           return {

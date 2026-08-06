@@ -80,6 +80,8 @@ const { getFilesByIncId } = require("../db/dbOperations");
 
             let interval = parser.parseExpression(cron, options);
             let nextRunAtUTC = interval.next().toISOString();
+            // Advancing LAST_RUN_AT closes the previous occurrence (derived status).
+            // Only the new LAST_RUN_AT remains In Progress; prior runAt values are Closed.
             let sqlUpdate = `UPDATE MSTEAMS_SUB_EVENT SET LAST_RUN_AT = '${job.runAt}', RUN_AT = '${nextRunAtUTC}', COMPLETED = 1 WHERE ID = ${subEventId}`;
             db.updateDataIntoDB(sqlUpdate, job?.createdById);
 

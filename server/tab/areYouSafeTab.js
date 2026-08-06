@@ -267,6 +267,10 @@ class AreYouSafeTab {
           const duration = this.getDurationInWeek(
             inc.incCreatedDate,
           ).toString();
+          const lastRunAt = inc.lastRunAt || null;
+          const occurrenceDate = lastRunAt
+            ? this.getStartDate(lastRunAt)
+            : startDate;
 
           let safe = null;
           let needAssistance = null;
@@ -381,6 +385,10 @@ class AreYouSafeTab {
             responses,
             selectedMembersCount,
             isDrill,
+            lastRunAt,
+            occurrenceDate,
+            runAt: lastRunAt,
+            isLatestOccurrence: true,
           };
           incFormatedData.push(incObj);
         });
@@ -400,6 +408,33 @@ class AreYouSafeTab {
     }
     return incFormatedData;
   };
+
+  /**
+   * Format a single recurring occurrence for the dashboard card.
+   * Past occurrences (runAt !== lastRunAt) are shown as Closed.
+   */
+  getFormatedOccurrenceIncData = (inc, teamInfo, userObjId, selectedRunAt) => {
+    if (inc == null) return null;
+    const formated = this.getFormatedIncData([inc], teamInfo, userObjId);
+    if (!formated || formated.length === 0) return null;
+    const card = formated[0];
+    const lastRunAt = inc.lastRunAt || null;
+    const isLatest =
+      selectedRunAt != null &&
+      incidentService.areRunAtEqual(selectedRunAt, lastRunAt);
+    const parentStatus = card.status;
+    const occurrenceClosed = !isLatest || parentStatus === "Closed";
+    return {
+      ...card,
+      status: occurrenceClosed ? "Closed" : "In progress",
+      parentStatus,
+      lastRunAt,
+      runAt: selectedRunAt,
+      occurrenceDate: this.getStartDate(selectedRunAt),
+      isLatestOccurrence: isLatest,
+    };
+  };
+
   getEnable = async (teamId, userAadObjId) => {
     const useAadObjId = await incidentService.getenablecheck(teamId);
   };

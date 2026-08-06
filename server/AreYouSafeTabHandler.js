@@ -1574,6 +1574,71 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.get("/areyousafetabhandler/getRecurringOccurrences", async (req, res) => {
+    const { incId, month, year, userId } = req.query;
+    try {
+      if (!incId || Number(incId) <= 0) {
+        res.send({ lastRunAt: null, occurrences: [] });
+        return;
+      }
+      const data = await incidentService.getRecurringOccurrences(
+        Number(incId),
+        month,
+        year,
+      );
+      res.send(data);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userId,
+        "error in /areyousafetabhandler/getRecurringOccurrences incId=" + incId,
+      );
+      res.send({ lastRunAt: null, occurrences: [] });
+    }
+  });
+
+  app.get("/areyousafetabhandler/getIncOccurrenceData", async (req, res) => {
+    const { incId, runAt, userId } = req.query;
+    try {
+      if (!incId || Number(incId) <= 0 || !runAt) {
+        res.send(null);
+        return;
+      }
+      const tabObj = new tab.AreYouSafeTab(userId);
+      const teamInfo = await incidentService.getUserTeamInfo(userId);
+      const incData = await incidentService.getIncByOccurrenceRunAt(
+        Number(incId),
+        runAt,
+        userId,
+      );
+      if (!incData) {
+        res.send(null);
+        return;
+      }
+      const formated = tabObj.getFormatedOccurrenceIncData(
+        incData,
+        teamInfo?.[0],
+        userId,
+        runAt,
+      );
+      res.send(formated);
+    } catch (err) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userId,
+        "error in /areyousafetabhandler/getIncOccurrenceData incId=" +
+          incId +
+          " runAt=" +
+          runAt,
+      );
+      res.send(null);
+    }
+  });
+
   app.get("/incidents", async (req, res) => {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {

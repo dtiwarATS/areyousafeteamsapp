@@ -4392,16 +4392,14 @@ const proccessWhatsappClick = async (
     const compData = await incidentService.getCompanyData(incData.teamId);
     const users = await incidentService.getUserInfo(incData.teamId, userId);
     let user = users[0];
-    const incStatusId = await incidentService.getIncStatus(eventId);
+    const incStatusId = await incidentService.getIncStatus(eventId, runat);
     if (incStatusId == 2) {
       try {
         await sendAcknowledgeViaWhatsapp(
           fromPhnNumber,
           text,
           compData.teamName,
-          incStatusId == 2
-            ? `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`
-            : `This incident is no longer available.`,
+          `The ${incData.incTitle} is closed. Please contact ${incData.incCreatedByName}`,
         );
       } catch (err) {
         console.log(

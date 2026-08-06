@@ -217,6 +217,13 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.response_via response_viaR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR,
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
   mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID,
+  COALESCE(
+    (SELECT TOP 1 LAST_RUN_AT FROM MSTEAMS_SUB_EVENT WHERE INC_ID = inc.id),
+    (SELECT TOP 1 r.runAt FROM MSTeamsMemberResponsesRecurr r
+     INNER JOIN MSTeamsMemberResponses mr ON mr.id = r.memberResponsesId
+     WHERE mr.inc_id = inc.id AND r.runAt IS NOT NULL
+     ORDER BY CONVERT(DATETIME, r.runAt) DESC)
+  ) lastRunAt,
       tu.COUNTRY AS userCountry,
       tu.CITY AS userCity,
       tu.STATE AS userState,
@@ -286,6 +293,13 @@ const getAllIncQueryByTenantId = (tenantId, orderBy, incidentId = null) => {
   mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.response_via response_viaR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR,
   mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
   mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID,
+  COALESCE(
+    (SELECT TOP 1 LAST_RUN_AT FROM MSTEAMS_SUB_EVENT WHERE INC_ID = inc.id),
+    (SELECT TOP 1 r.runAt FROM MSTeamsMemberResponsesRecurr r
+     INNER JOIN MSTeamsMemberResponses mr ON mr.id = r.memberResponsesId
+     WHERE mr.inc_id = inc.id AND r.runAt IS NOT NULL
+     ORDER BY CONVERT(DATETIME, r.runAt) DESC)
+  ) lastRunAt,
       tu.COUNTRY AS userCountry,
       tu.CITY AS userCity,
       tu.STATE AS userState,
@@ -1146,7 +1160,8 @@ const updateIncResponseData = async (
     updateRespRecurrQuery =
       `UPDATE MSTeamsMemberResponsesRecurr SET response = 1, response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = '${via}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}' )` +
       `and memberResponsesId = (select top 1 ID from MSTeamsMemberResponses ` +
-      `WHERE INC_ID = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}'))`;
+      `WHERE INC_ID = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}'))` +
+      ` and convert(datetime, runAt) = (select convert(datetime, LAST_RUN_AT) from MSTEAMS_SUB_EVENT where INC_ID = ${incidentId})`;
   } else {
     updateRespRecurrQuery = `UPDATE MSTeamsMemberResponses SET response = 1 , response_value = ${responseValue}, timestamp = '${respTimestamp}', response_via = '${via}' WHERE inc_id = ${incidentId} AND (user_id = '${userId}' or user_id = '${userAadObjId}')`;
   }
@@ -1213,6 +1228,13 @@ const updateIncResponseComment = async (
   const isRecurringPath =
     incData != null &&
     (incData.incType == "recurringIncident" || incData.runAt != null);
+
+  if (isRecurringPath && incData.runAt != null) {
+    const incStatusId = await getIncStatus(incidentId, incData.runAt);
+    if (incStatusId == -1 || incStatusId == 2) {
+      return Promise.resolve({ ignored: true, reason: "occurrence_closed" });
+    }
+  }
 
   // Always update parent row (one-time dashboard reads m.comment)
   const mainQuery = `UPDATE MSTeamsMemberResponses SET comment = '${escapedComment}' WHERE inc_id = ${incidentId} AND (${userIdMatch})`;
@@ -1333,6 +1355,133 @@ const getLastRunAt = async (incId) => {
     lastRunAt = result[0].lastRunAt;
   }
   return Promise.resolve(lastRunAt);
+};
+
+const areRunAtEqual = (a, b) => {
+  if (a == null || b == null || a === "" || b === "") return false;
+  const aTime = new Date(a).getTime();
+  const bTime = new Date(b).getTime();
+  if (!Number.isNaN(aTime) && !Number.isNaN(bTime)) {
+    return aTime === bTime;
+  }
+  return String(a).trim() === String(b).trim();
+};
+
+const getRecurringOccurrences = async (incId, month = null, year = null) => {
+  try {
+    let filterSql = "";
+    if (month != null && month !== "" && !Number.isNaN(Number(month))) {
+      filterSql += ` AND MONTH(CONVERT(DATETIME, Mmrr.runAt)) = ${Number(month)}`;
+    }
+    if (year != null && year !== "" && !Number.isNaN(Number(year))) {
+      filterSql += ` AND YEAR(CONVERT(DATETIME, Mmrr.runAt)) = ${Number(year)}`;
+    }
+
+    const sql = `
+      SELECT Mmrr.runAt
+      FROM MSTeamsMemberResponsesRecurr Mmrr
+      INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
+      WHERE m.inc_id = ${incId} AND Mmrr.runAt IS NOT NULL ${filterSql}
+      GROUP BY Mmrr.runAt
+      ORDER BY CONVERT(DATETIME, Mmrr.runAt) DESC`;
+
+    const result = await db.getDataFromDB(sql);
+    let lastRunAt = await getLastRunAt(incId);
+    const incStatusId = await getIncStatus(incId);
+    const incidentClosed = incStatusId === 2;
+
+    const runAtList = (result || [])
+      .map((row) => row.runAt)
+      .filter((runAt) => runAt != null && runAt !== "");
+
+    // If LAST_RUN_AT is missing, treat newest Recurr runAt as latest
+    if (!lastRunAt && runAtList.length > 0) {
+      lastRunAt = runAtList[0];
+    }
+
+    const occurrences = runAtList.map((runAt) => {
+      const isLatest = areRunAtEqual(runAt, lastRunAt);
+      const status = isLatest && !incidentClosed ? "Ongoing" : "Closed";
+      return {
+        runAt,
+        status,
+        isLatest,
+      };
+    });
+
+    return {
+      lastRunAt,
+      incidentStatusId: incStatusId,
+      occurrences,
+    };
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in getRecurringOccurrences incId=" + incId,
+    );
+    return { lastRunAt: null, incidentStatusId: -1, occurrences: [] };
+  }
+};
+
+const getIncByOccurrenceRunAt = async (incId, runAt, userAadObjId = null) => {
+  try {
+    if (
+      runAt == null ||
+      runAt === "" ||
+      runAt === "undefined" ||
+      runAt === "null"
+    ) {
+      return null;
+    }
+    const escapedRunAt = String(runAt).replace(/'/g, "''");
+    const selectQuery = `
+      SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.IS_DRILL as isDrill,
+      inc.selected_members, inc.created_by, inc.created_date, inc.CREATED_BY_NAME, inc.EVENT_START_DATE, inc.EVENT_START_TIME, inc.inc_type_id, 
+      inc.additionalInfo, inc.travelUpdate, inc.contactInfo, inc.situation, inc.isTestRecord, inc.isSavedAsDraft,inc.isSaveAsTemplate, inc.updatedOn, inc.template_name,inc.EnableSendReminders,inc.SendRemindersCount,inc.SendRemindersTime,
+      m.id respId, m.user_id, m.user_name, m.is_message_delivered, m.response, m.response_value, m.response_via,
+      m.SafetyCheckVisitorsQuestion1Response,
+      m.SafetyCheckVisitorsQuestion2Response,
+      m.SafetyCheckVisitorsQuestion3Response ,
+      m.comment, m.timestamp, m.message_delivery_status msgStatus, m.[timestamp], m.is_marked_by_admin, m.admin_name,
+      mRecurr.id respRecurrId, mRecurr.response responseR, mRecurr.response_value response_valueR, mRecurr.response_via response_viaR, mRecurr.comment commentR, mRecurr.admin_name admin_nameR,
+      mRecurr.is_marked_by_admin is_marked_by_adminR, mRecurr.message_delivery_status msgStatusR, mRecurr.is_message_delivered is_message_deliveredR, 
+      mRecurr.[timestamp] timestampR, inc.INC_STATUS_ID,
+      (SELECT TOP 1 LAST_RUN_AT FROM MSTEAMS_SUB_EVENT WHERE INC_ID = inc.id) lastRunAt,
+          tu.COUNTRY AS userCountry,
+          tu.CITY AS userCity,
+          tu.STATE AS userState,
+          tu.DEPARTMENT AS userDepartment,
+      inc.RESPONSE_TYPE, inc.RESPONSE_OPTIONS
+      FROM MSTeamsIncidents inc
+      LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
+      LEFT JOIN MSTeamsTeamsUsers tu ON tu.user_id = m.user_id
+      LEFT JOIN MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id
+        AND CONVERT(DATETIME, mRecurr.runAt) = CONVERT(DATETIME, '${escapedRunAt}')
+      WHERE inc.id = ${incId}
+      FOR JSON AUTO , INCLUDE_NULL_VALUES`;
+
+    const result = await db.getDataFromDB(selectQuery, userAadObjId);
+    const parsedResult = await parseEventData(result, true);
+    if (parsedResult != null && parsedResult.length > 0) {
+      return parsedResult[0];
+    }
+    return null;
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in getIncByOccurrenceRunAt incId=" +
+        incId +
+        " runAt=" +
+        runAt,
+    );
+    return null;
+  }
 };
 
 const verifyDuplicateInc = async (teamId, incTitle) => {
@@ -1604,9 +1753,30 @@ const updateIncStatus = async (incId, incStatus, userAadObjId) => {
   return Promise.resolve(isupdated);
 };
 
-const getIncStatus = async (incId) => {
+const getIncStatus = async (incId, runAt = null) => {
   let incStatusId = -1;
-  const sql = `select inc_status_id from MSTeamsIncidents where id = ${incId}`;
+  const hasRunAt =
+    runAt != null &&
+    runAt !== "" &&
+    runAt !== "undefined" &&
+    runAt !== "null";
+
+  // Optional runAt: treat old occurrence as Closed (2) via LAST_RUN_AT join
+  const sql = hasRunAt
+    ? `SELECT TOP 1
+         CASE
+           WHEN inc.INC_STATUS_ID = 2 THEN 2
+           WHEN mse.LAST_RUN_AT IS NULL THEN inc.INC_STATUS_ID
+           WHEN CONVERT(DATETIME, mse.LAST_RUN_AT) = CONVERT(DATETIME, '${String(
+             runAt,
+           ).replace(/'/g, "''")}') THEN inc.INC_STATUS_ID
+           ELSE 2
+         END AS inc_status_id
+       FROM MSTeamsIncidents inc
+       LEFT JOIN MSTEAMS_SUB_EVENT mse ON mse.INC_ID = inc.id
+       WHERE inc.id = ${incId}`
+    : `select inc_status_id from MSTeamsIncidents where id = ${incId}`;
+
   const result = await db.getDataFromDB(sql);
   if (result != null && result.length > 0) {
     incStatusId = Number(result[0]["inc_status_id"]);
@@ -4542,7 +4712,12 @@ const updateSafetyCheckStatus = async (
     }
     if (isRecurring) {
       sql = `update MSTeamsMemberResponsesRecurr set response = ${resp} , response_value = ${userRespValue}, timestamp = ${respTimestamp},
-      is_marked_by_admin = ${isMarkedByAdmin}, admin_aadObjId = ${adminAadObjId}, admin_name = ${adminName} where id = ${respId}`;
+      is_marked_by_admin = ${isMarkedByAdmin}, admin_aadObjId = ${adminAadObjId}, admin_name = ${adminName}
+      where id = ${respId}
+      and convert(datetime, runAt) = (select convert(datetime, LAST_RUN_AT) from MSTEAMS_SUB_EVENT mse
+        inner join MSTeamsMemberResponses m on m.inc_id = mse.INC_ID
+        inner join MSTeamsMemberResponsesRecurr r on r.memberResponsesId = m.id
+        where r.id = ${respId})`;
     } else {
       sql = `update MSTeamsMemberResponses set response = ${resp} , response_value = ${userRespValue}, timestamp = ${respTimestamp},
       is_marked_by_admin = ${isMarkedByAdmin}, admin_aadObjId = ${adminAadObjId}, admin_name = ${adminName} where id = ${respId}`;
@@ -4645,7 +4820,8 @@ const updateSafetyCheckStatusViaSMSLink = async (
        where runat = '${runat}' and 
       memberResponsesId = (select memberResponsesId from MSTeamsMemberResponsesRecurr where memberResponsesId in 
       (select id from MSTeamsMemberResponses where inc_id = ${incId} and 
-      (user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}' and team_id = '${team_id}')or user_id='${user_aadobject_id}')))`;
+      (user_id = (select top 1 USER_ID from MSTeamsTeamsUsers where user_aadobject_id = '${user_aadobject_id}' and team_id = '${team_id}')or user_id='${user_aadobject_id}')))
+      and convert(datetime, runat) = (select convert(datetime, LAST_RUN_AT) from MSTEAMS_SUB_EVENT where INC_ID = ${incId})`;
     } else {
       sql = `update MSTeamsMemberResponses set response = 1 , response_value = ${resp}, timestamp = '${formatedDate(
         "yyyy-MM-dd hh:mm:ss",
@@ -4668,13 +4844,13 @@ const updateSafetyCheckStatusViaSMSLink = async (
       err,
       "",
       "",
-      userAadObjId,
-      "error in updateSafetyCheckStatus incId=" +
+      user_aadobject_id,
+      "error in updateSafetyCheckStatusViaSMSLink incId=" +
       incId +
       " response=" +
       resp +
       " respTimestamp=" +
-      new date().toString(),
+      new Date().toString(),
     );
   }
   return false;
@@ -5193,6 +5369,9 @@ module.exports = {
   getCompanyData,
   addMemberResponseDetails,
   getLastRunAt,
+  areRunAtEqual,
+  getRecurringOccurrences,
+  getIncByOccurrenceRunAt,
   getIncGuidance,
   verifyDuplicateInc,
   getAllIncByTeamId,

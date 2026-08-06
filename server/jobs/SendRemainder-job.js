@@ -301,7 +301,13 @@ const { processSafetyBotError } = require("../models/processError");
   (select top 1 email from MSTeamsTeamsUsers where user_id = mstm.user_id) 'email',
   (select top 1 LANGUAGE_ID from MSTeamsTeamsUsers where user_id = mstm.user_id) 'LANGUAGE_ID'
   ,mstm.user_id,mstm.inc_id,Mmrr.id as 'MemberResponsesRecurrId'
-  from  MSTeamsMemberResponsesRecurr Mmrr left join MSTeamsMemberResponses mstm on mstm.id=Mmrr.memberResponsesId  left join MSTeamsIncidents MST on mst.id = mstm.inc_id where Mmrr.response=0 and mstm.inc_id 
+  from  MSTeamsMemberResponsesRecurr Mmrr
+  left join MSTeamsMemberResponses mstm on mstm.id=Mmrr.memberResponsesId
+  left join MSTeamsIncidents MST on mst.id = mstm.inc_id
+  left join MSTEAMS_SUB_EVENT mse on mse.INC_ID = mstm.inc_id
+  where Mmrr.response=0
+  and CONVERT(DATETIME, Mmrr.runAt) = CONVERT(DATETIME, mse.LAST_RUN_AT)
+  and mstm.inc_id 
   IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 and SendRemindersCount > 0 and SendRemindersTime > 0 ) and MST.inc_type='recurringIncident'`;
   await sendProactiveMessage(querry, querryReccuring);
 

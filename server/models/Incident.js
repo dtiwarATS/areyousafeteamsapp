@@ -45,6 +45,8 @@ class Incident {
     isDrill,
     IS_DRILL,
     TRANSLATED_TEXT_JSON,
+    lastRunAt,
+    LAST_RUN_AT,
   }) {
     this.incId = id;
     this.incTitle = inc_name;
@@ -94,6 +96,7 @@ class Incident {
     this.isDrill = isDrill;
     this.IS_DRILL = IS_DRILL;
     this.TRANSLATED_TEXT_JSON = TRANSLATED_TEXT_JSON;
+    this.lastRunAt = lastRunAt != null ? lastRunAt : LAST_RUN_AT || null;
   }
 }
 
