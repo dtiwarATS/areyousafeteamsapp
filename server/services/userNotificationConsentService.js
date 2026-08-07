@@ -1832,17 +1832,23 @@ const getOffice365PhoneUserIdSet = async (tenantId, candidateUserIds, isAppPermi
       withPhone.add(id);
     }
   } catch (err) {
+    const isNoPhonePermission =
+      err?.type === "NoPhonePermission" ||
+      err?.message === "No phone permission granted";
     console.log(
       "getOffice365PhoneUserIdSet failed:",
       err?.message || err?.type || err,
     );
-    processSafetyBotError(
-      err,
-      "",
-      "",
-      "",
-      "error fetching Graph phones for consent phone-eligible job",
-    );
+    // Expected when tenant has not granted User.Read.All — do not email.
+    if (!isNoPhonePermission) {
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        "",
+        "error fetching Graph phones for consent phone-eligible job",
+      );
+    }
   }
   return withPhone;
 };
