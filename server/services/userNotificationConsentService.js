@@ -1466,6 +1466,37 @@ const sendConsentRequests = async ({
     return { sent: 0, skipped: 0, message: "No users need consent" };
   }
 
+  // Fill missing conversationIds from DB so Send can reuse chats (UI often omits them).
+  const missingConvUserIds = recipients
+    .filter((r) => !normalizeStoredConversationId(r.ConversationId))
+    .map((r) => r.UserId || r.user_aadobject_id)
+    .filter(Boolean);
+  if (missingConvUserIds.length) {
+    try {
+      const detailsMap = await getUserConversationDetails(
+        effectiveTenant,
+        missingConvUserIds,
+      );
+      recipients = recipients.map((r) => {
+        const userId = r.UserId || r.user_aadobject_id;
+        if (normalizeStoredConversationId(r.ConversationId)) return r;
+        const details = detailsMap.get(userId);
+        if (!details) return r;
+        return {
+          ...r,
+          UserName: r.UserName || details.UserName || "",
+          TeamsUserId: r.TeamsUserId || details.TeamsUserId || userId,
+          ConversationId: normalizeStoredConversationId(details.ConversationId),
+        };
+      });
+    } catch (convErr) {
+      console.log(
+        "Consent send: failed to fill conversationIds from DB",
+        convErr?.message || convErr,
+      );
+    }
+  }
+
   const recipientIds = recipients.map((r) => r.UserId || r.user_aadobject_id);
   const needsPhoneEligibility = chs.some((ch) =>
     PHONE_CONSENT_CHANNELS.includes(ch),
@@ -1508,12 +1539,16 @@ const sendConsentRequests = async ({
           effectiveTenant,
           noPhoneIds,
         );
+        const toMark = [];
         for (const userId of noPhoneIds) {
           const m = markers.get(userId);
           if (m?.noPhone || m?.hadPhoneBaseline || m?.sent) continue;
-          await recordPhoneEligibilityMarker(
+          toMark.push(userId);
+        }
+        if (toMark.length) {
+          await recordPhoneEligibilityMarkersBulk(
             effectiveTenant,
-            userId,
+            toMark,
             CONSENT_ACTION.PhoneEligibleNoPhone,
           );
         }
@@ -1610,16 +1645,21 @@ const sendConsentRequests = async ({
         existingConsent[ch] = statusMap.get(`${userId}|${ch}`) || null;
       }
 
-      const pendingChannels = channelsForUser.filter(
-        (ch) => existingConsent[ch] !== CONSENT_STATUS.OptedIn,
-      );
-      if (!pendingChannels.length) {
+      // Skip OptedIn and already-Pending (Send is not a resend).
+      const channelsToSend = channelsForUser.filter((ch) => {
+        const status = existingConsent[ch];
+        return (
+          status !== CONSENT_STATUS.OptedIn &&
+          status !== CONSENT_STATUS.Pending
+        );
+      });
+      if (!channelsToSend.length) {
         return "skipped";
       }
 
       const card = buildConsentAdaptiveCard({
         message: cardMessage,
-        channelsRequested: pendingChannels,
+        channelsRequested: channelsToSend,
         existingConsent,
         tenantId: effectiveTenant,
         teamId,
@@ -1674,7 +1714,7 @@ const sendConsentRequests = async ({
         await markConsentRequestSent({
           tenantId: effectiveTenant,
           userId,
-          channels: pendingChannels,
+          channels: channelsToSend,
           performedBy: performedBy || "admin",
           teamsMessageId: resp?.activityId || null,
           conversationId:
@@ -1931,6 +1971,44 @@ const recordPhoneEligibilityMarker = async (tenantId, userId, action) => {
     action,
     performedBy: JOB_PERFORMED_BY,
   });
+};
+
+/** Bulk-insert phone-eligibility history markers (avoids N sequential inserts on Send). */
+const recordPhoneEligibilityMarkersBulk = async (tenantId, userIds, action) => {
+  const ids = [
+    ...new Set(
+      (userIds || [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean),
+    ),
+  ];
+  if (!tenantId || !ids.length || !action) return;
+
+  const CHUNK = 100;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK);
+    const values = slice
+      .map(
+        (userId) => `(
+      N'${escapeSql(tenantId)}',
+      N'${escapeSql(userId)}',
+      N'${escapeSql(PHONE_ELIGIBILITY_HISTORY_CHANNEL)}',
+      N'${escapeSql(action)}',
+      NULL,
+      NULL,
+      SYSUTCDATETIME(),
+      N'${escapeSql(JOB_PERFORMED_BY)}'
+    )`,
+      )
+      .join(",\n");
+    const qry = `
+      INSERT INTO UserNotificationConsentHistory
+        (TenantId, UserId, NotificationChannel, Action, TeamsMessageId, ConversationId, ActionDate, PerformedBy)
+      VALUES
+      ${values}
+    `;
+    await db.getDataFromDB(qry);
+  }
 };
 
 /**
