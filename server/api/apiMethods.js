@@ -273,9 +273,16 @@ const getUsersConversationId = async (
       resp.error = err.message;
       resp.errObj = err;
     }
-    //console.log(err);
-    //if (sendErrorEmail)
-    {
+    const errMsg = String(err?.message || err || "");
+    const isPersonalScopeMissing =
+      /Bot is not installed in user's personal scope/i.test(errMsg);
+    // Expected when user never opened the bot in 1:1 chat — log only, no error email.
+    if (isPersonalScopeMissing) {
+      console.log(
+        "getUsersConversationId: bot not in personal scope (skip email)",
+        userAadObjId || members?.[0]?.aadObjectId || members?.[0]?.id,
+      );
+    } else if (sendErrorEmail) {
       processSafetyBotError(
         err,
         "",
@@ -477,7 +484,8 @@ const sendProactiveMessaageToUser = async (
   userAadObjId,
   conversationId = null,
   connectorClient = null,
-  filesData = null
+  filesData = null,
+  sendErrorEmail = true,
 ) => {
   if (log == null) {
     log = new AYSLog();
@@ -525,7 +533,9 @@ const sendProactiveMessaageToUser = async (
           tenantId,
           members,
           serviceUrl,
-          userAadObjId
+          userAadObjId,
+          sendErrorEmail,
+          resp,
         );
         // const conversationResp = await connectorClient.conversations.createConversation(conversationParameters);
         // if (conversationResp?.id != null) {

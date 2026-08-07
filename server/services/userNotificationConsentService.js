@@ -639,6 +639,8 @@ const getConsentStats = async (tenantId, options = {}) => {
 
   let phoneEligibleTotal = 0;
   let emailEligibleTotal = 0;
+  let phoneEligibleIds = [];
+  let emailEligibleIds = [];
   try {
     const eligibility = await resolveConsentEligibility(tenantId, {
       office365PhoneEligibleUserIds: options.office365PhoneEligibleUserIds,
@@ -647,8 +649,10 @@ const getConsentStats = async (tenantId, options = {}) => {
       useCache: false,
       writeCache: true,
     });
-    phoneEligibleTotal = eligibility.phoneEligibleSet.size;
-    emailEligibleTotal = eligibility.emailEligibleSet.size;
+    phoneEligibleIds = Array.from(eligibility.phoneEligibleSet || []);
+    emailEligibleIds = Array.from(eligibility.emailEligibleSet || []);
+    phoneEligibleTotal = phoneEligibleIds.length;
+    emailEligibleTotal = emailEligibleIds.length;
     // Legacy callers that only pass a precomputed O365 total (no IDs) still work
     // when spreadsheet/empty source already resolved; if O365 and only total given:
     if (
@@ -673,6 +677,18 @@ const getConsentStats = async (tenantId, options = {}) => {
     } catch (_) {
       phoneEligibleTotal = Number(options.office365PhoneEligibleTotal || 0);
     }
+    if (
+      options.office365PhoneEligibleUserIds &&
+      (Array.isArray(options.office365PhoneEligibleUserIds) ||
+        options.office365PhoneEligibleUserIds instanceof Set)
+    ) {
+      phoneEligibleIds = Array.from(options.office365PhoneEligibleUserIds)
+        .map((id) => String(id || "").trim())
+        .filter(Boolean);
+      if (!phoneEligibleTotal && phoneEligibleIds.length) {
+        phoneEligibleTotal = phoneEligibleIds.length;
+      }
+    }
     try {
       emailEligibleTotal = await countValidEmails(tenantId);
     } catch (_) {
@@ -680,7 +696,10 @@ const getConsentStats = async (tenantId, options = {}) => {
     }
   }
 
-  const stats = {};
+  const stats = {
+    phoneEligibleIds,
+    emailEligibleIds,
+  };
   for (const ch of CONSENT_CHANNELS) {
     stats[ch] = {
       optedIn: 0,
@@ -1684,6 +1703,7 @@ const sendConsentRequests = async ({
           existingConversationId,
           batchConnectorClient,
           null,
+          false, // do not email expected Teams install failures during consent send
         );
 
         // Wrong/expired conversationId or send failure → skip this user, continue others
@@ -1724,13 +1744,18 @@ const sendConsentRequests = async ({
           `Consent send skipped for user ${userId}:`,
           err?.message || err,
         );
-        processSafetyBotError(
-          err,
-          teamId || "",
-          "",
-          userId,
-          "error sending consent Adaptive Card",
-        );
+        const errMsg = String(err?.message || err || "");
+        const isPersonalScopeMissing =
+          /Bot is not installed in user's personal scope/i.test(errMsg);
+        if (!isPersonalScopeMissing) {
+          processSafetyBotError(
+            err,
+            teamId || "",
+            "",
+            userId,
+            "error sending consent Adaptive Card",
+          );
+        }
         return "skipped";
       }
     },
