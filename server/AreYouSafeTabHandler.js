@@ -4908,6 +4908,8 @@ const handlerForSafetyBotTab = (app) => {
       userAadObjId,
       userIds,
       users,
+      serviceUrl,
+      integrationConfigure,
     } = req.body || {};
     try {
       if (!teamId) {
@@ -4929,8 +4931,23 @@ const handlerForSafetyBotTab = (app) => {
         return;
       }
 
-      // Opt-in flags + company lookup happen once inside sendConsentRequests.
-      // Await the full send so the UI Send button stays loading until done.
+      const trimmedServiceUrl =
+        typeof serviceUrl === "string" ? serviceUrl.trim() : "";
+      if (!trimmedServiceUrl) {
+        res.status(400).send({
+          sent: 0,
+          skipped: 0,
+          error: "serviceUrl is required",
+        });
+        return;
+      }
+      const companyData = {
+        serviceUrl: trimmedServiceUrl,
+        userTenantId: tenantId || null,
+        teamId,
+      };
+
+      // Opt-in flags saved inside sendConsentRequests; serviceUrl + config from UI.
       const result = await userNotificationConsentService.sendConsentRequests({
         tenantId,
         teamId,
@@ -4939,6 +4956,9 @@ const handlerForSafetyBotTab = (app) => {
         performedBy: userAadObjId || "admin",
         userIds: Array.isArray(userIds) ? userIds : null,
         users: Array.isArray(users) ? users : null,
+        companyData,
+        integrationConfigure:
+          integrationConfigure != null ? integrationConfigure : null,
       });
 
       if (result?.error) {

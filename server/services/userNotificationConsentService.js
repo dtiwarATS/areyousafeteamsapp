@@ -1363,15 +1363,11 @@ const updateIntegrationOptInFlags = async (
   teamId,
   selectedChannels,
   message,
+  existingIntegrationConfigure = null,
 ) => {
   const safeTeamId = escapeSql(teamId);
-  const companyRows =
-    (await db.getDataFromDB(
-      `SELECT INTEGRATION_CONFIGURE FROM MSTeamsInstallationDetails WHERE team_id = N'${safeTeamId}'`,
-    )) || [];
-  if (!companyRows.length) return null;
+  let config = parseIntegrationConfig(existingIntegrationConfigure);
 
-  let config = parseIntegrationConfig(companyRows[0].INTEGRATION_CONFIGURE);
   if (!config || typeof config !== "object") {
     config = { office365: { enabled: false }, channels: {} };
   }
@@ -1394,6 +1390,8 @@ const updateIntegrationOptInFlags = async (
     };
   }
 
+  if (!safeTeamId) return config;
+
   const json = escapeSql(JSON.stringify(config));
   await db.getDataFromDB(
     `UPDATE MSTeamsInstallationDetails
@@ -1410,6 +1408,9 @@ const updateIntegrationOptInFlags = async (
  * - Email → user must have a valid email
  * Users without a phone still get a PhoneEligibleNoPhone history marker when phone
  * channels are selected, so the hourly job can send once a phone appears later.
+ *
+ * skipEligibilityRecheck: caller already filtered recipients (e.g. phone-eligible
+ * hourly job). Skips Graph/DB eligibility + NoPhone markers; still skips OptedIn.
  */
 const sendConsentRequests = async ({
   tenantId,
@@ -1421,6 +1422,8 @@ const sendConsentRequests = async ({
   users = null,
   persistOptInFlags = true,
   companyData = null,
+  integrationConfigure = null,
+  skipEligibilityRecheck = false,
 }) => {
   const chs = normalizeChannels(channels);
   if (!chs.length) {
@@ -1433,16 +1436,17 @@ const sendConsentRequests = async ({
       teamId,
       chs,
       message ?? DEFAULT_CONSENT_MESSAGE,
+      integrationConfigure,
     );
   }
 
+  // serviceUrl must come from caller (UI always passes it; jobs pass companyData).
   let company = companyData;
-  if (!company && teamId) {
-    const incidentService = require("./incidentService");
-    company = await incidentService.getCompanyData(teamId);
+  if (company?.serviceUrl && !company.userTenantId && !company.user_tenant_id && tenantId) {
+    company = { ...company, userTenantId: tenantId };
   }
   if (!company?.serviceUrl) {
-    return { sent: 0, skipped: 0, error: "Company serviceUrl not found" };
+    return { sent: 0, skipped: 0, error: "serviceUrl is required" };
   }
 
   const effectiveTenant =
@@ -1451,8 +1455,9 @@ const sendConsentRequests = async ({
     return { sent: 0, skipped: 0, error: "TenantId not found" };
   }
 
-  // Recipients: prefer UI objects (skip DB) → bare userIds (DB lookup) → needing consent.
+  // Recipients: prefer UI objects → bare userIds (one DB lookup) → needing consent.
   let recipients;
+  let lookedUpConversationDetails = false;
   const fromUi = normalizeRecipientObjects(users);
   if (fromUi.length > 0) {
     recipients = fromUi;
@@ -1461,6 +1466,7 @@ const sendConsentRequests = async ({
       effectiveTenant,
       userIds,
     );
+    lookedUpConversationDetails = true;
     recipients = userIds.map((id) => {
       const details = detailsMap.get(id);
       return {
@@ -1485,117 +1491,132 @@ const sendConsentRequests = async ({
     return { sent: 0, skipped: 0, message: "No users need consent" };
   }
 
-  // Fill missing conversationIds from DB so Send can reuse chats (UI often omits them).
-  const missingConvUserIds = recipients
-    .filter((r) => !normalizeStoredConversationId(r.ConversationId))
-    .map((r) => r.UserId || r.user_aadobject_id)
-    .filter(Boolean);
-  if (missingConvUserIds.length) {
-    try {
-      const detailsMap = await getUserConversationDetails(
-        effectiveTenant,
-        missingConvUserIds,
-      );
-      recipients = recipients.map((r) => {
-        const userId = r.UserId || r.user_aadobject_id;
-        if (normalizeStoredConversationId(r.ConversationId)) return r;
-        const details = detailsMap.get(userId);
-        if (!details) return r;
-        return {
-          ...r,
-          UserName: r.UserName || details.UserName || "",
-          TeamsUserId: r.TeamsUserId || details.TeamsUserId || userId,
-          ConversationId: normalizeStoredConversationId(details.ConversationId),
-        };
-      });
-    } catch (convErr) {
-      console.log(
-        "Consent send: failed to fill conversationIds from DB",
-        convErr?.message || convErr,
-      );
+  // Fill missing conversationIds from DB (UI may omit them). Skip when userIds
+  // path already ran the same lookup — avoid a second identical query.
+  if (!lookedUpConversationDetails) {
+    const missingConvUserIds = recipients
+      .filter((r) => !normalizeStoredConversationId(r.ConversationId))
+      .map((r) => r.UserId || r.user_aadobject_id)
+      .filter(Boolean);
+    if (missingConvUserIds.length) {
+      try {
+        const detailsMap = await getUserConversationDetails(
+          effectiveTenant,
+          missingConvUserIds,
+        );
+        recipients = recipients.map((r) => {
+          const userId = r.UserId || r.user_aadobject_id;
+          if (normalizeStoredConversationId(r.ConversationId)) return r;
+          const details = detailsMap.get(userId);
+          if (!details) return r;
+          return {
+            ...r,
+            UserName: r.UserName || details.UserName || "",
+            TeamsUserId: r.TeamsUserId || details.TeamsUserId || userId,
+            ConversationId: normalizeStoredConversationId(
+              details.ConversationId,
+            ),
+          };
+        });
+      } catch (convErr) {
+        console.log(
+          "Consent send: failed to fill conversationIds from DB",
+          convErr?.message || convErr,
+        );
+      }
     }
   }
 
-  const recipientIds = recipients.map((r) => r.UserId || r.user_aadobject_id);
   const needsPhoneEligibility = chs.some((ch) =>
     PHONE_CONSENT_CHANNELS.includes(ch),
   );
   const needsEmailEligibility = chs.includes("email");
 
-  let phoneEligibleSet = new Set();
-  let emailEligibleSet = new Set();
-  try {
-    // Prefer sets from a recent getConsentStats (same who-list as the UI counts).
-    const eligibility = await resolveConsentEligibility(effectiveTenant, {
-      useCache: true,
-      writeCache: true,
-    });
-    phoneEligibleSet = needsPhoneEligibility
-      ? eligibility.phoneEligibleSet
-      : new Set();
-    emailEligibleSet = needsEmailEligibility
-      ? eligibility.emailEligibleSet
-      : new Set();
-  } catch (eligErr) {
-    processSafetyBotError(
-      eligErr,
-      teamId || "",
-      "",
-      "",
-      "error resolving channel eligibility for consent send",
-    );
-  }
-
-  // Phone channels selected but user has no phone yet: baseline for hourly job
-  // (send only when a phone appears later). Do not create Pending phone rows.
-  if (needsPhoneEligibility) {
+  if (skipEligibilityRecheck) {
+    // Caller already chose eligible recipients (hourly phone job). Trust channels.
+    recipients = recipients.map((r) => ({ ...r, channelsForUser: chs }));
+  } else {
+    let phoneEligibleSet = new Set();
+    let emailEligibleSet = new Set();
     try {
-      const noPhoneIds = recipientIds
-        .map((id) => String(id || "").trim())
-        .filter((id) => id && !phoneEligibleSet.has(id));
-      if (noPhoneIds.length) {
-        const markers = await loadPhoneEligibilityHistoryMarkers(
-          effectiveTenant,
-          noPhoneIds,
-        );
-        const toMark = [];
-        for (const userId of noPhoneIds) {
-          const m = markers.get(userId);
-          if (m?.noPhone || m?.hadPhoneBaseline || m?.sent) continue;
-          toMark.push(userId);
-        }
-        if (toMark.length) {
-          await recordPhoneEligibilityMarkersBulk(
-            effectiveTenant,
-            toMark,
-            CONSENT_ACTION.PhoneEligibleNoPhone,
-          );
-        }
-      }
-    } catch (markerErr) {
+      // Prefer sets from a recent getConsentStats (same who-list as the UI counts).
+      const eligibility = await resolveConsentEligibility(effectiveTenant, {
+        useCache: true,
+        writeCache: true,
+      });
+      phoneEligibleSet = needsPhoneEligibility
+        ? eligibility.phoneEligibleSet
+        : new Set();
+      emailEligibleSet = needsEmailEligibility
+        ? eligibility.emailEligibleSet
+        : new Set();
+    } catch (eligErr) {
       processSafetyBotError(
-        markerErr,
+        eligErr,
         teamId || "",
         "",
         "",
-        "error recording phone-eligibility NoPhone markers on consent send",
+        "error resolving channel eligibility for consent send",
       );
     }
-  }
 
-  // Attach per-user eligible channels; drop users with none.
-  recipients = recipients
-    .map((r) => {
-      const userId = r.UserId || r.user_aadobject_id;
-      const channelsForUser = filterChannelsByEligibility(
-        chs,
-        userId,
-        phoneEligibleSet,
-        emailEligibleSet,
-      );
-      return { ...r, channelsForUser };
-    })
-    .filter((r) => (r.channelsForUser || []).length > 0);
+    // Phone channels: baseline NoPhone for hourly job. UI often sends only eligible
+    // users — use all tenant ids so ineligible users still get markers.
+    if (needsPhoneEligibility) {
+      try {
+        const idsForMarkers =
+          fromUi.length > 0
+            ? await getAllTenantUserIds(effectiveTenant)
+            : recipients
+                .map((r) => r.UserId || r.user_aadobject_id)
+                .filter(Boolean);
+        const noPhoneIds = idsForMarkers
+          .map((id) => String(id || "").trim())
+          .filter((id) => id && !phoneEligibleSet.has(id));
+        if (noPhoneIds.length) {
+          const markers = await loadPhoneEligibilityHistoryMarkers(
+            effectiveTenant,
+            noPhoneIds,
+          );
+          const toMark = [];
+          for (const userId of noPhoneIds) {
+            const m = markers.get(userId);
+            if (m?.noPhone || m?.hadPhoneBaseline || m?.sent) continue;
+            toMark.push(userId);
+          }
+          if (toMark.length) {
+            await recordPhoneEligibilityMarkersBulk(
+              effectiveTenant,
+              toMark,
+              CONSENT_ACTION.PhoneEligibleNoPhone,
+            );
+          }
+        }
+      } catch (markerErr) {
+        processSafetyBotError(
+          markerErr,
+          teamId || "",
+          "",
+          "",
+          "error recording phone-eligibility NoPhone markers on consent send",
+        );
+      }
+    }
+
+    // Attach per-user eligible channels; drop users with none.
+    recipients = recipients
+      .map((r) => {
+        const userId = r.UserId || r.user_aadobject_id;
+        const channelsForUser = filterChannelsByEligibility(
+          chs,
+          userId,
+          phoneEligibleSet,
+          emailEligibleSet,
+        );
+        return { ...r, channelsForUser };
+      })
+      .filter((r) => (r.channelsForUser || []).length > 0);
+  }
 
   if (!recipients.length) {
     return {
@@ -2223,6 +2244,7 @@ const processNewlyPhoneEligibleConsent = async () => {
       }
       if (!company?.serviceUrl) continue;
 
+      // Job already verified these users now have a phone — skip eligibility recheck.
       const result = await sendConsentRequests({
         tenantId,
         teamId,
@@ -2233,6 +2255,7 @@ const processNewlyPhoneEligibleConsent = async () => {
         userIds: toSend,
         persistOptInFlags: false,
         companyData: company,
+        skipEligibilityRecheck: true,
       });
 
       summary.sent += Number(result?.sent || 0);
