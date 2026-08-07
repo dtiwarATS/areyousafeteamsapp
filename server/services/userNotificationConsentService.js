@@ -1645,14 +1645,10 @@ const sendConsentRequests = async ({
         existingConsent[ch] = statusMap.get(`${userId}|${ch}`) || null;
       }
 
-      // Skip OptedIn and already-Pending (Send is not a resend).
-      const channelsToSend = channelsForUser.filter((ch) => {
-        const status = existingConsent[ch];
-        return (
-          status !== CONSENT_STATUS.OptedIn &&
-          status !== CONSENT_STATUS.Pending
-        );
-      });
+      // Skip OptedIn only — Pending users get a reminder on Send again.
+      const channelsToSend = channelsForUser.filter(
+        (ch) => existingConsent[ch] !== CONSENT_STATUS.OptedIn,
+      );
       if (!channelsToSend.length) {
         return "skipped";
       }
