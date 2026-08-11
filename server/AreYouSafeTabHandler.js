@@ -3268,19 +3268,37 @@ const handlerForSafetyBotTab = (app) => {
         }
       }
       var userlocation = null;
-      if (req.body.data.ulocData != undefined && req.body.data.ulocData != "") {
-        userlocation = JSON.parse(req.body.data.ulocData);
+      if (req.body?.data?.ulocData != undefined && req.body.data.ulocData != "") {
+        try {
+          userlocation = JSON.parse(req.body.data.ulocData);
+        } catch {
+          userlocation = null;
+        }
       }
+
+      if (
+        incData === null ||
+        (Array.isArray(incData) && incData.length === 0) ||
+        !incData[0] ||
+        incData[0].length === 0
+      ) {
+        res.send(false);
+        return;
+      }
+
+      // Ack immediately so SC tab / desktop clients are not blocked on
+      // sequential Teams + SMS/email/WhatsApp delivery.
+      res.send(true);
+
       try {
         const tabObj = new tab.AreYouSafeTab();
-        const isProactiveMessageSent = await tabObj.requestAssistance(
+        await tabObj.requestAssistance(
           incData,
           userAadObjId,
           userlocation,
           requestAssistanceid,
           issendemail,
         );
-        res.send(isProactiveMessageSent);
       } catch (err) {
         processSafetyBotError(
           err,
@@ -3290,7 +3308,7 @@ const handlerForSafetyBotTab = (app) => {
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
           userlocation +
           " req.query.adminlist=" +
-          req.body.data,
+          req.body?.data,
         );
       }
     },

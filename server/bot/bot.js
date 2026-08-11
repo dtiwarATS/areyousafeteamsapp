@@ -4712,7 +4712,7 @@ const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
       maxBodyLength: Infinity,
       url: `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
       data: data,
-      // timeout: 10000,
+      timeout: 10000,
     };
     await axios
       .request(config)
@@ -4739,7 +4739,7 @@ const getUserPhone = async (IS_APP_PERMISSION_GRANTED, tenantId, arrIds) => {
               let config = {
                 method: "get",
                 maxBodyLength: Infinity,
-                // timeout: 10000,
+                timeout: 10000,
                 url:
                   "https://graph.microsoft.com/v1.0/users?$select=displayName,id,businessPhones,mobilePhone" +
                   "&$filter=id in (" +
