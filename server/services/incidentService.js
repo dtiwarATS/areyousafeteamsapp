@@ -9,8 +9,7 @@ const Incident = require("../models/Incident");
 const sql = require("mssql");
 const poolPromise = require("../db/dbConn");
 const db = require("../db");
-const { getCron } = require("../utils");
-const parser = require("cron-parser");
+const { getCron, getNextRecurrenceRunAtUTC } = require("../utils");
 const { formatedDate } = require("../utils/index");
 const {
   ConnectorClient,
@@ -989,18 +988,24 @@ const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
   let newInc = {};
   try {
     const incData = actionData.incident;
+    const tz =
+      userTimeZone && String(userTimeZone).trim()
+        ? String(userTimeZone).trim()
+        : "UTC";
     let cron = getCron(incData.startTime, incData.occursEvery);
-    const options = { tz: userTimeZone };
-
-    let interval = parser.parseExpression(cron, options);
-    let nextRunAtUTC = interval.next().toISOString();
+    let nextRunAtUTC = getNextRecurrenceRunAtUTC(
+      cron,
+      tz,
+      incData.startDate,
+      incData.startTime,
+    );
 
     let incSubEventObj = {
       incId: incData.incId,
       subEventType: "recurringIncident",
       cron,
       nextRunAtUTC,
-      timezone: userTimeZone,
+      timezone: tz,
       completed: false,
     };
 

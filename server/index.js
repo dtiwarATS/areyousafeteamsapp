@@ -24,7 +24,7 @@ function initJob() {
       {
         name: "recurr-job",
         path: path.join(__dirname, "jobs", "recurr-job.js"),
-        cron: "*/15 * * * *",
+        cron: "*/1 * * * *",
       },
       {
         name: "newSubcriptionAdded-job",

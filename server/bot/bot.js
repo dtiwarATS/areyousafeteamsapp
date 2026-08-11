@@ -5930,7 +5930,10 @@ const sendApproval = async (context) => {
     });
     //await sendIncResponseToSelectedMembers(incId, dashboardCard, null, serviceUrl);
   } else if (action.data.incType == "recurringIncident") {
-    const userTimeZone = context.activity.entities[0].timezone;
+    const userTimeZone =
+      context?.activity?.entities?.[0]?.timezone ||
+      action?.data?.userTimeZone ||
+      "UTC";
     await incidentService.saveRecurrSubEventInc(
       action.data,
       companyData,

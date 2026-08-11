@@ -2,12 +2,15 @@ const { parentPort } = require("worker_threads");
 const parser = require("cron-parser");
 const bot = require("../bot/bot");
 const db = require("../db");
-const { formatedDate } = require("../utils");
 const incidentService = require("../services/incidentService");
 const moment = require("moment-timezone");
 const { AYSLog } = require("../utils/log");
 const { processSafetyBotError } = require("../models/processError");
 const { getFilesByIncId } = require("../db/dbOperations");
+const {
+  normalizeTimeTo24Hour,
+  normalizeDateToYmd,
+} = require("../utils");
 
 (async () => {
   //get filter job from database
@@ -16,12 +19,13 @@ const { getFilesByIncId } = require("../db/dbOperations");
   let currentDateTime = moment(new Date()).utc().format("YYYY-MM-DD HH:mm");
   log.addLog(`recurr job : currentDateTime - ${currentDateTime}`);
   console.log("recurr job : currentDateTime - " + currentDateTime);
+  // EVENT_START_DATE is checked in JS against the incident timezone (not UTC calendar day)
   let sqlJob = `SELECT A.ID AS INC_ID, B.ID AS SUB_EVENT_ID, B.CRON, B.TIMEZONE, A.INC_TYPE AS incType, A.INC_NAME, A.INC_NAME incTitle,A.IS_DRILL,A.TRANSLATED_TEXT_JSON, A.CREATED_BY AS createdById, 
-    A.CREATED_BY_NAME AS createdByName, A.TEAM_ID, A.CHANNEL_ID, A.EVENT_END_DATE eventEndDate, A.EVENT_END_TIME eventEndTime, B.RUN_AT runAt 
+    A.CREATED_BY_NAME AS createdByName, A.TEAM_ID, A.CHANNEL_ID, A.EVENT_START_DATE eventStartDate, A.EVENT_START_TIME eventStartTime, A.EVENT_END_DATE eventEndDate, A.EVENT_END_TIME eventEndTime, B.RUN_AT runAt 
     ,A.inc_type_id incTypeId, A.additionalInfo, A.travelUpdate, A.contactInfo, A.situation,A.RESPONSE_TYPE, A.RESPONSE_OPTIONS
     FROM MSTEAMSINCIDENTS A 
     LEFT JOIN MSTEAMS_SUB_EVENT B ON A.ID = B.INC_ID 
-    WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT) AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, A.EVENT_START_DATE)
+    WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT)
     AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2 AND isSavedAsDraft <> 1`;
 
   let jobsToBeExecutedArr = await db.getDataFromDB(sqlJob);
@@ -40,27 +44,56 @@ const { getFilesByIncId } = require("../db/dbOperations");
             SUB_EVENT_ID: subEventId,
             TEAM_ID: teamId,
             INC_NAME: incTitle,
+            eventStartDate,
+            eventStartTime,
             eventEndDate,
             eventEndTime,
             IS_DRILL,
             TRANSLATED_TEXT_JSON,
           } = job;
-          const options = { tz: timeZone };
+          const tz =
+            timeZone && String(timeZone).trim()
+              ? String(timeZone).trim()
+              : "UTC";
+          const options = { tz };
 
           log.addLog(`incId: ${incId} subEventId: ${subEventId}`);
           log.addLog(`incTitle: ${incTitle} start`);
-          const endDateTime = new Date(eventEndDate + " " + eventEndTime);
 
-          const usrTZCurrentTime = new Date(
-            moment
-              .tz(new Date().toUTCString(), timeZone)
-              .format("MM-DD-YYYY HH:mm"),
-          );
+          const nowInTz = moment().tz(tz);
 
-          if (usrTZCurrentTime > endDateTime) {
-            return true;
+          // Skip until start date+time in the incident timezone
+          const startYmd = normalizeDateToYmd(eventStartDate);
+          if (startYmd) {
+            const startMoment = moment.tz(
+              `${startYmd} ${normalizeTimeTo24Hour(eventStartTime || "00:00")}`,
+              "YYYY-MM-DD HH:mm",
+              tz,
+            );
+            if (startMoment.isValid() && nowInTz.isBefore(startMoment)) {
+              log.addLog(
+                `incId: ${incId} skipped - before start ${startMoment.toISOString()}`,
+              );
+              return true;
+            }
           }
-          log.addLog(`usrTZCurrentTime: ${usrTZCurrentTime}`);
+
+          const endYmd = normalizeDateToYmd(eventEndDate);
+          if (endYmd) {
+            const endMoment = moment.tz(
+              `${endYmd} ${normalizeTimeTo24Hour(eventEndTime || "23:59")}`,
+              "YYYY-MM-DD HH:mm",
+              tz,
+            );
+            if (endMoment.isValid() && nowInTz.isAfter(endMoment)) {
+              log.addLog(
+                `incId: ${incId} skipped - after end ${endMoment.toISOString()}`,
+              );
+              return true;
+            }
+          }
+
+          log.addLog(`usrTZCurrentTime: ${nowInTz.format("YYYY-MM-DD HH:mm")}`);
           let eventMembersSql = `select distinct A.[id] memberResponsesId, A.[user_id] id, A.[user_name] name, U.conversationId, U.user_aadobject_id as userAadObjId,
           (select top 1 email from MSTeamsTeamsUsers where user_id = U.user_id) 'email'
           from MSTeamsMemberResponses A
