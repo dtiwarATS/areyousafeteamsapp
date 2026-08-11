@@ -38,7 +38,7 @@ const CHANNEL_LABELS = {
 };
 
 const DEFAULT_CONSENT_MESSAGE =
-  "By clicking Submit, I consent to receive Safety Check notifications through the selected notification channels.";
+  "I hereby consent to receive messages from Safety Check through SMS, WhatsApp, Voice Calls, and Email.";
 
 const parsePhoneSourceFromIntegrationConfig = (raw) => {
   try {
@@ -1165,86 +1165,7 @@ const buildConsentAdaptiveCard = ({
     });
   }
 
-  // Preserve channelsRequested order: OptedIn locked with green label; others selectable.
-  // Teams ignores isEnabled on Input.ChoiceSet, so consented rows use TextBlocks only (read-only).
-  // Use the same ColumnSet shape for every row so checkboxes/labels stay aligned.
-  // Selectable channels start checked (value = channel id); users may deselect before Submit.
-  for (const ch of chs) {
-    const optedIn = existingConsent[ch] === CONSENT_STATUS.OptedIn;
-    if (optedIn) {
-      body.push({
-        type: "ColumnSet",
-        spacing: "Small",
-        columns: [
-          {
-            type: "Column",
-            width: "stretch",
-            verticalContentAlignment: "Center",
-            items: [
-              {
-                type: "TextBlock",
-                text: `☑  ${CHANNEL_LABELS[ch]}`,
-                wrap: true,
-                spacing: "None",
-              },
-            ],
-          },
-          {
-            type: "Column",
-            width: "110px",
-            verticalContentAlignment: "Center",
-            items: [
-              {
-                type: "TextBlock",
-                text: "✓ Consented",
-                color: "Good",
-                wrap: false,
-                horizontalAlignment: "Right",
-                spacing: "None",
-              },
-            ],
-          },
-        ],
-      });
-    } else {
-      body.push({
-        type: "ColumnSet",
-        spacing: "Small",
-        columns: [
-          {
-            type: "Column",
-            width: "stretch",
-            verticalContentAlignment: "Center",
-            items: [
-              {
-                type: "Input.ChoiceSet",
-                id: `selectedChannel_${ch}`,
-                style: "expanded",
-                isMultiSelect: true,
-                spacing: "None",
-                value: ch,
-                choices: [{ title: CHANNEL_LABELS[ch], value: ch }],
-              },
-            ],
-          },
-          {
-            type: "Column",
-            width: "110px",
-            verticalContentAlignment: "Center",
-            items: [
-              {
-                type: "TextBlock",
-                text: " ",
-                wrap: false,
-                spacing: "None",
-              },
-            ],
-          },
-        ],
-      });
-    }
-  }
-
+  // Message + Submit only (no per-channel checkboxes). Submit consents to all channelsRequested.
   body.push({
     type: "ActionSet",
     spacing: "Medium",
