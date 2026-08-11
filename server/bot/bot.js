@@ -2008,7 +2008,6 @@ const sendProactiveMessageAsync = async (
           .updateDataIntoDBAsync(sql, dbPool, userAadObjId)
           .then((resp) => { })
           .catch((err) => {
-            sqlUpdateMsgDeliveryStatus += sql;
             processSafetyBotError(
               err,
               "",
@@ -2019,7 +2018,13 @@ const sendProactiveMessageAsync = async (
           });
 
         if (!promise) {
-          sqlUpdateMsgDeliveryStatus += sql;
+          processSafetyBotError(
+            "updateDataIntoDBAsync returned false",
+            "",
+            "",
+            userAadObjId,
+            "error in updateMsgDeliveryStatus -> promise false - > sql=" + sql,
+          );
         }
       }
     };
@@ -2141,14 +2146,28 @@ const sendProactiveMessageAsync = async (
           }
           if (isRecurringInc) {
             log.addLog(`For isRecurringInc Incident`);
+            const escapedError =
+              error == null
+                ? error
+                : String(error).replace(/'/g, "''");
+            const conversationIdSql =
+              msgResp?.conversationId != null &&
+              msgResp.conversationId !== "null"
+                ? `'${String(msgResp.conversationId).replace(/'/g, "''")}'`
+                : "NULL";
+            const activityIdSql =
+              msgResp?.activityId != null && msgResp.activityId !== "null"
+                ? `'${String(msgResp.activityId).replace(/'/g, "''")}'`
+                : "NULL";
+            const messageDeliveryErrorSql =
+              escapedError == null ? "NULL" : `'${escapedError}'`;
             sqlUpdateMsgDeliveryStatus += ` insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error,LastReminderSentAT,response_via)
               values(${respMemberObj.memberResponsesId
-              }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, '${msgResp?.conversationId
-              }', '${msgResp?.activityId}', ${status}, '${error}', ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+              }, '${runAt}', ${isMessageDelivered}, 0, NULL, NULL, ${conversationIdSql}, ${activityIdSql}, ${status}, ${messageDeliveryErrorSql}, ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
               }, 'TEAMS'); `;
           } else {
             log.addLog(`For OneTime Incident`);
-            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error ? error.replace(/'/g, "''") : error}', LastReminderSentAT = ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
+            sqlUpdateMsgDeliveryStatus += ` update MSTeamsMemberResponses set is_message_delivered = ${isMessageDelivered}, message_delivery_status = ${status}, message_delivery_error = '${error ? String(error).replace(/'/g, "''") : error}', LastReminderSentAT = ${isMessageDelivered == 1 ? "GETDATE()" : "NULL"
               } where inc_id = ${incObj.incId} and user_id = '${msgResp.userId
               }'; `;
           }
