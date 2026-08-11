@@ -69,13 +69,35 @@ async function insertUsersIfNotExist(users, teamId, tenantId) {
 
       for (const user of batch) {
         const query = `
-          IF NOT EXISTS (SELECT 1 FROM MSTeamsTeamsUsers WHERE user_aadobject_id = @user_aadobject_id)
-          BEGIN
-            INSERT INTO MSTeamsTeamsUsers
-            (team_id, user_aadobject_id, user_name, email, userPrincipalName, tenantid, userRole, hasLicense, COUNTRY, CITY, STATE, DEPARTMENT, IS_TEAM_MEMBER)
-            VALUES
-            (@team_id, @user_aadobject_id, @user_name, @email, @userPrincipalName, @tenantid, @userRole, @hasLicense, @COUNTRY, @CITY, @STATE, @DEPARTMENT, @IS_TEAM_MEMBER)
-          END
+          MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
+          USING (VALUES (
+            @team_id, @user_aadobject_id, @user_name, @email, @userPrincipalName,
+            @tenantid, @userRole, @hasLicense, @COUNTRY, @CITY, @STATE, @DEPARTMENT, @IS_TEAM_MEMBER
+          )) AS source (
+            team_id, user_aadobject_id, user_name, email, userPrincipalName,
+            tenantid, userRole, hasLicense, COUNTRY, CITY, STATE, DEPARTMENT, IS_TEAM_MEMBER
+          )
+          ON target.team_id = source.team_id
+             AND target.user_aadobject_id = source.user_aadobject_id
+          WHEN MATCHED THEN
+            UPDATE SET
+              user_name = source.user_name,
+              email = source.email,
+              userPrincipalName = source.userPrincipalName,
+              COUNTRY = source.COUNTRY,
+              CITY = source.CITY,
+              STATE = source.STATE,
+              DEPARTMENT = source.DEPARTMENT,
+              LAST_UPDATED_BY = 'SYSTEM'
+          WHEN NOT MATCHED THEN
+            INSERT (
+              team_id, user_aadobject_id, user_name, email, userPrincipalName,
+              tenantid, userRole, hasLicense, COUNTRY, CITY, STATE, DEPARTMENT, IS_TEAM_MEMBER
+            )
+            VALUES (
+              source.team_id, source.user_aadobject_id, source.user_name, source.email, source.userPrincipalName,
+              source.tenantid, source.userRole, source.hasLicense, source.COUNTRY, source.CITY, source.STATE, source.DEPARTMENT, source.IS_TEAM_MEMBER
+            );
         `;
 
         await pool

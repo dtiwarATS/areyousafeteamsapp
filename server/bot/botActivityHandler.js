@@ -825,7 +825,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                     WHERE team_id = '${cmpData.team_id}';
 
                     -- Merge: Insert if not exists, update if exists
-                    MERGE INTO MSTeamsTeamsUsers AS target
+                    MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
                     USING (VALUES
                         (
                             '${cmpData.team_id}',
@@ -957,7 +957,7 @@ LEFT JOIN MSTeamsSubscriptionDetails B
 WHERE team_id = '${personalTeamId}';
 
 -- Merge: Insert if not exists, update if exists
-MERGE INTO MSTeamsTeamsUsers AS target
+MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
 USING (VALUES
     (
         '${personalTeamId}',

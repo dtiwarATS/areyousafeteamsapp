@@ -4302,7 +4302,7 @@ const handlerForSafetyBotTab = (app) => {
         .join(",\n    ");
 
       const mergeQuery = `
-        MERGE INTO MSTeamsTeamsUsers AS target
+        MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
         USING (VALUES
           ${upsertValuesClause}
         ) AS source
