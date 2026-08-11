@@ -169,38 +169,8 @@ async function sendPushNotification(fcmToken, title, body, data = {}, options = 
   }
 }
 
-/** Max user IDs per SQL IN clause when loading FCM tokens. */
-const FCM_TOKEN_IN_CHUNK_SIZE = 200;
-/** Max parallel messaging.send calls for safety-check / SOS fan-out. */
-const FCM_SEND_CONCURRENCY = 25;
-
-/**
- * Run async work over items with a fixed concurrency limit.
- * @template T, R
- * @param {T[]} items
- * @param {number} concurrency
- * @param {(item: T, index: number) => Promise<R>} worker
- * @returns {Promise<R[]>}
- */
-const mapWithConcurrency = async (items, concurrency, worker) => {
-  const results = new Array(items.length);
-  let nextIndex = 0;
-
-  const runWorker = async () => {
-    while (nextIndex < items.length) {
-      const current = nextIndex++;
-      results[current] = await worker(items[current], current);
-    }
-  };
-
-  const poolSize = Math.max(1, Math.min(concurrency, items.length || 1));
-  await Promise.all(Array.from({ length: poolSize }, () => runWorker()));
-  return results;
-};
-
 /**
  * Get FCM tokens from user_fcm_tokens for given user IDs (AAD Object IDs).
- * Chunks large IN lists to avoid oversized SQL and DB pressure.
  * @param {string[]} userAadObjectIds - Admin user_aadobject_id values
  * @param {string} platform - 'android' | 'ios'
  * @returns {Promise<Array<{user_id: string, fcm_token: string}>>}
@@ -213,19 +183,10 @@ async function getFcmTokensForUsers(userAadObjectIds, platform = 'android') {
     .filter((id) => id && typeof id === 'string')
     .map((id) => `'${String(id).replace(/'/g, "''")}'`);
   if (sanitized.length === 0) return [];
-
-  const safePlatform = String(platform || 'android').replace(/'/g, "''");
-  const allRows = [];
-  for (let i = 0; i < sanitized.length; i += FCM_TOKEN_IN_CHUNK_SIZE) {
-    const chunk = sanitized.slice(i, i + FCM_TOKEN_IN_CHUNK_SIZE);
-    const idsClause = chunk.join(',');
-    const sql = `SELECT user_id, fcm_token FROM user_fcm_tokens WHERE user_id IN (${idsClause}) AND platform = '${safePlatform}' AND (auth_status = 1 OR auth_status IS NULL)`;
-    const rows = await db.getDataFromDB(sql, '', true);
-    if (rows && rows.length) {
-      allRows.push(...rows);
-    }
-  }
-  return allRows;
+  const idsClause = sanitized.join(',');
+  const sql = `SELECT user_id, fcm_token FROM user_fcm_tokens WHERE user_id IN (${idsClause}) AND platform = '${platform}' AND (auth_status = 1 OR auth_status IS NULL)`;
+  const rows = await db.getDataFromDB(sql, '', true);
+  return rows || [];
 }
 
 /**
@@ -283,7 +244,7 @@ async function sendSosPushToAdmins(admins, user, userAadObjId, requestAssistance
     'device(s) for requestAssistanceid=',
     requestAssistanceid,
   );
-  await mapWithConcurrency(uniqueTokens, FCM_SEND_CONCURRENCY, async (row) => {
+  const pushTasks = uniqueTokens.map(async (row) => {
     const adminId = row.user_id;
     const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${adminId}`;
     const data = {
@@ -363,6 +324,7 @@ async function sendSosPushToAdmins(admins, user, userAadObjId, requestAssistance
       }
     }
   });
+  await Promise.allSettled(pushTasks);
 }
 
 const UUID_LIKE =
@@ -641,22 +603,24 @@ async function sendSafetyCheckPushToMembers(members, opts = {}) {
       };
 
       for (const row of langTokens) {
-        pushTasks.push({ row, title, body, data });
-      }
-    }
-    await mapWithConcurrency(pushTasks, FCM_SEND_CONCURRENCY, async (task) => {
-      try {
-        await sendPushNotification(task.row.fcm_token, task.title, task.body, task.data, {
-          dataOnly: true,
-        });
-      } catch (err) {
-        console.error(
-          '[sendSafetyCheckPushToMembers] sendPushNotification error for user',
-          task.row.user_id,
-          err?.message || err,
+        pushTasks.push(
+          (async () => {
+            try {
+              await sendPushNotification(row.fcm_token, title, body, data, {
+                dataOnly: true,
+              });
+            } catch (err) {
+              console.error(
+                '[sendSafetyCheckPushToMembers] sendPushNotification error for user',
+                row.user_id,
+                err?.message || err,
+              );
+            }
+          })(),
         );
       }
-    });
+    }
+    await Promise.allSettled(pushTasks);
   } catch (err) {
     console.error('[sendSafetyCheckPushToMembers] unexpected error:', err?.message || err);
   }
