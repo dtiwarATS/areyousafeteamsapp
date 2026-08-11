@@ -586,7 +586,9 @@ const updateSosStatus = async (
 
 const getAssistanceData = async (aadObjuserId) => {
   try {
-    let selectQuery = `SELECT *,(select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = MSTeamsAssistance.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name' from MSTeamsAssistance where user_id = (select top 1 user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id`;
+    // Match all Teams user_ids for this AAD user (multi-team), not only TOP 1.
+    // SOS create (incl. fast path) may persist a different team user_id than TOP 1.
+    let selectQuery = `SELECT *,(select top 1 user_name from MSTeamsTeamsUsers tt where tt.user_aadobject_id = MSTeamsAssistance.closed_by_user and user_name is not null and user_name<>'') 'closed_by_user_name' from MSTeamsAssistance where user_id in (select user_id from msteamsteamsusers where user_aadobject_id = '${aadObjuserId}') ORDER BY id`;
 
     const result = await db.getDataFromDB(selectQuery, aadObjuserId);
     return Promise.resolve(result);

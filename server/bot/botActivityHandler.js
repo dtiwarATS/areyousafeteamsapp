@@ -1994,6 +1994,7 @@ WHEN NOT MATCHED THEN
         const updateQuery = `UPDATE MSTeamsAssistance 
           SET FIRST_RESPONDER = '${user.aadObjectId}', 
               FIRST_RESPONDER_RESPONDED_AT = GETDATE(),
+              LastUpdatedDateTime = GETDATE(),
               AfterAcknowledgementReminderCount = 0,
               AfterAcknowledgementLastReminderSentAt = NULL,
               AfterAcknowledgementResponseStatus = NULL
