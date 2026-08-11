@@ -187,6 +187,7 @@ class AreYouSafeTab {
           notDelivered: [],
           deliveryInProgress: [],
           delivered: [],
+          membersSafe: [],
         };
         members.forEach((m) => {
           const { isMessageDelivered, msgStatus, response } = m;
@@ -197,6 +198,8 @@ class AreYouSafeTab {
             memberObj.delivered.push(m);
           } else if (isMessageDelivered === false) {
             memberObj.notDelivered.push(m);
+          } else if (isMessageDelivered === true && response) {
+            memberObj.membersSafe.push(m);
           }
         });
       }
@@ -319,6 +322,13 @@ class AreYouSafeTab {
                 notDeliveredCount = memberObj.notDelivered.length;
                 deliveryInProgressCount = memberObj.deliveryInProgress.length;
                 deliveredCount = memberObj.delivered.length;
+                safeCount = memberObj.membersSafe.length;
+                if (safeCount > 0) {
+                  responsePercentage =
+                    Math.round(
+                      (safeCount * 100) / inc.members.length,
+                    ).toString() + "%";
+                }
               }
             }
             if (incTypeId && respOptions && respOptions.length > 0) {
@@ -859,98 +869,103 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   IntegrationConfigure,
                 );
               if (canSendSmsConsent) {
-              usrPhones.map(async (userpho) => {
-                if (userpho.id == admins[i].user_aadobject_id) {
-                  var num =
-                    admins[i].PHONE_FIELD == "businessPhones"
-                      ? userpho.businessPhones[0]
-                      : userpho.mobilePhone;
-                  // var num = "+91 8652473863";
-                  if (num) {
-                    try {
-                      incidentService.saveAllTypeQuerylogs(
-                        admins[i].user_aadobject_id,
-                        "",
-                        "SOS_SMS",
-                        num.slice(-4).padStart(num.length, "x"),
-                        requestAssistanceid,
-                        "SENT_TO_TWILIO",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                      );
-                      // Construct accept link - use environment variable or default
-                      const baseUrl =
-                        process.env.BASE_URL ||
-                        process.env.serviceUrl?.replace("/api/messages", "") ||
-                        "http://localhost:3978";
-                      const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
-                      const sosBody = `SOS Alert: ${user.user_name} needs assistance. Accept and respond: ${acceptLink}`;
-                      const maskedNum = num.slice(-4).padStart(num.length, "x");
-
-                      await sendTwilioMessage(tClient, {
-                        body: sosBody,
-                        logContext: {
-                          eventId: requestAssistanceid,
-                          userId: admins[i].user_aadobject_id,
-                          phone: maskedNum,
-                          smsType: "SOS_ALERT",
-                        },
-                        from: "+18023277232",
-                        shortenUrls: true,
-                        messagingServiceSid:
-                          "MGdf47b6f3eb771ed026921c6e71017771",
-                        to: num,
-                      }).then(() => {
+                usrPhones.map(async (userpho) => {
+                  if (userpho.id == admins[i].user_aadobject_id) {
+                    var num =
+                      admins[i].PHONE_FIELD == "businessPhones"
+                        ? userpho.businessPhones[0]
+                        : userpho.mobilePhone;
+                    // var num = "+91 8652473863";
+                    if (num) {
+                      try {
                         incidentService.saveAllTypeQuerylogs(
                           admins[i].user_aadobject_id,
                           "",
                           "SOS_SMS",
-                          maskedNum,
+                          num.slice(-4).padStart(num.length, "x"),
                           requestAssistanceid,
-                          "SEND_SUCCESS",
+                          "SENT_TO_TWILIO",
                           "",
                           "",
                           "",
                           "",
                           "",
                         );
-                      });
-                    } catch (err) {
-                      console.log({ err });
+                        // Construct accept link - use environment variable or default
+                        const baseUrl =
+                          process.env.BASE_URL ||
+                          process.env.serviceUrl?.replace(
+                            "/api/messages",
+                            "",
+                          ) ||
+                          "http://localhost:3978";
+                        const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
+                        const sosBody = `SOS Alert: ${user.user_name} needs assistance. Accept and respond: ${acceptLink}`;
+                        const maskedNum = num
+                          .slice(-4)
+                          .padStart(num.length, "x");
+
+                        await sendTwilioMessage(tClient, {
+                          body: sosBody,
+                          logContext: {
+                            eventId: requestAssistanceid,
+                            userId: admins[i].user_aadobject_id,
+                            phone: maskedNum,
+                            smsType: "SOS_ALERT",
+                          },
+                          from: "+18023277232",
+                          shortenUrls: true,
+                          messagingServiceSid:
+                            "MGdf47b6f3eb771ed026921c6e71017771",
+                          to: num,
+                        }).then(() => {
+                          incidentService.saveAllTypeQuerylogs(
+                            admins[i].user_aadobject_id,
+                            "",
+                            "SOS_SMS",
+                            maskedNum,
+                            requestAssistanceid,
+                            "SEND_SUCCESS",
+                            "",
+                            "",
+                            "",
+                            "",
+                            "",
+                          );
+                        });
+                      } catch (err) {
+                        console.log({ err });
+                        incidentService.saveAllTypeQuerylogs(
+                          admins[i].user_aadobject_id,
+                          "",
+                          "SOS_SMS",
+                          num.slice(-4).padStart(num.length, "x"),
+                          requestAssistanceid,
+                          "SEND_FAILED",
+                          "",
+                          "",
+                          "",
+                          "",
+                          JSON.stringify(err.message),
+                        );
+                      }
+                    } else {
                       incidentService.saveAllTypeQuerylogs(
                         admins[i].user_aadobject_id,
                         "",
                         "SOS_SMS",
                         num.slice(-4).padStart(num.length, "x"),
                         requestAssistanceid,
-                        "SEND_FAILED",
+                        "PHONE_NUM_NOT_FOUND",
                         "",
                         "",
                         "",
                         "",
-                        JSON.stringify(err.message),
+                        "",
                       );
                     }
-                  } else {
-                    incidentService.saveAllTypeQuerylogs(
-                      admins[i].user_aadobject_id,
-                      "",
-                      "SOS_SMS",
-                      num.slice(-4).padStart(num.length, "x"),
-                      requestAssistanceid,
-                      "PHONE_NUM_NOT_FOUND",
-                      "",
-                      "",
-                      "",
-                      "",
-                      "",
-                    );
                   }
-                }
-              });
+                });
               }
             }
             if (
@@ -966,31 +981,31 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   IntegrationConfigure,
                 );
               if (canSendEmailConsent) {
-              try {
-                var useremail = admins[i].email;
-                if (useremail) {
-                  try {
-                    incidentService.saveAllTypeQuerylogs(
-                      admins[i].user_aadobject_id,
-                      "",
-                      "SOS_EMAIL",
-                      useremail,
-                      requestAssistanceid,
-                      "SENT_TO_EMAIL",
-                      "",
-                      "",
-                      "",
-                      "",
-                      "",
-                    );
-                    // Construct accept link for email
-                    const baseUrl =
-                      process.env.BASE_URL ||
-                      process.env.serviceUrl?.replace("/api/messages", "") ||
-                      "http://localhost:3978";
-                    const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
+                try {
+                  var useremail = admins[i].email;
+                  if (useremail) {
+                    try {
+                      incidentService.saveAllTypeQuerylogs(
+                        admins[i].user_aadobject_id,
+                        "",
+                        "SOS_EMAIL",
+                        useremail,
+                        requestAssistanceid,
+                        "SENT_TO_EMAIL",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                      );
+                      // Construct accept link for email
+                      const baseUrl =
+                        process.env.BASE_URL ||
+                        process.env.serviceUrl?.replace("/api/messages", "") ||
+                        "http://localhost:3978";
+                      const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
 
-                    const emailBody = `
+                      const emailBody = `
                       <div style="font-family: Arial, sans-serif; padding: 20px;">
                         <h2 style="color: #dc3545;">SOS Alert</h2>
                         <p><strong>${user.user_name}</strong> needs assistance.</p>
@@ -1005,82 +1020,82 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                       </div>
                     `;
 
-                    const raw = JSON.stringify({
-                      projectName: "AYS",
-                      emailSubject: `Safety check - SOS`,
+                      const raw = JSON.stringify({
+                        projectName: "AYS",
+                        emailSubject: `Safety check - SOS`,
 
-                      emailBody: emailBody,
-                      emailTo: admins[i].email,
-                      emailFrom: "donotreply@safetycheck.in",
-                      authkey: "A9fG4dX2pL7qW8mZ",
-                    });
-                    const myHeaders = new Headers();
-                    myHeaders.append("Content-Type", "application/json");
-                    const requestOptions = {
-                      method: "POST",
-                      headers: myHeaders,
-                      body: raw,
-                      redirect: "follow",
-                    };
-                    const response = fetch(
-                      "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
-                      requestOptions,
-                    ).then((res) => {
-                      console.log({ res });
+                        emailBody: emailBody,
+                        emailTo: admins[i].email,
+                        emailFrom: "donotreply@safetycheck.in",
+                        authkey: "A9fG4dX2pL7qW8mZ",
+                      });
+                      const myHeaders = new Headers();
+                      myHeaders.append("Content-Type", "application/json");
+                      const requestOptions = {
+                        method: "POST",
+                        headers: myHeaders,
+                        body: raw,
+                        redirect: "follow",
+                      };
+                      const response = fetch(
+                        "https://emailservices.azurewebsites.net/api/sendCustomEmailWithBodyParams",
+                        requestOptions,
+                      ).then((res) => {
+                        console.log({ res });
+                        incidentService.saveAllTypeQuerylogs(
+                          admins[i].user_aadobject_id,
+                          "",
+                          "SOS_EMAIL",
+                          useremail,
+                          requestAssistanceid,
+                          "SEND_SUCCESS",
+                          "",
+                          "",
+                          "",
+                          "",
+                          "",
+                        );
+                      });
+                    } catch (err) {
+                      console.log({ err });
                       incidentService.saveAllTypeQuerylogs(
                         admins[i].user_aadobject_id,
                         "",
                         "SOS_EMAIL",
                         useremail,
                         requestAssistanceid,
-                        "SEND_SUCCESS",
+                        "SEND_FAILED",
                         "",
                         "",
                         "",
                         "",
-                        "",
+                        JSON.stringify(err.message),
                       );
-                    });
-                  } catch (err) {
-                    console.log({ err });
+                    }
+                  } else {
                     incidentService.saveAllTypeQuerylogs(
                       admins[i].user_aadobject_id,
                       "",
                       "SOS_EMAIL",
-                      useremail,
+                      "",
                       requestAssistanceid,
-                      "SEND_FAILED",
+                      "EMAIL_NOT_FOUND",
                       "",
                       "",
                       "",
                       "",
-                      JSON.stringify(err.message),
+                      "",
                     );
                   }
-                } else {
-                  incidentService.saveAllTypeQuerylogs(
-                    admins[i].user_aadobject_id,
-                    "",
-                    "SOS_EMAIL",
-                    "",
-                    requestAssistanceid,
-                    "EMAIL_NOT_FOUND",
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
+                } catch (err) {
+                  processSafetyBotError(
+                    err,
+                    companyData.teamId,
+                    user.id,
+                    null,
+                    "error in sending safety check via EMAIL",
                   );
                 }
-              } catch (err) {
-                processSafetyBotError(
-                  err,
-                  companyData.teamId,
-                  user.id,
-                  null,
-                  "error in sending safety check via EMAIL",
-                );
-              }
               }
             }
             if (
@@ -1096,144 +1111,147 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                   IntegrationConfigure,
                 );
               if (canSendWhatsappConsent) {
-              usrPhones.map(async (userpho) => {
-                if (userpho.id == admins[i].user_aadobject_id) {
-                  var num =
-                    admins[i].PHONE_FIELD == "businessPhones"
-                      ? userpho.businessPhones[0]
-                      : userpho.mobilePhone;
-                  //var num = "+918652473863";
-                  if (num) {
-                    try {
-                      incidentService.saveAllTypeQuerylogs(
-                        admins[i].user_aadobject_id,
-                        "",
-                        "SOS_Whatsapp",
-                        num.slice(-4).padStart(num.length, "x"),
-                        requestAssistanceid,
-                        "SENT_TO_WHATSAPP",
-                        "",
-                        "",
-                        "",
-                        "",
-                        "",
-                      );
-                      // Construct accept link for WhatsApp button
-                      const baseUrl =
-                        process.env.BASE_URL ||
-                        process.env.serviceUrl?.replace("/api/messages", "") ||
-                        "http://localhost:3978";
-                      const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
-
-                      // Send template message first
-                      let templatePayload = {
-                        messaging_product: "whatsapp",
-                        recipient_type: "individual",
-                        to: num,
-                        type: "template",
-                        template: {
-                          name: "safetycheck_sos",
-                          language: {
-                            code: "en",
-                          },
-                          components: [
-                            {
-                              type: "body",
-                              parameters: [
-                                {
-                                  type: "text",
-                                  parameter_name: "username",
-                                  text: user.user_name,
-                                },
-                              ],
-                            },
-                            // {
-                            //   type: "button",
-                            //   sub_type: "quick_reply",
-                            //   index: "0",
-                            //   parameters: [
-                            //     {
-                            //       type: "payload",
-                            //       payload: `ACCEPT_SOS_${admins[i].user_aadobject_id}_${requestAssistanceid}`,
-                            //     },
-                            //   ],
-                            // },
-                          ],
-                        },
-                      };
-
-                      // Send template message
-                      await bot
-                        .sendWhatsappMessage(
-                          templatePayload,
+                usrPhones.map(async (userpho) => {
+                  if (userpho.id == admins[i].user_aadobject_id) {
+                    var num =
+                      admins[i].PHONE_FIELD == "businessPhones"
+                        ? userpho.businessPhones[0]
+                        : userpho.mobilePhone;
+                    //var num = "+918652473863";
+                    if (num) {
+                      try {
+                        incidentService.saveAllTypeQuerylogs(
                           admins[i].user_aadobject_id,
-                          admins[i],
-                        )
-                        .then((res) => {
-                          console.log(res.Status);
-                          if (res?.Status) {
-                            incidentService.saveAllTypeQuerylogs(
-                              admins[i].user_aadobject_id,
-                              "",
-                              "SOS_Whatsapp",
-                              num.slice(-4).padStart(num.length, "x"),
-                              requestAssistanceid,
-                              "SEND_SUCCESS",
-                              "",
-                              "",
-                              "",
-                              "",
-                              "",
-                            );
-                          } else if (res?.err) {
-                            incidentService.saveAllTypeQuerylogs(
-                              admins[i].user_aadobject_id,
-                              "",
-                              "SOS_Whatsapp",
-                              num.slice(-4).padStart(num.length, "x"),
-                              requestAssistanceid,
-                              "SEND_FAILED",
-                              "",
-                              "",
-                              "",
-                              "",
-                              JSON.stringify(res?.err) || "err",
-                            );
-                          }
-                        });
-                    } catch (err) {
-                      console.log({ err });
+                          "",
+                          "SOS_Whatsapp",
+                          num.slice(-4).padStart(num.length, "x"),
+                          requestAssistanceid,
+                          "SENT_TO_WHATSAPP",
+                          "",
+                          "",
+                          "",
+                          "",
+                          "",
+                        );
+                        // Construct accept link for WhatsApp button
+                        const baseUrl =
+                          process.env.BASE_URL ||
+                          process.env.serviceUrl?.replace(
+                            "/api/messages",
+                            "",
+                          ) ||
+                          "http://localhost:3978";
+                        const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
+
+                        // Send template message first
+                        let templatePayload = {
+                          messaging_product: "whatsapp",
+                          recipient_type: "individual",
+                          to: num,
+                          type: "template",
+                          template: {
+                            name: "safetycheck_sos",
+                            language: {
+                              code: "en",
+                            },
+                            components: [
+                              {
+                                type: "body",
+                                parameters: [
+                                  {
+                                    type: "text",
+                                    parameter_name: "username",
+                                    text: user.user_name,
+                                  },
+                                ],
+                              },
+                              // {
+                              //   type: "button",
+                              //   sub_type: "quick_reply",
+                              //   index: "0",
+                              //   parameters: [
+                              //     {
+                              //       type: "payload",
+                              //       payload: `ACCEPT_SOS_${admins[i].user_aadobject_id}_${requestAssistanceid}`,
+                              //     },
+                              //   ],
+                              // },
+                            ],
+                          },
+                        };
+
+                        // Send template message
+                        await bot
+                          .sendWhatsappMessage(
+                            templatePayload,
+                            admins[i].user_aadobject_id,
+                            admins[i],
+                          )
+                          .then((res) => {
+                            console.log(res.Status);
+                            if (res?.Status) {
+                              incidentService.saveAllTypeQuerylogs(
+                                admins[i].user_aadobject_id,
+                                "",
+                                "SOS_Whatsapp",
+                                num.slice(-4).padStart(num.length, "x"),
+                                requestAssistanceid,
+                                "SEND_SUCCESS",
+                                "",
+                                "",
+                                "",
+                                "",
+                                "",
+                              );
+                            } else if (res?.err) {
+                              incidentService.saveAllTypeQuerylogs(
+                                admins[i].user_aadobject_id,
+                                "",
+                                "SOS_Whatsapp",
+                                num.slice(-4).padStart(num.length, "x"),
+                                requestAssistanceid,
+                                "SEND_FAILED",
+                                "",
+                                "",
+                                "",
+                                "",
+                                JSON.stringify(res?.err) || "err",
+                              );
+                            }
+                          });
+                      } catch (err) {
+                        console.log({ err });
+                        incidentService.saveAllTypeQuerylogs(
+                          admins[i].user_aadobject_id,
+                          "",
+                          "SOS_Whatsapp",
+                          num.slice(-4).padStart(num.length, "x"),
+                          requestAssistanceid,
+                          "SEND_FAILED",
+                          "",
+                          "",
+                          "",
+                          "",
+                          JSON.stringify(err.message),
+                        );
+                      }
+                    } else {
                       incidentService.saveAllTypeQuerylogs(
                         admins[i].user_aadobject_id,
                         "",
                         "SOS_Whatsapp",
-                        num.slice(-4).padStart(num.length, "x"),
+                        "",
                         requestAssistanceid,
-                        "SEND_FAILED",
+                        "PHONE_NUM_NOT_FOUND",
                         "",
                         "",
                         "",
                         "",
-                        JSON.stringify(err.message),
+                        "",
                       );
                     }
-                  } else {
-                    incidentService.saveAllTypeQuerylogs(
-                      admins[i].user_aadobject_id,
-                      "",
-                      "SOS_Whatsapp",
-                      "",
-                      requestAssistanceid,
-                      "PHONE_NUM_NOT_FOUND",
-                      "",
-                      "",
-                      "",
-                      "",
-                      "",
-                    );
                   }
-                }
-              });
+                });
               }
             }
           }
@@ -1492,92 +1510,94 @@ WHERE id = ${res[0].id}`;
                   commentSmsConfig,
                 );
               if (canSendCommentSms && Array.isArray(usrPhones)) {
-              usrPhones.map(async (userpho) => {
-                if (userpho.id == admins[i].user_aadobject_id) {
-                  var num =
-                    admins[i].PHONE_FIELD == "businessPhones"
-                      ? userpho.businessPhones[0]
-                      : userpho.mobilePhone;
-                  // var num = "+91 8652473863";
-                  if (num) {
-                    try {
-                      incidentService.saveAllTypeQuerylogs(
-                        admins[i].user_aadobject_id,
-                        num.slice(-4).padStart(num.length, "x"),
-                        "SOS_COMMENTS_SMS",
-                        num.slice(-4).padStart(num.length, "x"),
-                        requestAssistanceid,
-                        "SENT_TO_TWILIO",
-                        "",
-                        "",
-                        "",
-                        userComment,
-                        "",
-                      );
-                      const commentBody = `${user.user_name} added a comment - ${userComment}`;
-                      const maskedNum = num.slice(-4).padStart(num.length, "x");
-
-                      await sendTwilioMessage(tClient, {
-                        body: commentBody,
-                        logContext: {
-                          eventId: requestAssistanceid,
-                          userId: admins[i].user_aadobject_id,
-                          phone: maskedNum,
-                          smsType: "SOS_COMMENT",
-                        },
-                        from: "+18023277232",
-                        shortenUrls: true,
-                        messagingServiceSid:
-                          "MGdf47b6f3eb771ed026921c6e71017771",
-                        to: num,
-                      }).then(() => {
+                usrPhones.map(async (userpho) => {
+                  if (userpho.id == admins[i].user_aadobject_id) {
+                    var num =
+                      admins[i].PHONE_FIELD == "businessPhones"
+                        ? userpho.businessPhones[0]
+                        : userpho.mobilePhone;
+                    // var num = "+91 8652473863";
+                    if (num) {
+                      try {
                         incidentService.saveAllTypeQuerylogs(
                           admins[i].user_aadobject_id,
-                          "",
+                          num.slice(-4).padStart(num.length, "x"),
                           "SOS_COMMENTS_SMS",
-                          maskedNum,
+                          num.slice(-4).padStart(num.length, "x"),
                           requestAssistanceid,
-                          "SEND_SUCCESS",
+                          "SENT_TO_TWILIO",
                           "",
                           "",
                           "",
                           userComment,
                           "",
                         );
-                      });
-                    } catch (err) {
-                      console.log({ err });
+                        const commentBody = `${user.user_name} added a comment - ${userComment}`;
+                        const maskedNum = num
+                          .slice(-4)
+                          .padStart(num.length, "x");
+
+                        await sendTwilioMessage(tClient, {
+                          body: commentBody,
+                          logContext: {
+                            eventId: requestAssistanceid,
+                            userId: admins[i].user_aadobject_id,
+                            phone: maskedNum,
+                            smsType: "SOS_COMMENT",
+                          },
+                          from: "+18023277232",
+                          shortenUrls: true,
+                          messagingServiceSid:
+                            "MGdf47b6f3eb771ed026921c6e71017771",
+                          to: num,
+                        }).then(() => {
+                          incidentService.saveAllTypeQuerylogs(
+                            admins[i].user_aadobject_id,
+                            "",
+                            "SOS_COMMENTS_SMS",
+                            maskedNum,
+                            requestAssistanceid,
+                            "SEND_SUCCESS",
+                            "",
+                            "",
+                            "",
+                            userComment,
+                            "",
+                          );
+                        });
+                      } catch (err) {
+                        console.log({ err });
+                        incidentService.saveAllTypeQuerylogs(
+                          admins[i].user_aadobject_id,
+                          "",
+                          "SOS_COMMENTS_SMS",
+                          num.slice(-4).padStart(num.length, "x"),
+                          requestAssistanceid,
+                          "SEND_FAILED",
+                          "",
+                          "",
+                          "",
+                          userComment,
+                          JSON.stringify(err.message),
+                        );
+                      }
+                    } else {
                       incidentService.saveAllTypeQuerylogs(
                         admins[i].user_aadobject_id,
                         "",
                         "SOS_COMMENTS_SMS",
-                        num.slice(-4).padStart(num.length, "x"),
+                        "",
                         requestAssistanceid,
-                        "SEND_FAILED",
+                        "PHONE_NUM_NOT_FOUND",
                         "",
                         "",
                         "",
                         userComment,
-                        JSON.stringify(err.message),
+                        "",
                       );
                     }
-                  } else {
-                    incidentService.saveAllTypeQuerylogs(
-                      admins[i].user_aadobject_id,
-                      "",
-                      "SOS_COMMENTS_SMS",
-                      "",
-                      requestAssistanceid,
-                      "PHONE_NUM_NOT_FOUND",
-                      "",
-                      "",
-                      "",
-                      userComment,
-                      "",
-                    );
                   }
-                }
-              });
+                });
               }
             }
             // if (
