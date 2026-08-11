@@ -1121,6 +1121,20 @@ const getUserConsentForChannels = async (tenantId, userId, channels) => {
   return result;
 };
 
+/** Display order for consent channel lists: SMS, WhatsApp, Voice Calls, Email. */
+const CONSENT_CHANNEL_DISPLAY_ORDER = ["sms", "whatsapp", "voice", "email"];
+
+const formatConsentChannelList = (channels) => {
+  const selected = new Set(normalizeChannels(channels));
+  const labels = CONSENT_CHANNEL_DISPLAY_ORDER.filter((ch) => selected.has(ch)).map(
+    (ch) => CHANNEL_LABELS[ch],
+  );
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0];
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
+};
+
 const buildConsentAdaptiveCard = ({
   message,
   channelsRequested,
@@ -1129,6 +1143,38 @@ const buildConsentAdaptiveCard = ({
   teamId = null,
 }) => {
   const chs = normalizeChannels(channelsRequested);
+  const allConsented =
+    chs.length > 0 &&
+    chs.every((ch) => existingConsent[ch] === CONSENT_STATUS.OptedIn);
+
+  if (allConsented) {
+    const channelList = formatConsentChannelList(chs);
+    const successDetail = channelList
+      ? `You have consented to receive messages from Safety Check through ${channelList}.`
+      : "You have consented to receive messages from Safety Check.";
+    return {
+      $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+      type: "AdaptiveCard",
+      version: "1.4",
+      appId: process.env.MicrosoftAppId,
+      body: [
+        {
+          type: "TextBlock",
+          text: "✓ Your consent has been recorded.",
+          weight: "Bolder",
+          wrap: true,
+          size: "Medium",
+        },
+        {
+          type: "TextBlock",
+          text: successDetail,
+          wrap: true,
+          spacing: "Small",
+        },
+      ],
+    };
+  }
+
   const cardMessage =
     message && String(message).trim()
       ? String(message).trim()
