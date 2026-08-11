@@ -1354,7 +1354,8 @@ WHEN NOT MATCHED THEN
         const channelsRequested = actionData.channelsRequested || [];
         const cardMessage = actionData.message || null;
 
-        // Per-channel inputs (new cards) + legacy selectedChannels (old cards).
+        // Per-channel inputs (legacy cards with checkboxes) + legacy selectedChannels.
+        // New cards have no checkboxes: Submit consents to all channelsRequested.
         const selectedFromPerChannel = (channelsRequested || []).filter(
           (ch) => {
             const v = actionData[`selectedChannel_${ch}`];
@@ -1376,9 +1377,13 @@ WHEN NOT MATCHED THEN
         if (!Array.isArray(legacySelected)) {
           legacySelected = legacySelected ? [legacySelected] : [];
         }
-        const selectedChannels = [
+        const selectedFromInputs = [
           ...new Set([...selectedFromPerChannel, ...legacySelected]),
         ];
+        const selectedChannels =
+          selectedFromInputs.length > 0
+            ? selectedFromInputs
+            : channelsRequested || [];
 
         let existingConsent = {};
         if (tenantId && userId) {

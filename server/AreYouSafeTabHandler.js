@@ -1780,6 +1780,42 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.delete("/areyousafetabhandler/deleteOccurrence", async (req, res) => {
+    const userAadObjId = req.query.userAadObjId;
+    const incId = req.query.incId || req.query.incid;
+    const runAt = req.query.runAt;
+    try {
+      if (!incId || !runAt || !userAadObjId) {
+        return res.status(400).json({
+          success: false,
+          error: "Missing required parameters",
+        });
+      }
+      const result = await incidentService.deleteOccurrence(
+        incId,
+        runAt,
+        userAadObjId,
+      );
+      if (result?.error) {
+        return res.status(500).json({ success: false, ...result });
+      }
+      res.json({ success: true, ...result });
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        "",
+        "",
+        userAadObjId,
+        "error in /areyousafetabhandler/deleteOccurrence incId=" +
+          incId +
+          " runAt=" +
+          runAt,
+      );
+      res.status(500).json({ success: false, error: "Failed to delete occurrence" });
+    }
+  });
+
   app.put("/areyousafetabhandler/updateincstatus", (req, res) => {
     const incId = req.query.incid;
     const incStatus = req.query.incstatus;
@@ -6182,37 +6218,28 @@ const handlerForSafetyBotTab = (app) => {
   // Add Message Activity Log endpoint
   app.get("/areyousafetabhandler/getMessageActivityLog", async (req, res) => {
     try {
-      const { incId, userAadObjId } = req.query;
+      const { incId, userAadObjId, runAt } = req.query;
 
       console.log(
         "getMessageActivityLog called with incId:",
         incId,
         "userAadObjId:",
         userAadObjId,
+        "runAt:",
+        runAt,
       );
       const parsedIncId = parseInt(incId);
       if (!parsedIncId || !incId || !userAadObjId) {
         return res.status(400).json({ error: "Missing required parameters" });
       }
 
-      // SQL query to get MessageActivityLog data using the view
-      const query = `
-        SELECT *
-        FROM vw_MessageActivityLogWithUser
-        WHERE IncidentId = @incId
-        ORDER BY MessageSendDateTime DESC
-      `;
+      const recordset = await incidentService.getMessageActivityLogByIncidentId(
+        parsedIncId,
+        runAt || null,
+      );
 
-      // Use mssql to specify type
-      const sql = require("mssql");
-      const pool = await poolPromise;
-      const result = await pool
-        .request()
-        .input("incId", sql.Int, parsedIncId)
-        .query(query);
-
-      console.log("MessageActivityLog DB result:", result.recordset);
-      res.json(result.recordset || []);
+      console.log("MessageActivityLog DB result:", recordset);
+      res.json(recordset || []);
     } catch (error) {
       console.error("Error fetching MessageActivityLog:", error);
       processSafetyBotError(

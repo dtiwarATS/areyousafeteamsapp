@@ -379,18 +379,48 @@ const getTeamInfoByTenantId = async (tenantId) => {
   }
 };
 
-const getMessageActivityLogByIncidentId = async (incidentId) => {
+const getMessageActivityLogByIncidentId = async (incidentId, runAt = null) => {
   try {
     const pool = await poolPromise;
-    const result = await pool
-      .request()
-      .input("incId", sql.Int, incidentId)
-      .query(
-        `SELECT *
-         FROM vw_MessageActivityLogWithUser
-         WHERE IncidentId = @incId
-         ORDER BY MessageSendDateTime DESC`,
-      );
+    const request = pool.request().input("incId", sql.Int, incidentId);
+
+    let filterSql = "WHERE IncidentId = @incId";
+    if (
+      runAt != null &&
+      runAt !== "" &&
+      runAt !== "undefined" &&
+      runAt !== "null"
+    ) {
+      request.input("runAt", sql.NVarChar(100), String(runAt));
+      const nextRunRes = await pool
+        .request()
+        .input("incId", sql.Int, incidentId)
+        .input("runAt", sql.NVarChar(100), String(runAt))
+        .query(`
+          SELECT TOP 1 Mmrr.runAt AS nextRunAt
+          FROM MSTeamsMemberResponsesRecurr Mmrr
+          INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
+          WHERE m.inc_id = @incId
+            AND Mmrr.runAt IS NOT NULL
+            AND CONVERT(DATETIME, Mmrr.runAt) > CONVERT(DATETIME, @runAt)
+          ORDER BY CONVERT(DATETIME, Mmrr.runAt) ASC;
+        `);
+      const nextRunAt = nextRunRes?.recordset?.[0]?.nextRunAt;
+      filterSql +=
+        " AND MessageSendDateTime >= CONVERT(DATETIME, @runAt)";
+      if (nextRunAt != null && nextRunAt !== "") {
+        request.input("nextRunAt", sql.NVarChar(100), String(nextRunAt));
+        filterSql +=
+          " AND MessageSendDateTime < CONVERT(DATETIME, @nextRunAt)";
+      }
+    }
+
+    const result = await request.query(
+      `SELECT *
+       FROM vw_MessageActivityLogWithUser
+       ${filterSql}
+       ORDER BY MessageSendDateTime DESC`,
+    );
     return Promise.resolve(result?.recordset || []);
   } catch (err) {
     console.log(err);
@@ -1071,11 +1101,111 @@ const deleteInc = async (incId, userAadObjId) => {
   return Promise.resolve(incName);
 };
 
+/**
+ * Delete a single recurring occurrence (Recurr rows for runAt).
+ * If no occurrences remain, deletes the whole incident series.
+ * Returns { deletedSeries, incName?, remainingCount? }.
+ */
+const deleteOccurrence = async (incId, runAt, userAadObjId) => {
+  try {
+    if (
+      incId == null ||
+      runAt == null ||
+      runAt === "" ||
+      runAt === "undefined" ||
+      runAt === "null"
+    ) {
+      return { deletedSeries: false, error: "Missing incId or runAt" };
+    }
+
+    pool = await poolPromise;
+    const parsedIncId = Number(incId);
+
+    await pool
+      .request()
+      .input("incId", sql.Int, parsedIncId)
+      .input("runAt", sql.NVarChar(100), String(runAt))
+      .query(`
+        DELETE Mmrr
+        FROM MSTeamsMemberResponsesRecurr Mmrr
+        INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
+        WHERE m.inc_id = @incId
+          AND CONVERT(DATETIME, Mmrr.runAt) = CONVERT(DATETIME, @runAt);
+      `);
+
+    const remainingRes = await pool
+      .request()
+      .input("incId", sql.Int, parsedIncId)
+      .query(`
+        SELECT Mmrr.runAt
+        FROM MSTeamsMemberResponsesRecurr Mmrr
+        INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
+        WHERE m.inc_id = @incId AND Mmrr.runAt IS NOT NULL
+        GROUP BY Mmrr.runAt
+        ORDER BY CONVERT(DATETIME, Mmrr.runAt) DESC;
+      `);
+
+    const remainingRunAts = remainingRes?.recordset || [];
+    if (remainingRunAts.length === 0) {
+      const incName = await deleteInc(parsedIncId, userAadObjId);
+      return { deletedSeries: true, incName };
+    }
+
+    const lastRunRes = await pool
+      .request()
+      .input("incId", sql.Int, parsedIncId)
+      .query(`
+        SELECT TOP 1 LAST_RUN_AT AS lastRunAt
+        FROM MSTEAMS_SUB_EVENT
+        WHERE INC_ID = @incId;
+      `);
+    const currentLastRunAt = lastRunRes?.recordset?.[0]?.lastRunAt;
+
+    if (areRunAtEqual(currentLastRunAt, runAt)) {
+      const newLastRunAt = remainingRunAts[0].runAt;
+      await pool
+        .request()
+        .input("incId", sql.Int, parsedIncId)
+        .input("lastRunAt", sql.NVarChar(100), String(newLastRunAt))
+        .query(`
+          UPDATE MSTEAMS_SUB_EVENT
+          SET LAST_RUN_AT = @lastRunAt
+          WHERE INC_ID = @incId;
+        `);
+    }
+
+    return {
+      deletedSeries: false,
+      remainingCount: remainingRunAts.length,
+    };
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      userAadObjId,
+      "error in deleteOccurrence incId=" +
+        incId +
+        " runAt=" +
+        runAt,
+    );
+    return { deletedSeries: false, error: "Failed to delete occurrence" };
+  }
+};
+
 const addMemberResponseDetails = async (respDetailsObj) => {
   try {
     console.log("test addMemberResponseDetails");
-    const recurrRespQuery = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error) 
-          values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', ${respDetailsObj.isDelivered}, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}', ${respDetailsObj.status}, '${respDetailsObj.error}')`;
+    const responseVia = (
+      respDetailsObj.responseVia ||
+      respDetailsObj.response_via ||
+      "TEAMS"
+    )
+      .toString()
+      .replace(/'/g, "''");
+    const recurrRespQuery = `insert into MSTeamsMemberResponsesRecurr(memberResponsesId, runAt, is_message_delivered, response, response_value, comment, conversationId, activityId, message_delivery_status, message_delivery_error, response_via) 
+          values(${respDetailsObj.memberResponsesId}, '${respDetailsObj.runAt}', ${respDetailsObj.isDelivered}, 0, NULL, NULL, '${respDetailsObj.conversationId}', '${respDetailsObj.activityId}', ${respDetailsObj.status}, '${respDetailsObj.error}', '${responseVia}')`;
 
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
@@ -5459,6 +5589,7 @@ const importUserPhones = async (tenantId, rows = []) => {
 module.exports = {
   saveInc,
   deleteInc,
+  deleteOccurrence,
   addMembersIntoIncData,
   updateIncResponseData,
   updateIncResponseComment,
