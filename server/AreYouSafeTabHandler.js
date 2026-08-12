@@ -1231,9 +1231,9 @@ const handlerForSafetyBotTab = (app) => {
                   "",
                   "",
                   "error in get users phone number requestDateTime : " +
-                    requestDate +
-                    " ErrorDateTime: " +
-                    new Date(),
+                  requestDate +
+                  " ErrorDateTime: " +
+                  new Date(),
                   "",
                   false,
                   "",
@@ -1663,9 +1663,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userId,
         "error in /areyousafetabhandler/getIncOccurrenceData incId=" +
-          incId +
-          " runAt=" +
-          runAt,
+        incId +
+        " runAt=" +
+        runAt,
       );
       res.send(null);
     }
@@ -1808,9 +1808,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/deleteOccurrence incId=" +
-          incId +
-          " runAt=" +
-          runAt,
+        incId +
+        " runAt=" +
+        runAt,
       );
       res.status(500).json({ success: false, error: "Failed to delete occurrence" });
     }
@@ -4987,7 +4987,11 @@ const handlerForSafetyBotTab = (app) => {
 
       const trimmedServiceUrl =
         typeof serviceUrl === "string" ? serviceUrl.trim() : "";
+      console.log("[sendUserConsentRequest] serviceUrl received:",
+        serviceUrl, trimmedServiceUrl,);
+      console.log("[sendUserConsentRequest] condition", typeof serviceUrl === "string",);
       if (!trimmedServiceUrl) {
+        console.log("[sendUserConsentRequest] serviceUrl is missing or empty");
         res.status(400).send({
           sent: 0,
           skipped: 0,
