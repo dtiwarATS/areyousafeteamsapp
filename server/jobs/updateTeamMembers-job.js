@@ -44,40 +44,66 @@ const {
             const memberName = member.name || "";
             const memberEmail = member.email || "";
             const memberPrincipalName = member.userPrincipalName || "";
-            const memberObjectId = member.objectId || "";
+            const memberObjectId =
+              member.aadObjectId || member.objectId || "";
             const memberRole = member.userRole || "";
 
+            // Skip members without an AAD object id — cannot key the row safely
+            if (!memberObjectId) {
+              console.log(
+                `Skipping member without objectId in team ${team.team_id}: ${member.id}`,
+              );
+              continue;
+            }
+
             const updateQuery = `
-                        IF EXISTS (SELECT 1 FROM MSTeamsTeamsUsers WHERE user_id = '${member.id}')
-                            UPDATE MSTeamsTeamsUsers 
-                            SET 
-                                user_name = '${memberName.replace(/'/g, "''")}',
-                                email = '${memberEmail.replace(/'/g, "''")}',
+                        MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
+                        USING (VALUES (
+                            '${team.team_id}',
+                            '${memberObjectId}',
+                            '${member.id}',
+                            N'${memberName.replace(/'/g, "''")}',
+                            '${memberEmail.replace(/'/g, "''")}',
+                            '${memberPrincipalName.replace(/'/g, "''")}',
+                            '${memberRole}',
+                            '${team.user_tenant_id}'
+                        )) AS source (
+                            team_id, user_aadobject_id, user_id, user_name, email, userPrincipalName, userRole, tenantid
+                        )
+                        ON target.team_id = source.team_id
+                           AND target.user_aadobject_id = source.user_aadobject_id
+                        WHEN MATCHED THEN
+                            UPDATE SET
+                                user_id = source.user_id,
+                                user_name = source.user_name,
+                                email = source.email,
+                                userPrincipalName = source.userPrincipalName,
+                                userRole = source.userRole,
+                                tenantid = source.tenantid,
                                 LAST_UPDATED_BY = 'SYSTEM'
-                            WHERE user_id = '${member.id}'
-                        ELSE
-                            INSERT INTO MSTeamsTeamsUsers (
-                                user_aadobject_id, 
-                                user_id, 
-                                user_name, 
-                                email, 
-                                userPrincipalName, 
-                                team_id, 
-                                userRole, 
+                        WHEN NOT MATCHED THEN
+                            INSERT (
+                                user_aadobject_id,
+                                user_id,
+                                user_name,
+                                email,
+                                userPrincipalName,
+                                team_id,
+                                userRole,
                                 hasLicense,
                                 tenantid
                             )
                             VALUES (
-                                '${memberObjectId}',
-                                '${member.id}',
-                                '${memberName.replace(/'/g, "''")}',
-                                '${memberEmail.replace(/'/g, "''")}',
-                                '${memberPrincipalName.replace(/'/g, "''")}',
-                                '${team.team_id}',
-                                '${memberRole}',
+                                source.user_aadobject_id,
+                                source.user_id,
+                                source.user_name,
+                                source.email,
+                                source.userPrincipalName,
+                                source.team_id,
+                                source.userRole,
                                 1,
-                                '${team.user_tenant_id}'
-                            )
+                                source.tenantid
+                            );
                         `;
 
             await db.updateDataIntoDB(updateQuery);
