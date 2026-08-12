@@ -117,10 +117,10 @@ async function loadIncidentFollowUpContext(incId, userAadObjectId) {
     teamId: incRow?.team_id || "",
     creator: creatorName
       ? {
-        name: creatorName,
-        id: creatorId || "",
-        email: creatorEmail || "",
-      }
+          name: creatorName,
+          id: creatorId || "",
+          email: creatorEmail || "",
+        }
       : null,
   };
 }
@@ -668,18 +668,18 @@ const handlerForSafetyBotTab = (app) => {
       const creatorBody = req.body?.creator;
       const creator =
         creatorBody &&
-          typeof creatorBody === "object" &&
-          typeof creatorBody.name === "string" &&
-          creatorBody.name.trim()
+        typeof creatorBody === "object" &&
+        typeof creatorBody.name === "string" &&
+        creatorBody.name.trim()
           ? {
-            name: creatorBody.name.trim(),
-            id:
-              typeof creatorBody.id === "string" ? creatorBody.id.trim() : "",
-            email:
-              typeof creatorBody.email === "string"
-                ? creatorBody.email.trim()
-                : "",
-          }
+              name: creatorBody.name.trim(),
+              id:
+                typeof creatorBody.id === "string" ? creatorBody.id.trim() : "",
+              email:
+                typeof creatorBody.email === "string"
+                  ? creatorBody.email.trim()
+                  : "",
+            }
           : null;
 
       if (!userAadObjectId) {
@@ -833,7 +833,7 @@ const handlerForSafetyBotTab = (app) => {
         if (
           !device ||
           String(device.user_aadobject_id).toLowerCase() !==
-          normalizedUserAadObjectId.toLowerCase()
+            normalizedUserAadObjectId.toLowerCase()
         ) {
           return res.status(403).json({
             success: false,
@@ -1037,7 +1037,7 @@ const handlerForSafetyBotTab = (app) => {
         if (
           !device ||
           String(device.user_aadobject_id).toLowerCase() !==
-          normalizedUserAadObjectId.toLowerCase()
+            normalizedUserAadObjectId.toLowerCase()
         ) {
           return res.status(403).json({
             success: false,
@@ -1241,8 +1241,7 @@ const handlerForSafetyBotTab = (app) => {
                 throw {
                   type: "GraphApiError",
                   error: error,
-                  message:
-                    "Error fetching user phone numbers from Graph API",
+                  message: "Error fetching user phone numbers from Graph API",
                 };
               }
             };
@@ -1284,7 +1283,7 @@ const handlerForSafetyBotTab = (app) => {
               error.response.data.error_description
                 .toString()
                 .indexOf("The refresh token has expired due to inactivity.") >=
-              0
+                0
             ) {
               throw {
                 type: "authFailed",
@@ -1765,7 +1764,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/deleteIncident -> deleteInc then incId=" +
-            req.query.incid,
+              req.query.incid,
           );
         });
     } catch (err) {
@@ -1775,7 +1774,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/deleteIncident incId=" +
-        req.query.incid,
+          req.query.incid,
       );
     }
   });
@@ -1812,7 +1811,9 @@ const handlerForSafetyBotTab = (app) => {
           " runAt=" +
           runAt,
       );
-      res.status(500).json({ success: false, error: "Failed to delete occurrence" });
+      res
+        .status(500)
+        .json({ success: false, error: "Failed to delete occurrence" });
     }
   });
 
@@ -1834,9 +1835,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/updateincstatus then -> incId=" +
-            incId +
-            " incStatus=" +
-            incStatus,
+              incId +
+              " incStatus=" +
+              incStatus,
           );
         });
     } catch (err) {
@@ -1846,9 +1847,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/updateincstatus -> incId=" +
-        incId +
-        " incStatus=" +
-        incStatus,
+          incId +
+          " incStatus=" +
+          incStatus,
       );
     }
   });
@@ -1939,9 +1940,9 @@ const handlerForSafetyBotTab = (app) => {
       );
       const sqlMessage = String(
         err?.originalError?.info?.message ||
-        err?.originalError?.message ||
-        err?.message ||
-        "",
+          err?.originalError?.message ||
+          err?.message ||
+          "",
       ).trim();
       const isMissingPhoneColumn =
         sqlMessage.includes("PHONE_NUMBER") &&
@@ -2741,7 +2742,7 @@ const handlerForSafetyBotTab = (app) => {
         tokens.map((fcmToken) =>
           sendPushNotification(fcmToken, title, body || "", payload, {
             dataOnly: false,
-            androidPriority: 'high',
+            androidPriority: "high",
           }),
         ),
       );
@@ -2955,8 +2956,9 @@ const handlerForSafetyBotTab = (app) => {
                   minute: "2-digit",
                   hour12: true,
                 },
-              )}** has been marked as closed by **<at>${closedByUser.user_name
-                }</at>**.`,
+              )}** has been marked as closed by **<at>${
+                closedByUser.user_name
+              }</at>**.`,
               wrap: true,
             },
             {
@@ -3084,7 +3086,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-              reqBody.comment,
+                reqBody.comment,
             );
             res.send(false);
           });
@@ -3096,7 +3098,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-        reqBody.comment,
+          reqBody.comment,
       );
     }
   });
@@ -3110,9 +3112,7 @@ const handlerForSafetyBotTab = (app) => {
    */
   app.post("/areyousafetabhandler/requestAssistance", async (req, res) => {
     const clientIncData =
-      req.body?.adminlist ||
-      req.body?.data?.adminlist ||
-      null;
+      req.body?.adminlist || req.body?.data?.adminlist || null;
     await handleRequestAssistanceHttp(req, res, clientIncData);
   });
 
@@ -3210,8 +3210,7 @@ const handlerForSafetyBotTab = (app) => {
       // Desktop / socket fast path: prefer client-supplied adminlist (skip slow SQL).
       const parseClientAdminlist = () => {
         try {
-          const raw =
-            req.body?.data?.adminlist ?? req.body?.adminlist ?? null;
+          const raw = req.body?.data?.adminlist ?? req.body?.adminlist ?? null;
           if (raw == null) {
             return null;
           }
@@ -3268,7 +3267,10 @@ const handlerForSafetyBotTab = (app) => {
         }
       }
       var userlocation = null;
-      if (req.body?.data?.ulocData != undefined && req.body.data.ulocData != "") {
+      if (
+        req.body?.data?.ulocData != undefined &&
+        req.body.data.ulocData != ""
+      ) {
         try {
           userlocation = JSON.parse(req.body.data.ulocData);
         } catch {
@@ -3306,9 +3308,9 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userAadObjId,
           "error in /areyousafetabhandler/sendNeedAssistanceProactiveMessage -> userlocation=" +
-          userlocation +
-          " req.query.adminlist=" +
-          req.body?.data,
+            userlocation +
+            " req.query.adminlist=" +
+            req.body?.data,
         );
       }
     },
@@ -3369,8 +3371,8 @@ const handlerForSafetyBotTab = (app) => {
                     : [];
                 const victimRow =
                   Array.isArray(admins) &&
-                    Array.isArray(admins[1]) &&
-                    admins[1].length > 0
+                  Array.isArray(admins[1]) &&
+                  admins[1].length > 0
                     ? admins[1][0]
                     : null;
                 const hasAdmins =
@@ -3413,9 +3415,7 @@ const handlerForSafetyBotTab = (app) => {
                     ...new Set(
                       officerList
                         .map((a) => a?.user_aadobject_id)
-                        .filter(
-                          (id) => id != null && String(id).trim() !== "",
-                        ),
+                        .filter((id) => id != null && String(id).trim() !== ""),
                     ),
                   ];
                   if (officerAads.length > 0) {
@@ -3466,7 +3466,7 @@ const handlerForSafetyBotTab = (app) => {
               "",
               userAadObjId,
               "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-              reqBody.comment,
+                reqBody.comment,
             );
             res.send(false);
           });
@@ -3478,7 +3478,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/addCommentToAssistance -> then -> comment=" +
-        reqBody.comment,
+          reqBody.comment,
       );
     }
   });
@@ -3568,7 +3568,8 @@ const handlerForSafetyBotTab = (app) => {
         `,
           json: {
             success: false,
-            message: "Admin not found. Please ensure you're using the correct link.",
+            message:
+              "Admin not found. Please ensure you're using the correct link.",
           },
         });
       }
@@ -3606,8 +3607,9 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       let adminInfo =
-        adminCandidates.find((row) => sentToIdSet.has(String(row.user_id).trim())) ||
-        adminCandidates[0];
+        adminCandidates.find((row) =>
+          sentToIdSet.has(String(row.user_id).trim()),
+        ) || adminCandidates[0];
 
       // Check if already responded
       const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
@@ -4195,7 +4197,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         qs.userAadObjId,
         "error in /areyousafetabhandler/checkduplicateInc -> qs.incTitle=" +
-        qs.incTitle,
+          qs.incTitle,
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -4461,7 +4463,7 @@ const handlerForSafetyBotTab = (app) => {
         .join(",\n    ");
 
       const mergeQuery = `
-        MERGE INTO MSTeamsTeamsUsers AS target
+        MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
         USING (VALUES
           ${upsertValuesClause}
         ) AS source
@@ -4556,7 +4558,7 @@ const handlerForSafetyBotTab = (app) => {
         "",
         req.query.userAadObjId,
         "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-        req.query.incId,
+          req.query.incId,
       );
       res.send({ error: "Error: Please try again" });
     }
@@ -4604,7 +4606,7 @@ const handlerForSafetyBotTab = (app) => {
           "",
           req.query.userAadObjId,
           "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
-          req.query.incId,
+            req.query.incId,
         );
         res.send({ error: "Error: Please try again" });
       }
@@ -4738,9 +4740,9 @@ const handlerForSafetyBotTab = (app) => {
         userName,
         userId,
         "error in /areyousafetabhandler/contactus -> email=" +
-        email +
-        " msg=" +
-        msg,
+          email +
+          " msg=" +
+          msg,
       );
       res.send(false);
     }
@@ -4831,9 +4833,7 @@ const handlerForSafetyBotTab = (app) => {
                  AND user_aadobject_id IS NOT NULL
                  AND user_aadobject_id <> ''`,
             )) || [];
-          const userAadObjIds = userIdRows
-            .map((r) => r.userId)
-            .filter(Boolean);
+          const userAadObjIds = userIdRows.map((r) => r.userId).filter(Boolean);
           if (userAadObjIds.length) {
             const graphUsers = await getUserPhone(
               phoneCtx.isAppPermissionGranted,
@@ -4865,14 +4865,11 @@ const handlerForSafetyBotTab = (app) => {
             );
           }
         } else {
-          console.log(
-            "[getUserConsentStats] Skipping Office 365 phone count",
-            {
-              tenantId,
-              consentPhoneSource,
-              isAppPermissionGranted: !!phoneCtx.isAppPermissionGranted,
-            },
-          );
+          console.log("[getUserConsentStats] Skipping Office 365 phone count", {
+            tenantId,
+            consentPhoneSource,
+            isAppPermissionGranted: !!phoneCtx.isAppPermissionGranted,
+          });
         }
       } catch (phoneErr) {
         console.log(
@@ -4954,17 +4951,8 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   app.post("/areyousafetabhandler/sendUserConsentRequest", async (req, res) => {
-    const {
-      teamId,
-      tenantId,
-      channels,
-      message,
-      userAadObjId,
-      userIds,
-      users,
-      serviceUrl,
-      integrationConfigure,
-    } = req.body || {};
+    const { teamId, tenantId, channels, message, userAadObjId, userIds } =
+      req.body || {};
     try {
       if (!teamId) {
         res.status(400).send({ error: "teamId is required" });
@@ -5091,9 +5079,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-            incid +
-            " incType=" +
-            incType,
+              incid +
+              " incType=" +
+              incType,
           );
           res.send(0);
         });
@@ -5104,9 +5092,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSafetyCheckProgress incid=" +
-        incid +
-        " incType=" +
-        incType,
+          incid +
+          " incType=" +
+          incType,
       );
       res.send(0);
     }
@@ -5160,9 +5148,9 @@ const handlerForSafetyBotTab = (app) => {
             "",
             userAadObjId,
             "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-            serviceUrl +
-            " teamUserId=" +
-            teamUserId,
+              serviceUrl +
+              " teamUserId=" +
+              teamUserId,
           );
           res.send(0);
         });
@@ -5173,9 +5161,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in areyousafetabhandler/getMemberInfo serviceUrl=" +
-        serviceUrl +
-        " teamUserId=" +
-        teamUserId,
+          serviceUrl +
+          " teamUserId=" +
+          teamUserId,
       );
       res.send(0);
     }
@@ -5354,7 +5342,7 @@ const handlerForSafetyBotTab = (app) => {
           "",
           userAadObjId ?? "",
           "error in /areyousafetabhandler/trackSafetyCheckResponse incId=" +
-          incId,
+            incId,
         );
         return res.send({
           success: false,
@@ -5600,7 +5588,7 @@ const handlerForSafetyBotTab = (app) => {
             "",
             "",
             "Error in Saving AllAdminConsentInfo_IsAppPermissionGranted: " +
-            IsAppPermissionGranted,
+              IsAppPermissionGranted,
           );
         });
     }
@@ -5683,9 +5671,11 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
-        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
-        }`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -5999,9 +5989,11 @@ const handlerForSafetyBotTab = (app) => {
       );
 
       // --- 5. Redirect to confirmation page ---
-      const redirectUrl = `${process.env.SMS_CONFIRMATION_URL
-        }?userId=${userId}&eventId=${eventId}&isfrom=${isfromemail ? "Email" : "SMS"
-        }`;
+      const redirectUrl = `${
+        process.env.SMS_CONFIRMATION_URL
+      }?userId=${userId}&eventId=${eventId}&isfrom=${
+        isfromemail ? "Email" : "SMS"
+      }`;
       console.log("Redirecting user to:", redirectUrl);
       return res.redirect(redirectUrl);
     } catch (err) {
@@ -6550,74 +6542,68 @@ ORDER BY ACL.EventDateTime DESC;
     },
   );
 
-  app.post(
-    "/areyousafetabhandler/deleteAdvisoryAlert/",
-    async (req, res) => {
-      try {
-        const body = req.body || {};
-        const tenantId = String(body.tenantId || "").trim();
-        const advisoryType = String(body.advisoryType || body.type || "").trim();
-        const detailId = body.detailId;
-        const alertId = body.alertId;
+  app.post("/areyousafetabhandler/deleteAdvisoryAlert/", async (req, res) => {
+    try {
+      const body = req.body || {};
+      const tenantId = String(body.tenantId || "").trim();
+      const advisoryType = String(body.advisoryType || body.type || "").trim();
+      const detailId = body.detailId;
+      const alertId = body.alertId;
 
-        if (!tenantId) {
-          return res.status(400).json({
-            success: false,
-            error: "tenantId is required",
-          });
-        }
-        if (advisoryType !== "Travel" && advisoryType !== "Weather") {
-          return res.status(400).json({
-            success: false,
-            error: "advisoryType must be Travel or Weather",
-          });
-        }
-
-        let result;
-        if (advisoryType === "Travel") {
-          if (detailId == null || String(detailId).trim() === "") {
-            return res.status(400).json({
-              success: false,
-              error: "detailId is required for Travel",
-            });
-          }
-          result = await travelSelectedDb.deleteTravelAdvisoryDetailForTenant({
-            tenantId,
-            detailId,
-          });
-        } else {
-          if (alertId == null || String(alertId).trim() === "") {
-            return res.status(400).json({
-              success: false,
-              error: "alertId is required for Weather",
-            });
-          }
-          result = await travelSelectedDb.removeWeatherAlertFromDetail({
-            tenantId,
-            alertId,
-          });
-        }
-
-        if (!result?.success) {
-          return res.status(400).json({
-            success: false,
-            error: result?.error || "Failed to delete alert",
-          });
-        }
-
-        res.json({ success: true });
-      } catch (err) {
-        console.error(
-          "Error in /areyousafetabhandler/deleteAdvisoryAlert:",
-          err,
-        );
-        res.status(500).json({
+      if (!tenantId) {
+        return res.status(400).json({
           success: false,
-          error: err?.message || "Failed to delete alert",
+          error: "tenantId is required",
         });
       }
-    },
-  );
+      if (advisoryType !== "Travel" && advisoryType !== "Weather") {
+        return res.status(400).json({
+          success: false,
+          error: "advisoryType must be Travel or Weather",
+        });
+      }
+
+      let result;
+      if (advisoryType === "Travel") {
+        if (detailId == null || String(detailId).trim() === "") {
+          return res.status(400).json({
+            success: false,
+            error: "detailId is required for Travel",
+          });
+        }
+        result = await travelSelectedDb.deleteTravelAdvisoryDetailForTenant({
+          tenantId,
+          detailId,
+        });
+      } else {
+        if (alertId == null || String(alertId).trim() === "") {
+          return res.status(400).json({
+            success: false,
+            error: "alertId is required for Weather",
+          });
+        }
+        result = await travelSelectedDb.removeWeatherAlertFromDetail({
+          tenantId,
+          alertId,
+        });
+      }
+
+      if (!result?.success) {
+        return res.status(400).json({
+          success: false,
+          error: result?.error || "Failed to delete alert",
+        });
+      }
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error("Error in /areyousafetabhandler/deleteAdvisoryAlert:", err);
+      res.status(500).json({
+        success: false,
+        error: err?.message || "Failed to delete alert",
+      });
+    }
+  });
 
   app.get(
     "/areyousafetabhandler/getDismissedAdvisoryAlerts/",
@@ -6627,9 +6613,8 @@ ORDER BY ACL.EventDateTime DESC;
           req.query.tenantId || (req.body && req.body.tenantId) || "",
         ).trim();
         const advisoryType = String(
-          req.query.advisoryType ||
-          (req.body && req.body.advisoryType) ||
-          "",
+          req.query.advisoryType || (req.body && req.body.advisoryType) || "",
+          req.query.advisoryType || (req.body && req.body.advisoryType) || "",
         ).trim();
 
         if (!tenantId) {
@@ -6648,10 +6633,7 @@ ORDER BY ACL.EventDateTime DESC;
         }
 
         const dismissedAlertKeys =
-          await travelSelectedDb.listDismissedAlertKeys(
-            tenantId,
-            advisoryType,
-          );
+          await travelSelectedDb.listDismissedAlertKeys(tenantId, advisoryType);
         res.json({ success: true, dismissedAlertKeys });
       } catch (err) {
         console.error(
@@ -6720,16 +6702,18 @@ ORDER BY ACL.EventDateTime DESC;
           ? body.removedCountryCodes
           : [];
         const addedLocationKeys = Array.isArray(body.addedLocationKeys)
-          ? body.addedLocationKeys.map((k) => String(k || "").trim()).filter(Boolean)
+          ? body.addedLocationKeys
+              .map((k) => String(k || "").trim())
+              .filter(Boolean)
           : [];
         const addedCountryCodes = Array.isArray(body.addedCountryCodes)
           ? body.addedCountryCodes
-            .map((c) =>
-              String(c || "")
-                .trim()
-                .toUpperCase(),
-            )
-            .filter(Boolean)
+              .map((c) =>
+                String(c || "")
+                  .trim()
+                  .toUpperCase(),
+              )
+              .filter(Boolean)
           : [];
         const replaceSelections = body.replaceSelections === true;
         const hasTravelAddDelta =
@@ -6795,16 +6779,16 @@ ORDER BY ACL.EventDateTime DESC;
             const filtered =
               requestedCodesSet.size > 0
                 ? selections.filter((row) => {
-                  const codes = (row.CountryCode || "")
-                    .split(",")
-                    .map((c) => c.trim().toUpperCase());
-                  return codes.some((code) => requestedCodesSet.has(code));
-                })
+                    const codes = (row.CountryCode || "")
+                      .split(",")
+                      .map((c) => c.trim().toUpperCase());
+                    return codes.some((code) => requestedCodesSet.has(code));
+                  })
                 : selections;
 
             const effectiveLocations =
               Array.isArray(result.locationSelections) &&
-                result.locationSelections.length > 0
+              result.locationSelections.length > 0
                 ? result.locationSelections
                 : Array.isArray(locationSelections)
                   ? locationSelections
@@ -6894,17 +6878,16 @@ ORDER BY ACL.EventDateTime DESC;
                 : usCityLocs;
               const syncNonUsCodes = hasTravelAddDelta
                 ? nonUsCodes.filter(
-                  (code) =>
-                    addedCodeSet.has(code) ||
-                    addedKeySet.has(`${code}||`),
-                )
+                    (code) =>
+                      addedCodeSet.has(code) || addedKeySet.has(`${code}||`),
+                  )
                 : nonUsCodes;
               const syncUsCountryOnly = hasTravelAddDelta
                 ? hasUsCountryOnly &&
-                (addedCodeSet.has("US") ||
-                  addedCodeSet.has("USA") ||
-                  addedKeySet.has("US||") ||
-                  addedKeySet.has("USA||"))
+                  (addedCodeSet.has("US") ||
+                    addedCodeSet.has("USA") ||
+                    addedKeySet.has("US||") ||
+                    addedKeySet.has("USA||"))
                 : hasUsCountryOnly;
 
               const needsStateDept =
@@ -7001,7 +6984,11 @@ ORDER BY ACL.EventDateTime DESC;
                       ).length > 0,
                   );
 
-                  if (!anyCacheMatch || !Array.isArray(matchAlerts) || matchAlerts.length === 0) {
+                  if (
+                    !anyCacheMatch ||
+                    !Array.isArray(matchAlerts) ||
+                    matchAlerts.length === 0
+                  ) {
                     try {
                       const parsed =
                         await ipawsFeed.fetchAndParseRecentAlerts();
@@ -7012,10 +6999,7 @@ ORDER BY ACL.EventDateTime DESC;
                         matchAlerts = liveAlerts;
                         alertSource = "live";
                         try {
-                          await ipawsCacheDb.upsertIpawsAlerts(
-                            liveAlerts,
-                            now,
-                          );
+                          await ipawsCacheDb.upsertIpawsAlerts(liveAlerts, now);
                         } catch (upsertCacheErr) {
                           console.error(
                             "saveTravelAdvisorySelection IPAWS cache upsert failed:",
@@ -7147,7 +7131,7 @@ ORDER BY ACL.EventDateTime DESC;
 
             const effectiveLocations =
               Array.isArray(result.locationSelections) &&
-                result.locationSelections.length > 0
+              result.locationSelections.length > 0
                 ? result.locationSelections
                 : locationSelections;
 
@@ -7157,7 +7141,8 @@ ORDER BY ACL.EventDateTime DESC;
               ((loc) =>
                 `${String(loc.countryCode || "")
                   .trim()
-                  .toUpperCase()}|${String(loc.cityName || "").trim()}|${loc.state != null ? String(loc.state).trim() : ""
+                  .toUpperCase()}|${String(loc.cityName || "").trim()}|${
+                  loc.state != null ? String(loc.state).trim() : ""
                 }`);
 
             // One AdvisoryDetail row per city LocationKey (not one per country)
@@ -7215,9 +7200,7 @@ ORDER BY ACL.EventDateTime DESC;
               advisoriesList = Array.isArray(teamData.advisories)
                 ? teamData.advisories
                 : [];
-              locationSelectionsOut = Array.isArray(
-                teamData.locationSelections,
-              )
+              locationSelectionsOut = Array.isArray(teamData.locationSelections)
                 ? teamData.locationSelections
                 : [];
               lastSyncedAtOut =
@@ -7299,14 +7282,10 @@ ORDER BY ACL.EventDateTime DESC;
         attributeTranslationService.invalidate(resolvedLanguageId);
       }
 
-      const {
-        languageId,
-        languageName,
-        cultureCode,
-        dictionary,
-      } = await attributeTranslationService.getUiTranslationDict(
-        resolvedLanguageId,
-      );
+      const { languageId, languageName, cultureCode, dictionary } =
+        await attributeTranslationService.getUiTranslationDict(
+          resolvedLanguageId,
+        );
       const visitorQuestionValues =
         await attributeTranslationService.getVisitorQuestionValues();
 
@@ -7337,7 +7316,7 @@ ORDER BY ACL.EventDateTime DESC;
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguageData -> language=" +
-        language,
+          language,
       );
       res.status(500).json({ error: "Error fetching language data" });
     }
@@ -7420,9 +7399,9 @@ ORDER BY ACL.EventDateTime DESC;
         "",
         userAadObjId,
         "error in /areyousafetabhandler/getSelectedLanguage -> teamId=" +
-        teamId +
-        " userId=" +
-        userId,
+          teamId +
+          " userId=" +
+          userId,
       );
       res.status(500).json({ error: "Error fetching selected language" });
     }
@@ -7454,13 +7433,12 @@ ORDER BY ACL.EventDateTime DESC;
       await axios.request(config).then(async (response) => {
         let accessToken = response.data.access_token;
 
-        res.send({ accessToken });
+        return res.send({ accessToken });
       });
     } catch (err) {
       console.log(err);
+      return res.send(false);
     }
-
-    res.send(false);
   });
 
   app.get("/areyousafetabhandler/SaveDynamicLocation", async (req, res) => {
@@ -7541,8 +7519,8 @@ ORDER BY ACL.EventDateTime DESC;
         locationData: result.recordsets[0] || [],
         filterEnabled:
           userAadObjId &&
-            result.recordsets[1] &&
-            result.recordsets[1].length > 0
+          result.recordsets[1] &&
+          result.recordsets[1].length > 0
             ? result.recordsets[1][0].FILTER_ENABLED
             : null,
       };
@@ -8053,7 +8031,11 @@ WHERE ID.user_obj_id = @userAadObjId;
         };
       }
 
-      if (subscriptionType === 1 && !Number.isNaN(memberCount) && memberCount > 10) {
+      if (
+        subscriptionType === 1 &&
+        !Number.isNaN(memberCount) &&
+        memberCount > 10
+      ) {
         return {
           bannerType: "freeLimit",
           daysRemaining: 0,

@@ -374,27 +374,33 @@ const removeAllTeamMember = async (teamId) => {
 };
 
 const teamMemberInsertQuery = (teamId, m) => {
+  const aadObjectId = m.aadObjectId ?? m.objectId;
+  const userName = (m.name || "").replace(/'/g, "''");
+  const email = (m.email || "").replace(/'/g, "''");
   return `
-    IF NOT EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-      m.aadObjectId ?? m.objectId
-    }')
-    BEGIN
-      INSERT INTO MSTeamsTeamsUsers([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole],[hasLicense],[email])
-    VALUES('${teamId}', '${m.aadObjectId ?? m.objectId}', '${
-      m.id
-    }', N'${m.name.replace(/'/g, "''")}', '${m.tenantId}', '${m.userRole}',1, '${m.email}');
-    END
-    ELSE IF EXISTS(SELECT * FROM MSTeamsTeamsUsers WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-      m.aadObjectId ?? m.objectId
-    }' AND userPrincipalName is null)
-    BEGIN
-      UPDATE MSTeamsTeamsUsers SET tenantid = '${m.tenantId}', userRole = '${
-        m.userRole
-      }'
-      WHERE team_id = '${teamId}' AND [user_aadobject_id] = '${
-        m.aadObjectId ?? m.objectId
-      }';
-    END`;
+    MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
+    USING (VALUES (
+      '${teamId}',
+      '${aadObjectId}',
+      '${m.id}',
+      N'${userName}',
+      '${m.tenantId}',
+      '${m.userRole}',
+      '${email}'
+    )) AS source (team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, email)
+    ON target.team_id = source.team_id
+       AND target.user_aadobject_id = source.user_aadobject_id
+    WHEN MATCHED THEN
+      UPDATE SET
+        user_id = source.user_id,
+        user_name = source.user_name,
+        tenantid = source.tenantid,
+        userRole = source.userRole,
+        email = source.email
+    WHEN NOT MATCHED THEN
+      INSERT ([team_id], [user_aadobject_id], [user_id], [user_name], [tenantid], [userRole], [hasLicense], [email])
+      VALUES (source.team_id, source.user_aadobject_id, source.user_id, source.user_name, source.tenantid, source.userRole, 1, source.email);
+  `;
 };
 
 const addTeamMember = async (
