@@ -1231,9 +1231,9 @@ const handlerForSafetyBotTab = (app) => {
                   "",
                   "",
                   "error in get users phone number requestDateTime : " +
-                  requestDate +
-                  " ErrorDateTime: " +
-                  new Date(),
+                    requestDate +
+                    " ErrorDateTime: " +
+                    new Date(),
                   "",
                   false,
                   "",
@@ -1662,9 +1662,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userId,
         "error in /areyousafetabhandler/getIncOccurrenceData incId=" +
-        incId +
-        " runAt=" +
-        runAt,
+          incId +
+          " runAt=" +
+          runAt,
       );
       res.send(null);
     }
@@ -1807,9 +1807,9 @@ const handlerForSafetyBotTab = (app) => {
         "",
         userAadObjId,
         "error in /areyousafetabhandler/deleteOccurrence incId=" +
-        incId +
-        " runAt=" +
-        runAt,
+          incId +
+          " runAt=" +
+          runAt,
       );
       res
         .status(500)
@@ -4951,8 +4951,17 @@ const handlerForSafetyBotTab = (app) => {
   });
 
   app.post("/areyousafetabhandler/sendUserConsentRequest", async (req, res) => {
-    const { teamId, tenantId, channels, message, userAadObjId, userIds } =
-      req.body || {};
+    const {
+      teamId,
+      tenantId,
+      channels,
+      message,
+      userAadObjId,
+      userIds,
+      users,
+      serviceUrl,
+      integrationConfigure,
+    } = req.body || {};
     try {
       if (!teamId) {
         res.status(400).send({ error: "teamId is required" });
@@ -4975,9 +4984,15 @@ const handlerForSafetyBotTab = (app) => {
 
       const trimmedServiceUrl =
         typeof serviceUrl === "string" ? serviceUrl.trim() : "";
-      console.log("[sendUserConsentRequest] serviceUrl received:",
-        serviceUrl, trimmedServiceUrl,);
-      console.log("[sendUserConsentRequest] condition", typeof serviceUrl === "string",);
+      console.log(
+        "[sendUserConsentRequest] serviceUrl received:",
+        serviceUrl,
+        trimmedServiceUrl,
+      );
+      console.log(
+        "[sendUserConsentRequest] condition",
+        typeof serviceUrl === "string",
+      );
       if (!trimmedServiceUrl) {
         console.log("[sendUserConsentRequest] serviceUrl is missing or empty");
         res.status(400).send({
