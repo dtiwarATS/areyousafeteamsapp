@@ -1,7 +1,99 @@
 const path = require("path");
 const nodemailer = require("nodemailer");
+const moment = require("moment-timezone");
+const parser = require("cron-parser");
 const ENV_FILE = path.join(__dirname, "../.env");
 require("dotenv").config({ path: ENV_FILE });
+
+/** Normalize TimePicker / DB time strings to HH:mm (24h). */
+const normalizeTimeTo24Hour = (timeStr) => {
+  if (timeStr == null || String(timeStr).trim() === "") return "00:00";
+  const s = String(timeStr)
+    .trim()
+    .replace(/[\u202f\u00a0]/g, " ");
+
+  const ampmMatch = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+  if (ampmMatch) {
+    let hours = parseInt(ampmMatch[1], 10);
+    const minutes = ampmMatch[2];
+    const modifier = ampmMatch[3].toUpperCase();
+    if (modifier === "AM") {
+      if (hours === 12) hours = 0;
+    } else if (hours !== 12) {
+      hours += 12;
+    }
+    return `${String(hours).padStart(2, "0")}:${minutes}`;
+  }
+
+  const h24Match = s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?/);
+  if (h24Match) {
+    const hours = Math.min(23, Math.max(0, parseInt(h24Match[1], 10)));
+    return `${String(hours).padStart(2, "0")}:${h24Match[2]}`;
+  }
+  return "00:00";
+};
+
+/** Parse start/end date strings to YYYY-MM-DD when possible. */
+const normalizeDateToYmd = (dateVal) => {
+  if (dateVal == null || dateVal === "") return null;
+  if (dateVal instanceof Date && !isNaN(dateVal.getTime())) {
+    return moment(dateVal).format("YYYY-MM-DD");
+  }
+  const s = String(dateVal).trim();
+  const iso = s.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (iso) return iso[1];
+  const parsed = moment(
+    s,
+    ["YYYY-MM-DD", "MM/DD/YYYY", "M/D/YYYY", "DD/MM/YYYY", moment.ISO_8601],
+    true,
+  );
+  if (parsed.isValid()) return parsed.format("YYYY-MM-DD");
+  const fallback = moment(s);
+  return fallback.isValid() ? fallback.format("YYYY-MM-DD") : null;
+};
+
+/**
+ * First recurrence RUN_AT (UTC ISO) that is >= max(now, startDate+startTime in tz).
+ */
+const getNextRecurrenceRunAtUTC = (
+  cron,
+  userTimeZone,
+  startDate,
+  startTime,
+) => {
+  const tz =
+    userTimeZone && String(userTimeZone).trim()
+      ? String(userTimeZone).trim()
+      : "UTC";
+  const time24 = normalizeTimeTo24Hour(startTime);
+
+  let earliest = moment().tz(tz);
+  const ymd = normalizeDateToYmd(startDate);
+  if (ymd) {
+    const startMoment = moment.tz(
+      `${ymd} ${time24}`,
+      "YYYY-MM-DD HH:mm",
+      tz,
+    );
+    if (startMoment.isValid() && startMoment.isAfter(earliest)) {
+      earliest = startMoment;
+    }
+  }
+
+  // Subtract 1s so an exact cron match at earliest is returned by .next()
+  const options = {
+    tz,
+    currentDate: earliest.clone().subtract(1, "second").toDate(),
+  };
+  const interval = parser.parseExpression(cron, options);
+  let next = interval.next();
+  let guard = 0;
+  while (moment(next.toDate()).isBefore(earliest) && guard < 400) {
+    next = interval.next();
+    guard += 1;
+  }
+  return next.toISOString();
+};
 
 const sendEmail = async (fromEmail, subject, body) => {
   const transporter = nodemailer.createTransport({
@@ -68,22 +160,19 @@ const formatedDate = (format, date = null) => {
 }
 
 const getCron = (time12hrStr, weekDaysArr) => {
-  const [time, modifier] = time12hrStr.split(" ");
+  const normalized = normalizeTimeTo24Hour(time12hrStr);
+  const [hours, minutes] = normalized.split(":");
 
-  let [hours, minutes] = time.split(":");
+  const weekDayCron = Array.isArray(weekDaysArr)
+    ? weekDaysArr.join(",")
+    : weekDaysArr;
+  const days = String(weekDayCron || "")
+    .split(",")
+    .map((d) => d.trim())
+    .filter((d) => d !== "");
 
-  if (hours === "12" && modifier != null) {
-    hours = "00";
-  }
-
-  if (modifier === "PM") {
-    hours = parseInt(hours, 10) + 12;
-  }
-
-  const weekDayCron = Array.isArray(weekDaysArr) ? weekDaysArr.join(",") : weekDaysArr;
-
-  return `${minutes} ${hours} * * ${weekDayCron}`;
-}
+  return `${parseInt(minutes, 10)} ${parseInt(hours, 10)} * * ${days.join(",")}`;
+};
 
 const convertToAMPM = (time) => {
   const hour = time.split(":")[0];
@@ -131,5 +220,9 @@ module.exports = {
   toTitleCase,
   formatedDate,
   getCron,
-  convertToAMPM,sendCustomEmail
+  convertToAMPM,
+  sendCustomEmail,
+  normalizeTimeTo24Hour,
+  normalizeDateToYmd,
+  getNextRecurrenceRunAtUTC,
 };
