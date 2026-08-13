@@ -101,7 +101,7 @@ function initJob() {
       {
         name: "consentPhoneEligible-job",
         path: path.join(__dirname, "jobs", "consentPhoneEligible-job.js"),
-        cron: "*/5 * * * *",
+        cron: "0 */12 * * *",
       },
     ],
   });
