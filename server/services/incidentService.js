@@ -1109,6 +1109,15 @@ const deleteInc = async (incId, userAadObjId) => {
 };
 
 /**
+ * Normalize Recurr/LAST_RUN_AT values (Date or string) to a comparable string.
+ */
+const toRunAtString = (value) => {
+  if (value == null || value === "") return null;
+  if (value instanceof Date) return value.toISOString();
+  return String(value);
+};
+
+/**
  * Delete a single recurring occurrence (Recurr rows for runAt).
  * If no occurrences remain, deletes the whole incident series.
  * Returns { deletedSeries, incName?, remainingCount? }.
@@ -1127,20 +1136,9 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
 
     pool = await poolPromise;
     const parsedIncId = Number(incId);
+    const requestedRunAt = toRunAtString(runAt);
 
-    await pool
-      .request()
-      .input("incId", sql.Int, parsedIncId)
-      .input("runAt", sql.NVarChar(100), String(runAt))
-      .query(`
-        DELETE Mmrr
-        FROM MSTeamsMemberResponsesRecurr Mmrr
-        INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
-        WHERE m.inc_id = @incId
-          AND CONVERT(DATETIME, Mmrr.runAt) = CONVERT(DATETIME, @runAt);
-      `);
-
-    const remainingRes = await pool
+    const allRunRes = await pool
       .request()
       .input("incId", sql.Int, parsedIncId)
       .query(`
@@ -1152,10 +1150,58 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
         ORDER BY CONVERT(DATETIME, Mmrr.runAt) DESC;
       `);
 
-    const remainingRunAts = remainingRes?.recordset || [];
+    const allRunAts = (allRunRes?.recordset || [])
+      .map((row) => toRunAtString(row.runAt))
+      .filter(Boolean);
+
+    const exactRunAt = allRunAts.find(
+      (stored) =>
+        stored === requestedRunAt || areRunAtEqual(stored, requestedRunAt),
+    );
+
+    if (!exactRunAt) {
+      return { deletedSeries: false, error: "Occurrence not found" };
+    }
+
+    await pool
+      .request()
+      .input("incId", sql.Int, parsedIncId)
+      .input("runAt", sql.NVarChar(100), exactRunAt)
+      .query(`
+        DELETE Mmrr
+        FROM MSTeamsMemberResponsesRecurr Mmrr
+        INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
+        WHERE m.inc_id = @incId
+          AND (
+            Mmrr.runAt = @runAt
+            OR (
+              TRY_CONVERT(DATETIME, Mmrr.runAt) IS NOT NULL
+              AND TRY_CONVERT(DATETIME, @runAt) IS NOT NULL
+              AND TRY_CONVERT(DATETIME, Mmrr.runAt) = TRY_CONVERT(DATETIME, @runAt)
+            )
+          );
+      `);
+
+    const remainingRunAts = allRunAts.filter(
+      (stored) =>
+        stored !== exactRunAt && !areRunAtEqual(stored, requestedRunAt),
+    );
     if (remainingRunAts.length === 0) {
-      const incName = await deleteInc(parsedIncId, userAadObjId);
-      return { deletedSeries: true, incName };
+      // Last occurrence only — clear run data but keep the recurring incident on the list.
+      // Use "Delete incident" to remove the entire series.
+      await pool
+        .request()
+        .input("incId", sql.Int, parsedIncId)
+        .query(`
+          UPDATE MSTEAMS_SUB_EVENT
+          SET LAST_RUN_AT = NULL
+          WHERE INC_ID = @incId;
+        `);
+      return {
+        deletedSeries: false,
+        remainingCount: 0,
+        lastOccurrenceDeleted: true,
+      };
     }
 
     const lastRunRes = await pool
@@ -1166,10 +1212,13 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
         FROM MSTEAMS_SUB_EVENT
         WHERE INC_ID = @incId;
       `);
-    const currentLastRunAt = lastRunRes?.recordset?.[0]?.lastRunAt;
+    const currentLastRunAt = toRunAtString(lastRunRes?.recordset?.[0]?.lastRunAt);
 
-    if (areRunAtEqual(currentLastRunAt, runAt)) {
-      const newLastRunAt = remainingRunAts[0].runAt;
+    if (
+      areRunAtEqual(currentLastRunAt, requestedRunAt) ||
+      currentLastRunAt === exactRunAt
+    ) {
+      const newLastRunAt = remainingRunAts[0];
       await pool
         .request()
         .input("incId", sql.Int, parsedIncId)
