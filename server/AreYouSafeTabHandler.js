@@ -8014,6 +8014,30 @@ WHERE ID.user_obj_id = @userAadObjId;
       expiryDate: null,
       renewUrl:
         "https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true",
+      isSubscriptionExpired: false,
+    };
+
+    const isTeamSubscriptionExpired = (row) => {
+      const subscriptionType = Number(row.SubscriptionType);
+      const daysRemaining = Number(row.DAYS_REMAINING);
+      const hasExpiryDate = row.ExpiryDate != null;
+      const afterExpiryMessageSent =
+        row.isAfterExpiryMessageSent === true ||
+        row.isAfterExpiryMessageSent === 1;
+
+      if (!hasExpiryDate || Number.isNaN(daysRemaining)) {
+        return afterExpiryMessageSent;
+      }
+
+      if (daysRemaining > 0) {
+        return false;
+      }
+
+      return (
+        subscriptionType === 2 ||
+        subscriptionType === 3 ||
+        afterExpiryMessageSent
+      );
     };
 
     const buildResponse = (row) => {
@@ -8023,6 +8047,7 @@ WHERE ID.user_obj_id = @userAadObjId;
       const userEmailId = row.UserEmailId || "";
       const renewUrl =
         "https://teams.microsoft.com/l/app/884e521a-dadc-41e9-a8af-fcaa907e783e?source=agent-details-page";
+      const isSubscriptionExpired = isTeamSubscriptionExpired(row);
 
       if (subscriptionType === 2 && !Number.isNaN(daysRemaining)) {
         return {
@@ -8032,6 +8057,7 @@ WHERE ID.user_obj_id = @userAadObjId;
             ? new Date(row.ExpiryDate).toISOString()
             : null,
           renewUrl,
+          isSubscriptionExpired,
         };
       }
 
@@ -8047,6 +8073,7 @@ WHERE ID.user_obj_id = @userAadObjId;
             ? new Date(row.ExpiryDate).toISOString()
             : null,
           renewUrl,
+          isSubscriptionExpired,
         };
       }
 
@@ -8060,10 +8087,11 @@ WHERE ID.user_obj_id = @userAadObjId;
           daysRemaining: 0,
           expiryDate: null,
           renewUrl,
+          isSubscriptionExpired,
         };
       }
 
-      return noBanner;
+      return { ...noBanner, isSubscriptionExpired };
     };
 
     try {
@@ -8083,6 +8111,7 @@ WHERE ID.user_obj_id = @userAadObjId;
             SD.SubscriptionType,
             SD.ExpiryDate,
             SD.UserEmailId,
+            SD.isAfterExpiryMessageSent,
             DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING,
             (SELECT COUNT(id) FROM MSTeamsTeamsUsers WHERE team_id = ID.TEAM_ID) AS MEMBER_COUNT
           FROM MSTeamsInstallationDetails ID
@@ -8097,6 +8126,7 @@ WHERE ID.user_obj_id = @userAadObjId;
             SD.SubscriptionType,
             SD.ExpiryDate,
             SD.UserEmailId,
+            SD.isAfterExpiryMessageSent,
             DATEDIFF(day, CAST(GETDATE() AS date), CAST(SD.ExpiryDate AS date)) AS DAYS_REMAINING,
             (SELECT COUNT(id) FROM MSTeamsTeamsUsers WHERE team_id = ID.TEAM_ID) AS MEMBER_COUNT
           FROM MSTeamsTeamsUsers TU
