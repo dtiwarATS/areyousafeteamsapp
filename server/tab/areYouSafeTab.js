@@ -1309,19 +1309,53 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
         const userTemasObj = {};
         adminsData.forEach((element, index) => {
           if (element.serviceUrl != null && element.user_tenant_id != null) {
-            const teamName = element.team_name;
+            const teamName = element.team_name || "Safety Officers";
             if (userTemasObj[teamName] == null) {
               userTemasArr.push(teamName);
               userTemasObj[teamName] = [];
               teamIds +=
                 teamIds === "" ? element.team_id : ", " + element.team_id;
             }
-            userTemasObj[teamName].push(element.user_name);
-            if (!sentToIds.includes(element.user_id)) {
+            const displayName = String(
+              element.user_name || element.title || "",
+            ).trim();
+            if (displayName && !userTemasObj[teamName].includes(displayName)) {
+              userTemasObj[teamName].push(displayName);
+            }
+            if (element.user_id && !sentToIds.includes(element.user_id)) {
               sentToIds.push(element.user_id);
             }
           }
         });
+
+        // If serviceUrl filter left names empty, still capture display names for UI
+        if (
+          !Object.values(userTemasObj).some(
+            (arr) => Array.isArray(arr) && arr.length > 0,
+          )
+        ) {
+          const fallbackTeam = "Safety Officers";
+          userTemasArr.push(fallbackTeam);
+          userTemasObj[fallbackTeam] = [];
+          adminsData.forEach((element) => {
+            const displayName = String(
+              element.user_name || element.title || "",
+            ).trim();
+            if (
+              displayName &&
+              !userTemasObj[fallbackTeam].includes(displayName)
+            ) {
+              userTemasObj[fallbackTeam].push(displayName);
+            }
+            if (element.user_id && !sentToIds.includes(element.user_id)) {
+              sentToIds.push(element.user_id);
+            }
+            if (element.team_id && !String(teamIds).includes(element.team_id)) {
+              teamIds +=
+                teamIds === "" ? element.team_id : ", " + element.team_id;
+            }
+          });
+        }
 
         if (userTemasArr.length == 1) {
           const teamName = userTemasArr[0];
