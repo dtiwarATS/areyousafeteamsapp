@@ -274,10 +274,18 @@ WHERE t.serviceUrl IS NOT NULL
               body: [
                 {
                   type: "TextBlock",
-                  text: `**<at>${initiatorUser.user_name}</at>** needs assistance.\n
-                  ${Ulocation}`,
+                  text: `**<at>${initiatorUser.user_name}</at>** needs assistance.`,
                   wrap: true,
                 },
+                ...(Ulocation
+                  ? [
+                      {
+                        type: "TextBlock",
+                        text: Ulocation,
+                        wrap: true,
+                      },
+                    ]
+                  : []),
                 {
                   type: "ActionSet",
                   actions: [

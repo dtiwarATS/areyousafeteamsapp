@@ -668,10 +668,18 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               ? [
                   {
                     type: "TextBlock",
-                    text: `**<at>${user.user_name}</at>** needs assistance.\n
-                    ${Ulocation}`,
+                    text: `**<at>${user.user_name}</at>** needs assistance.`,
                     wrap: true,
                   },
+                  ...(Ulocation
+                    ? [
+                        {
+                          type: "TextBlock",
+                          text: Ulocation,
+                          wrap: true,
+                        },
+                      ]
+                    : []),
                 ]
               : []),
 
