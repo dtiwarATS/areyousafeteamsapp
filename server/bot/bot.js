@@ -2890,6 +2890,12 @@ const sendSafetyCheckMsgViaVoice = async (
     consentedUsers,
   );
 
+  let counter = Number(
+    companyData.SENT_VOICE_CALL_COUNT && companyData.SENT_VOICE_CALL_COUNT != ""
+      ? companyData.SENT_VOICE_CALL_COUNT
+      : "0",
+  );
+
   for (const user of usrPhones) {
     let phone =
       user.businessPhones.length > 0 && user.businessPhones[0] !== ""
@@ -2999,6 +3005,13 @@ const sendSafetyCheckMsgViaVoice = async (
         "",
         "",
       );
+      counter++;
+      if (
+        companyData.SubscriptionType == 1 ||
+        companyData.SubscriptionType == 2
+      ) {
+        incidentService.updateSentVoiceCallCount(companyData.teamId, counter);
+      }
     } catch (err) {
       const voiceErrorPayload = {
         ...voiceInitiatePayload,
@@ -3099,6 +3112,11 @@ const sendSafetyCheckMsgViaWhatsapp = async (
       companyData,
       consentedUsers,
     );
+    let counter = Number(
+      companyData.SENT_WHATSAPP_COUNT && companyData.SENT_WHATSAPP_COUNT != ""
+        ? companyData.SENT_WHATSAPP_COUNT
+        : "0",
+    );
     for (let user of usrPhones) {
       try {
         let phone =
@@ -3164,6 +3182,16 @@ const sendSafetyCheckMsgViaWhatsapp = async (
                   "",
                   "",
                 );
+                counter++;
+                if (
+                  companyData.SubscriptionType == 1 ||
+                  companyData.SubscriptionType == 2
+                ) {
+                  incidentService.updateSentWhatsappCount(
+                    companyData.teamId,
+                    counter,
+                  );
+                }
               },
             );
           } catch (err) {

@@ -5386,6 +5386,28 @@ where team_id = '${team_id}'`;
   }
 };
 
+const updateSentVoiceCallCount = async (team_id, counter) => {
+  try {
+    const recurrRespQuery = `update MSTeamsInstallationDetails set SENT_VOICE_CALL_COUNT = ${counter}
+where team_id = '${team_id}'`;
+
+    await pool.request().query(recurrRespQuery);
+  } catch (err) {
+    console.log();
+  }
+};
+
+const updateSentWhatsappCount = async (team_id, counter) => {
+  try {
+    const recurrRespQuery = `update MSTeamsInstallationDetails set SENT_WHATSAPP_COUNT = ${counter}
+where team_id = '${team_id}'`;
+
+    await pool.request().query(recurrRespQuery);
+  } catch (err) {
+    console.log();
+  }
+};
+
 const parsePhoneSourceFromIntegrationConfig = (raw) => {
   try {
     if (raw == null) return null;
@@ -5755,6 +5777,8 @@ module.exports = {
   updateSafetyCheckStatusViaSMSLink,
   saveSMSlogs,
   updateSentSMSCount,
+  updateSentVoiceCallCount,
+  updateSentWhatsappCount,
   updateCommentViaSMSLink,
   getEmergencyContacts,
   getAdminsOrEmergencyContacts,
