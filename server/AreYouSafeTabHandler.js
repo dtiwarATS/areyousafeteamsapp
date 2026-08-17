@@ -4351,7 +4351,7 @@ const handlerForSafetyBotTab = (app) => {
           tenantid: tenantId,
           userRole,
           IS_TEAM_MEMBER: isTeamMember ? 1 : 0,
-          hasLicense: 1,
+          hasLicense: 0,
           conversationId: null,
           conversation: false,
         };
@@ -4481,7 +4481,6 @@ const handlerForSafetyBotTab = (app) => {
             tenantid = source.tenantid,
             userRole = source.userRole,
             IS_TEAM_MEMBER = source.IS_TEAM_MEMBER,
-            hasLicense = source.hasLicense,
             conversationId = CASE
               WHEN (target.conversationId IS NULL OR target.conversationId = 'null')
                AND (source.conversationId IS NOT NULL AND source.conversationId <> 'null')
