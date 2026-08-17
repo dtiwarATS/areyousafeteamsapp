@@ -186,8 +186,9 @@ const { processSafetyBotError } = require("../models/processError");
 
                 if (
                   (companyData.SubscriptionType == 3 ||
-                    (companyData.SubscriptionType == 2 &&
-                      companyData.sent_sms_count < 50)) &&
+                    (companyData.SubscriptionType == 1 &&
+                      companyData.SubscriptionType == 2) ||
+                    companyData.SENT_VOICE_CALL_COUNT < 50) &&
                   inc_type_id == 1 &&
                   IntegrationConfigure.channels.voice.enabled &&
                   IntegrationConfigure.channels.voice.events.incidentFollowUp
@@ -202,8 +203,9 @@ const { processSafetyBotError } = require("../models/processError");
                 }
                 if (
                   (companyData.SubscriptionType == 3 ||
-                    (companyData.SubscriptionType == 2 &&
-                      companyData.sent_sms_count < 50)) &&
+                    (companyData.SubscriptionType == 1 &&
+                      companyData.SubscriptionType == 2) ||
+                    companyData.SENT_VOICE_CALL_COUNT < 50) &&
                   IntegrationConfigure.channels.sms.enabled &&
                   IntegrationConfigure.channels.sms.events.incidentFollowUp
                 ) {

@@ -5692,7 +5692,11 @@ const NewsendSafetyCheckMessageAsync = async (
         if (
           incData.incTypeId == 1 &&
           IntegrationConfigure?.channels.voice.enabled &&
-          IntegrationConfigure?.channels.voice.events.incident
+          IntegrationConfigure?.channels.voice.events.incident &&
+          (companyData.SubscriptionType == 3 ||
+            ((companyData.SubscriptionType == 1 ||
+              companyData.SubscriptionType == 2) &&
+              companyData.SENT_VOICE_CALL_COUNT < 50))
         ) {
           sendSafetyCheckMsgViaVoice(
             companyData,
@@ -5705,7 +5709,8 @@ const NewsendSafetyCheckMessageAsync = async (
           IntegrationConfigure?.channels.sms.enabled &&
           IntegrationConfigure?.channels.sms.events.incident &&
           (companyData.SubscriptionType == 3 ||
-            (companyData.SubscriptionType == 2 &&
+            ((companyData.SubscriptionType == 1 ||
+              companyData.SubscriptionType == 2) &&
               companyData.sent_sms_count < 50))
         ) {
           sendSafetyCheckMsgViaSMS(
@@ -5719,7 +5724,10 @@ const NewsendSafetyCheckMessageAsync = async (
         if (
           incData.incTypeId == 1 &&
           IntegrationConfigure?.channels.whatsapp.enabled &&
-          IntegrationConfigure?.channels.whatsapp.events.incident
+          IntegrationConfigure?.channels.whatsapp.events.incident &&
+          (companyData.SubscriptionType == 3 ||
+            (companyData.SubscriptionType == 2 &&
+              companyData.SENT_WHATSAPP_COUNT < 50))
         ) {
           sendSafetyCheckMsgViaWhatsapp(
             companyData,
