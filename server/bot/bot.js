@@ -6983,7 +6983,11 @@ const sendRecurrEventMsgAsync = async (
 
     if (
       subEventObj.incType == 1 &&
-      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("VoiceCall")
+      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("VoiceCall") &&
+      (companyData.SubscriptionType == 3 ||
+        ((companyData.SubscriptionType == 1 ||
+          companyData.SubscriptionType == 2) &&
+          companyData.SENT_VOICE_CALL_COUNT < 50))
     ) {
       sendSafetyCheckMsgViaVoice(
         companyData,
@@ -7009,7 +7013,11 @@ const sendRecurrEventMsgAsync = async (
     }
     if (
       subEventObj.incTypeId == 1 &&
-      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("WhatsApp")
+      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("WhatsApp") &&
+      (companyData.SubscriptionType == 3 ||
+        ((companyData.SubscriptionType == 1 ||
+          companyData.SubscriptionType == 2) &&
+          companyData.SENT_WHATSAPP_COUNT < 50))
     ) {
       await sendSafetyCheckMsgViaWhatsapp(
         companyData,
