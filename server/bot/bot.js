@@ -5726,7 +5726,8 @@ const NewsendSafetyCheckMessageAsync = async (
           IntegrationConfigure?.channels.whatsapp.enabled &&
           IntegrationConfigure?.channels.whatsapp.events.incident &&
           (companyData.SubscriptionType == 3 ||
-            (companyData.SubscriptionType == 2 &&
+            ((companyData.SubscriptionType == 1 ||
+              companyData.SubscriptionType == 2) &&
               companyData.SENT_WHATSAPP_COUNT < 50))
         ) {
           sendSafetyCheckMsgViaWhatsapp(
