@@ -3010,7 +3010,10 @@ const sendSafetyCheckMsgViaVoice = async (
         companyData.SubscriptionType == 1 ||
         companyData.SubscriptionType == 2
       ) {
-        incidentService.updateSentVoiceCallCount(companyData.teamId, counter);
+        incidentService.updateSentVoiceCallCount(
+          companyData.userTenantId,
+          counter,
+        );
       }
     } catch (err) {
       const voiceErrorPayload = {
@@ -3188,7 +3191,7 @@ const sendSafetyCheckMsgViaWhatsapp = async (
                   companyData.SubscriptionType == 2
                 ) {
                   incidentService.updateSentWhatsappCount(
-                    companyData.teamId,
+                    companyData.userTenantId,
                     counter,
                   );
                 }

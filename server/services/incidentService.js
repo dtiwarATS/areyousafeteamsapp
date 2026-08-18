@@ -5386,10 +5386,10 @@ where team_id = '${team_id}'`;
   }
 };
 
-const updateSentVoiceCallCount = async (team_id, counter) => {
+const updateSentVoiceCallCount = async (tenant_id, counter) => {
   try {
     const recurrRespQuery = `update MSTeamsInstallationDetails set SENT_VOICE_CALL_COUNT = ${counter}
-where team_id = '${team_id}'`;
+where user_tenant_id = '${tenant_id}'`;
 
     await pool.request().query(recurrRespQuery);
   } catch (err) {
@@ -5397,10 +5397,10 @@ where team_id = '${team_id}'`;
   }
 };
 
-const updateSentWhatsappCount = async (team_id, counter) => {
+const updateSentWhatsappCount = async (tenant_id, counter) => {
   try {
     const recurrRespQuery = `update MSTeamsInstallationDetails set SENT_WHATSAPP_COUNT = ${counter}
-where team_id = '${team_id}'`;
+where user_tenant_id = '${tenant_id}'`;
 
     await pool.request().query(recurrRespQuery);
   } catch (err) {
