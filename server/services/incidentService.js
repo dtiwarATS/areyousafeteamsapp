@@ -5374,10 +5374,10 @@ const updateCommentViaSMSLink = async (userId, incId, comment) => {
   }
 };
 
-const updateSentSMSCount = async (team_id, counter) => {
+const updateSentSMSCount = async (tenant_id, counter) => {
   try {
     const recurrRespQuery = `update MSTeamsInstallationDetails set sent_sms_count = ${counter}
-where team_id = '${team_id}'`;
+where user_tenant_id = '${tenant_id}'`;
 
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);

@@ -2853,8 +2853,11 @@ const sendSafetyCheckMsgViaSMS = async (
           JSON.stringify(voiceInitiatePayload),
         );
 
-        if (companyData.SubscriptionType == 2) {
-          incidentService.updateSentSMSCount(companyData.teamId, counter);
+        if (
+          companyData.SubscriptionType == 1 ||
+          companyData.SubscriptionType == 2
+        ) {
+          incidentService.updateSentSMSCount(companyData.userTenantId, counter);
         }
       }
     } catch (err) {
@@ -6266,8 +6269,11 @@ const sendAcknowledmentinSMS = async (companyData, users, text) => {
           });
           counter++;
         }
-        if (companyData.SubscriptionType == 2) {
-          incidentService.updateSentSMSCount(companyData.teamId, counter);
+        if (
+          companyData.SubscriptionType == 1 ||
+          companyData.SubscriptionType == 2
+        ) {
+          incidentService.updateSentSMSCount(companyData.userTenantId, counter);
         }
       } catch (err) {
         processSafetyBotError(
