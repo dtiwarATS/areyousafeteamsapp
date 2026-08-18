@@ -126,6 +126,17 @@ const toTitleCase = (str) => {
   });
 };
 
+/** Desktop local wall-clock: yyyy-MM-dd HH:mm:ss (same naive format Teams stores). */
+const DESKTOP_WALL_CLOCK_TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+
+const parseDesktopWallClockTimestamp = (value) => {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return DESKTOP_WALL_CLOCK_TS.test(trimmed) ? trimmed : null;
+};
+
 const formatedDate = (format, date = null) => {
   if (date == null) {
     date = new Date();
@@ -219,6 +230,7 @@ module.exports = {
   sendEmail,
   toTitleCase,
   formatedDate,
+  parseDesktopWallClockTimestamp,
   getCron,
   convertToAMPM,
   sendCustomEmail,

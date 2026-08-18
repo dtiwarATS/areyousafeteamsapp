@@ -10,7 +10,7 @@ const tab = require("./tab/AreYouSafeTab");
 const apimeth = require("./api/apiMethods");
 const { processSafetyBotError } = require("./models/processError");
 const { getConversationMembers } = require("./api/apiMethods");
-const { formatedDate } = require("./utils/index");
+const { formatedDate, parseDesktopWallClockTimestamp } = require("./utils/index");
 const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
@@ -875,7 +875,9 @@ const handlerForSafetyBotTab = (app) => {
           });
         }
 
-        const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", new Date());
+        const respTimestamp =
+          parseDesktopWallClockTimestamp(req.body?.timestamp) ||
+          formatedDate("yyyy-MM-dd hh:mm:ss", new Date());
         await incidentService.updateIncResponseData(
           parsedIncId,
           userRow.user_id,
@@ -986,8 +988,15 @@ const handlerForSafetyBotTab = (app) => {
   app.post(
     "/areyousafetabhandler/submit-desktop-incident-comment",
     async (req, res) => {
-      const { deviceId, userAadObjectId, teamId, incId, comment, commandId } =
-        req.body ?? {};
+      const {
+        deviceId,
+        userAadObjectId,
+        teamId,
+        incId,
+        comment,
+        commandId,
+        timestamp,
+      } = req.body ?? {};
 
       try {
         const normalizedDeviceId =
@@ -1079,12 +1088,14 @@ const handlerForSafetyBotTab = (app) => {
           });
         }
 
+        const commentTimestamp = parseDesktopWallClockTimestamp(timestamp);
         await incidentService.updateIncResponseComment(
           parsedIncId,
           userRow.user_id,
           normalizedComment,
           null,
           normalizedUserAadObjectId,
+          commentTimestamp,
         );
 
         incidentService.saveAllTypeQuerylogs(

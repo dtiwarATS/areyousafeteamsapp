@@ -1366,11 +1366,20 @@ const updateIncResponseComment = async (
   commentText = "",
   incData,
   userAadObjId = "",
+  respTimestamp = null,
 ) => {
   pool = await poolPromise;
 
   const escapedComment = String(commentText || "").replace(/'/g, "''");
   const escapeId = (id) => String(id).replace(/'/g, "''");
+  const escapedTimestamp =
+    typeof respTimestamp === "string" &&
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(respTimestamp.trim())
+      ? respTimestamp.trim().replace(/'/g, "''")
+      : null;
+  const timestampSql = escapedTimestamp
+    ? `, timestamp = '${escapedTimestamp}'`
+    : "";
 
   const idSet = new Set();
   if (userId != null && String(userId).trim() !== "") {
@@ -1423,7 +1432,7 @@ const updateIncResponseComment = async (
   }
 
   // Always update parent row (one-time dashboard reads m.comment)
-  const mainQuery = `UPDATE MSTeamsMemberResponses SET comment = '${escapedComment}' WHERE inc_id = ${incidentId} AND (${userIdMatch})`;
+  const mainQuery = `UPDATE MSTeamsMemberResponses SET comment = '${escapedComment}'${timestampSql} WHERE inc_id = ${incidentId} AND (${userIdMatch})`;
   console.log("updateIncResponseComment main >> ", mainQuery);
   const mainResult = await pool.request().query(mainQuery);
   console.log(
@@ -1436,11 +1445,11 @@ const updateIncResponseComment = async (
     let recurrQuery;
     if (incData.runAt != null) {
       recurrQuery =
-        `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${escapedComment}' WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}') ` +
+        `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${escapedComment}'${timestampSql} WHERE convert(datetime, runAt) = convert(datetime, '${incData.runAt}') ` +
         `AND memberResponsesId IN (SELECT ID FROM MSTeamsMemberResponses WHERE INC_ID = ${incidentId} AND (${userIdMatch}))`;
     } else {
       recurrQuery =
-        `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${escapedComment}' ` +
+        `UPDATE MSTeamsMemberResponsesRecurr SET comment = '${escapedComment}'${timestampSql} ` +
         `WHERE memberResponsesId IN (SELECT ID FROM MSTeamsMemberResponses WHERE INC_ID = ${incidentId} AND (${userIdMatch}))`;
     }
     console.log("updateIncResponseComment recurr >> ", recurrQuery);
