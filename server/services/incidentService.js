@@ -394,8 +394,7 @@ const getMessageActivityLogByIncidentId = async (incidentId, runAt = null) => {
       const nextRunRes = await pool
         .request()
         .input("incId", sql.Int, incidentId)
-        .input("runAt", sql.NVarChar(100), String(runAt))
-        .query(`
+        .input("runAt", sql.NVarChar(100), String(runAt)).query(`
           SELECT TOP 1 Mmrr.runAt AS nextRunAt
           FROM MSTeamsMemberResponsesRecurr Mmrr
           INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
@@ -405,12 +404,10 @@ const getMessageActivityLogByIncidentId = async (incidentId, runAt = null) => {
           ORDER BY CONVERT(DATETIME, Mmrr.runAt) ASC;
         `);
       const nextRunAt = nextRunRes?.recordset?.[0]?.nextRunAt;
-      filterSql +=
-        " AND MessageSendDateTime >= CONVERT(DATETIME, @runAt)";
+      filterSql += " AND MessageSendDateTime >= CONVERT(DATETIME, @runAt)";
       if (nextRunAt != null && nextRunAt !== "") {
         request.input("nextRunAt", sql.NVarChar(100), String(nextRunAt));
-        filterSql +=
-          " AND MessageSendDateTime < CONVERT(DATETIME, @nextRunAt)";
+        filterSql += " AND MessageSendDateTime < CONVERT(DATETIME, @nextRunAt)";
       }
     }
 
@@ -1138,9 +1135,7 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
     const parsedIncId = Number(incId);
     const requestedRunAt = toRunAtString(runAt);
 
-    const allRunRes = await pool
-      .request()
-      .input("incId", sql.Int, parsedIncId)
+    const allRunRes = await pool.request().input("incId", sql.Int, parsedIncId)
       .query(`
         SELECT Mmrr.runAt
         FROM MSTeamsMemberResponsesRecurr Mmrr
@@ -1166,8 +1161,7 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
     await pool
       .request()
       .input("incId", sql.Int, parsedIncId)
-      .input("runAt", sql.NVarChar(100), exactRunAt)
-      .query(`
+      .input("runAt", sql.NVarChar(100), exactRunAt).query(`
         DELETE Mmrr
         FROM MSTeamsMemberResponsesRecurr Mmrr
         INNER JOIN MSTeamsMemberResponses m ON m.id = Mmrr.memberResponsesId
@@ -1189,10 +1183,7 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
     if (remainingRunAts.length === 0) {
       // Last occurrence only — clear run data but keep the recurring incident on the list.
       // Use "Delete incident" to remove the entire series.
-      await pool
-        .request()
-        .input("incId", sql.Int, parsedIncId)
-        .query(`
+      await pool.request().input("incId", sql.Int, parsedIncId).query(`
           UPDATE MSTEAMS_SUB_EVENT
           SET LAST_RUN_AT = NULL
           WHERE INC_ID = @incId;
@@ -1204,15 +1195,15 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
       };
     }
 
-    const lastRunRes = await pool
-      .request()
-      .input("incId", sql.Int, parsedIncId)
+    const lastRunRes = await pool.request().input("incId", sql.Int, parsedIncId)
       .query(`
         SELECT TOP 1 LAST_RUN_AT AS lastRunAt
         FROM MSTEAMS_SUB_EVENT
         WHERE INC_ID = @incId;
       `);
-    const currentLastRunAt = toRunAtString(lastRunRes?.recordset?.[0]?.lastRunAt);
+    const currentLastRunAt = toRunAtString(
+      lastRunRes?.recordset?.[0]?.lastRunAt,
+    );
 
     if (
       areRunAtEqual(currentLastRunAt, requestedRunAt) ||
@@ -1222,8 +1213,7 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
       await pool
         .request()
         .input("incId", sql.Int, parsedIncId)
-        .input("lastRunAt", sql.NVarChar(100), String(newLastRunAt))
-        .query(`
+        .input("lastRunAt", sql.NVarChar(100), String(newLastRunAt)).query(`
           UPDATE MSTEAMS_SUB_EVENT
           SET LAST_RUN_AT = @lastRunAt
           WHERE INC_ID = @incId;
@@ -1241,10 +1231,7 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
       "",
       "",
       userAadObjId,
-      "error in deleteOccurrence incId=" +
-        incId +
-        " runAt=" +
-        runAt,
+      "error in deleteOccurrence incId=" + incId + " runAt=" + runAt,
     );
     return { deletedSeries: false, error: "Failed to delete occurrence" };
   }
@@ -1921,9 +1908,63 @@ const saveIncResponseUserTS = async (respUserTSquery, userAadObjId) => {
 const getIncResponseSelectedUsersList = async (incId, userAadObjId) => {
   try {
     console.log("inside getIncResponseSelectedUsersList", { incId });
-    const sql = `select irsu.id, irsu.inc_id, irsu.user_id, irsu.user_name,
-      (select top 1 LANGUAGE_ID from MSTeamsTeamsUsers where user_id = irsu.user_id or user_aadobject_id=irsu.user_id) as LANGUAGE_ID
-      from MSTeamsIncResponseSelectedUsers irsu where irsu.inc_id = ${incId};`;
+    const sql = `
+WITH IncidentUsers AS
+(
+    SELECT
+        id,
+        inc_id,
+        user_id,
+        user_name
+    FROM MSTeamsIncResponseSelectedUsers
+    WHERE inc_id = ${incId}
+),
+MatchedUsers AS
+(
+    SELECT
+        mtu.user_id AS matched_user_id,
+        mtu.LANGUAGE_ID,
+        mtu.conversationId,
+        mtu.id
+    FROM MSTeamsTeamsUsers mtu
+    INNER JOIN IncidentUsers iu
+        ON mtu.user_id = iu.user_id
+
+    UNION ALL
+
+    SELECT
+        mtu.user_aadobject_id AS matched_user_id,
+        mtu.LANGUAGE_ID,
+        mtu.conversationId,
+        mtu.id
+    FROM MSTeamsTeamsUsers mtu
+    INNER JOIN IncidentUsers iu
+        ON mtu.user_aadobject_id = iu.user_id
+),
+RankedUsers AS
+(
+    SELECT
+        matched_user_id,
+        LANGUAGE_ID,
+        conversationId,
+        ROW_NUMBER() OVER (
+            PARTITION BY matched_user_id
+            ORDER BY id DESC
+        ) AS rn
+    FROM MatchedUsers
+)
+SELECT
+    iu.id,
+    iu.inc_id,
+    iu.user_id,
+    iu.user_name,
+    ru.LANGUAGE_ID,
+    ru.conversationId
+FROM IncidentUsers iu
+LEFT JOIN RankedUsers ru
+    ON ru.matched_user_id = iu.user_id
+    AND ru.rn = 1;
+      `;
     const result = await db.getDataFromDB(sql, userAadObjId);
     console.log("after getIncResponseSelectedUsersList", { incId, sql });
     return Promise.resolve(result);
