@@ -817,6 +817,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 admins[i].user_tenant_id,
                 null,
                 userAadObjId,
+                admins[i].conversationId ?? null,
               ).then(() => {
                 incidentService.saveAllTypeQuerylogs(
                   admins[i].user_aadobject_id,

@@ -213,7 +213,8 @@ AND a.requested_date <= DATEADD(MINUTE, 5, t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT
     SELECT DISTINCT
         user_id,
         user_name,
-        user_aadobject_id
+        user_aadobject_id,
+        conversationId
     FROM MSTeamsTeamsUsers
     WHERE user_id IN (${responderIdsStr})
 )
@@ -222,6 +223,7 @@ SELECT
     u.user_id,
     u.user_name,
     u.user_aadobject_id,
+    u.conversationId,
     t.serviceUrl,
     t.user_tenant_id
 FROM DistinctUsers u
@@ -343,6 +345,7 @@ WHERE t.serviceUrl IS NOT NULL
                   responder.user_tenant_id || tenantId,
                   log,
                   initiatorUser.user_aadobject_id,
+                  responder.conversationId,
                 );
 
                 incidentService.saveAllTypeQuerylogs(

@@ -149,8 +149,8 @@ const { processSafetyBotError } = require("../models/processError");
                 companyData.serviceUrl,
                 companyData.userTenantId,
                 log,
-                "",
-                null,
+                member.user_aadobj_id,
+                member.conversationId,
                 null,
                 filesData,
               );
@@ -293,11 +293,35 @@ const { processSafetyBotError } = require("../models/processError");
     }
   };
   //let querry = `select mstm.* ,mst.* from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 )`;
-  let querry = `select mstm.* ,mst.* , (select top 1 user_aadobject_id from MSTeamsTeamsUsers where user_id = mstm.user_id) 'user_aadobj_id',
-  (select top 1 email from MSTeamsTeamsUsers where user_id = mstm.user_id) 'email',
-  (select top 1 LANGUAGE_ID from MSTeamsTeamsUsers where user_id = mstm.user_id) 'LANGUAGE_ID'
-  from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id 
-  IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 and SendRemindersCount > 0 and SendRemindersTime > 0 ) and MST.inc_type='onetime'`;
+  let querry = `SELECT 
+    mstm.*,
+    mst.*,
+    mtu.user_aadobject_id AS user_aadobj_id,
+    mtu.email,
+    mtu.LANGUAGE_ID,
+    mtu.conversationId
+FROM MSTeamsMemberResponses mstm
+LEFT JOIN MSTeamsIncidents mst 
+    ON mst.id = mstm.inc_id
+OUTER APPLY (
+    SELECT TOP 1
+        user_aadobject_id,
+        email,
+        LANGUAGE_ID,
+        conversationId
+    FROM MSTeamsTeamsUsers
+    WHERE user_id = mstm.user_id
+) mtu
+WHERE mstm.response = 0
+  AND mstm.inc_id IN (
+      SELECT ID
+      FROM [dbo].[MSTeamsIncidents]
+      WHERE EnableSendReminders = 1
+        AND INC_STATUS_ID = 1
+        AND SendRemindersCount > 0
+        AND SendRemindersTime > 0
+  )
+  AND mst.inc_type = 'onetime';`;
 
   let querryReccuring = `select distinct  Mmrr.* ,mst.* , (select top 1 user_aadobject_id from MSTeamsTeamsUsers where user_id = mstm.user_id) 'user_aadobj_id',
   (select top 1 email from MSTeamsTeamsUsers where user_id = mstm.user_id) 'email',

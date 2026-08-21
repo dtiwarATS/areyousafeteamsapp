@@ -2960,7 +2960,8 @@ WHERE rn = 1;
             SELECT DISTINCT
               user_id,
               user_name,
-              user_aadobject_id
+              user_aadobject_id,
+              conversationId
             FROM MSTeamsTeamsUsers
             WHERE user_id IN (${responderIdsStr})
           )
@@ -2968,6 +2969,7 @@ WHERE rn = 1;
             u.user_id,
             u.user_name,
             u.user_aadobject_id,
+            u.conversationId,
             t.serviceUrl,
             t.user_tenant_id
           FROM DistinctUsers u
@@ -3034,6 +3036,7 @@ WHERE rn = 1;
                 responder.user_tenant_id || tenantId,
                 null,
                 responder.user_aadobject_id,
+                responder.conversationId,
               );
             } catch (err) {
               console.log(

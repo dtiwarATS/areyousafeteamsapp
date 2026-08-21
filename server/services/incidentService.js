@@ -3285,7 +3285,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
 
             let selectQuery = "";
             if (contactsArr.length > 0) {
-              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id, B.serviceUrl,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.SHOW_SOS_BUTTON as ALLOW_USERS_TO_SEND_SOS_REQUEST,B.created_date,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
+              selectQuery = `SELECT distinct A.user_id,A.email,A.user_aadobject_id,A.conversationId, B.serviceUrl,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.SHOW_SOS_BUTTON as ALLOW_USERS_TO_SEND_SOS_REQUEST,B.created_date,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
                             FROM MSTEAMSTEAMSUSERS A 
                             LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
                             WHERE A.team_id in ('${teamId}') AND A.USER_AADOBJECT_ID <> '${aadObjuserId}' AND A.USER_AADOBJECT_ID IN('${contactsArr.join(
