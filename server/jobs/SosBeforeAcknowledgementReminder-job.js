@@ -64,16 +64,22 @@ OUTER APPLY (
     WHERE user_id = a.user_id
 ) u
 
--- ✅ Get ONE eligible team config (single row)
+-- ✅ Get ONE eligible team config (single row); skip expired subscriptions
 OUTER APPLY (
     SELECT TOP 1 t.*
     FROM MSTeamsTeamsUsers tu
     INNER JOIN MSTeamsInstallationDetails t
         ON t.team_id = tu.team_id
         AND t.uninstallation_date IS NULL
+    INNER JOIN MSTeamsSubscriptionDetails sd
+        ON sd.ID = t.SubscriptionDetailsId
     WHERE tu.user_id = a.user_id
       AND t.IsReminderEnabledBeforeAcknowledgement = 1
-      
+      AND NOT (
+            sd.SubscriptionType IN (2, 3)
+        AND sd.ExpiryDate IS NOT NULL
+        AND GETDATE() > sd.ExpiryDate
+      )
     ORDER BY t.team_id   -- optional: priority / created date
 ) t
 
