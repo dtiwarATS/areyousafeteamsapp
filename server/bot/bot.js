@@ -7994,4 +7994,5 @@ module.exports = {
   getUserDetails,
   sendWhatsappMessage,
   sendSafetyCheckMsgViaEmail,
+  sendSafetyCheckMsgViaDesktop,
 };
