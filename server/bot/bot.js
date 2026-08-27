@@ -4748,7 +4748,7 @@ const processCommentViaLink = async (userId, incId, comment) => {
       );
     }
   } catch (err) {
-    processSafetyBotError(err, "", "", null, "error in saveSMSLog");
+    processSafetyBotError(err, "", "", null, "error in processCommentViaLink");
   }
   return Promise.resolve(superUsers);
 };
