@@ -916,7 +916,7 @@ class BotActivityHandler extends TeamsActivityHandler {
                         const companyDataObj = getCompaniesDataJSON(
                           context,
                           adminUserInfo,
-                          "",
+                          personalTeamId,
                           "",
                         );
                         await insertCompanyData(
