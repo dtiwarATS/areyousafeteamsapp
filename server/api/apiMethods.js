@@ -241,6 +241,14 @@ const getUsersConversationId = async (
 ) => {
   let userConversationId = null;
   try {
+    if (!tenantId) {
+      console.log(
+        "getUsersConversationId: missing tenantId (skip)",
+        userAadObjId || members?.[0]?.aadObjectId || members?.[0]?.id,
+      );
+      return null;
+    }
+
     const appId = process.env.MicrosoftAppId;
     const appPass = process.env.MicrosoftAppPassword;
     const botName = process.env.BotName;

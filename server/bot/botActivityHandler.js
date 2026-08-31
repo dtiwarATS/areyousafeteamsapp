@@ -306,7 +306,10 @@ class BotActivityHandler extends TeamsActivityHandler {
       }
       return {
         userId: adminUserInfo?.id,
-        userTenantId: adminUserInfo?.tenantId,
+        userTenantId:
+          adminUserInfo?.tenantId ??
+          context?.activity?.channelData?.tenant?.id ??
+          context?.activity?.conversation?.tenantId,
         userObjId: adminUserInfo?.aadObjectId,
         userName: adminUserInfo?.name,
         email: userEmail == null ? "" : userEmail,

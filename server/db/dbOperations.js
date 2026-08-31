@@ -523,6 +523,24 @@ const updateUserLicenseStatus = async (teamId, tenantId, userObjId) => {
 };
 
 const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
+  let tenantId = companyDataObj?.userTenantId;
+  if (!tenantId && companyDataObj?.teamId) {
+    try {
+      const res = await db.getDataFromDB(
+        `select top 1 user_tenant_id from MSTeamsInstallationDetails where team_id = '${companyDataObj.teamId}' and user_tenant_id is not null`,
+        companyDataObj?.userObjId || "",
+      );
+      tenantId = res?.[0]?.user_tenant_id;
+    } catch (_) {}
+  }
+  if (!tenantId) {
+    console.log(
+      "sendSetupMessageToAllMembers: missing tenantId, skipping proactive setup messages",
+      companyDataObj?.teamId,
+    );
+    return;
+  }
+
   const installerName = companyDataObj?.userName || "Someone";
   const teamName = companyDataObj.teamName || "your team";
 
@@ -579,7 +597,7 @@ const sendSetupMessageToAllMembers = async (members, companyDataObj) => {
       setupCard,
       null,
       companyDataObj.serviceUrl,
-      companyDataObj.userTenantId,
+      tenantId,
       null,
       null,
     );
