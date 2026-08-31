@@ -16,7 +16,11 @@ const {
   getTypeTwoThreeDayBeforeCard,
 } = require("../bot/subscriptionCard");
 const { processSafetyBotError } = require("../models/processError");
+const { runGuardedJob } = require("../utils/jobGuard");
 (async () => {
+  await runGuardedJob(
+    "subscription",
+    async () => {
   const trackTrialNotification = (job, subcriptionMessage, sendResp, err = null) => {
     try {
       const deliveryStatus =
@@ -229,6 +233,9 @@ const { processSafetyBotError } = require("../models/processError");
 
   let sqlAfterSubcriptionEnd = beforeExpiryQuery(false, -1);
   await sendProactiveMessage(sqlAfterSubcriptionEnd, "afterSubcriptionEnd");
+    },
+    { exitWhenSkipped: false },
+  );
 
   // signal to parent that the job is done
   if (parentPort) parentPort.postMessage("done");

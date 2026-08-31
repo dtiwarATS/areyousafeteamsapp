@@ -15,7 +15,7 @@ const {
   insertSelectedCountryLog,
 } = require("./travel-advisory-selected-db");
 const sql = require("mssql");
-const poolPromise = require("../db/dbConn");
+const { getActivePoolPromise } = require("../db/dbContext");
 
 function splitCountryCodes(raw) {
   return String(raw || "")
@@ -33,7 +33,7 @@ async function resolveSelectedCountryCodes(row) {
   const fromColumn = splitCountryCodes(row.CountryCode);
   const codes = new Set(fromColumn);
   try {
-    const pool = await poolPromise;
+    const pool = await getActivePoolPromise();
     const result = await pool
       .request()
       .input("Id", sql.Int, row.TravelAdvisorySelectedCountriesId).query(`

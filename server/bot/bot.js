@@ -4950,49 +4950,31 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                 .then(async (response) => {
                   let data = response.data.value;
                   if (data && data.length > 0) {
-                    // Helper function to escape SQL strings
-                    const escapeSql = (str) => {
-                      if (!str) return "";
-                      return str.replace(/'/g, "''");
-                    };
-
-                    // Batch updates into chunks of 50 to avoid timeout
-                    const batchSize = 50;
-                    for (let i = 0; i < data.length; i += batchSize) {
-                      const batch = data.slice(i, i + batchSize);
-                      let qry = "";
-
-                      batch.forEach((user) => {
-                        let city = escapeSql(user.city || "");
-                        let country = escapeSql(user.country || "");
-                        let state = escapeSql(user.state || "");
-                        let department = escapeSql(user.department || "");
-                        let userId = escapeSql(user.id || "");
-
-                        qry += `update MSTeamsTeamsUsers set city = N'${city}', country = N'${country}', state = N'${state}', department = N'${department}', LAST_UPDATED_BY = 'SYSTEM' where user_aadobject_id = '${userId}'; `;
+                    try {
+                      await incidentService.bulkUpdateMSTeamsTeamsUserProfiles(
+                        data.map((user) => ({
+                          id: user.id,
+                          city: user.city || "",
+                          country: user.country || "",
+                          state: user.state || "",
+                          department: user.department || "",
+                        })),
+                      );
+                    } catch (dbError) {
+                      console.log({
+                        "error in batch update": dbError,
+                        userCount: data.length,
                       });
-
-                      if (qry != "") {
-                        try {
-                          await incidentService.updateDataIntoDB(qry);
-                        } catch (dbError) {
-                          console.log({
-                            "error in batch update": dbError,
-                            batchIndex: i,
-                            batchSize: batch.length,
-                          });
-                          processSafetyBotError(
-                            dbError,
-                            tenantId,
-                            "",
-                            "",
-                            `error in batch update users (batch ${i}-${i + batch.length - 1})`,
-                            "",
-                            false,
-                            "",
-                          );
-                        }
-                      }
+                      processSafetyBotError(
+                        dbError,
+                        tenantId,
+                        "",
+                        "",
+                        "error in bulkUpdateMSTeamsTeamsUserProfiles",
+                        "",
+                        false,
+                        "",
+                      );
                     }
                   }
                 })

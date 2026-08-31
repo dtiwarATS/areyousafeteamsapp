@@ -7,7 +7,7 @@ const {
 const Member = require("../models/Member");
 const Incident = require("../models/Incident");
 const sql = require("mssql");
-const poolPromise = require("../db/dbConn");
+const { getActivePoolPromise } = require("../db/dbContext");
 const db = require("../db");
 const { getCron, getNextRecurrenceRunAtUTC } = require("../utils");
 const { formatedDate } = require("../utils/index");
@@ -380,7 +380,7 @@ const getTeamInfoByTenantId = async (tenantId) => {
 
 const getMessageActivityLogByIncidentId = async (incidentId, runAt = null) => {
   try {
-    const pool = await poolPromise;
+    const pool = await getActivePoolPromise();
     const request = pool.request().input("incId", sql.Int, incidentId);
 
     let filterSql = "WHERE IncidentId = @incId";
@@ -1069,7 +1069,7 @@ const saveRecurrSubEventInc = async (actionData, companyData, userTimeZone) => {
 const deleteInc = async (incId, userAadObjId) => {
   let incName = null;
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
 
     const query = `
       DELETE FROM MSTeamsMemberResponses
@@ -1131,7 +1131,7 @@ const deleteOccurrence = async (incId, runAt, userAadObjId) => {
       return { deletedSeries: false, error: "Missing incId or runAt" };
     }
 
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const parsedIncId = Number(incId);
     const requestedRunAt = toRunAtString(runAt);
 
@@ -1320,7 +1320,7 @@ const updateIncResponseData = async (
   userAadObjId = "",
   responseVia = "Teams",
 ) => {
-  pool = await poolPromise;
+  pool = await getActivePoolPromise();
   const via =
     typeof responseVia === "string" && responseVia.trim()
       ? responseVia.trim().replace(/'/g, "''")
@@ -1355,7 +1355,7 @@ const updateIncResponseComment = async (
   userAadObjId = "",
   respTimestamp = null,
 ) => {
-  pool = await poolPromise;
+  pool = await getActivePoolPromise();
 
   const escapedComment = String(commentText || "").replace(/'/g, "''");
   const escapeId = (id) => String(id).replace(/'/g, "''");
@@ -1458,7 +1458,7 @@ const safteyvisiterresponseupdate = async (
   qestionNumber,
   dataToBeUpdated,
 ) => {
-  pool = await poolPromise;
+  pool = await getActivePoolPromise();
 
   let query = null;
 
@@ -2064,7 +2064,7 @@ const getRecurrenceMembersResponse = async (incId) => {
 const updateIncStatus = async (incId, incStatus, userAadObjId) => {
   let isupdated = false;
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     let incStatusId = 1;
     if (incStatus == "Closed") {
       incStatusId = 2;
@@ -2116,7 +2116,7 @@ const getIncStatus = async (incId, runAt = null) => {
 const saveServiceUrl = async (installationIds, serviceUrl) => {
   let isupdated = false;
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const sqlUpdateServiceUrl = `update msteamsinstallationdetails set serviceUrl = '${serviceUrl}' where id in (${installationIds}) and (serviceUrl is null or serviceUrl = '') `;
     console.log(sqlUpdateServiceUrl);
     const updateResult = await db.updateDataIntoDB(sqlUpdateServiceUrl);
@@ -2185,7 +2185,7 @@ const getAllTeamsIdByTenantId = async (tenantId) => {
 
 const updateUserInfoFlag = async (installationIds) => {
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const sqlUpdateUserInfo = `update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id in (${installationIds})`;
     console.log(sqlUpdateUserInfo);
     await db.updateDataIntoDB(sqlUpdateUserInfo);
@@ -2649,7 +2649,7 @@ const normalizeManualLocations = (locations) => {
 };
 
 const getManualLocations = async (tenantId) => {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const request = pool.request();
   request.input("tenantId", sql.NVarChar(sql.MAX), String(tenantId).trim());
 
@@ -2697,7 +2697,7 @@ const saveManualLocations = async (body) => {
   }
 
   const locations = normalizeManualLocations(body.locations);
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const transaction = new sql.Transaction(pool);
   let transactionStarted = false;
   let insertedCount = 0;
@@ -2792,7 +2792,7 @@ const deleteManualLocation = async (id) => {
     };
   }
 
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const request = pool.request();
   request.input("id", sql.Int, locationId);
 
@@ -2818,6 +2818,59 @@ const normalizeLocationKeyPart = (value) => String(value ?? "").trim();
 const buildOffice365LocationKey = (country, city, state) =>
   `${normalizeLocationKeyPart(country)}|${normalizeLocationKeyPart(city)}|${normalizeLocationKeyPart(state)}`;
 
+const bulkUpdateMSTeamsTeamsUserProfiles = async (users) => {
+  if (!Array.isArray(users) || users.length === 0) {
+    return { updatedCount: 0 };
+  }
+
+  const pool = await getActivePoolPromise();
+  const batchSize = 50;
+  let updatedCount = 0;
+
+  for (let offset = 0; offset < users.length; offset += batchSize) {
+    const batch = users.slice(offset, offset + batchSize);
+    const request = pool.request();
+    const valueRows = batch
+      .map((user, index) => {
+        request.input(`userId${index}`, sql.NVarChar(128), user.id || "");
+        request.input(`city${index}`, sql.NVarChar(sql.MAX), user.city || "");
+        request.input(
+          `country${index}`,
+          sql.NVarChar(sql.MAX),
+          user.country || "",
+        );
+        request.input(`state${index}`, sql.NVarChar(sql.MAX), user.state || "");
+        request.input(
+          `department${index}`,
+          sql.NVarChar(sql.MAX),
+          user.department || "",
+        );
+        return `(@userId${index}, @city${index}, @country${index}, @state${index}, @department${index})`;
+      })
+      .join(",\n        ");
+
+    const result = await request.query(`
+      MERGE MSTeamsTeamsUsers AS target
+      USING (
+        VALUES
+        ${valueRows}
+      ) AS source (user_aadobject_id, city, country, state, department)
+      ON target.user_aadobject_id = source.user_aadobject_id
+      WHEN MATCHED THEN
+        UPDATE SET
+          city = source.city,
+          country = source.country,
+          state = source.state,
+          department = source.department,
+          LAST_UPDATED_BY = 'SYSTEM';
+    `);
+
+    updatedCount += result.rowsAffected?.[0] || 0;
+  }
+
+  return { updatedCount };
+};
+
 /**
  * Reconcile LOCATION_CONFIGURATION rows for a tenant from MSTeamsTeamsUsers
  * (ISOffice365Location = 1 only). Unique key: TENENT_ID + COUNTRY + CITY + STATE.
@@ -2828,147 +2881,100 @@ const syncOffice365Locations = async (tenantId) => {
     return { success: false, error: "tenantId is required" };
   }
 
-  const pool = await poolPromise;
-  const loadRequest = pool.request();
-  loadRequest.input("tenantId", sql.NVarChar(sql.MAX), tid);
-
-  const distinctResult = await loadRequest.query(`
-    SELECT DISTINCT
-      LTRIM(RTRIM(ISNULL(tu.country, ''))) AS country,
-      LTRIM(RTRIM(ISNULL(tu.city, ''))) AS city,
-      LTRIM(RTRIM(ISNULL(tu.state, ''))) AS state
-    FROM MSTeamsTeamsUsers tu
-    INNER JOIN MSTeamsInstallationDetails id ON tu.team_id = id.team_id
-    WHERE id.user_tenant_id = @tenantId
-      AND (
-        LTRIM(RTRIM(ISNULL(tu.country, ''))) <> ''
-        OR LTRIM(RTRIM(ISNULL(tu.city, ''))) <> ''
-        OR LTRIM(RTRIM(ISNULL(tu.state, ''))) <> ''
-      )
-  `);
-
-  const existingResult = await pool
-    .request()
-    .input("tenantId", sql.NVarChar(sql.MAX), tid).query(`
-      SELECT
-        ID AS id,
-        LTRIM(RTRIM(ISNULL(COUNTRY, ''))) AS country,
-        LTRIM(RTRIM(ISNULL(CITY, ''))) AS city,
-        LTRIM(RTRIM(ISNULL(STATE, ''))) AS state
-      FROM LOCATION_CONFIGURATION
-      WHERE TENENT_ID = @tenantId
-        AND ISOffice365Location = 1
-    `);
-
-  const distinctLocations = (distinctResult.recordset || []).map((row) => ({
-    country: normalizeLocationKeyPart(row.country),
-    city: normalizeLocationKeyPart(row.city),
-    state: normalizeLocationKeyPart(row.state),
-  }));
-
-  const distinctKeys = new Set(
-    distinctLocations.map((loc) =>
-      buildOffice365LocationKey(loc.country, loc.city, loc.state),
-    ),
-  );
-
-  const existingByKey = new Map();
-  const duplicateIds = [];
-  for (const row of existingResult.recordset || []) {
-    const key = buildOffice365LocationKey(row.country, row.city, row.state);
-    if (existingByKey.has(key)) {
-      duplicateIds.push(row.id);
-    } else {
-      existingByKey.set(key, row);
-    }
-  }
-
-  const transaction = new sql.Transaction(pool);
-  let transactionStarted = false;
-  let insertedCount = 0;
-  let updatedCount = 0;
-  let deletedCount = 0;
+  const pool = await getActivePoolPromise();
+  const request = pool.request();
+  request.input("tenantId", sql.NVarChar(sql.MAX), tid);
 
   try {
-    await transaction.begin();
-    transactionStarted = true;
-
-    for (const location of distinctLocations) {
-      const key = buildOffice365LocationKey(
-        location.country,
-        location.city,
-        location.state,
-      );
-      const existing = existingByKey.get(key);
-
-      if (existing) {
-        const updateRequest = new sql.Request(transaction);
-        updateRequest.input("id", sql.Int, existing.id);
-        updateRequest.input("tenantId", sql.NVarChar(sql.MAX), tid);
-        updateRequest.input("country", sql.NVarChar(sql.MAX), location.country);
-        updateRequest.input("city", sql.NVarChar(sql.MAX), location.city);
-        updateRequest.input("state", sql.NVarChar(sql.MAX), location.state);
-
-        await updateRequest.query(`
-          UPDATE LOCATION_CONFIGURATION
-          SET COUNTRY = @country,
-              CITY = @city,
-              STATE = @state,
-              LastUpdatedDateTime = GETDATE(),
-              LAST_UPDATED_BY = 'SYSTEM'
-          WHERE ID = @id
-            AND TENENT_ID = @tenantId
-            AND ISOffice365Location = 1
-        `);
-        updatedCount += 1;
-        existingByKey.delete(key);
-        continue;
-      }
-
-      const insertRequest = new sql.Request(transaction);
-      insertRequest.input("tenantId", sql.NVarChar(sql.MAX), tid);
-      insertRequest.input("country", sql.NVarChar(sql.MAX), location.country);
-      insertRequest.input("city", sql.NVarChar(sql.MAX), location.city);
-      insertRequest.input("state", sql.NVarChar(sql.MAX), location.state);
-
-      await insertRequest.query(`
-        INSERT INTO LOCATION_CONFIGURATION
-          (TENENT_ID, COUNTRY, CITY, STATE, DEPARTMENT, CREATED_BY, LAST_UPDATED_BY, LastUpdatedDateTime, ISOffice365Location)
-        VALUES
-          (@tenantId, @country, @city, @state, NULL, 'SYSTEM', 'SYSTEM', GETDATE(), 1)
-      `);
-      insertedCount += 1;
-    }
-
-    const staleIds = [
-      ...duplicateIds,
-      ...[...existingByKey.values()].map((row) => row.id),
-    ];
-    for (const staleId of staleIds) {
-      const deleteRequest = new sql.Request(transaction);
-      deleteRequest.input("id", sql.Int, staleId);
-      deleteRequest.input("tenantId", sql.NVarChar(sql.MAX), tid);
-
-      const deleteResult = await deleteRequest.query(`
-        DELETE FROM LOCATION_CONFIGURATION
-        WHERE ID = @id
-          AND TENENT_ID = @tenantId
+    await request.query(`
+      ;WITH RankedDuplicates AS (
+        SELECT
+          ID,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              TENENT_ID,
+              LTRIM(RTRIM(ISNULL(COUNTRY, ''))),
+              LTRIM(RTRIM(ISNULL(CITY, ''))),
+              LTRIM(RTRIM(ISNULL(STATE, '')))
+            ORDER BY ID
+          ) AS rowNum
+        FROM LOCATION_CONFIGURATION
+        WHERE TENENT_ID = @tenantId
           AND ISOffice365Location = 1
-      `);
-      deletedCount += deleteResult.rowsAffected?.[0] || 0;
-    }
+      )
+      DELETE lc
+      FROM LOCATION_CONFIGURATION lc
+      INNER JOIN RankedDuplicates rd ON lc.ID = rd.ID
+      WHERE rd.rowNum > 1;
+    `);
 
-    await transaction.commit();
+    const mergeResult = await pool
+      .request()
+      .input("tenantId", sql.NVarChar(sql.MAX), tid).query(`
+        ;WITH DistinctLocations AS (
+          SELECT DISTINCT
+            LTRIM(RTRIM(ISNULL(tu.country, ''))) AS country,
+            LTRIM(RTRIM(ISNULL(tu.city, ''))) AS city,
+            LTRIM(RTRIM(ISNULL(tu.state, ''))) AS state
+          FROM MSTeamsTeamsUsers tu
+          INNER JOIN MSTeamsInstallationDetails id ON tu.team_id = id.team_id
+          WHERE id.user_tenant_id = @tenantId
+            AND (
+              LTRIM(RTRIM(ISNULL(tu.country, ''))) <> ''
+              OR LTRIM(RTRIM(ISNULL(tu.city, ''))) <> ''
+              OR LTRIM(RTRIM(ISNULL(tu.state, ''))) <> ''
+            )
+        )
+        MERGE LOCATION_CONFIGURATION AS target
+        USING DistinctLocations AS source
+        ON target.TENENT_ID = @tenantId
+          AND target.ISOffice365Location = 1
+          AND LTRIM(RTRIM(ISNULL(target.COUNTRY, ''))) = source.country
+          AND LTRIM(RTRIM(ISNULL(target.CITY, ''))) = source.city
+          AND LTRIM(RTRIM(ISNULL(target.STATE, ''))) = source.state
+        WHEN MATCHED THEN
+          UPDATE SET
+            COUNTRY = source.country,
+            CITY = source.city,
+            STATE = source.state,
+            LastUpdatedDateTime = GETDATE(),
+            LAST_UPDATED_BY = 'SYSTEM'
+        WHEN NOT MATCHED BY TARGET THEN
+          INSERT (
+            TENENT_ID,
+            COUNTRY,
+            CITY,
+            STATE,
+            DEPARTMENT,
+            CREATED_BY,
+            LAST_UPDATED_BY,
+            LastUpdatedDateTime,
+            ISOffice365Location
+          )
+          VALUES (
+            @tenantId,
+            source.country,
+            source.city,
+            source.state,
+            NULL,
+            'SYSTEM',
+            'SYSTEM',
+            GETDATE(),
+            1
+          )
+        WHEN NOT MATCHED BY SOURCE
+          AND target.TENENT_ID = @tenantId
+          AND target.ISOffice365Location = 1 THEN
+          DELETE;
+      `);
+
     return {
       success: true,
-      insertedCount,
-      updatedCount,
-      deletedCount,
+      insertedCount: mergeResult.rowsAffected?.[0] || 0,
+      updatedCount: mergeResult.rowsAffected?.[1] || 0,
+      deletedCount: mergeResult.rowsAffected?.[2] || 0,
     };
   } catch (err) {
-    if (transactionStarted) {
-      await transaction.rollback();
-    }
     processSafetyBotError(
       err,
       "",
@@ -3548,7 +3554,7 @@ const saveSafetyCheckFilter = async (body) => {
     userAadObjId,
   } = body;
   const isUpdate = id != null && !isNaN(Number(id)) && Number(id) > 0;
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const sql = require("mssql");
   const request = pool.request();
   request.input("tenantId", sql.NVarChar(50), tenantId);
@@ -3601,7 +3607,7 @@ const saveSafetyCheckFilter = async (body) => {
 };
 
 const getSavedSafetyCheckFilters = async (tenantId) => {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const sql = require("mssql");
   const request = pool.request();
   request.input("tenantId", sql.NVarChar(50), tenantId);
@@ -3616,7 +3622,7 @@ const getSavedSafetyCheckFilters = async (tenantId) => {
 };
 
 const deleteSavedSafetyCheckFilter = async (id) => {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const sql = require("mssql");
   const request = pool.request();
   request.input("id", sql.Int, Number(id));
@@ -4904,7 +4910,7 @@ const getSafetyCheckProgress = async (incId, incType, teamId, userAadObjId) => {
 const updateConversationIdAsync = async (conversationId, userId, userName) => {
   if (conversationId != null && conversationId != "null") {
     try {
-      pool = await poolPromise;
+      pool = await getActivePoolPromise();
       const sqlUpdate = `update msteamsteamsusers set conversationId = '${conversationId}' where user_id = '${userId}'`;
       pool.request().query(sqlUpdate);
     } catch (err) {
@@ -5215,7 +5221,7 @@ const saveSMSlogs = async (
           )}', '${RAW_DATA}', '${sid ? sid.replaceAll("'", "''") : sid}', '${
             error ? error.replaceAll("'", "''") : error
           }','${eventid}')`;
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
   } catch (err) {
@@ -5251,7 +5257,7 @@ const saveAllTypelogs = async (
     ACTION_TIME
 )
           values('${USER_ID}', '${USER_NAME}', '${IS_FROM}', '${PHONE_NUMBER}', '${INCIDENT_ID}', '${DELIVERY_STATUS}','${MESSAGE_TYPE}','${ACTION_TYPE}','${MESSAGE_CONTENT}','${INTERACTION_VALUE}','${ERROR_MESSAGE}', GETDATE())`;
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
   } catch (err) {
@@ -5327,7 +5333,7 @@ const flushUserSendLogQueryBuffer = async () => {
       VALUES ${valuesString};
     `;
 
-    const pool = await poolPromise;
+    const pool = await getActivePoolPromise();
 
     // NON-BLOCKING DB write
     pool
@@ -5416,7 +5422,7 @@ const updateCommentViaSMSLink = async (userId, incId, comment) => {
     const recurrRespQuery = `update MSTeamsMemberResponses set comment = '${comment}' where inc_id = ${incId} and user_id = 
   (select user_id from MSTeamsTeamsUsers where user_aadobject_id = '${userId}' 
   and team_id = (select team_id from MSTeamsIncidents where id = ${incId}))`;
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     //console.log("insert query => ", recurrRespQuery);
     await pool.request().query(recurrRespQuery);
   } catch (err) {
@@ -5472,7 +5478,7 @@ const parsePhoneSourceFromIntegrationConfig = (raw) => {
 
 const getUsersForPhoneExport = async (tenantId) => {
   try {
-    const pool = await poolPromise;
+    const pool = await getActivePoolPromise();
     const result = await pool
       .request()
       .input("tenantId", sql.NVarChar, tenantId).query(`
@@ -5521,7 +5527,7 @@ const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
       return [];
     }
 
-    const pool = await poolPromise;
+    const pool = await getActivePoolPromise();
     const request = pool.request().input("tenantId", sql.NVarChar, tenantId);
     const placeholders = userAadObjIds.map((id, index) => {
       const paramName = `aadId${index}`;
@@ -5564,7 +5570,7 @@ const getUserPhonesFromDb = async (tenantId, userAadObjIds = []) => {
 };
 
 const buildTenantUserPhoneLookup = async (tenantId) => {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool.request().input("tenantId", sql.NVarChar, tenantId)
     .query(`
       SELECT DISTINCT user_aadobject_id, email
@@ -5710,7 +5716,7 @@ const importUserPhones = async (tenantId, rows = []) => {
 
     const updates = Array.from(updatesByAadId.values());
     if (updates.length > 0) {
-      const pool = await poolPromise;
+      const pool = await getActivePoolPromise();
       summary.updated = await bulkUpdateUserPhones(pool, tenantId, updates);
     }
   } catch (err) {
@@ -5774,6 +5780,7 @@ module.exports = {
   getManualLocations,
   saveManualLocations,
   deleteManualLocation,
+  bulkUpdateMSTeamsTeamsUserProfiles,
   syncOffice365Locations,
   getSuperUsersByTeamId,
   getCreateIncidentUsersByTeamId,

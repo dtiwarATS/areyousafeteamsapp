@@ -11,7 +11,11 @@ const {
   getTypeThreeSubscriptionStartedCard,
 } = require("../bot/subscriptionCard");
 const { processSafetyBotError } = require("../models/processError");
+const { runGuardedJob } = require("../utils/jobGuard");
 (async () => {
+  await runGuardedJob(
+    "newSubcriptionAdded",
+    async () => {
   const sendProactiveMessage = async (sqlQuery, subcriptionMessage) => {
     const log = new AYSLog();
     let saveLog = false;
@@ -106,6 +110,9 @@ const { processSafetyBotError } = require("../models/processError");
     left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
     where sd.SubscriptionType in (3) and isProcessed = 0`;
   await sendProactiveMessage(sqlNewSubcription, "newSubscription");
+    },
+    { exitWhenSkipped: false },
+  );
 
   // signal to parent that the job is done
   if (parentPort) parentPort.postMessage("done");

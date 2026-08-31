@@ -2,12 +2,16 @@ const { parentPort } = require("worker_threads");
 const { AYSLog } = require("../utils/log");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
+const { runGuardedJob } = require("../utils/jobGuard");
 const {
   ConnectorClient,
   MicrosoftAppCredentials,
 } = require("botframework-connector");
 
 (async () => {
+  await runGuardedJob(
+    "updateTeamMembers",
+    async () => {
   try {
     console.log("Starting updateTeamMembers job");
 
@@ -158,6 +162,9 @@ const {
   } finally {
     console.log("Completed updateTeamMembers job");
   }
+    },
+    { exitWhenSkipped: false },
+  );
 
   // Signal to parent that the job is done
   if (parentPort) parentPort.postMessage("done");

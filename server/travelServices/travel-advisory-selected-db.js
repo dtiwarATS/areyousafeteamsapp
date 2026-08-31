@@ -1,5 +1,5 @@
 const sql = require("mssql");
-const poolPromise = require("../db/dbConn");
+const { getActivePoolPromise } = require("../db/dbContext");
 
 /**
  * Get all countries from CountryList (for dropdowns).
@@ -7,7 +7,7 @@ const poolPromise = require("../db/dbConn");
  * @returns {Promise<Array<{ id, name, code }>>}
  */
 async function getCountriesFromDb() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool.request().query(`
     SELECT Id AS id, CountryName AS name, Code AS code
     FROM [dbo].[CountryList]
@@ -22,7 +22,7 @@ async function getCountriesFromDb() {
  * @returns {Promise<Array<{ id, name, code, region }>>}
  */
 async function getAllCountriesFromDb() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool.request().query(`
     SELECT
       Id AS id,
@@ -118,7 +118,7 @@ END
  * @returns {Promise<void>}
  */
 async function ensureAdvisoryTable() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   await pool.request().query(ENSURE_ADVISORY_TABLE_SQL);
   await pool.request().query(`
     IF NOT EXISTS (
@@ -140,7 +140,7 @@ let _advisoryDetailFkColPromise = null;
 async function getAdvisoryDetailFkColumn() {
   if (_advisoryDetailFkColPromise) return _advisoryDetailFkColPromise;
   _advisoryDetailFkColPromise = (async () => {
-    const pool = await poolPromise;
+    const pool = await getActivePoolPromise();
     const result = await pool.request().query(`
       SELECT CASE
         WHEN COL_LENGTH('dbo.AdvisoryDetail', 'TravelAdvisorySelectionId') IS NOT NULL
@@ -171,7 +171,7 @@ async function getAdvisoryDetailFkColumn() {
  * @returns {Promise<void>}
  */
 async function ensureAdvisoryDetailTable() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   await pool.request().query(ENSURE_ADVISORY_DETAIL_TABLE_SQL);
   // Production schemas use TravelAdvisorySelectionId; fresh create uses AdvisoryId.
   await pool.request().query(`
@@ -262,7 +262,7 @@ async function ensureAdvisoryDetailTable() {
  * @returns {Promise<void>}
  */
 async function ensureAdvisoryChangeLogTable() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   await pool.request().query(ENSURE_ADVISORY_CHANGELOG_TABLE_SQL);
 }
 
@@ -301,7 +301,7 @@ END
  * @returns {Promise<void>}
  */
 async function ensureAdvisoryDismissedAlertTable() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   await pool.request().query(ENSURE_ADVISORY_DISMISSED_ALERT_TABLE_SQL);
 }
 
@@ -315,7 +315,7 @@ async function dismissAlert({ tenantId, advisoryType, alertKey }) {
   const key = String(alertKey || "").trim();
   if (!tid || !type || !key) return;
   await ensureAdvisoryDismissedAlertTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   await pool
     .request()
     .input("TenantId", sql.NVarChar(256), tid)
@@ -345,7 +345,7 @@ async function listDismissedAlertKeys(tenantId, advisoryType) {
   const type = String(advisoryType || "").trim();
   if (!tid || !type) return [];
   await ensureAdvisoryDismissedAlertTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool
     .request()
     .input("TenantId", sql.NVarChar(256), tid)
@@ -391,7 +391,7 @@ async function deleteTravelAdvisoryDetailForTenant({ tenantId, detailId }) {
   }
   try {
     await ensureAllTravelAdvisoryTables();
-    const pool = await poolPromise;
+    const pool = await getActivePoolPromise();
     const fkCol = await getAdvisoryDetailFkColumn();
 
     const existing = await pool
@@ -486,7 +486,7 @@ async function removeWeatherAlertFromDetail({ tenantId, alertId }) {
   }
   try {
     await ensureAllTravelAdvisoryTables();
-    const pool = await poolPromise;
+    const pool = await getActivePoolPromise();
     const fkCol = await getAdvisoryDetailFkColumn();
 
     const rows = await pool
@@ -555,7 +555,7 @@ async function deleteAdvisoryForTenantNotInCountryCodes(
   countryCodes,
   advisoryType,
 ) {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const codes = Array.isArray(countryCodes)
     ? countryCodes.map((c) => String(c).trim().toUpperCase()).filter(Boolean)
     : [];
@@ -674,7 +674,7 @@ async function saveTravelAdvisorySelections(
   opts = {},
 ) {
   await ensureAdvisoryTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
 
   const isWeatherType = advisoryType === "Weather";
   // Weather requires cityName; Travel allows country-only (empty cityName) or U.S. city rows.
@@ -1062,7 +1062,7 @@ END
  * @returns {Promise<Array<{ TravelAdvisorySelectedCountriesId: number, TenantId: string, CountryCode: string }>>}
  */
 async function getActiveSelectedCountries() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool.request().query(`
     SELECT s.Id AS TravelAdvisorySelectedCountriesId, s.TenantId, s.CountryCode
     FROM [dbo].[Advisory] s
@@ -1084,7 +1084,7 @@ async function getActiveSelectedCountriesForTenantTeam(
   teamId,
   advisorytype,
 ) {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool
     .request()
     .input("TenantId", sql.NVarChar(256), tenantId || "")
@@ -1104,7 +1104,7 @@ async function getActiveSelectedCountriesForTenantTeam(
  */
 async function getSavedAdvisoryForSelectedId(selectedId) {
   if (selectedId == null) return null;
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const fkCol = await getAdvisoryDetailFkColumn();
   const result = await pool.request().input("selectedId", sql.Int, selectedId)
     .query(`
@@ -1137,7 +1137,7 @@ async function getSavedAdvisoryForSelectedIdAndCountry(selectedId, countryCode) 
     .trim()
     .toUpperCase();
   if (!code) return null;
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const fkCol = await getAdvisoryDetailFkColumn();
   const result = await pool
     .request()
@@ -1243,7 +1243,7 @@ async function upsertSavedAdvisory(
   locationKey,
 ) {
   await ensureAllTravelAdvisoryTables();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const code = countryCode != null ? String(countryCode).trim() : "";
   const locKey =
     locationKey != null && String(locationKey).trim() !== ""
@@ -1471,7 +1471,7 @@ async function deleteWeatherAdvisoryDetailsNotInLocationKeys(
 ) {
   if (advisoryId == null) return 0;
   await ensureAdvisoryDetailTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const fkCol = await getAdvisoryDetailFkColumn();
   const keys = Array.isArray(locationKeys)
     ? locationKeys.map((k) => String(k)).filter(Boolean)
@@ -1508,7 +1508,7 @@ async function deleteTravelCityAdvisoryDetailsNotInLocationKeys(
 ) {
   if (advisoryId == null) return 0;
   await ensureAdvisoryDetailTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const fkCol = await getAdvisoryDetailFkColumn();
   const keys = Array.isArray(locationKeys)
     ? locationKeys.map((k) => String(k)).filter(Boolean)
@@ -1545,7 +1545,7 @@ async function deleteTravelCountryAdvisoryDetailsNotInCountryCodes(
 ) {
   if (advisoryId == null) return 0;
   await ensureAdvisoryDetailTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const fkCol = await getAdvisoryDetailFkColumn();
   const codes = Array.isArray(countryCodes)
     ? countryCodes.map((c) => String(c).trim().toUpperCase()).filter(Boolean)
@@ -1591,7 +1591,7 @@ async function insertSelectedCountryLog(
   jobRunAt,
 ) {
   await ensureAllTravelAdvisoryTables();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const oldVal =
     oldSnapshot && fieldName === "LevelNumber"
       ? String(oldSnapshot.levelNumber ?? "")
@@ -1635,7 +1635,7 @@ async function insertSelectedCountryLog(
  */
 async function getTravelAdvisoryByTeamData(teamId, tenantId, AdvisoryType) {
   await ensureAdvisoryTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
 
   const tenantIdTrimmed =
     tenantId != null && String(tenantId).trim() !== ""
@@ -1852,7 +1852,7 @@ async function backfillEmptyTravelDescriptionsFromFeed(advisories) {
     if (code) byCode[code] = adv;
   }
 
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   for (const a of needs) {
     const code = String(a.countryCode || "")
       .trim()
@@ -1929,7 +1929,7 @@ async function backfillEmptyTravelDescriptionsFromFeed(advisories) {
  */
 async function getCountryCodeById(id) {
   if (id == null) return null;
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool
     .request()
     .input("id", sql.Int, id)
@@ -2029,7 +2029,7 @@ async function addSelectedCountry(opts) {
  */
 async function getLogsForSelectedCountry(id, limit = 50) {
   if (id == null) return [];
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const lim = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
   const result = await pool
     .request()
@@ -2051,7 +2051,7 @@ async function getLogsForSelectedCountry(id, limit = 50) {
  */
 async function deactivateSelectedCountry(id, lastUpdatedByUserId) {
   if (id == null) return;
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   await pool
     .request()
     .input("id", sql.Int, id)
@@ -2070,7 +2070,7 @@ async function deactivateSelectedCountry(id, lastUpdatedByUserId) {
  */
 async function deleteSelectedCountry(id) {
   if (id == null) return;
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   await pool.request().input("id", sql.Int, id).query(`
     DELETE FROM [dbo].[Advisory] WHERE Id = @id
   `);
@@ -2081,7 +2081,7 @@ async function deleteSelectedCountry(id) {
  * Uses CountryList; level is always "" (lives on AdvisoryDetail, not master list).
  */
 async function getCountriesForByTeamResponse() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool.request().query(`
     SELECT CountryName AS name, Code AS code
     FROM [dbo].[CountryList]
@@ -2103,7 +2103,7 @@ async function getCountriesForByTeamResponse() {
  */
 async function getActiveWeatherSelectedLocations() {
   await ensureAdvisoryTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool.request().query(`
     SELECT
       s.Id AS TravelAdvisorySelectedCountriesId,
@@ -2221,7 +2221,7 @@ async function getActiveWeatherSelectedCountries() {
  */
 async function getActiveTravelUsCityLocations() {
   await ensureAdvisoryTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool.request().query(`
     SELECT
       s.Id AS TravelAdvisorySelectedCountriesId,

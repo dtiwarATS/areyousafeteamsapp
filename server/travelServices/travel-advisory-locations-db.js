@@ -8,7 +8,7 @@
  * from the running server).
  */
 
-const poolPromise = require("../db/dbConn");
+const { getActivePoolPromise } = require("../db/dbContext");
 
 const SEARCH_MIN_CHARS = 3;
 const SEARCH_DEFAULT_LIMIT = 100;
@@ -23,7 +23,7 @@ let loadPromise = null;
  * @returns {Promise<{ countries: Array, cities: Array }>}
  */
 async function fetchAllTravelAdvisoryLocationsFromDb() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
 
   const countriesResult = await pool.request().query(`
     SELECT Id, CountryName AS name, Code AS code, Region AS region

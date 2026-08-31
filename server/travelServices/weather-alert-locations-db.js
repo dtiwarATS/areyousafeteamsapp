@@ -10,7 +10,7 @@
  */
 
 const sql = require("mssql");
-const poolPromise = require("../db/dbConn");
+const { getActivePoolPromise } = require("../db/dbContext");
 
 const CITY_SEARCH_MIN_CHARS = 3;
 const CITY_SEARCH_DEFAULT_LIMIT = 100;
@@ -29,7 +29,7 @@ let loadPromise = null;
  * @returns {Promise<{ countries: Array, cities: Array }>}
  */
 async function fetchFullWeatherAlertCatalogFromDb() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
 
   const countriesResult = await pool.request().query(`
     SELECT
@@ -321,7 +321,7 @@ async function getConfiguredWeatherAlertLocations(tenantId, mode) {
     return { countries: [], cities: [] };
   }
 
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const request = pool
     .request()
     .input("tenantId", sql.NVarChar(sql.MAX), tid);

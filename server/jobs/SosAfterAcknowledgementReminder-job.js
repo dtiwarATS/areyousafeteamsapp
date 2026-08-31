@@ -6,8 +6,12 @@ const { AYSLog } = require("../utils/log");
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const { processSafetyBotError } = require("../models/processError");
 const dashboard = require("../models/dashboard");
+const { runGuardedJob } = require("../utils/jobGuard");
 
 (async () => {
+  await runGuardedJob(
+    "SosAfterAcknowledgementReminder",
+    async () => {
   const log = new AYSLog();
   let saveLog = false;
   try {
@@ -21,6 +25,23 @@ const dashboard = require("../models/dashboard");
       "SosAfterAcknowledgementReminder job : currentDateTime - " +
         currentDateTime,
     );
+
+    const pendingSos = await db.getDataFromDB(`
+      SELECT TOP 1 1 AS hasWork
+      FROM MSTeamsAssistance a
+      WHERE a.LastUpdatedDateTime >= '2026-02-28 00:00:00'
+        AND a.FIRST_RESPONDER IS NOT NULL
+        AND a.FIRST_RESPONDER_RESPONDED_AT IS NOT NULL
+        AND a.AfterAcknowledgementResponseStatus IS NULL
+        AND (a.status IS NULL OR a.status <> 'Closed')
+    `);
+
+    if (!pendingSos?.length) {
+      console.log(
+        "[Job:SosAfterAcknowledgementReminder] No open SOS follow-ups — skipping heavy queries",
+      );
+      return;
+    }
 
     // Query SOS requests that need after-acknowledgement follow-ups
     // Conditions:
@@ -573,6 +594,9 @@ AND a.FIRST_RESPONDER_RESPONDED_AT <= DATEADD(MINUTE, 5, t.SOS_REMINDER_AFTER_AC
       );
     }
   }
+    },
+    { exitWhenSkipped: false },
+  );
 
   // signal to parent that the job is done
   if (parentPort) parentPort.postMessage("done");

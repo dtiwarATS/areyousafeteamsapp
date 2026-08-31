@@ -2,8 +2,12 @@ const { parentPort } = require("worker_threads");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const tab = require("../tab/AreYouSafeTab");
+const { runGuardedJob } = require("../utils/jobGuard");
 
 (async () => {
+  await runGuardedJob(
+    "DeleteTrialTeams",
+    async () => {
   try {
     // Get all active teams from database
     const teamsQuery = `
@@ -128,8 +132,7 @@ BEGIN CATCH
 
 END CATCH;
     `;
-    pool = await poolPromise;
-    const data = await pool.request().query(teamsQuery);
+    const data = await db.getDataFromDB(teamsQuery);
     console.log(data);
   } catch (err) {
     console.error(err);
@@ -138,6 +141,9 @@ END CATCH;
   } finally {
     console.log("Completed DeleteTrialTeams-job job");
   }
+    },
+    { exitWhenSkipped: false },
+  );
 
   if (parentPort) parentPort.postMessage("done");
   else process.exit(0);

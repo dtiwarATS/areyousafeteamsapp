@@ -27,7 +27,12 @@ const {
 } = require("../db/dbOperations");
 
 const { processSafetyBotError } = require("../models/processError");
+const { runGuardedJob } = require("../utils/jobGuard");
+
 (async () => {
+  await runGuardedJob(
+    "SendRemainder",
+    async () => {
   const sendProactiveMessage = async (sqlQuery, sqlQueryquerryReccuring) => {
     const log = new AYSLog();
     let saveLog = false;
@@ -352,7 +357,27 @@ OUTER APPLY (
     WHERE user_id = mstm.user_id
 ) mtu
 WHERE Mmrr.response = 0;`;
+
+  const pendingIncidents = await db.getDataFromDB(`
+    SELECT TOP 1 1 AS hasWork
+    FROM MSTeamsIncidents
+    WHERE EnableSendReminders = 1
+      AND INC_STATUS_ID = 1
+      AND SendRemindersCount > 0
+      AND SendRemindersTime > 0
+  `);
+
+  if (!pendingIncidents?.length) {
+    console.log(
+      "[Job:SendRemainder] No active incidents needing reminders — skipping heavy queries",
+    );
+    return;
+  }
+
   await sendProactiveMessage(querry, querryReccuring);
+    },
+    { exitWhenSkipped: false },
+  );
 
   // signal to parent that the job is done
   if (parentPort) parentPort.postMessage("done");

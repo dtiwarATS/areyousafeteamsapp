@@ -3,7 +3,7 @@
  */
 
 const sql = require("mssql");
-const poolPromise = require("../db/dbConn");
+const { getActivePoolPromise } = require("../db/dbContext");
 
 const ENSURE_IPAWS_ALERT_CACHE_TABLE_SQL = `
 IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'IpawsAlertCache')
@@ -38,7 +38,7 @@ END
  * @returns {Promise<void>}
  */
 async function ensureIpawsAlertCacheTable() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   await pool.request().query(ENSURE_IPAWS_ALERT_CACHE_TABLE_SQL);
 }
 
@@ -64,7 +64,7 @@ async function upsertIpawsAlerts(alerts, fetchedAt = new Date()) {
   const list = Array.isArray(alerts) ? alerts : [];
   if (list.length === 0) return 0;
 
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   let count = 0;
 
   for (const alert of list) {
@@ -162,7 +162,7 @@ async function upsertIpawsAlerts(alerts, fetchedAt = new Date()) {
  */
 async function getActiveIpawsAlerts(now = new Date()) {
   await ensureIpawsAlertCacheTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool
     .request()
     .input("Now", sql.DateTimeOffset, now)
@@ -215,7 +215,7 @@ async function getActiveIpawsAlerts(now = new Date()) {
  */
 async function deleteExpiredIpawsAlerts(now = new Date()) {
   await ensureIpawsAlertCacheTable();
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool
     .request()
     .input("Now", sql.DateTimeOffset, now)

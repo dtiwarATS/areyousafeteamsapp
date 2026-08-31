@@ -5,14 +5,14 @@
  */
 
 const sql = require("mssql");
-const poolPromise = require("../db/dbConn");
+const { getActivePoolPromise } = require("../db/dbContext");
 
 /**
  * All countries for Configure Locations country dropdown from CountryList.
  * @returns {Promise<Array<{ name: string, code: string }>>}
  */
 async function getLocationConfigCountries() {
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const result = await pool.request().query(`
     SELECT
       LTRIM(RTRIM(CountryName)) AS name,
@@ -43,7 +43,7 @@ async function getLocationConfigCities(opts = {}) {
     return [];
   }
 
-  const pool = await poolPromise;
+  const pool = await getActivePoolPromise();
   const request = pool.request();
   request.input("countryCode", sql.NVarChar(32), countryCode || null);
   request.input("countryName", sql.NVarChar(256), countryName || null);

@@ -10,12 +10,16 @@ const socketService = require("./socket/socketService");
 require("dotenv").config({ path: ENV_FILE });
 
 const { processSafetyBotError } = require("./models/processError");
+const {
+  shouldStartCronScheduler,
+  logSchedulerDiagnostics,
+  getCronDiagnostics,
+} = require("./utils/jobScheduler");
 
 const PORT = process.env.PORT || 3978;
 const app = express();
 
 //======================= BREE JS START ======================
-//running the job every 5 minutes
 function initJob() {
   console.log("init Job");
   const bree = new Bree({
@@ -111,8 +115,20 @@ function initJob() {
 
   bree.start();
 }
+
 if (process.env.isLocal == "false") {
-  initJob();
+  shouldStartCronScheduler()
+    .then((startScheduler) => {
+      if (startScheduler) {
+        initJob();
+      }
+      logSchedulerDiagnostics();
+    })
+    .catch((err) => {
+      console.error("[Cron] Scheduler startup failed:", err?.message || err);
+      initJob();
+      logSchedulerDiagnostics();
+    });
 }
 
 //======================= BREE JS END ========================
@@ -146,6 +162,17 @@ app.get("/", (req, res) => {
     `<h2>The Safety Check app is running</h2>
     <p>Follow the instructions in the README to configure the Microsoft Teams App and your environment variables.</p>`,
   );
+});
+
+app.get("/api/health/cron-diagnostics", async (req, res) => {
+  try {
+    const diagnostics = await getCronDiagnostics();
+    res.json(diagnostics);
+  } catch (err) {
+    res.status(500).json({
+      error: err?.message || "Failed to load cron diagnostics",
+    });
+  }
 });
 
 const server = app.listen(PORT, () => {

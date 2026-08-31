@@ -1,4 +1,4 @@
-const poolPromise = require("./dbConn");
+const { getActivePoolPromise } = require("./dbContext");
 const { processSafetyBotError } = require("../models/processError");
 
 const getColumns = (tableName) => {
@@ -129,7 +129,7 @@ const getDataFromDB = async (
   isSingleQuery = true,
 ) => {
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const data = await pool.request().query(sqlQuery);
     // console.log("sqlQuery => ", sqlQuery);
     return isSingleQuery ? data.recordset : data.recordsets;
@@ -155,7 +155,7 @@ const getInsertSql = (tableName, values) => {
 const insertDataIntoDB = async (tableName, values) => {
   let query = "";
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const columns = getColumns(tableName);
     const columnsStr = columns.join(",");
 
@@ -220,7 +220,7 @@ const getUpdateDataIntoDBQuery = (
 const updateDataIntoDB = async (query, userObjId) => {
   try {
     // console.log("update query => ", query);
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const res = await pool.request().query(query);
     return Promise.resolve(res);
   } catch (err) {
@@ -239,7 +239,7 @@ const updateDataIntoDB = async (query, userObjId) => {
 const getPoolPromise = async (userObjId) => {
   let pool = null;
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
   } catch (err) {
     processSafetyBotError(err, "", "", userObjId, "error in getPoolPromise");
   }
@@ -298,7 +298,7 @@ const insertData = async (sqlInsertQuery, userObjId) => {
   let result = null;
   if (sqlInsertQuery != null) {
     try {
-      pool = await poolPromise;
+      pool = await getActivePoolPromise();
       //console.log("insert query => ", sqlInsertQuery);
       result = await pool.request().query(sqlInsertQuery, userObjId);
     } catch (err) {

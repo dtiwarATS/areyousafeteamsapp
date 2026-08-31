@@ -11,8 +11,12 @@ const {
   normalizeTimeTo24Hour,
   normalizeDateToYmd,
 } = require("../utils");
+const { runGuardedJob } = require("../utils/jobGuard");
 
 (async () => {
+  await runGuardedJob(
+    "recurr",
+    async () => {
   //get filter job from database
   //console.log("recurr job : start");
   const log = new AYSLog();
@@ -156,6 +160,9 @@ const {
       await log.saveLog();
     }
   }
+    },
+    { exitWhenSkipped: false },
+  );
 
   //console.log("recurr job : end");
   // signal to parent that the job is done

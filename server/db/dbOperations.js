@@ -1,4 +1,4 @@
-const poolPromise = require("./dbConn");
+const { getActivePoolPromise } = require("./dbContext");
 const db = require("../db");
 const Company = require("../models/Company");
 const { processSafetyBotError } = require("../models/processError");
@@ -347,7 +347,7 @@ const getFilesByIncId = async (IncId, userAadObjId) => {
 
 const removeTeamMember = async (teamId, userId) => {
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const sqlRemoveMember = `DELETE FROM MSTeamsTeamsUsers WHERE TEAM_ID = '${teamId}' AND USER_ID = '${userId}'`;
     await pool.request().query(sqlRemoveMember);
   } catch (err) {
@@ -358,7 +358,7 @@ const removeTeamMember = async (teamId, userId) => {
 
 const removeAllTeamMember = async (teamId) => {
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const sqlRemoveMember = `DELETE FROM MSTeamsTeamsUsers WHERE TEAM_ID = '${teamId}'`;
     await pool.request().query(sqlRemoveMember);
   } catch (err) {
@@ -412,7 +412,7 @@ const addTeamMember = async (
   let isUserInfoSaved = false;
   let sqlInserUsers = "";
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const userList = [];
 
     if (updateLicense) {
@@ -657,7 +657,7 @@ const updateIsUserInfoSaved = async (
 ) => {
   let sqlUpdateUserInfo = "";
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     sqlUpdateUserInfo = `update MSTeamsInstallationDetails set isUserInfoSaved = 1 where id in (${id});`;
     if (
       updateUserLincenseForExistingMembers &&
@@ -688,7 +688,7 @@ const updateIsUserInfoSaved = async (
 const InsertSOSContacts = async (teamId = null, userObjId = null) => {
   let sqlUpdateUserInfo = "";
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     sqlUpdateUserInfo = `Insert into MSTeamsSOSResponder (TEAM_ID,COUNTRY,CITY, RESPONDER) VALUES ('${teamId}','All','All', '["${userObjId}"]')`;
 
     await pool.request().query(sqlUpdateUserInfo);
@@ -834,7 +834,7 @@ const insertCompanyData = async (
 const deleteCompanyDataByuserAadObjId = async (userObjId) => {
   try {
     if (userObjId != null) {
-      pool = await poolPromise;
+      pool = await getActivePoolPromise();
       let query = `update msteamsinstallationdetails set super_users = null, uninstallation_date = '${new Date(
         Date.now(),
       ).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where user_obj_id = '${userObjId}' and (team_id is null or team_id = '')`;
@@ -855,7 +855,7 @@ const deleteCompanyDataByuserAadObjId = async (userObjId) => {
 const deleteCompanyData = async (teamId, userObjId) => {
   let isDelete = false;
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     // let updateQuery = `delete from MSTeamsInstallationDetails where team_id = '${teamId}'`;
     // await pool.request().query(updateQuery);
 
@@ -885,7 +885,7 @@ const deleteCompanyData = async (teamId, userObjId) => {
 const updateSuperUserData = async (userId, teamId, selectedUserStr = "") => {
   let isUpdated = false;
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const updateQuery = `UPDATE MSTeamsInstallationDetails SET super_users = '${selectedUserStr}' WHERE (user_id = '${userId}' OR super_users like '%${userId}%') AND team_id = '${teamId}'`;
 
     const result = await pool.request().query(updateQuery);
@@ -930,7 +930,7 @@ const updateSuperUserDataByUserAadObjId = async (
 ) => {
   let isUpdated = false;
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     console.log(
       "integrationPanelDraft in updateSuperUserDataByUserAadObjId: ",
       integrationPanelDraft,
@@ -977,7 +977,7 @@ const saveNARespSelectedTeams = async (
     if (res != null && res.length > 0) {
       const tenantId = res[0]["user_tenant_id"];
       let sqlSave = `Delete from MSTeamsNAResponseSelectedTeams where tenantId = '${tenantId}'; `;
-      pool = await poolPromise;
+      pool = await getActivePoolPromise();
       if (selectedTeams && selectedTeams.length > 0) {
         selectedTeams.forEach((team) => {
           const { teamId, teamName, channelId, channelName } = team;
@@ -1000,7 +1000,7 @@ const saveNARespSelectedTeams = async (
 
 const updateCompanyData = async (userId, teamId, teamName = "") => {
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     const updateQuery = `UPDATE MSTeamsInstallationDetails SET team_id = '${teamId}', team_name = N'${teamName}' WHERE user_id = '${userId}' `;
 
     await pool.request().query(updateQuery);
@@ -1028,7 +1028,7 @@ const addFeedbackData = async (feedbackDataObj) => {
 
 const saveLog = async (sqlLog) => {
   try {
-    pool = await poolPromise;
+    pool = await getActivePoolPromise();
     //console.log("Sql log >> ", sqlLog);
     const result = await pool.request().query(sqlLog);
   } catch (err) {
