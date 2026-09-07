@@ -865,7 +865,17 @@ const deleteCompanyData = async (teamId, userObjId) => {
                           delete from MSTeamsNAResponseSelectedTeams where teamId = '${teamId}';
                           delete from [dbo].[SETTINGS] where team_id = '${teamId}';
                           delete from [dbo].[UserActivityLogs] where TeamId = '${teamId}';
-                          delete from [dbo].[MSTeamsSOSResponder] where TEAM_ID = '${teamId}';`;
+                          delete from [dbo].[MSTeamsSOSResponder] where TEAM_ID = '${teamId}';
+                          IF NOT EXISTS (
+    SELECT 1
+    FROM MSTeamsInstallationDetails
+    WHERE user_obj_id = '${userObjId}'
+)
+BEGIN
+    DELETE FROM MSTeamsSubscriptionDetails
+    WHERE UserAadObjId = '${userObjId}';
+END
+                          `;
     await pool.request().query(deleteIncQuery);
 
     isDelete = true;
