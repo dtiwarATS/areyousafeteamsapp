@@ -870,7 +870,7 @@ const getTypeThreeFiveDayBeforeRecurringPaymentCard = (
     body: [
       {
         type: "TextBlock",
-        text: `**Your Safety Check bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!** After that, your credit card will be charged $0.5 per user/month to continue the Safety Check bot premium version.                `,
+        text: `**Your Safety Check bot monthly premium subscription for ${userCount} users is about to expire on ${expiryDate}!** After that, your credit card will be charged $1.25 per user/month to continue the Safety Check bot premium version.                `,
         wrap: true,
       },
       subcriptionLinkJSON,
@@ -1001,7 +1001,7 @@ const getTypeTwoThreeDayBeforeCard = (userId, userName) => {
       },
       {
         type: "TextBlock",
-        text: "Without an **upgrade to premium**, you won't be able to reach all employees during emergencies using the Safety Check bot. Our plan starts at $0.50 user/month.",
+        text: "Without an **upgrade to premium**, you won't be able to reach all employees during emergencies using the Safety Check bot. Our plan starts at $1.25 user/month.",
         wrap: true,
       },
       {
