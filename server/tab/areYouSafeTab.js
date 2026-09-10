@@ -608,9 +608,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     var MapUrl;
     //  var ids = data[0].map((item) => item.user_aadobject_id).join(", ");
     let userAadObjIds = data[0].map((x) => x.user_aadobject_id);
-    let usrPhones = await bot.getUserPhone(
-      data[0][0].IS_APP_PERMISSION_GRANTED,
-      data[0][0].user_tenant_id,
+    let usrPhones = await bot.resolveUserPhonesForMessaging(
+      data[0][0],
       userAadObjIds,
     );
     // console.log({ usrPhones });
@@ -1449,6 +1448,11 @@ WHERE id = ${res[0].id}`;
     try {
       let admins = data[0];
       let user = data[1][0];
+      const userAadObjIds = (admins || []).map((x) => x.user_aadobject_id);
+      const usrPhones =
+        admins != null && admins.length > 0
+          ? await bot.resolveUserPhonesForMessaging(admins[0], userAadObjIds)
+          : [];
       if (admins != null && admins.length > 0) {
         let mentionUserEntities = [];
         dashboard.mentionUser(
