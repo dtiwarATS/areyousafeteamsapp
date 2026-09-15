@@ -22,6 +22,10 @@ const {
   saveNARespSelectedTeams,
   getCompanyDataByTeamId,
 } = require("../db/dbOperations");
+const {
+  buildIncomingSosOfficerCopy,
+  buildIncomingSosSmsBody,
+} = require("../utils/desktopSosChatCopy");
 
 require("dotenv").config({ path: ENV_FILE });
 
@@ -641,91 +645,10 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             error: desktopEmitErr?.message || desktopEmitErr,
           });
         }
-        let mentionUserEntities = [];
-        if (sendonetime == "true") {
-          dashboard.mentionUser(
-            mentionUserEntities,
-            user.user_id,
-            user.user_name,
-          );
-        }
-        // var LocationUrl =
-        //   "https://maps.googleapis.com/maps/api/staticmap?center=" +
-        //   userlocation.lat +
-        //   "," +
-        //   userlocation.lon +
-        //   "&zoom=14&size=400x400&key=AIzaSyB2FIiWQhNij5JqYOsx5Q-Ohg9UbgmXCwg";
         var Ulocation = "";
         if (user?.DYNAMIC_LOCATION != null) {
           Ulocation = `📍${user?.DYNAMIC_LOCATION}`;
         }
-        const approvalCardResponse = {
-          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-          appId: process.env.MicrosoftAppId,
-          body: [
-            ...(sendonetime == "true"
-              ? [
-                  {
-                    type: "TextBlock",
-                    text: `**<at>${user.user_name}</at>** needs assistance.`,
-                    wrap: true,
-                  },
-                  ...(Ulocation
-                    ? [
-                        {
-                          type: "TextBlock",
-                          text: Ulocation,
-                          wrap: true,
-                        },
-                      ]
-                    : []),
-                ]
-              : []),
-
-            ...(sendonetime == "true"
-              ? [
-                  {
-                    type: "ActionSet",
-                    actions: [
-                      {
-                        type: "Action.Execute",
-                        title: "Accept and respond",
-                        verb: "respond_to_assistance",
-                        data: {
-                          userAadObjId: userAadObjId,
-                          requestAssistanceid: requestAssistanceid,
-                          tenantId: data[0][0].user_tenant_id,
-                          serviceUrl: data[0][0].serviceUrl,
-                        },
-                      },
-                    ],
-                  },
-                ]
-              : []),
-            // {
-            //   type: "Action.Image",
-            //   url: `${LocationUrl}`,
-            //   size: "Medium",
-            //   width: "500px",
-            //   height: "500px",
-            // },
-            // {
-            //   type: "Image",
-            //   url: `${LocationUrl}`,
-            //   isVisible: isVisi,
-            //   selectAction: {
-            //     type: "Action.OpenUrl",
-            //     url: `${MapUrl}`,
-            //     role: "Link",
-            //   },
-            // },
-          ],
-          msteams: {
-            entities: mentionUserEntities,
-          },
-          type: "AdaptiveCard",
-          version: "1.4",
-        };
         var cardLocation;
         if (userlocation != null) {
           isVisi = true;
@@ -760,7 +683,6 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               role: "Link",
             },
           };
-          approvalCardResponse.body.push(cardLocation);
         }
 
         const baseUrl =
@@ -794,7 +716,70 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             } catch (_) {
               IntegrationConfigure = null;
             }
+            const adminLanguageId =
+              admins[i].LANGUAGE_ID ||
+              (await incidentService.getUserLanguageIdByAadObjId(
+                admins[i].user_aadobject_id,
+              ));
+            const officerCopy = await buildIncomingSosOfficerCopy(
+              adminLanguageId,
+              user.user_name,
+            );
             try {
+              const mentionUserEntities = [];
+              if (sendonetime == "true") {
+                dashboard.mentionUser(
+                  mentionUserEntities,
+                  user.user_id,
+                  user.user_name,
+                );
+              }
+              const approvalCardBody = [];
+              if (sendonetime == "true") {
+                approvalCardBody.push({
+                  type: "TextBlock",
+                  text: officerCopy.cardText,
+                  wrap: true,
+                });
+                if (Ulocation) {
+                  approvalCardBody.push({
+                    type: "TextBlock",
+                    text: Ulocation,
+                    wrap: true,
+                  });
+                }
+                approvalCardBody.push({
+                  type: "ActionSet",
+                  actions: [
+                    {
+                      type: "Action.Execute",
+                      title: officerCopy.acceptButtonTitle,
+                      verb: "respond_to_assistance",
+                      data: {
+                        userAadObjId: userAadObjId,
+                        requestAssistanceid: requestAssistanceid,
+                        tenantId: admins[i].user_tenant_id,
+                        serviceUrl: admins[i].serviceUrl,
+                      },
+                    },
+                  ],
+                });
+              }
+              if (cardLocation) {
+                approvalCardBody.push(cardLocation);
+              }
+              const approvalCardResponse = {
+                $schema:
+                  "http://adaptivecards.io/schemas/adaptive-card.json",
+                appId: process.env.MicrosoftAppId,
+                body: approvalCardBody,
+                msteams: {
+                  entities: mentionUserEntities,
+                },
+                type: "AdaptiveCard",
+                version: "1.4",
+              };
+
               incidentService.saveAllTypeQuerylogs(
                 admins[i].user_aadobject_id,
                 "",
@@ -908,7 +893,10 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                           ) ||
                           "http://localhost:3978";
                         const acceptLink = `${baseUrl}/acceptSOS?id=${requestAssistanceid}&adminId=${admins[i].user_aadobject_id}`;
-                        const sosBody = `SOS Alert: ${user.user_name} needs assistance. Accept and respond: ${acceptLink}`;
+                        const sosBody = buildIncomingSosSmsBody(
+                          officerCopy,
+                          acceptLink,
+                        );
                         const maskedNum = num
                           .slice(-4)
                           .padStart(num.length, "x");
@@ -1279,6 +1267,68 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               pushErr,
             );
           });
+        // Channel card: use first admin's language (same pattern as per-admin DM cards)
+        const channelLanguageId =
+          admins[0].LANGUAGE_ID ||
+          (await incidentService.getUserLanguageIdByAadObjId(
+            admins[0].user_aadobject_id,
+          ));
+        const channelOfficerCopy = await buildIncomingSosOfficerCopy(
+          channelLanguageId,
+          user.user_name,
+        );
+        const channelMentionEntities = [];
+        if (sendonetime == "true") {
+          dashboard.mentionUser(
+            channelMentionEntities,
+            user.user_id,
+            user.user_name,
+          );
+        }
+        const channelCardBody = [];
+        if (sendonetime == "true") {
+          channelCardBody.push({
+            type: "TextBlock",
+            text: channelOfficerCopy.cardText,
+            wrap: true,
+          });
+          if (Ulocation) {
+            channelCardBody.push({
+              type: "TextBlock",
+              text: Ulocation,
+              wrap: true,
+            });
+          }
+          channelCardBody.push({
+            type: "ActionSet",
+            actions: [
+              {
+                type: "Action.Execute",
+                title: channelOfficerCopy.acceptButtonTitle,
+                verb: "respond_to_assistance",
+                data: {
+                  userAadObjId: userAadObjId,
+                  requestAssistanceid: requestAssistanceid,
+                  tenantId: admins[0].user_tenant_id,
+                  serviceUrl: admins[0].serviceUrl,
+                },
+              },
+            ],
+          });
+        }
+        if (cardLocation) {
+          channelCardBody.push(cardLocation);
+        }
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: channelCardBody,
+          msteams: {
+            entities: channelMentionEntities,
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
           approvalCardResponse,

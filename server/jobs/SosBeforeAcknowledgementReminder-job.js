@@ -8,6 +8,7 @@ const { getCompanyDataByTeamId } = require("../db/dbOperations");
 const { processSafetyBotError } = require("../models/processError");
 const dashboard = require("../models/dashboard");
 const { runGuardedJob } = require("../utils/jobGuard");
+const { buildIncomingSosOfficerCopy } = require("../utils/desktopSosChatCopy");
 
 (async () => {
   await runGuardedJob(
@@ -289,58 +290,66 @@ WHERE t.serviceUrl IS NOT NULL
               ? `📍${initiatorUser.DYNAMIC_LOCATION}`
               : "";
 
-            const mentionUserEntities = [];
-            dashboard.mentionUser(
-              mentionUserEntities,
-              initiatorUser.user_id,
-              initiatorUser.user_name,
-            );
-
-            const reminderCard = {
-              $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-              appId: process.env.MicrosoftAppId,
-              body: [
-                {
-                  type: "TextBlock",
-                  text: `**<at>${initiatorUser.user_name}</at>** needs assistance.`,
-                  wrap: true,
-                },
-                ...(Ulocation
-                  ? [
-                      {
-                        type: "TextBlock",
-                        text: Ulocation,
-                        wrap: true,
-                      },
-                    ]
-                  : []),
-                {
-                  type: "ActionSet",
-                  actions: [
-                    {
-                      type: "Action.Execute",
-                      title: "Accept and respond",
-                      verb: "respond_to_assistance",
-                      data: {
-                        userAadObjId: initiatorUser.user_aadobject_id,
-                        requestAssistanceid: assistanceId,
-                        tenantId: tenantId,
-                        serviceUrl: serviceUrl,
-                      },
-                    },
-                  ],
-                },
-              ],
-              msteams: {
-                entities: mentionUserEntities,
-              },
-              type: "AdaptiveCard",
-              version: "1.4",
-            };
-
             // Send to each responder
             for (const responder of responders) {
               try {
+                const responderLanguageId =
+                  await incidentService.getUserLanguageIdByAadObjId(
+                    responder.user_aadobject_id,
+                  );
+                const officerCopy = await buildIncomingSosOfficerCopy(
+                  responderLanguageId,
+                  initiatorUser.user_name,
+                );
+                const mentionUserEntities = [];
+                dashboard.mentionUser(
+                  mentionUserEntities,
+                  initiatorUser.user_id,
+                  initiatorUser.user_name,
+                );
+                const reminderCard = {
+                  $schema:
+                    "http://adaptivecards.io/schemas/adaptive-card.json",
+                  appId: process.env.MicrosoftAppId,
+                  body: [
+                    {
+                      type: "TextBlock",
+                      text: officerCopy.cardText,
+                      wrap: true,
+                    },
+                    ...(Ulocation
+                      ? [
+                          {
+                            type: "TextBlock",
+                            text: Ulocation,
+                            wrap: true,
+                          },
+                        ]
+                      : []),
+                    {
+                      type: "ActionSet",
+                      actions: [
+                        {
+                          type: "Action.Execute",
+                          title: officerCopy.acceptButtonTitle,
+                          verb: "respond_to_assistance",
+                          data: {
+                            userAadObjId: initiatorUser.user_aadobject_id,
+                            requestAssistanceid: assistanceId,
+                            tenantId: tenantId,
+                            serviceUrl: serviceUrl,
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                  msteams: {
+                    entities: mentionUserEntities,
+                  },
+                  type: "AdaptiveCard",
+                  version: "1.4",
+                };
+
                 const memberArr = [
                   {
                     id: responder.user_id,

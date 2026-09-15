@@ -20,6 +20,24 @@ const SOS_UI_FALLBACKS = {
   typeAdditionalDetailsHere: "Type additional details here",
   isYourFirstResponderAndIsHandlingYourSOS:
     "{name} is your first responder and is handling your SOS.",
+  userNeedsAssistance: "{name} needs assistance.",
+  someoneNeedsAssistance: "Someone needs assistance.",
+  acceptAndRespond: "Accept and respond",
+  sosAlert: "SOS Alert",
+  youAreAlreadyTheFirstResponderForThisSOS:
+    "You are already the first responder for this SOS.",
+  isAlreadyTheResponderForSosFrom:
+    "{responder} is already the responder for the SOS request from {requester}",
+  isTheFirstResponderForSosFrom:
+    "{responder} is the first responder for the SOS request from {requester}.",
+  youAreNowTheFirstResponder: "You are now the first responder.",
+  andTheFollowingEmergencyContactsHaveBeenNotified:
+    "and the following emergency contacts have been notified:",
+  hasBeenNotified: "has been notified.",
+  youAreNowTheFirstResponderForSosRequest:
+    "You are now the first responder for {requester}'s SOS request.",
+  isTheFirstResponderForSosRequest:
+    "{responder} is the first responder for {requester}'s SOS request.",
 };
 
 const SOS_ATTRIBUTE_KEYS = Object.keys(SOS_UI_FALLBACKS);
@@ -116,6 +134,161 @@ function applyNamePlaceholder(template, name) {
     return "";
   }
   return String(template).replace(/\{name\}/g, name || "");
+}
+
+function resolveLanguageId(languageId) {
+  const n = Number(languageId);
+  if (Number.isFinite(n) && n > 0) {
+    return n;
+  }
+  return DEFAULT_LANGUAGE_ID;
+}
+
+function applyPlaceholders(template, placeholders = {}) {
+  let result = String(template || "");
+  for (const [key, value] of Object.entries(placeholders)) {
+    result = result.replace(
+      new RegExp(`\\{${key}\\}`, "g"),
+      value != null ? String(value) : "",
+    );
+  }
+  return result;
+}
+
+function replaceNameWithMention(text, name) {
+  if (!name || !text || !text.includes(name)) {
+    return text;
+  }
+  return text.replace(name, `**<at>${name}</at>**`);
+}
+
+function replaceNamesWithMentions(text, names = []) {
+  let result = text;
+  for (const name of names) {
+    if (name) {
+      result = replaceNameWithMention(result, name);
+    }
+  }
+  return result;
+}
+
+/** Incoming SOS copy for officers (Teams card + SMS). */
+async function buildIncomingSosOfficerCopy(languageId, userName) {
+  const translations = await loadAttributeTranslations(
+    resolveLanguageId(languageId),
+  );
+  const name = typeof userName === "string" ? userName.trim() : "";
+  const needsPlain = name
+    ? applyNamePlaceholder(translations.userNeedsAssistance, name)
+    : translations.someoneNeedsAssistance;
+  const cardText = name
+    ? replaceNameWithMention(needsPlain, name)
+    : needsPlain;
+
+  return {
+    cardText,
+    needsAssistancePlain: needsPlain,
+    acceptButtonTitle: translations.acceptAndRespond,
+    sosAlert: translations.sosAlert,
+    acceptAndRespond: translations.acceptAndRespond,
+  };
+}
+
+function buildIncomingSosSmsBody(officerCopy, acceptLink) {
+  const copy = officerCopy || {};
+  return `${copy.sosAlert || SOS_UI_FALLBACKS.sosAlert}: ${
+    copy.needsAssistancePlain || SOS_UI_FALLBACKS.userNeedsAssistance
+  } ${copy.acceptAndRespond || SOS_UI_FALLBACKS.acceptAndRespond}: ${acceptLink}`;
+}
+
+/** Post-Accept Teams/SMS copy for officers, requester, and other admins. */
+async function buildPostAcceptOfficerCopy(languageId, options = {}) {
+  const translations = await loadAttributeTranslations(
+    resolveLanguageId(languageId),
+  );
+  const responderName = options.responderName || "";
+  const requesterName = options.requesterName || "";
+  const otherAdminNames = Array.isArray(options.otherAdminNames)
+    ? options.otherAdminNames.filter(Boolean)
+    : [];
+
+  switch (options.type) {
+    case "alreadySelf":
+      return {
+        cardText: `**${translations.youAreAlreadyTheFirstResponderForThisSOS}**`,
+      };
+    case "alreadyHandled": {
+      const plain = applyPlaceholders(
+        translations.isAlreadyTheResponderForSosFrom,
+        { responder: responderName, requester: requesterName },
+      );
+      return {
+        cardText: replaceNamesWithMentions(plain, [
+          responderName,
+          requesterName,
+        ]),
+      };
+    }
+    case "adminNotify": {
+      const plain = applyPlaceholders(
+        translations.isTheFirstResponderForSosFrom,
+        { responder: responderName, requester: requesterName },
+      );
+      return {
+        cardText: replaceNamesWithMentions(plain, [
+          responderName,
+          requesterName,
+        ]),
+      };
+    }
+    case "responderAck": {
+      let acknowledgmentText = `${translations.youAreNowTheFirstResponder}\n\n**<at>${requesterName}</at>** ${translations.andTheFollowingEmergencyContactsHaveBeenNotified}`;
+      if (otherAdminNames.length === 0) {
+        acknowledgmentText = `${translations.youAreNowTheFirstResponder}\n\n**<at>${requesterName}</at>** ${translations.hasBeenNotified}`;
+      } else if (otherAdminNames.length === 1) {
+        acknowledgmentText += `\n**<at>${otherAdminNames[0]}</at>**`;
+      } else {
+        const adminMentions = otherAdminNames
+          .map((adminName) => `**<at>${adminName}</at>**`)
+          .join("\n");
+        acknowledgmentText += `\n${adminMentions}`;
+      }
+      return {
+        cardText: acknowledgmentText,
+        chatButtonTitle: applyNamePlaceholder(
+          translations.chatFirstName,
+          requesterName,
+        ),
+        callButtonTitle: applyNamePlaceholder(
+          translations.callFirstName,
+          requesterName,
+        ),
+      };
+    }
+    case "smsRequester":
+      return {
+        smsText: applyNamePlaceholder(
+          translations.isYourFirstResponderAndIsHandlingYourSOS,
+          responderName,
+        ),
+      };
+    case "smsResponder":
+      return {
+        smsText: applyPlaceholders(
+          translations.youAreNowTheFirstResponderForSosRequest,
+          { requester: requesterName },
+        ),
+      };
+    case "smsOtherAdmin":
+      return {
+        smsText: applyPlaceholders(translations.isTheFirstResponderForSosRequest, {
+          responder: responderName,
+          requester: requesterName,
+        }),
+      };
+    default:
+      return {};
+  }
 }
 
 /**
@@ -462,6 +635,9 @@ module.exports = {
   buildDesktopSosUiCopy,
   buildDesktopSosAcceptPayload,
   buildIncomingSosDesktopPayload,
+  buildIncomingSosOfficerCopy,
+  buildIncomingSosSmsBody,
+  buildPostAcceptOfficerCopy,
   buildSosCommentDesktopPayload,
   buildDesktopSosChatSnapshot,
   buildDesktopSosClosedPayload,

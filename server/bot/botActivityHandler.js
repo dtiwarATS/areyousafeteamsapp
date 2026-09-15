@@ -19,7 +19,10 @@ const bot = require("../bot/bot");
 const incidentService = require("../services/incidentService");
 const userNotificationConsentService = require("../services/userNotificationConsentService");
 const socketService = require("../socket/socketService");
-const { buildDesktopSosAcceptPayload } = require("../utils/desktopSosChatCopy");
+const {
+  buildDesktopSosAcceptPayload,
+  buildPostAcceptOfficerCopy,
+} = require("../utils/desktopSosChatCopy");
 const {
   getCompaniesData,
   insertCompanyData,
@@ -1924,14 +1927,21 @@ WHEN NOT MATCHED THEN
           },
         ];
 
+        const clickingAdminLanguageId =
+          await incidentService.getUserLanguageIdByAadObjId(user.aadObjectId);
+
         if (user.aadObjectId === firstResponderUserId) {
+          const alreadySelfCopy = await buildPostAcceptOfficerCopy(
+            clickingAdminLanguageId,
+            { type: "alreadySelf" },
+          );
           const alreadyFirstResponderCard = {
             $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
             appId: process.env.MicrosoftAppId,
             body: [
               {
                 type: "TextBlock",
-                text: "**You are already the first responder for this SOS.**",
+                text: alreadySelfCopy.cardText,
                 wrap: true,
               },
             ],
@@ -1964,13 +1974,21 @@ WHEN NOT MATCHED THEN
             requesterUser.user_name,
           );
 
+          const alreadyHandledCopy = await buildPostAcceptOfficerCopy(
+            clickingAdminLanguageId,
+            {
+              type: "alreadyHandled",
+              responderName: firstResponderName,
+              requesterName: requesterUser.user_name,
+            },
+          );
           const alreadyHandledCard = {
             $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
             appId: process.env.MicrosoftAppId,
             body: [
               {
                 type: "TextBlock",
-                text: `**<at>${firstResponderName}</at>** is already the responder for the SOS request from **<at>${requesterUser.user_name}</at>**`,
+                text: alreadyHandledCopy.cardText,
                 wrap: true,
               },
             ],
@@ -2128,6 +2146,7 @@ WHEN NOT MATCHED THEN
         u.user_name,
         u.user_aadobject_id,
         u.team_id,
+        u.LANGUAGE_ID,
         d.serviceUrl,
         d.user_tenant_id,
         ROW_NUMBER() OVER (
@@ -2146,6 +2165,7 @@ SELECT
     user_name,
     user_aadobject_id,
     team_id,
+    LANGUAGE_ID,
     serviceUrl,
     user_tenant_id
 FROM UserCTE
@@ -2164,24 +2184,6 @@ WHERE rn = 1;
                   requesterUser.user_name,
                 );
 
-                // Create message card for admins
-                const adminMessageCard = {
-                  $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-                  appId: process.env.MicrosoftAppId,
-                  body: [
-                    {
-                      type: "TextBlock",
-                      text: `**<at>${user.name}</at>** is the first responder for the SOS request from **<at>${requesterUser.user_name}</at>**.`,
-                      wrap: true,
-                    },
-                  ],
-                  msteams: {
-                    entities: adminMentionEntities,
-                  },
-                  type: "AdaptiveCard",
-                  version: "1.4",
-                };
-
                 // Send message to each admin and collect other admin names
                 const otherOfficerAads = [];
                 for (const admin of adminInfo) {
@@ -2199,6 +2201,37 @@ WHERE rn = 1;
                   if (admin.user_aadobject_id) {
                     otherOfficerAads.push(admin.user_aadobject_id);
                   }
+
+                  const adminLanguageId =
+                    admin.LANGUAGE_ID ||
+                    (await incidentService.getUserLanguageIdByAadObjId(
+                      admin.user_aadobject_id,
+                    ));
+                  const adminNotifyCopy = await buildPostAcceptOfficerCopy(
+                    adminLanguageId,
+                    {
+                      type: "adminNotify",
+                      responderName: user.name,
+                      requesterName: requesterUser.user_name,
+                    },
+                  );
+                  const adminMessageCard = {
+                    $schema:
+                      "http://adaptivecards.io/schemas/adaptive-card.json",
+                    appId: process.env.MicrosoftAppId,
+                    body: [
+                      {
+                        type: "TextBlock",
+                        text: adminNotifyCopy.cardText,
+                        wrap: true,
+                      },
+                    ],
+                    msteams: {
+                      entities: adminMentionEntities,
+                    },
+                    type: "AdaptiveCard",
+                    version: "1.4",
+                  };
 
                   const adminMemberArr = [
                     {
@@ -2329,21 +2362,16 @@ WHERE rn = 1;
           callUrl = `https://teams.microsoft.com/l/call/0/0?users=${user.aadObjectId},${requesterUser.user_aadobject_id}`;
         }
 
-        // Build the acknowledgment text with other admin names
-        let acknowledgmentText = `You are now the first responder.\n\n**<at>${requesterUser.user_name}</at>** and the following emergency contacts have been notified:`;
-        if (otherAdminNames.length > 0) {
-          if (otherAdminNames.length === 1) {
-            acknowledgmentText += `\n**<at>${otherAdminNames[0].name}</at>**`;
-          } else {
-            // For multiple admins, list them all
-            const adminMentions = otherAdminNames
-              .map((admin) => `**<at>${admin.name}</at>**`)
-              .join("\n");
-            acknowledgmentText += `\n${adminMentions}`;
-          }
-        } else {
-          acknowledgmentText = `You are now the first responder.\n\n**<at>${requesterUser.user_name}</at>** has been notified.`;
-        }
+        const responderLanguageId =
+          await incidentService.getUserLanguageIdByAadObjId(user.aadObjectId);
+        const responderAckCopy = await buildPostAcceptOfficerCopy(
+          responderLanguageId,
+          {
+            type: "responderAck",
+            requesterName: requesterUser.user_name,
+            otherAdminNames: otherAdminNames.map((admin) => admin.name),
+          },
+        );
 
         const acknowledgmentCard = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -2351,19 +2379,19 @@ WHERE rn = 1;
           body: [
             {
               type: "TextBlock",
-              text: acknowledgmentText,
+              text: responderAckCopy.cardText,
               wrap: true,
             },
           ],
           actions: [
             {
               type: "Action.OpenUrl",
-              title: `Chat with ${requesterUser.user_name}`,
+              title: responderAckCopy.chatButtonTitle,
               url: chatUrl,
             },
             {
               type: "Action.OpenUrl",
-              title: `Call ${requesterUser.user_name}`,
+              title: responderAckCopy.callButtonTitle,
               url: callUrl,
             },
           ],
@@ -2547,16 +2575,54 @@ WHERE rn = 1;
                 (ph) => ph.id === userToNotify.user_aadobject_id,
               );
 
-              // Determine message based on user role
-              let notificationMessage = "";
+              // English copy kept for WhatsApp (not localized in this pass)
+              let englishNotificationMessage = "";
               if (userToNotify.isRequester) {
-                notificationMessage =
+                englishNotificationMessage =
                   confirmationMessagePlain ||
                   `${user.name} is your first responder and is handling your SOS.`;
               } else if (userToNotify.isResponder) {
-                notificationMessage = `You are now the first responder for ${requesterUser.user_name}'s SOS request.`;
+                englishNotificationMessage = `You are now the first responder for ${requesterUser.user_name}'s SOS request.`;
               } else {
-                notificationMessage = `${user.name} is the first responder for ${requesterUser.user_name}'s SOS request.`;
+                englishNotificationMessage = `${user.name} is the first responder for ${requesterUser.user_name}'s SOS request.`;
+              }
+
+              const notifyLanguageId =
+                await incidentService.getUserLanguageIdByAadObjId(
+                  userToNotify.user_aadobject_id,
+                );
+              let smsNotificationMessage = englishNotificationMessage;
+              if (userToNotify.isRequester) {
+                const requesterSmsCopy = await buildPostAcceptOfficerCopy(
+                  notifyLanguageId,
+                  {
+                    type: "smsRequester",
+                    responderName: user.name,
+                  },
+                );
+                smsNotificationMessage =
+                  requesterSmsCopy.smsText || englishNotificationMessage;
+              } else if (userToNotify.isResponder) {
+                const responderSmsCopy = await buildPostAcceptOfficerCopy(
+                  notifyLanguageId,
+                  {
+                    type: "smsResponder",
+                    requesterName: requesterUser.user_name,
+                  },
+                );
+                smsNotificationMessage =
+                  responderSmsCopy.smsText || englishNotificationMessage;
+              } else {
+                const otherAdminSmsCopy = await buildPostAcceptOfficerCopy(
+                  notifyLanguageId,
+                  {
+                    type: "smsOtherAdmin",
+                    responderName: user.name,
+                    requesterName: requesterUser.user_name,
+                  },
+                );
+                smsNotificationMessage =
+                  otherAdminSmsCopy.smsText || englishNotificationMessage;
               }
 
               // Send SMS if enabled in any team
@@ -2590,7 +2656,7 @@ WHERE rn = 1;
                       const { sanitizedBody } = await sendTwilioMessage(
                         tClient,
                         {
-                          body: notificationMessage,
+                          body: smsNotificationMessage,
                           logContext: {
                             eventId: requestAssistanceid,
                             userId: userToNotify.user_aadobject_id,
@@ -2630,7 +2696,7 @@ WHERE rn = 1;
                         "",
                         "",
                         "",
-                        notificationMessage,
+                        smsNotificationMessage,
                         JSON.stringify(smsErr.message),
                       );
                     }
@@ -2665,7 +2731,7 @@ WHERE rn = 1;
                         to: num,
                         type: "text",
                         text: {
-                          body: notificationMessage,
+                          body: englishNotificationMessage,
                         },
                       };
 
@@ -2685,7 +2751,7 @@ WHERE rn = 1;
                         "",
                         "",
                         "",
-                        notificationMessage,
+                        englishNotificationMessage,
                         "",
                       );
                     } catch (waErr) {
@@ -2703,7 +2769,7 @@ WHERE rn = 1;
                         "",
                         "",
                         "",
-                        notificationMessage,
+                        englishNotificationMessage,
                         JSON.stringify(waErr.message),
                       );
                     }
@@ -2740,7 +2806,7 @@ WHERE rn = 1;
                       const emailBody = `
                       <div style="font-family: Arial, sans-serif; padding: 20px;">
                         
-                        <p>${notificationMessage}</p>
+                        <p>${englishNotificationMessage}</p>
                         
                       </div>
                     `;
@@ -2773,7 +2839,7 @@ WHERE rn = 1;
                         "",
                         "",
                         "",
-                        notificationMessage,
+                        englishNotificationMessage,
                         "",
                       );
                     }
@@ -2789,7 +2855,7 @@ WHERE rn = 1;
                       "",
                       "",
                       "",
-                      notificationMessage,
+                      englishNotificationMessage,
                       JSON.stringify(emailErr.message),
                     );
                   }
