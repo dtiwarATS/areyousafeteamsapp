@@ -38,6 +38,16 @@ const SOS_UI_FALLBACKS = {
     "You are now the first responder for {requester}'s SOS request.",
   isTheFirstResponderForSosRequest:
     "{responder} is the first responder for {requester}'s SOS request.",
+  userHasCommented: "User {name} has commented : {comment}",
+  addedAComment: "{name} added a comment - {comment}",
+  someoneElseHasAlreadyRespondedToThisSOS:
+    "Someone else has already responded to this SOS.",
+  anotherResponderIsHandlingThisRequest:
+    "Another responder is handling this request.",
+  thankYouForYourResponse: "Thank you for your response.",
+  requesterAndFollowingEmergencyContactsNotified:
+    "{name} and the following emergency contacts have been notified: {contacts}.",
+  nameHasBeenNotified: "{name} has been notified.",
 };
 
 const SOS_ATTRIBUTE_KEYS = Object.keys(SOS_UI_FALLBACKS);
@@ -289,6 +299,99 @@ async function buildPostAcceptOfficerCopy(languageId, options = {}) {
     default:
       return {};
   }
+}
+
+/** SOS comment copy for officers (Teams card + SMS). */
+async function buildSosCommentOfficerCopy(languageId, userName, comment) {
+  const translations = await loadAttributeTranslations(
+    resolveLanguageId(languageId),
+  );
+  const name = typeof userName === "string" ? userName.trim() : "";
+  const commentText = typeof comment === "string" ? comment : "";
+  const cardPlain = applyPlaceholders(translations.userHasCommented, {
+    name: name || "Someone",
+    comment: commentText,
+  });
+  const cardText = name
+    ? cardPlain.replace(name, `**<at>${name}</at>**`)
+    : cardPlain;
+  const smsText = applyPlaceholders(translations.addedAComment, {
+    name: name || "Someone",
+    comment: commentText,
+  });
+  return { cardText, smsText };
+}
+
+/**
+ * Localized /acceptSOS web + JSON copy for the clicking admin.
+ */
+async function buildAcceptSosWebCopy(languageId, options = {}) {
+  const translations = await loadAttributeTranslations(
+    resolveLanguageId(languageId),
+  );
+  const requesterName =
+    (options.requesterName && String(options.requesterName).trim()) || "";
+  const otherAdminNames = Array.isArray(options.otherAdminNames)
+    ? options.otherAdminNames.filter(Boolean)
+    : [];
+
+  if (options.type === "alreadySelf") {
+    return {
+      title: translations.youAreAlreadyTheFirstResponderForThisSOS,
+      detail: translations.thankYouForYourResponse,
+      message: translations.youAreAlreadyTheFirstResponderForThisSOS,
+    };
+  }
+  if (options.type === "alreadyOther") {
+    return {
+      title: translations.someoneElseHasAlreadyRespondedToThisSOS,
+      detail: translations.anotherResponderIsHandlingThisRequest,
+      message: translations.someoneElseHasAlreadyRespondedToThisSOS,
+    };
+  }
+
+  let notificationMessage = translations.youAreNowTheFirstResponder;
+  if (requesterName) {
+    if (otherAdminNames.length > 0) {
+      let contactsList = "";
+      if (otherAdminNames.length === 1) {
+        contactsList = otherAdminNames[0];
+      } else if (otherAdminNames.length === 2) {
+        contactsList = `${otherAdminNames[0]} and ${otherAdminNames[1]}`;
+      } else {
+        const lastAdmin = otherAdminNames[otherAdminNames.length - 1];
+        const otherAdmins = otherAdminNames.slice(0, -1).join(", ");
+        contactsList = `${otherAdmins}, and ${lastAdmin}`;
+      }
+      notificationMessage += ` ${applyPlaceholders(
+        translations.requesterAndFollowingEmergencyContactsNotified,
+        { name: requesterName, contacts: contactsList },
+      )}`;
+    } else {
+      notificationMessage += ` ${applyPlaceholders(
+        translations.nameHasBeenNotified,
+        { name: requesterName },
+      )}`;
+    }
+  } else if (otherAdminNames.length > 0) {
+    if (otherAdminNames.length === 1) {
+      notificationMessage += ` ${applyPlaceholders(
+        translations.nameHasBeenNotified,
+        { name: otherAdminNames[0] },
+      )}`;
+    } else if (otherAdminNames.length === 2) {
+      notificationMessage += ` ${otherAdminNames[0]} and ${otherAdminNames[1]} have been notified.`;
+    } else {
+      const lastAdmin = otherAdminNames[otherAdminNames.length - 1];
+      const otherAdmins = otherAdminNames.slice(0, -1).join(", ");
+      notificationMessage += ` ${otherAdmins}, and ${lastAdmin} have been notified.`;
+    }
+  }
+
+  return {
+    title: notificationMessage,
+    message: notificationMessage,
+  };
 }
 
 /**
@@ -638,6 +741,8 @@ module.exports = {
   buildIncomingSosOfficerCopy,
   buildIncomingSosSmsBody,
   buildPostAcceptOfficerCopy,
+  buildSosCommentOfficerCopy,
+  buildAcceptSosWebCopy,
   buildSosCommentDesktopPayload,
   buildDesktopSosChatSnapshot,
   buildDesktopSosClosedPayload,

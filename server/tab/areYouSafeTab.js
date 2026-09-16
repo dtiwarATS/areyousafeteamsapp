@@ -25,6 +25,7 @@ const {
 const {
   buildIncomingSosOfficerCopy,
   buildIncomingSosSmsBody,
+  buildSosCommentOfficerCopy,
 } = require("../utils/desktopSosChatCopy");
 
 require("dotenv").config({ path: ENV_FILE });
@@ -1504,28 +1505,6 @@ WHERE id = ${res[0].id}`;
           ? await bot.resolveUserPhonesForMessaging(admins[0], userAadObjIds)
           : [];
       if (admins != null && admins.length > 0) {
-        let mentionUserEntities = [];
-        dashboard.mentionUser(
-          mentionUserEntities,
-          user.user_id,
-          user.user_name,
-        );
-        const approvalCardResponse = {
-          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
-          appId: process.env.MicrosoftAppId,
-          body: [
-            {
-              type: "TextBlock",
-              text: `User **<at>${user.user_name}</at>** has commented : ${userComment}`,
-              wrap: true,
-            },
-          ],
-          msteams: {
-            entities: mentionUserEntities,
-          },
-          type: "AdaptiveCard",
-          version: "1.4",
-        };
         const adminArr = [];
         for (let i = 0; i < admins.length; i++) {
           if (adminArr.includes(admins[i].user_id)) {
@@ -1542,6 +1521,39 @@ WHERE id = ${res[0].id}`;
                 name: admins[i].user_name,
               },
             ];
+            const adminLanguageId =
+              admins[i].LANGUAGE_ID ||
+              (await incidentService.getUserLanguageIdByAadObjId(
+                admins[i].user_aadobject_id,
+              ));
+            const commentCopy = await buildSosCommentOfficerCopy(
+              adminLanguageId,
+              user.user_name,
+              userComment,
+            );
+            const mentionUserEntities = [];
+            dashboard.mentionUser(
+              mentionUserEntities,
+              user.user_id,
+              user.user_name,
+            );
+            const approvalCardResponse = {
+              $schema:
+                "http://adaptivecards.io/schemas/adaptive-card.json",
+              appId: process.env.MicrosoftAppId,
+              body: [
+                {
+                  type: "TextBlock",
+                  text: commentCopy.cardText,
+                  wrap: true,
+                },
+              ],
+              msteams: {
+                entities: mentionUserEntities,
+              },
+              type: "AdaptiveCard",
+              version: "1.4",
+            };
             try {
               incidentService.saveAllTypeQuerylogs(
                 admins[i].user_aadobject_id,
@@ -1629,7 +1641,7 @@ WHERE id = ${res[0].id}`;
                           userComment,
                           "",
                         );
-                        const commentBody = `${user.user_name} added a comment - ${userComment}`;
+                        const commentBody = commentCopy.smsText;
                         const maskedNum = num
                           .slice(-4)
                           .padStart(num.length, "x");
@@ -1821,6 +1833,38 @@ WHERE id = ${res[0].id}`;
             // }
           }
         }
+        const channelLanguageId =
+          admins[0].LANGUAGE_ID ||
+          (await incidentService.getUserLanguageIdByAadObjId(
+            admins[0].user_aadobject_id,
+          ));
+        const channelCommentCopy = await buildSosCommentOfficerCopy(
+          channelLanguageId,
+          user.user_name,
+          userComment,
+        );
+        const channelMentionEntities = [];
+        dashboard.mentionUser(
+          channelMentionEntities,
+          user.user_id,
+          user.user_name,
+        );
+        const approvalCardResponse = {
+          $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+          appId: process.env.MicrosoftAppId,
+          body: [
+            {
+              type: "TextBlock",
+              text: channelCommentCopy.cardText,
+              wrap: true,
+            },
+          ],
+          msteams: {
+            entities: channelMentionEntities,
+          },
+          type: "AdaptiveCard",
+          version: "1.4",
+        };
         bot.sendNSRespToTeamChannel(
           admins[0].user_tenant_id,
           approvalCardResponse,

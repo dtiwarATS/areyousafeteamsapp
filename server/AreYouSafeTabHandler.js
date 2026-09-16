@@ -3640,7 +3640,13 @@ const handlerForSafetyBotTab = (app) => {
 
       const {
         buildOfficerAcceptAcknowledgment,
+        buildAcceptSosWebCopy,
       } = require("./utils/desktopSosChatCopy");
+
+      const adminLanguageId =
+        await incidentService.getUserLanguageIdByAadObjId(
+          adminInfo.user_aadobject_id,
+        );
 
       if (
         existingResponse &&
@@ -3649,6 +3655,9 @@ const handlerForSafetyBotTab = (app) => {
       ) {
         const firstResponderId = existingResponse[0].FIRST_RESPONDER;
         if (firstResponderId === adminInfo.user_aadobject_id) {
+          const alreadySelfCopy = await buildAcceptSosWebCopy(adminLanguageId, {
+            type: "alreadySelf",
+          });
           const acknowledgment = buildOfficerAcceptAcknowledgment({
             admin: adminInfo,
             requester,
@@ -3660,33 +3669,37 @@ const handlerForSafetyBotTab = (app) => {
             <html>
               <head><title>SOS Response</title></head>
               <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-                <h2 style="color: #28a745;">✓ You are already the first responder for this SOS.</h2>
-                <p>Thank you for your response.</p>
+                <h2 style="color: #28a745;">✓ ${alreadySelfCopy.title}</h2>
+                <p>${alreadySelfCopy.detail}</p>
               </body>
             </html>
           `,
             json: {
               success: true,
               alreadyAcceptedBySelf: true,
-              message: "You are already the first responder for this SOS.",
+              message: alreadySelfCopy.message,
               acknowledgment,
             },
           });
         } else {
+          const alreadyOtherCopy = await buildAcceptSosWebCopy(
+            adminLanguageId,
+            { type: "alreadyOther" },
+          );
           return respond(200, {
             html: `
             <html>
               <head><title>SOS Response</title></head>
               <body style="font-family: Arial, sans-serif; padding: 20px; text-align: center;">
-                <h2 style="color: #ffc107;">⚠ Someone else has already responded to this SOS.</h2>
-                <p>Another responder is handling this request.</p>
+                <h2 style="color: #ffc107;">⚠ ${alreadyOtherCopy.title}</h2>
+                <p>${alreadyOtherCopy.detail}</p>
               </body>
             </html>
           `,
             json: {
               success: false,
               alreadyAcceptedByOther: true,
-              message: "Someone else has already responded to this SOS.",
+              message: alreadyOtherCopy.message,
             },
           });
         }
@@ -3726,37 +3739,12 @@ const handlerForSafetyBotTab = (app) => {
         }
       }
 
-      // Build notification message
-      let notificationMessage = "You are now the first responder.";
-      if (requester) {
-        if (otherAdminNames.length > 0) {
-          // Format: "requester and the following emergency contacts have been notified: admin1, admin2, and admin3"
-          let contactsList = "";
-          if (otherAdminNames.length === 1) {
-            contactsList = otherAdminNames[0];
-          } else if (otherAdminNames.length === 2) {
-            contactsList = `${otherAdminNames[0]} and ${otherAdminNames[1]}`;
-          } else {
-            const lastAdmin = otherAdminNames[otherAdminNames.length - 1];
-            const otherAdmins = otherAdminNames.slice(0, -1).join(", ");
-            contactsList = `${otherAdmins}, and ${lastAdmin}`;
-          }
-          notificationMessage += ` ${requester.user_name} and the following emergency contacts have been notified: ${contactsList}.`;
-        } else {
-          notificationMessage += ` ${requester.user_name} has been notified.`;
-        }
-      } else if (otherAdminNames.length > 0) {
-        // Fallback if no requester but there are other admins
-        if (otherAdminNames.length === 1) {
-          notificationMessage += ` ${otherAdminNames[0]} has been notified.`;
-        } else if (otherAdminNames.length === 2) {
-          notificationMessage += ` ${otherAdminNames[0]} and ${otherAdminNames[1]} have been notified.`;
-        } else {
-          const lastAdmin = otherAdminNames[otherAdminNames.length - 1];
-          const otherAdmins = otherAdminNames.slice(0, -1).join(", ");
-          notificationMessage += ` ${otherAdmins}, and ${lastAdmin} have been notified.`;
-        }
-      }
+      const acceptWebCopy = await buildAcceptSosWebCopy(adminLanguageId, {
+        type: "success",
+        requesterName: requester?.user_name,
+        otherAdminNames,
+      });
+      const notificationMessage = acceptWebCopy.message;
 
       const acknowledgment = buildOfficerAcceptAcknowledgment({
         admin: adminInfo,
