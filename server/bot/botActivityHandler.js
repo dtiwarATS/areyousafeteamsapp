@@ -3444,7 +3444,7 @@ WHERE rn = 1;
       userEmailId = companyData?.userEmail;
       user_name = companyData?.userName;
     }
-    if (userInfo && userInfo.length > 0) {
+    if (userInfo && userInfo.length > 0 && userEmailId) {
       new PersonalEmail.PersonalEmail()
         .sendUninstallationEmail(userEmailId, userAadObjId, process.env.build)
         .then(() => {})
