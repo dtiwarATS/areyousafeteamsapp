@@ -21,197 +21,212 @@ const { runGuardedJob } = require("../utils/jobGuard");
   await runGuardedJob(
     "subscription",
     async () => {
-  const trackTrialNotification = (job, subcriptionMessage, sendResp, err = null) => {
-    try {
-      const deliveryStatus =
-        sendResp && sendResp.status && Number(sendResp.status) >= 200 && Number(sendResp.status) < 300
-          ? "SEND_SUCCESS"
-          : "SEND_FAILED";
-
-      const errorMessage =
-        err?.message ||
-        sendResp?.error ||
-        (deliveryStatus === "SEND_FAILED" ? `Send failed (status=${sendResp?.status ?? "unknown"})` : "");
-
-      incidentService.saveAllTypeQuerylogs(
-        job?.user_aadobject_id || job?.userAadObjId || "",
-        job?.user_name || "",
-        "TEAMS",
-        "",
-        String(job?.ID ?? ""),
-        deliveryStatus,
-        job?.SubscriptionType === 2 ? "TRIAL_SUBSCRIPTION" : "SUBSCRIPTION",
+      const trackTrialNotification = (
+        job,
         subcriptionMessage,
-        "",
-        "",
-        errorMessage || "",
-      );
-    } catch (trackingErr) {
-      // Never fail the job due to tracking
-      console.error("Trial notification tracking error:", trackingErr);
-    }
-  };
+        sendResp,
+        err = null,
+      ) => {
+        try {
+          const deliveryStatus =
+            sendResp &&
+            sendResp.status &&
+            Number(sendResp.status) >= 200 &&
+            Number(sendResp.status) < 300
+              ? "SEND_SUCCESS"
+              : "SEND_FAILED";
 
-  const sendProactiveMessage = async (sqlQuery, subcriptionMessage) => {
-    const log = new AYSLog();
-    let saveLog = false;
-    try {
-      let currentDateTime = moment(new Date()).utc().format("YYYY-MM-DD HH:mm");
-      log.addLog(
-        `Start sendProactiveMessage - ${subcriptionMessage} : currentDateTime - ${currentDateTime}`
-      );
-      let jobsToBeExecutedArr = await db.getDataFromDB(sqlQuery);
-      log.addLog(`jobsToBeExecutedArr length - ${jobsToBeExecutedArr.length}`);
-      if (jobsToBeExecutedArr != null && jobsToBeExecutedArr.length > 0) {
-        await Promise.all(
-          jobsToBeExecutedArr.map(async (job) => {
-            try {
-              log.addLog(`start subscription ID - ${job.ID}`);
-              log.addLog(`job obj - ${JSON.stringify(job)}`);
-              const memberCount = job.memberCount != null ? job.memberCount : 0;
-              const {
-                ExpiryDate: expiryDate,
-                team_id: teamId,
-                email: userEmailId,
-                SubscriptionType: subscriptionType,
-                user_aadobject_id: userAadObjId,
-                user_id: userId,
-                user_name: userName,
-                team_name: teamName,
-              } = job;
+          const errorMessage =
+            err?.message ||
+            sendResp?.error ||
+            (deliveryStatus === "SEND_FAILED"
+              ? `Send failed (status=${sendResp?.status ?? "unknown"})`
+              : "");
 
-              let card = null;
-              if (subscriptionType == 2) {
-                if (subcriptionMessage == "sevenDayBeforeExpiry") {
-                  card = getTypeTwoSevenDayBeforeCard(userId, userName);
-                } else if (subcriptionMessage == "threeDayBeforeExpiry") {
-                  card = getTypeTwoThreeDayBeforeCard(userId, userName);
-                } else if (subcriptionMessage == "afterSubcriptionEnd") {
-                  card = getTypeTwoSubscriptionEndCard(
-                    userId,
-                    userName,
-                    teamName
-                  );
-                }
-              } else if (subscriptionType == 3) {
-                if (subcriptionMessage == "fiveDayBeforeExpiry") {
-                  card = getTypeThreeFiveDayBeforeOneTimePaymentCard(
-                    memberCount,
-                    expiryDate
-                  );
-                } else if (subcriptionMessage == "afterSubcriptionEnd") {
-                  card = getTypeThreeSubscriptionEndCard(
-                    expiryDate,
-                    userEmailId
-                  );
-                }
-              }
-              const member = [
-                {
-                  id: job.user_id,
-                  name: job.user_name,
-                },
-              ];
-              log.addLog(
-                `send  ${subcriptionMessage} type-${subscriptionType} to ${job.user_id} start`
-              );
-              const sendResp = await sendProactiveMessaageToUser(
-                member,
-                card,
-                null,
-                job.serviceUrl,
-                job.tenantid,
-                log,
-                userAadObjId
-              );
-              trackTrialNotification(job, subcriptionMessage, sendResp);
-              log.addLog(
-                `send  ${subcriptionMessage} type-${subscriptionType} proactive messaage to ${job.user_id} successfully`
-              );
+          incidentService.saveAllTypeQuerylogs(
+            job?.user_aadobject_id || job?.userAadObjId || "",
+            job?.user_name || "",
+            "TEAMS",
+            "",
+            String(job?.ID ?? ""),
+            deliveryStatus,
+            job?.SubscriptionType === 2 ? "TRIAL_SUBSCRIPTION" : "SUBSCRIPTION",
+            subcriptionMessage,
+            "",
+            "",
+            errorMessage || "",
+          );
+        } catch (trackingErr) {
+          // Never fail the job due to tracking
+          console.error("Trial notification tracking error:", trackingErr);
+        }
+      };
 
-              if (
-                subcriptionMessage == "threeDayBeforeExpiry" ||
-                subcriptionMessage == "fiveDayBeforeExpiry" ||
-                subcriptionMessage == "sevenDayBeforeExpiry"
-              ) {
-                await incidentService.updateBeforeMessageSentFlag(
-                  job.ID,
-                  userAadObjId,
-                  subcriptionMessage
-                );
-              } else if (subcriptionMessage == "afterSubcriptionEnd") {
-                if (job.tenantid != null) {
-                  await incidentService.updateSubscriptionTypeToTypeOne(
+      const sendProactiveMessage = async (sqlQuery, subcriptionMessage) => {
+        const log = new AYSLog();
+        let saveLog = false;
+        try {
+          let currentDateTime = moment(new Date())
+            .utc()
+            .format("YYYY-MM-DD HH:mm");
+          log.addLog(
+            `Start sendProactiveMessage - ${subcriptionMessage} : currentDateTime - ${currentDateTime}`,
+          );
+          let jobsToBeExecutedArr = await db.getDataFromDB(sqlQuery);
+          log.addLog(
+            `jobsToBeExecutedArr length - ${jobsToBeExecutedArr.length}`,
+          );
+          if (jobsToBeExecutedArr != null && jobsToBeExecutedArr.length > 0) {
+            await Promise.all(
+              jobsToBeExecutedArr.map(async (job) => {
+                try {
+                  log.addLog(`start subscription ID - ${job.ID}`);
+                  log.addLog(`job obj - ${JSON.stringify(job)}`);
+                  const memberCount =
+                    job.memberCount != null ? job.memberCount : 0;
+                  const {
+                    ExpiryDate: expiryDate,
+                    team_id: teamId,
+                    email: userEmailId,
+                    SubscriptionType: subscriptionType,
+                    user_aadobject_id: userAadObjId,
+                    user_id: userId,
+                    user_name: userName,
+                    team_name: teamName,
+                  } = job;
+
+                  let card = null;
+                  if (subscriptionType == 2) {
+                    if (subcriptionMessage == "sevenDayBeforeExpiry") {
+                      card = getTypeTwoSevenDayBeforeCard(userId, userName);
+                    } else if (subcriptionMessage == "threeDayBeforeExpiry") {
+                      card = getTypeTwoThreeDayBeforeCard(userId, userName);
+                    } else if (subcriptionMessage == "afterSubcriptionEnd") {
+                      card = getTypeTwoSubscriptionEndCard(
+                        userId,
+                        userName,
+                        teamName,
+                      );
+                    }
+                  } else if (subscriptionType == 3) {
+                    if (subcriptionMessage == "fiveDayBeforeExpiry") {
+                      card = getTypeThreeFiveDayBeforeOneTimePaymentCard(
+                        memberCount,
+                        expiryDate,
+                      );
+                    } else if (subcriptionMessage == "afterSubcriptionEnd") {
+                      card = getTypeThreeSubscriptionEndCard(
+                        expiryDate,
+                        userEmailId,
+                      );
+                    }
+                  }
+                  const member = [
+                    {
+                      id: job.user_id,
+                      name: job.user_name,
+                    },
+                  ];
+                  log.addLog(
+                    `send  ${subcriptionMessage} type-${subscriptionType} to ${job.user_id} start`,
+                  );
+                  const sendResp = await sendProactiveMessaageToUser(
+                    member,
+                    card,
+                    null,
+                    job.serviceUrl,
                     job.tenantid,
-                    job.ID,
-                    teamId,
+                    log,
                     userAadObjId,
-                    subscriptionType
                   );
-                  await incidentService.updateAfterExpiryMessageSentFlag(
-                    job.ID,
-                    userAadObjId
+                  trackTrialNotification(job, subcriptionMessage, sendResp);
+                  log.addLog(
+                    `send  ${subcriptionMessage} type-${subscriptionType} proactive messaage to ${job.user_id} successfully`,
+                  );
+
+                  if (
+                    subcriptionMessage == "threeDayBeforeExpiry" ||
+                    subcriptionMessage == "fiveDayBeforeExpiry" ||
+                    subcriptionMessage == "sevenDayBeforeExpiry"
+                  ) {
+                    await incidentService.updateBeforeMessageSentFlag(
+                      job.ID,
+                      userAadObjId,
+                      subcriptionMessage,
+                    );
+                  } else if (subcriptionMessage == "afterSubcriptionEnd") {
+                    if (job.tenantid != null) {
+                      // await incidentService.updateSubscriptionTypeToTypeOne(
+                      //   job.tenantid,
+                      //   job.ID,
+                      //   teamId,
+                      //   userAadObjId,
+                      //   subscriptionType
+                      // );
+                      await incidentService.updateAfterExpiryMessageSentFlag(
+                        job.ID,
+                        userAadObjId,
+                      );
+                    }
+                  }
+
+                  saveLog = true;
+                  log.addLog(`End subscription ID - ${job.ID}`);
+                } catch (err) {
+                  console.log(err);
+                  log.addLog(`Error occured: ${err}`);
+                  trackTrialNotification(job, subcriptionMessage, null, err);
+                  processSafetyBotError(
+                    err,
+                    "",
+                    "",
+                    job.user_aadobject_id,
+                    "error in subscriptionjob sendProactiveMessage job.id" +
+                      job.ID +
+                      " jobsToBeExecutedArr=" +
+                      JSON.stringify(jobsToBeExecutedArr),
                   );
                 }
-              }
+              }),
+            );
+          }
+        } catch (err) {
+          log.addLog(`Error occured: ${err}`);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            "",
+            "error in subscriptionjob sendProactiveMessage jobsToBeExecutedArr=" +
+              JSON.stringify(jobsToBeExecutedArr),
+          );
+        } finally {
+          log.addLog(`End sendProactiveMessage -  ${subcriptionMessage}`);
+          if (saveLog) {
+            await log.saveLog();
+          }
+        }
+      };
 
-              saveLog = true;
-              log.addLog(`End subscription ID - ${job.ID}`);
-            } catch (err) {
-              console.log(err);
-              log.addLog(`Error occured: ${err}`);
-              trackTrialNotification(job, subcriptionMessage, null, err);
-              processSafetyBotError(
-                err,
-                "",
-                "",
-                job.user_aadobject_id,
-                "error in subscriptionjob sendProactiveMessage job.id" +
-                  job.ID +
-                  " jobsToBeExecutedArr=" +
-                  JSON.stringify(jobsToBeExecutedArr)
-              );
-            }
-          })
-        );
-      }
-    } catch (err) {
-      log.addLog(`Error occured: ${err}`);
-      processSafetyBotError(
-        err,
-        "",
-        "",
-        "",
-        "error in subscriptionjob sendProactiveMessage jobsToBeExecutedArr=" +
-          JSON.stringify(jobsToBeExecutedArr)
-      );
-    } finally {
-      log.addLog(`End sendProactiveMessage -  ${subcriptionMessage}`);
-      if (saveLog) {
-        await log.saveLog();
-      }
-    }
-  };
-
-  const beforeExpiryQuery = (isBeforeExpiry, daysBefore) => {
-    let sqlWhere = "";
-    if (isBeforeExpiry) {
-      sqlWhere = ` where sd.SubscriptionType in (3)
+      const beforeExpiryQuery = (isBeforeExpiry, daysBefore) => {
+        let sqlWhere = "";
+        if (isBeforeExpiry) {
+          sqlWhere = ` where sd.SubscriptionType in (3)
               and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 5 and ISNULL(sd.isFiveDayBeforeMessageSent, 0) <> 1`;
 
-      if (daysBefore == 3) {
-        sqlWhere = ` where sd.SubscriptionType in (2) and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 3 and ISNULL(sd.isThreeDayBeforeMessageSent, 0) <> 1 `;
-      }
+          if (daysBefore == 3) {
+            sqlWhere = ` where sd.SubscriptionType in (2) and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 3 and ISNULL(sd.isThreeDayBeforeMessageSent, 0) <> 1 `;
+          }
 
-      if (daysBefore == 7) {
-        sqlWhere = ` where sd.SubscriptionType in (2) and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 7 and ISNULL(sd.isSevenDayBeforeMessageSent, 0) <> 1 `;
-      }
-    } else {
-      sqlWhere =
-        " where sd.SubscriptionType in (2,3) and GETDATE() > sd.ExpiryDate and ISNULL(sd.isAfterExpiryMessageSent, 0) <> 1 ";
-    }
+          if (daysBefore == 7) {
+            sqlWhere = ` where sd.SubscriptionType in (2) and DATEDIFF(day, GETDATE(), sd.ExpiryDate) = 7 and ISNULL(sd.isSevenDayBeforeMessageSent, 0) <> 1 `;
+          }
+        } else {
+          sqlWhere =
+            " where sd.SubscriptionType in (2,3) and GETDATE() > sd.ExpiryDate and ISNULL(sd.isAfterExpiryMessageSent, 0) <> 1 ";
+        }
 
-    return (sqlBeforeExpiry = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name,sd.TenantId tenantid, inst.serviceUrl, sd.SubscriptionType, 
+        return (sqlBeforeExpiry = `select distinct sd.ID, usr.user_aadobject_id, usr.user_id, usr.user_name,sd.TenantId tenantid, inst.serviceUrl, sd.SubscriptionType, 
           sd.TermUnit, convert(varchar, sd.ExpiryDate, 101) ExpiryDate,
           (select count (user_aadobject_id) from (
           select distinct user_aadobject_id from MSTeamsTeamsUsers where tenantid = sd.TenantId and hasLicense = 1
@@ -220,19 +235,25 @@ const { runGuardedJob } = require("../utils/jobGuard");
           left join MSTeamsInstallationDetails inst on inst.SubscriptionDetailsId = sd.ID
           left join MSTeamsTeamsUsers usr on usr.user_aadobject_id = sd.UserAadObjId
           ${sqlWhere} and serviceUrl is not null and INST.team_id IS NOT NULL AND INST.team_id!='' AND USR.user_id IS NOT NULL AND INST.id IS NOT NULL  and inst.uninstallation_date is null AND sd.TenantId IS NOT NULL`);
-  };
+      };
 
-  let sqlFiveDayBeforeExpiry = beforeExpiryQuery(true, 5);
-  await sendProactiveMessage(sqlFiveDayBeforeExpiry, "fiveDayBeforeExpiry");
+      let sqlFiveDayBeforeExpiry = beforeExpiryQuery(true, 5);
+      await sendProactiveMessage(sqlFiveDayBeforeExpiry, "fiveDayBeforeExpiry");
 
-  let sqlSevenDayBeforeExpiry = beforeExpiryQuery(true, 7);
-  await sendProactiveMessage(sqlSevenDayBeforeExpiry, "sevenDayBeforeExpiry");
+      let sqlSevenDayBeforeExpiry = beforeExpiryQuery(true, 7);
+      await sendProactiveMessage(
+        sqlSevenDayBeforeExpiry,
+        "sevenDayBeforeExpiry",
+      );
 
-  let sqlThreeDayBeforeExpiry = beforeExpiryQuery(true, 3);
-  await sendProactiveMessage(sqlThreeDayBeforeExpiry, "threeDayBeforeExpiry");
+      let sqlThreeDayBeforeExpiry = beforeExpiryQuery(true, 3);
+      await sendProactiveMessage(
+        sqlThreeDayBeforeExpiry,
+        "threeDayBeforeExpiry",
+      );
 
-  let sqlAfterSubcriptionEnd = beforeExpiryQuery(false, -1);
-  await sendProactiveMessage(sqlAfterSubcriptionEnd, "afterSubcriptionEnd");
+      let sqlAfterSubcriptionEnd = beforeExpiryQuery(false, -1);
+      await sendProactiveMessage(sqlAfterSubcriptionEnd, "afterSubcriptionEnd");
     },
     { exitWhenSkipped: false },
   );
