@@ -4959,6 +4959,7 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                           state: user.state || "",
                           department: user.department || "",
                         })),
+                        tenantId,
                       );
                     } catch (dbError) {
                       console.log({
