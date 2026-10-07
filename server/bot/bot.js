@@ -6983,7 +6983,7 @@ const sendRecurrEventMsgAsync = async (
       : null;
     console.log({ IntegrationConfigure });
     if (
-      subEventObj.incType == 1 &&
+      subEventObj.incTypeId == 1 &&
       IntegrationConfigure?.channels.voice.enabled &&
       IntegrationConfigure?.channels.voice.events.incident &&
       (companyData.SubscriptionType == 3 ||
