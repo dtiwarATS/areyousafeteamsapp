@@ -6978,10 +6978,14 @@ const sendRecurrEventMsgAsync = async (
       subEventObj.filesData,
     );
     let userAadObjIds = subEventObj.eventMembers?.map((x) => x.userAadObjId);
-
+    let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
+      ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
+      : null;
+    console.log({ IntegrationConfigure });
     if (
       subEventObj.incType == 1 &&
-      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("VoiceCall") &&
+      IntegrationConfigure?.channels.voice.enabled &&
+      IntegrationConfigure?.channels.voice.events.incident &&
       (companyData.SubscriptionType == 3 ||
         ((companyData.SubscriptionType == 1 ||
           companyData.SubscriptionType == 2) &&
@@ -6996,9 +7000,12 @@ const sendRecurrEventMsgAsync = async (
       );
     }
     if (
-      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("SMS") &&
+      IntegrationConfigure?.channels.sms.enabled &&
+      IntegrationConfigure?.channels.sms.events.incident &&
       (companyData.SubscriptionType == 3 ||
-        (companyData.SubscriptionType == 2 && companyData.sent_sms_count < 50))
+        ((companyData.SubscriptionType == 1 ||
+          companyData.SubscriptionType == 2) &&
+          companyData.sent_sms_count < 50))
     ) {
       sendSafetyCheckMsgViaSMS(
         companyData,
@@ -7011,7 +7018,8 @@ const sendRecurrEventMsgAsync = async (
     }
     if (
       subEventObj.incTypeId == 1 &&
-      companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("WhatsApp") &&
+      IntegrationConfigure?.channels.whatsapp.enabled &&
+      IntegrationConfigure?.channels.whatsapp.events.incident &&
       (companyData.SubscriptionType == 3 ||
         ((companyData.SubscriptionType == 1 ||
           companyData.SubscriptionType == 2) &&
@@ -7028,7 +7036,10 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
-    if (companyData?.SEND_INCIDENT_MESSAGES_VIA?.includes("Email")) {
+    if (
+      IntegrationConfigure?.channels.email.enabled &&
+      IntegrationConfigure?.channels.email.events.incident
+    ) {
       let userObjects = subEventObj.eventMembers.map((x) => x);
       subEventObj.incGuidance = incGuidance;
       await sendSafetyCheckMsgViaEmail(

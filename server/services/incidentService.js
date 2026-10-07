@@ -1500,7 +1500,8 @@ const getAllInc = async (teamId) => {
 
 const getCompanyData = async (teamId) => {
   let companyDataObj = {};
-  let companyDataSql = `SELECT * FROM MSTEAMSINSTALLATIONDETAILS WHERE TEAM_ID = '${teamId}'`;
+  let companyDataSql = `SELECT top 1  ind.*, sd.SubscriptionType FROM MSTeamsInstallationDetails ind
+left join MSTeamsSubscriptionDetails sd on sd.id = ind.SubscriptionDetailsId where team_id = '${teamId}'`;
   const result = await db.getDataFromDB(companyDataSql);
   if (result != null && result.length > 0) {
     companyDataObj = {
@@ -1524,6 +1525,10 @@ const getCompanyData = async (teamId) => {
       LANGUAGE: result[0].LANGUAGE,
       INTEGRATION_CONFIGURE: result[0].INTEGRATION_CONFIGURE,
       ALLOW_USERS_TO_SEND_SOS_REQUEST: result[0].SHOW_SOS_BUTTON,
+      SENT_WHATSAPP_COUNT: result[0].SENT_WHATSAPP_COUNT,
+      SubscriptionType: result[0].SubscriptionType,
+      SENT_VOICE_CALL_COUNT: result[0].SENT_VOICE_CALL_COUNT,
+      sent_sms_count: result[0].sent_sms_count,
     };
   }
   return companyDataObj;
@@ -2870,7 +2875,11 @@ const bulkUpdateMSTeamsTeamsUserProfiles = async (
             sql.NVarChar(sql.MAX),
             user.country || "",
           );
-          request.input(`state${index}`, sql.NVarChar(sql.MAX), user.state || "");
+          request.input(
+            `state${index}`,
+            sql.NVarChar(sql.MAX),
+            user.state || "",
+          );
           request.input(
             `department${index}`,
             sql.NVarChar(sql.MAX),
