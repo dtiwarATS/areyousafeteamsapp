@@ -2674,13 +2674,17 @@ const sendSafetyCheckMsgViaSMS = async (
             "/posresp?userId=" +
             encodeURIComponent(user.id) +
             "&eventId=" +
-            encodeURIComponent(incId);
+            encodeURIComponent(incId) +
+            "&runat=" +
+            encodeURIComponent(incData.runAt);
           let notSafeUrl =
             process.env.serviceUrl +
             "/negresp?userId=" +
             encodeURIComponent(user.id) +
             "&eventId=" +
-            encodeURIComponent(incId);
+            encodeURIComponent(incId) +
+            "&runat=" +
+            encodeURIComponent(incData.runAt);
 
           body =
             "Safety check from " +
@@ -2967,7 +2971,7 @@ const sendSafetyCheckMsgViaVoice = async (
       const call = await tClient.calls.create({
         twiml: `
 <Response>
-  <Gather numDigits="1" timeout="8" action="https://safetycheckreceiverapi.azurewebsites.net/voicecall?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+  <Gather numDigits="1" timeout="8" action="https://safetycheckreceiverapi.azurewebsites.net/voicecall?incidentId=${incObj.incId}&amp;runAt=${encodeURIComponent(incObj.runAt)}&amp;userId=${encodeURIComponent(
     user.id,
   )}" method="POST">
     <Say voice="alice">
@@ -2981,7 +2985,7 @@ const sendSafetyCheckMsgViaVoice = async (
 `,
         to: phone,
         from: "+18023277232",
-        statusCallback: `https://safetycheckreceiverapi.azurewebsites.net/callstatus?incidentId=${incObj.incId}&amp;userId=${encodeURIComponent(
+        statusCallback: `https://safetycheckreceiverapi.azurewebsites.net/callstatus?incidentId=${incObj.incId}&amp;runAt=${encodeURIComponent(incObj.runAt)}&amp;userId=${encodeURIComponent(
           user.id,
         )}`,
         statusCallbackMethod: "POST",
@@ -3784,21 +3788,29 @@ const sendSafetyCheckMsgViaDesktop = async (
   }
 };
 
-function getSafetyCheckEmailHtml(senderName, incidentName, incid, user) {
+function getSafetyCheckEmailHtml(
+  senderName,
+  incidentName,
+  incid,
+  user,
+  runat = null,
+) {
   let safeUrl =
     process.env.serviceUrl +
     "/posresp?userId=" +
     encodeURIComponent(user.userAadObjId) +
     "&eventId=" +
     encodeURIComponent(incid) +
-    "&isfrom=Email";
+    "&isfrom=Email&runat=" +
+    encodeURIComponent(runat);
   let notSafeUrl =
     process.env.serviceUrl +
     "/negresp?userId=" +
     encodeURIComponent(user.userAadObjId) +
     "&eventId=" +
     encodeURIComponent(incid) +
-    "&isfrom=Email";
+    "&isfrom=Email&runat=" +
+    encodeURIComponent(runat);
 
   return `
   <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-family:Segoe UI, Arial, sans-serif;">
@@ -3846,7 +3858,8 @@ const withhoutsafteycard = async (incdata, user) => {
       encodeURIComponent(user.userAadObjId) +
       "&eventId=" +
       encodeURIComponent(incdata.incId) +
-      "&isfrom=Email";
+      "&isfrom=Email&runat=" +
+      encodeURIComponent(incdata.runAt);
     const myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
 
@@ -4129,6 +4142,7 @@ const sendFeedbackEmail = async (incdata, userEmail, user) => {
         incdata.incTitle,
         incdata.incId,
         user,
+        incdata.runAt,
       );
     } else {
       body = await withhoutsafteycard(incdata, user);
@@ -4360,7 +4374,13 @@ const sendAcknowledgeViaWhatsapp = async (
   }
 };
 
-const proccessSMSLinkClick = async (userId, eventId, text, clickfrom) => {
+const proccessSMSLinkClick = async (
+  userId,
+  eventId,
+  text,
+  clickfrom,
+  runat = null,
+) => {
   if (userId && eventId) {
     const incStatusId = await incidentService.getIncStatus(eventId);
     const incData = await incidentService.getInc(eventId, null, userId);
@@ -4406,6 +4426,7 @@ const proccessSMSLinkClick = async (userId, eventId, text, clickfrom) => {
       userId,
       compData.teamId,
       clickfrom,
+      runat,
     );
     if (text != "YES") {
       const approvalCardResponse = {

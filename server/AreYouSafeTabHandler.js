@@ -10,7 +10,10 @@ const tab = require("./tab/AreYouSafeTab");
 const apimeth = require("./api/apiMethods");
 const { processSafetyBotError } = require("./models/processError");
 const { getConversationMembers } = require("./api/apiMethods");
-const { formatedDate, parseDesktopWallClockTimestamp } = require("./utils/index");
+const {
+  formatedDate,
+  parseDesktopWallClockTimestamp,
+} = require("./utils/index");
 const bot = require("./bot/bot");
 const { AYSLog } = require("./utils/log");
 const { console } = require("inspector");
@@ -3643,10 +3646,9 @@ const handlerForSafetyBotTab = (app) => {
         buildAcceptSosWebCopy,
       } = require("./utils/desktopSosChatCopy");
 
-      const adminLanguageId =
-        await incidentService.getUserLanguageIdByAadObjId(
-          adminInfo.user_aadobject_id,
-        );
+      const adminLanguageId = await incidentService.getUserLanguageIdByAadObjId(
+        adminInfo.user_aadobject_id,
+      );
 
       if (
         existingResponse &&
@@ -5614,6 +5616,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       console.log("Inside /posresp:", req.query);
       const isfromemail = req?.query?.isfrom ? true : false;
+      const runat = req?.query?.runat ? req?.query?.runat : "null";
       const userAgent = req.headers["user-agent"] || "";
       const acceptHeader = req.headers["accept"] || "";
       console.log("User-Agent:", userAgent);
@@ -5661,6 +5664,7 @@ const handlerForSafetyBotTab = (app) => {
         eventId,
         "YES",
         isfromemail ? "Email" : "SMS",
+        runat,
       );
 
       bot.SaveSmsLog(
@@ -5932,6 +5936,7 @@ const handlerForSafetyBotTab = (app) => {
     try {
       console.log("Inside /negresp:", req.query);
       const isfromemail = req?.query?.isfrom ? true : false;
+      const runat = req?.query?.runat ? req?.query?.runat : "null";
       const userAgent = req.headers["user-agent"] || "";
       const acceptHeader = req.headers["accept"] || "";
       console.log("User-Agent:", userAgent);
@@ -5979,6 +5984,7 @@ const handlerForSafetyBotTab = (app) => {
         eventId,
         "NO",
         isfromemail ? "Email" : "SMS",
+        runat,
       );
 
       bot.SaveSmsLog(
@@ -7559,16 +7565,23 @@ ORDER BY ACL.EventDateTime DESC;
     const digit = req.body.Digits;
     const incidentId = req.body.incidentId;
     const userId = req.body.userId;
-
+    const runAt = req.body.runAt;
     console.log("Digit:", digit);
     console.log("Incident:", incidentId);
     console.log("User:", userId);
+    console.log("Run At:", runAt);
 
     res.type("text/xml");
 
     if (digit === "1") {
       res.send(`<Response><Say>Thank you. Marked safe.</Say></Response>`);
-      await bot.proccessSMSLinkClick(userId, incidentId, "YES", "VoiceCall");
+      await bot.proccessSMSLinkClick(
+        userId,
+        incidentId,
+        "YES",
+        "VoiceCall",
+        runAt,
+      );
 
       // Log positive acknowledgement via voice, similar to /posresp
       await bot.SaveSmsLog(
@@ -7596,7 +7609,13 @@ ORDER BY ACL.EventDateTime DESC;
       );
     } else if (digit === "2") {
       res.send(`<Response><Say>Help request recorded.</Say></Response>`);
-      await bot.proccessSMSLinkClick(userId, incidentId, "NO", "VoiceCall");
+      await bot.proccessSMSLinkClick(
+        userId,
+        incidentId,
+        "NO",
+        "VoiceCall",
+        runAt,
+      );
 
       // Log negative acknowledgement via voice, similar to /negresp
       await bot.SaveSmsLog(
