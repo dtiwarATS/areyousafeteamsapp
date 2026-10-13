@@ -148,6 +148,12 @@ const { runGuardedJob } = require("../utils/jobGuard");
                 LANGUAGE_ID,
               );
               const filesData = await getFilesByIncId(inc_id);
+              // duplicate column names come back from mssql as arrays
+              const firstValue = (v) =>
+                (Array.isArray(v) ? v.find((x) => x) : v) ?? null;
+              const conversationId = firstValue(
+                member.reminderConversationId ?? member.conversationId,
+              );
               await sendProactiveMessaageToUser(
                 [{ id: member.user_id, name: member.user_name }],
                 approvalCard,
@@ -156,7 +162,7 @@ const { runGuardedJob } = require("../utils/jobGuard");
                 companyData.userTenantId,
                 log,
                 member.user_aadobj_id,
-                member.conversationId,
+                conversationId,
                 null,
                 filesData,
               );
@@ -196,8 +202,8 @@ const { runGuardedJob } = require("../utils/jobGuard");
                       companyData.SubscriptionType == 2) ||
                     companyData.SENT_VOICE_CALL_COUNT < 50) &&
                   inc_type_id == 1 &&
-                  IntegrationConfigure.channels.voice.enabled &&
-                  IntegrationConfigure.channels.voice.events.incidentFollowUp
+                  IntegrationConfigure?.channels?.voice?.enabled &&
+                  IntegrationConfigure?.channels?.voice?.events?.incidentFollowUp
                 ) {
                   await bot.sendSafetyCheckMsgViaVoice(
                     companyData,
@@ -212,8 +218,8 @@ const { runGuardedJob } = require("../utils/jobGuard");
                     (companyData.SubscriptionType == 1 &&
                       companyData.SubscriptionType == 2) ||
                     companyData.SENT_VOICE_CALL_COUNT < 50) &&
-                  IntegrationConfigure.channels.sms.enabled &&
-                  IntegrationConfigure.channels.sms.events.incidentFollowUp
+                  IntegrationConfigure?.channels?.sms?.enabled &&
+                  IntegrationConfigure?.channels?.sms?.events?.incidentFollowUp
                 ) {
                   await bot.sendSafetyCheckMsgViaSMS(
                     companyData,
@@ -234,8 +240,8 @@ const { runGuardedJob } = require("../utils/jobGuard");
               }
               if (
                 inc_type_id == 1 &&
-                IntegrationConfigure.channels.whatsapp.enabled &&
-                IntegrationConfigure.channels.whatsapp.events.incidentFollowUp
+                IntegrationConfigure?.channels?.whatsapp?.enabled &&
+                IntegrationConfigure?.channels?.whatsapp?.events?.incidentFollowUp
               ) {
                 await bot.sendSafetyCheckMsgViaWhatsapp(
                   companyData,
@@ -249,8 +255,8 @@ const { runGuardedJob } = require("../utils/jobGuard");
                 );
               }
               if (
-                IntegrationConfigure.channels.email.enabled &&
-                IntegrationConfigure.channels.email.events.incidentFollowUp
+                IntegrationConfigure?.channels?.email?.enabled &&
+                IntegrationConfigure?.channels?.email?.events?.incidentFollowUp
               ) {
                 await bot.sendSafetyCheckMsgViaEmail(
                   companyData,
@@ -331,7 +337,9 @@ WHERE mstm.response = 0;`;
     mtu.user_aadobject_id AS user_aadobj_id,
     mtu.email,
     mtu.LANGUAGE_ID,
-    mtu.conversationId,
+    -- Mmrr.* already has a conversationId column; selecting mtu.conversationId
+    -- too made mssql return conversationId as an array
+    COALESCE(Mmrr.conversationId, mtu.conversationId) AS reminderConversationId,
     mstm.user_id,
     mstm.inc_id,
     Mmrr.id AS MemberResponsesRecurrId
