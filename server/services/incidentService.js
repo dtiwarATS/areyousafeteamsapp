@@ -1265,20 +1265,35 @@ const addMembersIntoIncData = async (
 ) => {
   let incData = null;
   try {
-    let insertMembersQuery = "";
-    for (let i = 0; i < allMembers.length; i++) {
-      let member = allMembers[i];
-      let memberid = member.id || member.value;
-      let membername = member.name || member.title;
-      insertMembersQuery += ` insert into MSTeamsMemberResponses(inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, timestamp) 
-          values(${incId}, '${memberid}', '${membername.replace(
-            /'/g,
-            "''",
-          )}', 0, 0, NULL, NULL, NULL); `;
+    // One set-based insert per 1000 members (instead of one statement per
+    // member), retried on transient errors; members already present for this
+    // incident are skipped so a repeated call never creates duplicates.
+    const rows = [];
+    const seen = new Set();
+    for (const member of allMembers || []) {
+      const memberid = member?.id || member?.value;
+      if (!memberid || seen.has(memberid)) continue;
+      seen.add(memberid);
+      rows.push({
+        u: String(memberid),
+        n: String(member.name || member.title || ""),
+      });
     }
-
-    if (insertMembersQuery != "") {
-      await db.insertData(insertMembersQuery, userAadObjId);
+    const chunkSize = 1000;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+      const chunk = rows.slice(i, i + chunkSize);
+      await db.executeWithRetry(
+        `INSERT INTO MSTeamsMemberResponses (inc_id, user_id, user_name, is_message_delivered, response, response_value, comment, [timestamp])
+         SELECT @incId, j.userId, j.userName, 0, 0, NULL, NULL, NULL
+         FROM OPENJSON(@json) WITH (userId varchar(255) '$.u', userName nvarchar(255) '$.n') j
+         WHERE NOT EXISTS (SELECT 1 FROM MSTeamsMemberResponses r
+                           WHERE r.inc_id = @incId AND r.user_id = j.userId);`,
+        {
+          incId: { type: sql.Int, value: Number(incId) },
+          json: { type: sql.NVarChar(sql.MAX), value: JSON.stringify(chunk) },
+        },
+        { label: `addMembersIntoIncData inc=${incId}` },
+      );
     }
 
     // const selectQuery = `SELECT inc.id, inc.inc_name, inc.inc_desc, inc.inc_type, inc.channel_id, inc.team_id, inc.selected_members, inc.created_by,
@@ -1341,7 +1356,12 @@ const updateIncResponseData = async (
 
   if (updateRespRecurrQuery != null) {
     console.log("update query >> ", updateRespRecurrQuery);
-    await pool.request().query(updateRespRecurrQuery);
+    // a user's safety response must not be lost to a transient DB error
+    await db.executeWithRetry(
+      updateRespRecurrQuery,
+      {},
+      { label: `updateIncResponseData inc=${incidentId}` },
+    );
   }
 
   return Promise.resolve();

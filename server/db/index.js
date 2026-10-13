@@ -315,7 +315,90 @@ const insertData = async (sqlInsertQuery, userObjId) => {
   return result;
 };
 
+// SQL error numbers that are worth retrying: deadlock victim, Azure SQL
+// throttling / failover / resource limits, and transport-level failures.
+const TRANSIENT_SQL_ERROR_NUMBERS = new Set([
+  -2, 20, 64, 233, 1205, 1222, 4060, 4221, 10053, 10054, 10060, 10928, 10929,
+  40143, 40197, 40501, 40540, 40613, 49918, 49919, 49920,
+]);
+const TRANSIENT_DRIVER_ERROR_CODES = new Set([
+  "ETIMEOUT",
+  "ESOCKET",
+  "ECONNCLOSED",
+  "ECONNRESET",
+  "ENOTOPEN",
+  "ENOCONN",
+  "EINSTLOOKUP",
+  "ECONNREFUSED",
+]);
+
+const isTransientDbError = (err) => {
+  if (!err) return false;
+  const candidates = [err, err.originalError, err.originalError?.info];
+  for (const e of candidates) {
+    if (!e) continue;
+    if (e.number != null && TRANSIENT_SQL_ERROR_NUMBERS.has(Number(e.number))) {
+      return true;
+    }
+    if (e.code && TRANSIENT_DRIVER_ERROR_CODES.has(e.code)) {
+      return true;
+    }
+  }
+  // tarn pool acquire timeout / generic driver timeouts
+  return (
+    err.name === "TimeoutError" ||
+    err.name === "ConnectionError" ||
+    /timed? ?out|deadlock|connection (is )?closed/i.test(String(err.message))
+  );
+};
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Runs a parameterised query, retrying transient failures with exponential
+ * backoff + jitter. Throws the last error if all attempts fail.
+ *
+ * inputs: { name: value } or { name: { type, value } } (type = mssql type)
+ */
+const executeWithRetry = async (query, inputs = {}, options = {}) => {
+  const retries = options.retries ?? 5;
+  const baseDelayMs = options.baseDelayMs ?? 500;
+  const maxDelayMs = options.maxDelayMs ?? 15000;
+  const label = options.label || "executeWithRetry";
+  let attempt = 0;
+  for (;;) {
+    try {
+      const pool = await getActivePoolPromise();
+      const request = pool.request();
+      for (const [name, input] of Object.entries(inputs)) {
+        if (input && typeof input === "object" && "type" in input) {
+          request.input(name, input.type, input.value);
+        } else {
+          request.input(name, input);
+        }
+      }
+      return await request.query(query);
+    } catch (err) {
+      attempt += 1;
+      if (attempt > retries || !isTransientDbError(err)) {
+        throw err;
+      }
+      const delay = Math.min(
+        maxDelayMs,
+        baseDelayMs * 2 ** (attempt - 1) + Math.floor(Math.random() * 250),
+      );
+      console.warn(
+        `[${label}] transient DB error (attempt ${attempt}/${retries}), retrying in ${delay}ms:`,
+        err?.message || err,
+      );
+      await sleep(delay);
+    }
+  }
+};
+
 const db = {
+  executeWithRetry,
+  isTransientDbError,
   insertDataIntoDB,
   getDataFromDB,
   updateDataIntoDB,

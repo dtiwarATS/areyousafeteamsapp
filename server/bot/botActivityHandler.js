@@ -1658,43 +1658,33 @@ WHEN NOT MATCHED THEN
             name: incCreatedBy.name,
           },
         };
-        await sendDirectMessage(
-          context,
-          context.activity.from,
-          responseText,
-          entities,
-        );
-        log.addLog(
-          "After Click On Im_Safte or need assistance  Text message Send successfully. ",
-        );
-        var incGuidance = await incidentService.getIncGuidance(incId);
-        incGuidance = incGuidance; //? incGuidance : "No details available";
-        const cards = CardFactory.adaptiveCard(
-          updateSafeMessage(
-            incTitle,
-            "",
-            incCreatedBy,
-            response,
-            context.activity.from.id,
-            incId,
-            companyData,
-            inc,
-            incGuidance,
-            languageId,
-          ),
-        );
-        await context.sendActivity({
-          attachments: [cards],
-        });
-        log.addLog(
-          "After Click On Im_Safte or need assistance comment section card Send successfully. ",
-        );
-        if (companyData.EnableSafetycheckForVisitors == true) {
-          log.addLog(
-            "In setting EnableSafetycheckForVisitors is true card sending",
+        // Acknowledgement messages are best-effort: if one fails we must still
+        // reach selectResponseCard below, which saves the user's response.
+        try {
+          await sendDirectMessage(
+            context,
+            context.activity.from,
+            responseText,
+            entities,
           );
-          const Qestion1 = CardFactory.adaptiveCard(
-            updateSafeMessageqestion1(
+          log.addLog(
+            "After Click On Im_Safte or need assistance  Text message Send successfully. ",
+          );
+        } catch (err) {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            context.activity?.from?.aadObjectId,
+            "error in send_response acknowledgement incId=" + incId,
+          );
+        }
+        try {
+          var incGuidance = await incidentService.getIncGuidance(incId);
+          incGuidance = incGuidance; //? incGuidance : "No details available";
+          const cards = CardFactory.adaptiveCard(
+            updateSafeMessage(
               incTitle,
               "",
               incCreatedBy,
@@ -1704,13 +1694,47 @@ WHEN NOT MATCHED THEN
               companyData,
               inc,
               incGuidance,
+              languageId,
             ),
           );
           await context.sendActivity({
-            attachments: [Qestion1],
+            attachments: [cards],
           });
           log.addLog(
-            "In setting EnableSafetycheckForVisitors is true card sending successsfully",
+            "After Click On Im_Safte or need assistance comment section card Send successfully. ",
+          );
+          if (companyData.EnableSafetycheckForVisitors == true) {
+            log.addLog(
+              "In setting EnableSafetycheckForVisitors is true card sending",
+            );
+            const Qestion1 = CardFactory.adaptiveCard(
+              updateSafeMessageqestion1(
+                incTitle,
+                "",
+                incCreatedBy,
+                response,
+                context.activity.from.id,
+                incId,
+                companyData,
+                inc,
+                incGuidance,
+              ),
+            );
+            await context.sendActivity({
+              attachments: [Qestion1],
+            });
+            log.addLog(
+              "In setting EnableSafetycheckForVisitors is true card sending successsfully",
+            );
+          }
+        } catch (err) {
+          console.log(err);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            context.activity?.from?.aadObjectId,
+            "error in send_response follow-up cards incId=" + incId,
           );
         }
         // const message = MessageFactory.attachment(cards);

@@ -4566,6 +4566,16 @@ const handlerForSafetyBotTab = (app) => {
   app.post(
     "/areyousafetabhandler/NewsendSafetyCheckMessage",
     async (req, res) => {
+      // Respond as soon as the member rows are saved and sending has started;
+      // the send itself continues in the background (App Service would cut a
+      // long-running request at ~230s).
+      let responded = false;
+      const respond = (status, body) => {
+        if (!responded && !res.headersSent) {
+          responded = true;
+          res.status(status).send(body);
+        }
+      };
       try {
         const qs = req.query;
         const incId = qs.incId;
@@ -4575,29 +4585,29 @@ const handlerForSafetyBotTab = (app) => {
         const members = req.body.members;
         const incdata = req.body.incdata;
         const userAadObjId = qs.userAadObjId;
-        const resendSafetyCheck = qs.resendSafetyCheck || false;
+        const resendSafetyCheck = qs.resendSafetyCheck || "false";
         const isLastBatch = qs.isLastBatch;
         const isFirstBatch = qs.isFirstBatch;
-        //const responseOptionData = JSON.parse(qs.responseOptionData);
-        const tabObj = new tab.AreYouSafeTab();
         const log = new AYSLog();
-        await bot
-          .NewsendSafetyCheckMessageAsync(
-            incId,
-            teamId,
-            createdByUserInfo,
-            log,
-            userAadObjId,
-            resendSafetyCheck,
-            incdata,
-            members,
-            companyData,
-            isLastBatch,
-            isFirstBatch,
-          )
-          .then((safetyCheckSend) => {
-            res.send(safetyCheckSend);
-          });
+        const safetyCheckSend = await bot.NewsendSafetyCheckMessageAsync(
+          incId,
+          teamId,
+          createdByUserInfo,
+          log,
+          userAadObjId,
+          resendSafetyCheck,
+          incdata,
+          members,
+          companyData,
+          isLastBatch,
+          isFirstBatch,
+          () => respond(202, { accepted: true }),
+        );
+        if (safetyCheckSend === false) {
+          respond(500, { error: "Error: Please try again" });
+        } else {
+          respond(200, safetyCheckSend);
+        }
       } catch (err) {
         console.log(err);
         processSafetyBotError(
@@ -4605,10 +4615,10 @@ const handlerForSafetyBotTab = (app) => {
           req.query.teamId,
           "",
           req.query.userAadObjId,
-          "error in /areyousafetabhandler/sendSafetyCheckMessage incid=" +
+          "error in /areyousafetabhandler/NewsendSafetyCheckMessage incid=" +
             req.query.incId,
         );
-        res.send({ error: "Error: Please try again" });
+        respond(500, { error: "Error: Please try again" });
       }
     },
   );

@@ -29,6 +29,14 @@ function initJob() {
         name: "recurr-job",
         path: path.join(__dirname, "jobs", "recurr-job.js"),
         cron: "*/15 * * * *",
+        // safety cap: a stuck run must never block all later recurring runs
+        closeWorkerAfterMs: 30 * 60 * 1000,
+      },
+      {
+        name: "reconcile-delivery-job",
+        path: path.join(__dirname, "jobs", "reconcile-delivery-job.js"),
+        cron: "*/10 * * * *",
+        closeWorkerAfterMs: 30 * 60 * 1000,
       },
       {
         name: "newSubcriptionAdded-job",
@@ -255,10 +263,14 @@ function shutDown() {
 //   res.send('500: Internal server error');
 // });
 
+// Log and keep running: sends and status writes in progress live in memory,
+// so exiting here would drop them. (The old handler referenced an undefined
+// `e`, threw inside the handler and crashed the process.)
 process.on("uncaughtException", function (err) {
   console.error("[PROCESS] uncaughtException:", err?.message || err);
-  //processSafetyBotError(err, "", "", "", "uncaughtException").catch((e) => {
-  console.warn("[PROCESS] processSafetyBotError failed:", e?.message || e);
+  if (err?.stack) {
+    console.error("[PROCESS] uncaughtException stack:", err.stack);
+  }
 });
 
 process.on("unhandledRejection", function (reason) {

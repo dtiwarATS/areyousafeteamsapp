@@ -11,7 +11,11 @@ const {
   normalizeTimeTo24Hour,
   normalizeDateToYmd,
 } = require("../utils");
-const { runGuardedJob } = require("../utils/jobGuard");
+const sql = require("mssql");
+const { runGuardedJob, processConcurrently } = require("../utils/jobGuard");
+
+// Due incidents processed in parallel (keeps the small DB from being flooded).
+const RECURR_INCIDENT_CONCURRENCY = 2;
 
 (async () => {
   await runGuardedJob(
@@ -37,8 +41,10 @@ const { runGuardedJob } = require("../utils/jobGuard");
   if (jobsToBeExecutedArr != null && jobsToBeExecutedArr.length > 0) {
     let saveLog = false;
     // send msgs
-    await Promise.all(
-      jobsToBeExecutedArr.map(async (job) => {
+    await processConcurrently(
+      jobsToBeExecutedArr,
+      RECURR_INCIDENT_CONCURRENCY,
+      async (job) => {
         // send teams msg and change the runAt time of the job to next interval
         try {
           const {
@@ -119,8 +125,24 @@ const { runGuardedJob } = require("../utils/jobGuard");
             let nextRunAtUTC = interval.next().toISOString();
             // Advancing LAST_RUN_AT closes the previous occurrence (derived status).
             // Only the new LAST_RUN_AT remains In Progress; prior runAt values are Closed.
-            let sqlUpdate = `UPDATE MSTEAMS_SUB_EVENT SET LAST_RUN_AT = '${job.runAt}', RUN_AT = '${nextRunAtUTC}', COMPLETED = 1 WHERE ID = ${subEventId}`;
-            db.updateDataIntoDB(sqlUpdate, job?.createdById);
+            // Claim this occurrence exactly once: only the run that moves RUN_AT
+            // from the value it read gets to send (awaited + retried).
+            const claim = await db.executeWithRetry(
+              `UPDATE MSTEAMS_SUB_EVENT SET LAST_RUN_AT = @runAt, RUN_AT = @nextRunAt, COMPLETED = 1
+               WHERE ID = @subEventId AND RUN_AT = @runAt`,
+              {
+                runAt: { type: sql.VarChar(512), value: job.runAt },
+                nextRunAt: { type: sql.VarChar(512), value: nextRunAtUTC },
+                subEventId: { type: sql.Int, value: Number(subEventId) },
+              },
+              { label: `recurr-job claim subEvent=${subEventId}` },
+            );
+            if (!claim?.rowsAffected?.[0]) {
+              log.addLog(
+                `incId: ${incId} subEvent ${subEventId} already claimed, skipped`,
+              );
+              return true;
+            }
 
             log.addLog("send recurring safety message start");
             let allEventMsgDelivered = await bot.sendRecurrEventMsg(
@@ -148,13 +170,13 @@ const { runGuardedJob } = require("../utils/jobGuard");
             "",
             "",
             job.createdById,
-            "error in recurr-job job.id=" +
-              job.ID +
+            "error in recurr-job incId=" +
+              job.INC_ID +
               " jobsToBeExecutedArr=" +
               JSON.stringify(jobsToBeExecutedArr),
           );
         }
-      }),
+      },
     );
     if (saveLog) {
       await log.saveLog();

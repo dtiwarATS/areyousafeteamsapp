@@ -215,6 +215,140 @@ const checkValidStatus = (statusCode) => {
   return validStatusCodeArr.includes(Number(statusCode));
 };
 
+// Per-call timeout for Teams createConversation / sendToConversation.
+const TEAMS_SEND_TIMEOUT_MS = 30000;
+
+// Error codes / messages that will not succeed on retry.
+const PERMANENT_SEND_ERROR_CODES = new Set([
+  "ConversationBlockedByUser",
+  "BotDisabledByTenant",
+  "BotDisabledByAdmin",
+  "BotNotInConversationRoster",
+  "ConversationNotFound",
+  "BadArgument",
+  "MessageSizeTooBig",
+]);
+const PERMANENT_SEND_ERROR_MESSAGE =
+  /Invalid user identity|not installed in user's personal scope|blocked the conversation|missing tenantId/i;
+
+const getSendErrorInfo = (err) => ({
+  status: err?.statusCode ?? err?.response?.status ?? null,
+  code: err?.code ?? null,
+  message: String(err?.message || err || "Unknown error"),
+});
+
+const isBlockedSendError = (info) =>
+  info.code === "ConversationBlockedByUser" ||
+  /blocked the conversation/i.test(info.message);
+
+// 400/403/404 and known Teams codes are permanent. 429, 412, 408, 5xx,
+// timeouts and network errors are transient.
+const isPermanentSendError = (info) =>
+  PERMANENT_SEND_ERROR_CODES.has(info.code) ||
+  PERMANENT_SEND_ERROR_MESSAGE.test(info.message) ||
+  [400, 403, 404].includes(Number(info.status));
+
+const isValidConversationId = (id) => id != null && id !== "" && id !== "null";
+
+/**
+ * Sends one activity to one member and always resolves (never throws) with:
+ * { userId, userName, userAadObjId, memberResponsesId, conversationId,
+ *   newConversation, activityId, status, delivered, error, errorCode,
+ *   permanent, blocked }
+ * delivered = Teams answered with any 2xx, whether or not an activity id came back.
+ * activityFactory is called per attempt so no activity object is shared/mutated.
+ */
+const sendActivityToMember = async ({
+  member,
+  activityFactory,
+  connectorClient,
+  tenantId,
+  timeoutMs = TEAMS_SEND_TIMEOUT_MS,
+}) => {
+  const result = {
+    userId: member.id,
+    userName: member.name,
+    userAadObjId: member.userAadObjId,
+    memberResponsesId: member.memberResponsesId,
+    conversationId: isValidConversationId(member.conversationId)
+      ? member.conversationId
+      : null,
+    newConversation: false,
+    activityId: null,
+    status: null,
+    delivered: false,
+    error: null,
+    errorCode: null,
+    permanent: false,
+    blocked: false,
+  };
+  const requestOptions = { timeout: timeoutMs };
+
+  const createConversation = async () => {
+    if (!tenantId) {
+      throw new Error("missing tenantId");
+    }
+    const params = getConversationParameters(
+      tenantId,
+      process.env.MicrosoftAppId,
+      process.env.BotName,
+      [{ id: member.id, name: member.name }],
+    );
+    const conv = await connectorClient.conversations.createConversation(
+      params,
+      requestOptions,
+    );
+    if (!isValidConversationId(conv?.id)) {
+      throw new Error("createConversation returned no conversation id");
+    }
+    result.conversationId = conv.id;
+    result.newConversation = true;
+    return conv.id;
+  };
+
+  try {
+    if (!result.conversationId) {
+      await createConversation();
+    }
+    let activityResp;
+    try {
+      activityResp = await connectorClient.conversations.sendToConversation(
+        result.conversationId,
+        await activityFactory(),
+        requestOptions,
+      );
+    } catch (err) {
+      // A cached conversation id can go stale (app reinstalled etc.):
+      // create a fresh 1:1 conversation once and resend.
+      const info = getSendErrorInfo(err);
+      const staleConversation =
+        !result.newConversation &&
+        (info.status === 404 ||
+          info.code === "ConversationNotFound" ||
+          info.code === "BotNotInConversationRoster");
+      if (!staleConversation) throw err;
+      await createConversation();
+      activityResp = await connectorClient.conversations.sendToConversation(
+        result.conversationId,
+        await activityFactory(),
+        requestOptions,
+      );
+    }
+    // The SDK throws for non-2xx, so reaching here means Teams accepted it.
+    result.status = activityResp?._response?.status ?? 200;
+    result.delivered = checkValidStatus(result.status);
+    result.activityId = activityResp?.id ?? null;
+  } catch (err) {
+    const info = getSendErrorInfo(err);
+    result.status = info.status ?? 500;
+    result.error = info.message;
+    result.errorCode = info.code;
+    result.blocked = isBlockedSendError(info);
+    result.permanent = isPermanentSendError(info);
+  }
+  return result;
+};
+
 const getConversationParameters = (tenantId, appId, botName, members) => {
   return {
     isGroup: false,
@@ -753,6 +887,9 @@ module.exports = {
   getAllTeamMembersByConnectorClient,
   getUsersConversationId,
   sendProactiveMessaageToUserAsync,
+  sendActivityToMember,
+  isPermanentSendError,
+  checkValidStatus,
   sentActivityToTeamChannel,
   sendProactiveMessaageToSelectedChannel,
   sendMultipleDirectMessageCard,

@@ -81,7 +81,8 @@ const { runGuardedJob } = require("../utils/jobGuard");
               member.LastReminderSentAT == undefined
                 ? 0
                 : ctime - member.LastReminderSentAT;
-            var diffMins = Math.round(((diff % 86400000) % 3600000) / 60000);
+            // total minutes since the last reminder (the old modulo wrapped every hour)
+            var diffMins = Math.floor(diff / 60000);
 
             if (
               member.is_message_delivered &&
@@ -343,7 +344,7 @@ INNER JOIN MSTeamsIncidents mst
     AND mst.INC_STATUS_ID = 1
     AND mst.SendRemindersCount > 0
     AND mst.SendRemindersTime > 0
-    AND mst.inc_type = 'reccurringIncident'
+    AND mst.inc_type = 'recurringIncident'
 INNER JOIN MSTEAMS_SUB_EVENT mse
     ON mse.INC_ID = mstm.inc_id
     AND mse.LAST_RUN_AT = Mmrr.runAt
