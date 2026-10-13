@@ -33,279 +33,287 @@ const { runGuardedJob } = require("../utils/jobGuard");
   await runGuardedJob(
     "SendRemainder",
     async () => {
-  const sendProactiveMessage = async (sqlQuery, sqlQueryquerryReccuring) => {
-    const log = new AYSLog();
-    let saveLog = false;
-    try {
-      let membersNotRespondedList = [];
-      let membersNotRespondedOneTimeList = await db.getDataFromDB(sqlQuery);
-      let membersNotRespondedRecurringList = await db.getDataFromDB(
+      const sendProactiveMessage = async (
+        sqlQuery,
         sqlQueryquerryReccuring,
-      );
-      membersNotRespondedList = membersNotRespondedOneTimeList;
-      if (
-        membersNotRespondedRecurringList &&
-        membersNotRespondedRecurringList.length > 0
-      ) {
-        membersNotRespondedList.push(...membersNotRespondedRecurringList);
-      }
-      if (
-        membersNotRespondedList != null &&
-        membersNotRespondedList.length > 0
-      ) {
-        await Promise.all(
-          membersNotRespondedList.map(async (memberObj) => {
-            let member = memberObj;
-            const {
-              inc_id,
-              inc_name,
-              inc_type_id,
-              created_by,
-              CREATED_BY_NAME,
-              GUIDANCE,
-              additionalInfo,
-              travelUpdate,
-              contactInfo,
-              situation,
-              user_id,
-              inc_type,
-              MemberResponsesRecurrId,
-              user_aadobj_id,
-              IS_DRILL,
-              TRANSLATED_TEXT_JSON,
-              LANGUAGE_ID,
-            } = member;
+      ) => {
+        const log = new AYSLog();
+        let saveLog = false;
+        try {
+          let membersNotRespondedList = [];
+          let membersNotRespondedOneTimeList = await db.getDataFromDB(sqlQuery);
+          let membersNotRespondedRecurringList = await db.getDataFromDB(
+            sqlQueryquerryReccuring,
+          );
+          membersNotRespondedList = membersNotRespondedOneTimeList;
+          if (
+            membersNotRespondedRecurringList &&
+            membersNotRespondedRecurringList.length > 0
+          ) {
+            membersNotRespondedList.push(...membersNotRespondedRecurringList);
+          }
+          if (
+            membersNotRespondedList != null &&
+            membersNotRespondedList.length > 0
+          ) {
+            await Promise.all(
+              membersNotRespondedList.map(async (memberObj) => {
+                let member = memberObj;
+                const {
+                  inc_id,
+                  inc_name,
+                  inc_type_id,
+                  created_by,
+                  CREATED_BY_NAME,
+                  GUIDANCE,
+                  additionalInfo,
+                  travelUpdate,
+                  contactInfo,
+                  situation,
+                  user_id,
+                  inc_type,
+                  MemberResponsesRecurrId,
+                  user_aadobj_id,
+                  IS_DRILL,
+                  TRANSLATED_TEXT_JSON,
+                  LANGUAGE_ID,
+                } = member;
 
-            let ctime = new Date();
-            let diff =
-              member.LastReminderSentAT == undefined
-                ? 0
-                : ctime - member.LastReminderSentAT;
-            // total minutes since the last reminder (the old modulo wrapped every hour)
-            var diffMins = Math.floor(diff / 60000);
-
-            if (
-              member.is_message_delivered &&
-              member.SendRemindersCounter < member.SendRemindersCount &&
-              diffMins >= member.SendRemindersTime
-            ) {
-              log.addLog(
-                `send proactive reminder messaage to ${member.user_id} Start`,
-              );
-              const companyData = await getCompanyDataByTeamId(member.team_id);
-              let responseOptionData = {
-                responseOptions: [
-                  { id: 1, option: "I am safe", color: "#4CAF50" },
-                  { id: 2, option: "I need assistance", color: "#F44336" },
-                ],
-                responseType: "buttons",
-              };
-              if (member.RESPONSE_TYPE && member.RESPONSE_OPTIONS) {
-                responseOptionData = {
-                  responseOptions: JSON.parse(member.RESPONSE_OPTIONS),
-                  responseType: member.RESPONSE_TYPE,
-                };
-              }
-              let incObj = {
-                incId: inc_id,
-                incTitle: inc_name,
-                inc_type_id,
-                runAt: member.runAt,
-                incCreatedBy: {
-                  id: created_by,
-                  name: CREATED_BY_NAME,
-                },
-                responseOptionData,
-                isDrill: IS_DRILL,
-                translatedtext: TRANSLATED_TEXT_JSON,
-                TRANSLATED_TEXT_JSON,
-              };
-              incidentService.saveAllTypeQuerylogs(
-                user_aadobj_id,
-                "",
-                "TEAMS",
-                "",
-                incObj.incId,
-                "SENDING",
-                "Follow-up",
-                "",
-                inc_name,
-                "",
-                "",
-                "",
-              );
-              const approvalCard = await SafetyCheckCard(
-                inc_name,
-                incObj,
-                companyData,
-                GUIDANCE,
-                [],
-                inc_type_id,
-                additionalInfo,
-                travelUpdate,
-                contactInfo,
-                situation,
-                LANGUAGE_ID,
-              );
-              const filesData = await getFilesByIncId(inc_id);
-              // duplicate column names come back from mssql as arrays
-              const firstValue = (v) =>
-                (Array.isArray(v) ? v.find((x) => x) : v) ?? null;
-              const conversationId = firstValue(
-                member.reminderConversationId ?? member.conversationId,
-              );
-              await sendProactiveMessaageToUser(
-                [{ id: member.user_id, name: member.user_name }],
-                approvalCard,
-                null,
-                companyData.serviceUrl,
-                companyData.userTenantId,
-                log,
-                member.user_aadobj_id,
-                conversationId,
-                null,
-                filesData,
-              );
-              incidentService.saveAllTypeQuerylogs(
-                user_aadobj_id,
-                "",
-                "TEAMS",
-                "",
-                incObj.incId,
-                "SEND_SUCCESS",
-                "Follow-up",
-                "",
-                inc_name,
-                "",
-                "",
-                "",
-              );
-              log.addLog(
-                `send proactive reminder messaage to ${member.user_id} successfully`,
-              );
-              let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
-                ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
-                : null;
-              let userAadObjIds = [member.user_aadobj_id];
-              if (member.inc_type == "onetime") {
-                await incidentService.updateremaindercounter(
-                  member.inc_id,
-                  member.user_id,
-                );
-                log.addLog(
-                  `Update oneTime reminder message count in DB  ${member.user_id} successfully`,
-                );
+                let ctime = new Date();
+                let diff =
+                  member.LastReminderSentAT == undefined
+                    ? 0
+                    : ctime - member.LastReminderSentAT;
+                // total minutes since the last reminder (the old modulo wrapped every hour)
+                var diffMins = Math.floor(diff / 60000);
 
                 if (
-                  (companyData.SubscriptionType == 3 ||
-                    (companyData.SubscriptionType == 1 &&
-                      companyData.SubscriptionType == 2) ||
-                    companyData.SENT_VOICE_CALL_COUNT < 50) &&
-                  inc_type_id == 1 &&
-                  IntegrationConfigure?.channels?.voice?.enabled &&
-                  IntegrationConfigure?.channels?.voice?.events?.incidentFollowUp
+                  member.is_message_delivered &&
+                  member.SendRemindersCounter < member.SendRemindersCount &&
+                  diffMins >= member.SendRemindersTime
                 ) {
-                  await bot.sendSafetyCheckMsgViaVoice(
-                    companyData,
-                    userAadObjIds,
-                    incObj,
-                    incObj.incCreatedBy,
-                    "Follow-up",
+                  log.addLog(
+                    `send proactive reminder messaage to ${member.user_id} Start`,
                   );
-                }
-                if (
-                  (companyData.SubscriptionType == 3 ||
-                    (companyData.SubscriptionType == 1 &&
-                      companyData.SubscriptionType == 2) ||
-                    companyData.SENT_VOICE_CALL_COUNT < 50) &&
-                  IntegrationConfigure?.channels?.sms?.enabled &&
-                  IntegrationConfigure?.channels?.sms?.events?.incidentFollowUp
-                ) {
-                  await bot.sendSafetyCheckMsgViaSMS(
+                  const companyData = await getCompanyDataByTeamId(
+                    member.team_id,
+                  );
+                  let responseOptionData = {
+                    responseOptions: [
+                      { id: 1, option: "I am safe", color: "#4CAF50" },
+                      { id: 2, option: "I need assistance", color: "#F44336" },
+                    ],
+                    responseType: "buttons",
+                  };
+                  if (member.RESPONSE_TYPE && member.RESPONSE_OPTIONS) {
+                    responseOptionData = {
+                      responseOptions: JSON.parse(member.RESPONSE_OPTIONS),
+                      responseType: member.RESPONSE_TYPE,
+                    };
+                  }
+                  let incObj = {
+                    incId: inc_id,
+                    incTitle: inc_name,
+                    inc_type_id,
+                    runAt: member.runAt,
+                    incCreatedBy: {
+                      id: created_by,
+                      name: CREATED_BY_NAME,
+                    },
+                    responseOptionData,
+                    isDrill: IS_DRILL,
+                    translatedtext: TRANSLATED_TEXT_JSON,
+                    TRANSLATED_TEXT_JSON,
+                  };
+                  incidentService.saveAllTypeQuerylogs(
+                    user_aadobj_id,
+                    "",
+                    "TEAMS",
+                    "",
+                    incObj.incId,
+                    "SENDING",
+                    "Follow-up",
+                    "",
+                    inc_name,
+                    "",
+                    "",
+                    "",
+                  );
+                  const approvalCard = await SafetyCheckCard(
+                    inc_name,
+                    incObj,
                     companyData,
-                    userAadObjIds,
+                    GUIDANCE,
+                    [],
+                    inc_type_id,
+                    additionalInfo,
+                    travelUpdate,
+                    contactInfo,
+                    situation,
+                    LANGUAGE_ID,
+                  );
+                  const filesData = await getFilesByIncId(inc_id);
+                  // duplicate column names come back from mssql as arrays
+                  const firstValue = (v) =>
+                    (Array.isArray(v) ? v.find((x) => x) : v) ?? null;
+                  const conversationId = firstValue(
+                    member.reminderConversationId ?? member.conversationId,
+                  );
+                  await sendProactiveMessaageToUser(
+                    [{ id: member.user_id, name: member.user_name }],
+                    approvalCard,
+                    null,
+                    companyData.serviceUrl,
+                    companyData.userTenantId,
+                    log,
+                    member.user_aadobj_id,
+                    conversationId,
+                    null,
+                    filesData,
+                  );
+                  incidentService.saveAllTypeQuerylogs(
+                    user_aadobj_id,
+                    "",
+                    "TEAMS",
+                    "",
+                    incObj.incId,
+                    "SEND_SUCCESS",
+                    "Follow-up",
+                    "",
+                    inc_name,
+                    "",
+                    "",
+                    "",
+                  );
+                  log.addLog(
+                    `send proactive reminder messaage to ${member.user_id} successfully`,
+                  );
+                  let IntegrationConfigure = companyData?.INTEGRATION_CONFIGURE
+                    ? JSON.parse(companyData.INTEGRATION_CONFIGURE)
+                    : null;
+                  let userAadObjIds = [member.user_aadobj_id];
+                  if (member.inc_type == "onetime") {
+                    await incidentService.updateremaindercounter(
+                      member.inc_id,
+                      member.user_id,
+                    );
+                    log.addLog(
+                      `Update oneTime reminder message count in DB  ${member.user_id} successfully`,
+                    );
+                  } else {
+                    await incidentService.updateRecurrremaindercounter(
+                      member.MemberResponsesRecurrId,
+                    );
+                    log.addLog(
+                      `Update Reccuring reminder message count in DB  ${member.user_id} successfully`,
+                    );
+                  }
+                  if (
+                    (companyData.SubscriptionType == 3 ||
+                      (companyData.SubscriptionType == 1 &&
+                        companyData.SubscriptionType == 2) ||
+                      companyData.SENT_VOICE_CALL_COUNT < 50) &&
+                    inc_type_id == 1 &&
+                    IntegrationConfigure?.channels?.voice?.enabled &&
+                    IntegrationConfigure?.channels?.voice?.events
+                      ?.incidentFollowUp
+                  ) {
+                    await bot.sendSafetyCheckMsgViaVoice(
+                      companyData,
+                      userAadObjIds,
+                      incObj,
+                      incObj.incCreatedBy,
+                      "Follow-up",
+                    );
+                  }
+                  if (
+                    (companyData.SubscriptionType == 3 ||
+                      (companyData.SubscriptionType == 1 &&
+                        companyData.SubscriptionType == 2) ||
+                      companyData.SENT_VOICE_CALL_COUNT < 50) &&
+                    IntegrationConfigure?.channels?.sms?.enabled &&
+                    IntegrationConfigure?.channels?.sms?.events
+                      ?.incidentFollowUp
+                  ) {
+                    await bot.sendSafetyCheckMsgViaSMS(
+                      companyData,
+                      userAadObjIds,
+                      inc_id,
+                      inc_name,
+                      null,
+                      "Follow-up",
+                    );
+                  }
+                  if (
+                    inc_type_id == 1 &&
+                    IntegrationConfigure?.channels?.whatsapp?.enabled &&
+                    IntegrationConfigure?.channels?.whatsapp?.events
+                      ?.incidentFollowUp
+                  ) {
+                    await bot.sendSafetyCheckMsgViaWhatsapp(
+                      companyData,
+                      userAadObjIds,
+                      inc_id,
+                      inc_name,
+                      CREATED_BY_NAME,
+                      responseOptionData.responseOptions,
+                      incObj,
+                      "Follow-up",
+                    );
+                  }
+                  if (
+                    IntegrationConfigure?.channels?.email?.enabled &&
+                    IntegrationConfigure?.channels?.email?.events
+                      ?.incidentFollowUp
+                  ) {
+                    await bot.sendSafetyCheckMsgViaEmail(
+                      companyData,
+                      [member],
+                      inc_id,
+                      inc_name,
+                      CREATED_BY_NAME,
+                      responseOptionData.responseOptions,
+                      member,
+                      "Follow-up",
+                    );
+                  }
+                  await bot.sendSafetyCheckMsgViaDesktop(
+                    companyData,
+                    [member.user_aadobj_id],
                     inc_id,
                     inc_name,
-                    null,
-                    "Follow-up",
+                    {
+                      incTypeId: inc_type_id,
+                      incGuidance: GUIDANCE,
+                      CREATED_BY_NAME,
+                    },
+                    responseOptionData.responseOptions,
+                    CREATED_BY_NAME,
                   );
                 }
-              } else {
-                await incidentService.updateRecurrremaindercounter(
-                  member.MemberResponsesRecurrId,
-                );
-                log.addLog(
-                  `Update Reccuring reminder message count in DB  ${member.user_id} successfully`,
-                );
-              }
-              if (
-                inc_type_id == 1 &&
-                IntegrationConfigure?.channels?.whatsapp?.enabled &&
-                IntegrationConfigure?.channels?.whatsapp?.events?.incidentFollowUp
-              ) {
-                await bot.sendSafetyCheckMsgViaWhatsapp(
-                  companyData,
-                  userAadObjIds,
-                  inc_id,
-                  inc_name,
-                  CREATED_BY_NAME,
-                  responseOptionData.responseOptions,
-                  incObj,
-                  "Follow-up",
-                );
-              }
-              if (
-                IntegrationConfigure?.channels?.email?.enabled &&
-                IntegrationConfigure?.channels?.email?.events?.incidentFollowUp
-              ) {
-                await bot.sendSafetyCheckMsgViaEmail(
-                  companyData,
-                  [member],
-                  inc_id,
-                  inc_name,
-                  CREATED_BY_NAME,
-                  responseOptionData.responseOptions,
-                  member,
-                  "Follow-up",
-                );
-              }
-              await bot.sendSafetyCheckMsgViaDesktop(
-                companyData,
-                [member.user_aadobj_id],
-                inc_id,
-                inc_name,
-                {
-                  incTypeId: inc_type_id,
-                  incGuidance: GUIDANCE,
-                  CREATED_BY_NAME,
-                },
-                responseOptionData.responseOptions,
-                CREATED_BY_NAME,
-              );
-            }
-          }),
-        );
-      }
-    } catch (err) {
-      log.addLog(`Error occured: ${err}`);
-      processSafetyBotError(
-        err,
-        "",
-        "",
-        "",
-        "error in SendRemainder job sendProactiveMessage sqlQuery=" +
-          sqlQuery +
-          " sqlQueryquerryReccuring=" +
-          sqlQueryquerryReccuring,
-      );
-    } finally {
-      if (saveLog) {
-        await log.saveLog();
-      }
-    }
-  };
-  //let querry = `select mstm.* ,mst.* from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 )`;
-  let querry = `SELECT 
+              }),
+            );
+          }
+        } catch (err) {
+          log.addLog(`Error occured: ${err}`);
+          processSafetyBotError(
+            err,
+            "",
+            "",
+            "",
+            "error in SendRemainder job sendProactiveMessage sqlQuery=" +
+              sqlQuery +
+              " sqlQueryquerryReccuring=" +
+              sqlQueryquerryReccuring,
+          );
+        } finally {
+          if (saveLog) {
+            await log.saveLog();
+          }
+        }
+      };
+      //let querry = `select mstm.* ,mst.* from MSTeamsMemberResponses mstm left join MSTeamsIncidents MST on mst.id = mstm.inc_id where response=0 and inc_id IN (select ID from [dbo].[MSTeamsIncidents] where EnableSendReminders=1  and INC_STATUS_ID=1 )`;
+      let querry = `SELECT 
     mstm.*,
     mst.*,
     mtu.user_aadobject_id AS user_aadobj_id,
@@ -331,7 +339,7 @@ OUTER APPLY (
 ) mtu
 WHERE mstm.response = 0;`;
 
-  let querryReccuring = `SELECT
+      let querryReccuring = `SELECT
     Mmrr.*,
     mst.*,
     mtu.user_aadobject_id AS user_aadobj_id,
@@ -367,7 +375,7 @@ OUTER APPLY (
 ) mtu
 WHERE Mmrr.response = 0;`;
 
-  const pendingIncidents = await db.getDataFromDB(`
+      const pendingIncidents = await db.getDataFromDB(`
     SELECT TOP 1 1 AS hasWork
     FROM MSTeamsIncidents
     WHERE EnableSendReminders = 1
@@ -376,14 +384,14 @@ WHERE Mmrr.response = 0;`;
       AND SendRemindersTime > 0
   `);
 
-  if (!pendingIncidents?.length) {
-    console.log(
-      "[Job:SendRemainder] No active incidents needing reminders — skipping heavy queries",
-    );
-    return;
-  }
+      if (!pendingIncidents?.length) {
+        console.log(
+          "[Job:SendRemainder] No active incidents needing reminders — skipping heavy queries",
+        );
+        return;
+      }
 
-  await sendProactiveMessage(querry, querryReccuring);
+      await sendProactiveMessage(querry, querryReccuring);
     },
     { exitWhenSkipped: false },
   );
