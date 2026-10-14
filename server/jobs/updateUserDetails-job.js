@@ -3,6 +3,7 @@ const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const tab = require("../tab/AreYouSafeTab");
 const { runGuardedJob, processConcurrently } = require("../utils/jobGuard");
+const { activeTeamSql } = require("../utils/activeTenantFilter");
 
 const TEAM_CONCURRENCY = Number(process.env.UPDATE_USER_DETAILS_CONCURRENCY) || 3;
 
@@ -10,8 +11,9 @@ const TEAM_CONCURRENCY = Number(process.env.UPDATE_USER_DETAILS_CONCURRENCY) || 
   const outcome = await runGuardedJob("updateUserDetails", async () => {
     const teamsQuery = `
       SELECT team_id
-      FROM MSTeamsInstallationDetails 
+      FROM MSTeamsInstallationDetails i
       WHERE IS_APP_PERMISSION_GRANTED =1 and IS_APP_PERMISSION_GRANTED != '' and team_id != ''
+        AND ${activeTeamSql("i.team_id")}
     `;
 
     const teams = await db.getDataFromDB(teamsQuery);

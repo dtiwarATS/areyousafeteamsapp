@@ -1,5 +1,6 @@
 const sql = require("mssql");
 const { getActivePoolPromise } = require("../db/dbContext");
+const { activeTenantSql } = require("../utils/activeTenantFilter");
 
 /**
  * Get all countries from CountryList (for dropdowns).
@@ -1067,6 +1068,7 @@ async function getActiveSelectedCountries() {
     SELECT s.Id AS TravelAdvisorySelectedCountriesId, s.TenantId, s.CountryCode
     FROM [dbo].[Advisory] s
     WHERE s.IsActive = 1
+      AND ${activeTenantSql("s.TenantId")}
     ORDER BY s.Id
   `);
   return result.recordset || [];
@@ -2131,6 +2133,7 @@ async function getActiveWeatherSelectedLocations() {
       ORDER BY ci.CityName
     ) cf
     WHERE s.AdvisoryType = 'Weather' AND s.IsActive = 1
+      AND ${activeTenantSql("s.TenantId")}
     ORDER BY s.Id
   `);
   const rows = result.recordset || [];
@@ -2230,6 +2233,7 @@ async function getActiveTravelUsCityLocations() {
       s.SelectedLocationsJson
     FROM [dbo].[Advisory] s
     WHERE s.AdvisoryType = 'Travel' AND s.IsActive = 1
+      AND ${activeTenantSql("s.TenantId")}
     ORDER BY s.Id
   `);
 

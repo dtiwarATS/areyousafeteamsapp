@@ -7,6 +7,7 @@ const { AYSLog } = require("../utils/log");
 const { processSafetyBotError } = require("../models/processError");
 const { getFilesByIncId } = require("../db/dbOperations");
 const { runGuardedJob } = require("../utils/jobGuard");
+const { activeTeamSql } = require("../utils/activeTenantFilter");
 
 // Safety net for one-time safety checks: members whose delivery status was
 // never written (app restart / crash mid-send, lost DB write) are sent again.
@@ -31,6 +32,7 @@ const CANDIDATES_SQL = `
     AND (inc.IS_DELETED = 0 OR inc.IS_DELETED IS NULL)
     AND ISNULL(inc.isSavedAsDraft, 0) <> 1
     AND ISNULL(inc.INC_STATUS_ID, 0) <> 2
+    AND ${activeTeamSql("inc.team_id")}
     AND TRY_CAST(inc.created_date AS datetime)
         BETWEEN DATEADD(hour, -6, GETUTCDATE()) AND DATEADD(minute, -10, GETUTCDATE())
     AND EXISTS (SELECT 1 FROM MSTeamsMemberResponses r

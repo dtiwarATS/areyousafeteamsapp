@@ -230,8 +230,13 @@ const getAllIncQuery = (teamId, aadObjuserId, orderBy) => {
   inc.RESPONSE_TYPE, inc.RESPONSE_OPTIONS
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
-  LEFT JOIN MSTeamsTeamsUsers tu   -- ✅ New join to get city
-  ON tu.user_id = m.user_id
+  -- one location row per member (MSTeamsTeamsUsers has a row per team), preferring the incident team
+  OUTER APPLY (
+    SELECT TOP 1 tu1.COUNTRY, tu1.CITY, tu1.STATE, tu1.DEPARTMENT
+    FROM MSTeamsTeamsUsers tu1
+    WHERE tu1.user_id = m.user_id
+    ORDER BY CASE WHEN tu1.team_id = inc.team_id THEN 0 ELSE 1 END
+  ) tu
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
   Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
   
@@ -306,8 +311,13 @@ const getAllIncQueryByTenantId = (tenantId, orderBy, incidentId = null) => {
   inc.RESPONSE_TYPE, inc.RESPONSE_OPTIONS
   FROM MSTeamsIncidents inc
   LEFT JOIN MSTeamsMemberResponses m ON inc.id = m.inc_id
-  LEFT JOIN MSTeamsTeamsUsers tu
-  ON tu.user_id = m.user_id
+  -- one location row per member (MSTeamsTeamsUsers has a row per team), preferring the incident team
+  OUTER APPLY (
+    SELECT TOP 1 tu1.COUNTRY, tu1.CITY, tu1.STATE, tu1.DEPARTMENT
+    FROM MSTeamsTeamsUsers tu1
+    WHERE tu1.user_id = m.user_id
+    ORDER BY CASE WHEN tu1.team_id = inc.team_id THEN 0 ELSE 1 END
+  ) tu
   LEFT JOIN MSTEAMS_SUB_EVENT mse on inc.id = mse.INC_ID
   Left join MSTeamsMemberResponsesRecurr mRecurr on mRecurr.memberResponsesId = m.id and mRecurr.runat = mse.LAST_RUN_AT
   

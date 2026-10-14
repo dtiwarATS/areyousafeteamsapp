@@ -1510,18 +1510,43 @@ const handlerForSafetyBotTab = (app) => {
       });
     }
   });
+  // The dashboard polls this endpoint; the user's team info and admin rights
+  // (LIKE '%id%' scans) rarely change, so cache them per user+team for 60s.
+  const dashboardLookupCache = new Map();
+  const DASHBOARD_LOOKUP_TTL_MS = 60 * 1000;
+  const cachedDashboardLookup = (key, load) => {
+    const now = Date.now();
+    const hit = dashboardLookupCache.get(key);
+    if (hit && hit.expires > now) return hit.promise;
+    const promise = Promise.resolve().then(load);
+    dashboardLookupCache.set(key, { promise, expires: now + DASHBOARD_LOOKUP_TTL_MS });
+    promise.catch(() => dashboardLookupCache.delete(key));
+    if (dashboardLookupCache.size > 5000) {
+      for (const [k, v] of dashboardLookupCache) {
+        if (v.expires <= now) dashboardLookupCache.delete(k);
+      }
+    }
+    return promise;
+  };
+
   app.get("/areyousafetabhandler/getAllIncData", async (req, res) => {
     const userObjId = req.query.userId;
     const teamId =
       req.query.teamId != null && req.query.teamId != "null"
         ? req.query.teamId
         : null;
+    const sendError = () => {
+      if (!res.headersSent) res.status(500).send({ error: "Error: Please try again" });
+    };
     try {
       let isAdmin = false;
       const tabObj = new tab.AreYouSafeTab(userObjId);
-      const teamInfo = await incidentService.getUserTeamInfo(userObjId);
-      dbOperation
-        .verifyAdminUserForDashboardTab(req.query.userId, teamId)
+      const teamInfo = await cachedDashboardLookup(`teamInfo|${userObjId}`, () =>
+        incidentService.getUserTeamInfo(userObjId),
+      );
+      cachedDashboardLookup(`admin|${userObjId}|${teamId}`, () =>
+        dbOperation.verifyAdminUserForDashboardTab(req.query.userId, teamId),
+      )
         .then((safetyInitiatorObj) => {
           isAdmin = safetyInitiatorObj.isAdmin;
           //const safetyInitiator = safetyInitiatorObj.safetyInitiator;
@@ -1551,6 +1576,7 @@ const handlerForSafetyBotTab = (app) => {
                 })
                 .catch((err) => {
                   console.log(err);
+                  sendError();
                 });
             } else {
               incidentService
@@ -1560,6 +1586,7 @@ const handlerForSafetyBotTab = (app) => {
                 })
                 .catch((err) => {
                   console.log(err);
+                  sendError();
                 });
             }
           } else {
@@ -1568,6 +1595,7 @@ const handlerForSafetyBotTab = (app) => {
         })
         .catch((err) => {
           console.log(err);
+          sendError();
           processSafetyBotError(
             err,
             "",
@@ -1577,6 +1605,7 @@ const handlerForSafetyBotTab = (app) => {
           );
         });
     } catch (err) {
+      sendError();
       processSafetyBotError(
         err,
         "",

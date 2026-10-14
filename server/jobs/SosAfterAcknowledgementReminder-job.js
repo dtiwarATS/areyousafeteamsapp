@@ -6,7 +6,10 @@ const { AYSLog } = require("../utils/log");
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const { processSafetyBotError } = require("../models/processError");
 const dashboard = require("../models/dashboard");
-const { runGuardedJob } = require("../utils/jobGuard");
+const { runGuardedJob, processConcurrently } = require("../utils/jobGuard");
+const { activeTeamSql } = require("../utils/activeTenantFilter");
+
+const SOS_CONCURRENCY = 3;
 
 (async () => {
   await runGuardedJob(
@@ -29,11 +32,15 @@ const { runGuardedJob } = require("../utils/jobGuard");
     const pendingSos = await db.getDataFromDB(`
       SELECT TOP 1 1 AS hasWork
       FROM MSTeamsAssistance a
-      WHERE a.LastUpdatedDateTime >= '2026-02-28 00:00:00'
+      WHERE a.LastUpdatedDateTime >= DATEADD(DAY, -7, GETDATE())
         AND a.FIRST_RESPONDER IS NOT NULL
         AND a.FIRST_RESPONDER_RESPONDED_AT IS NOT NULL
         AND a.AfterAcknowledgementResponseStatus IS NULL
+        AND a.AfterAcknowledgementNoResponseCount IS NULL
         AND (a.status IS NULL OR a.status <> 'Closed')
+        AND EXISTS (SELECT 1 FROM MSTeamsTeamsUsers tu
+                    WHERE tu.user_id = a.user_id
+                      AND ${activeTeamSql("tu.team_id")})
     `);
 
     if (!pendingSos?.length) {
@@ -98,7 +105,7 @@ OUTER APPLY (
       AND t.IsReminderEnabledAfterAcknowledgement = 1   -- REQUIRED by you
       AND t.MaxReminderCountAfterAcknowledgement > 0     -- after-ack config exists
       AND NOT (
-            sd.SubscriptionType IN (2, 3,1)
+            sd.SubscriptionType IN (2, 3)
         AND sd.ExpiryDate IS NOT NULL
         AND GETDATE() > sd.ExpiryDate
       )
@@ -106,7 +113,7 @@ OUTER APPLY (
 ) t
 
 WHERE 
-    a.LastUpdatedDateTime >= '2026-02-28 00:00:00'   -- ✅ after 25 Feb
+    a.LastUpdatedDateTime >= DATEADD(DAY, -7, GETDATE())   -- rolling window: recent SOS only
     AND a.FIRST_RESPONDER IS NOT NULL
     AND a.FIRST_RESPONDER_RESPONDED_AT IS NOT NULL
     AND a.AfterAcknowledgementResponseStatus IS NULL
@@ -123,8 +130,10 @@ AND a.FIRST_RESPONDER_RESPONDED_AT <= DATEADD(MINUTE, 5, t.SOS_REMINDER_AFTER_AC
     log.addLog(`Found ${sosList?.length || 0} SOS requests to process`);
 
     if (sosList && sosList.length > 0) {
-      await Promise.all(
-        sosList.map(async (sos) => {
+      await processConcurrently(
+        sosList,
+        SOS_CONCURRENCY,
+        async (sos) => {
           try {
             const {
               id: assistanceId,
@@ -382,7 +391,7 @@ AND a.FIRST_RESPONDER_RESPONDED_AT <= DATEADD(MINUTE, 5, t.SOS_REMINDER_AFTER_AC
               `error in SosAfterAcknowledgementReminder job for SOS ${sos.id}`,
             );
           }
-        }),
+        },
       );
     }
   } catch (err) {

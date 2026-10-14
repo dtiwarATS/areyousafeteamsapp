@@ -3,6 +3,7 @@ const { AYSLog } = require("../utils/log");
 const db = require("../db");
 const { processSafetyBotError } = require("../models/processError");
 const { runGuardedJob } = require("../utils/jobGuard");
+const { activeTeamSql } = require("../utils/activeTenantFilter");
 const {
   ConnectorClient,
   MicrosoftAppCredentials,
@@ -18,8 +19,9 @@ const {
     // Get all active teams from database
     const teamsQuery = `
       SELECT team_id, serviceUrl, user_tenant_id 
-      FROM MSTeamsInstallationDetails 
+      FROM MSTeamsInstallationDetails i
       WHERE uninstallation_date IS NULL and team_id != ''
+        AND ${activeTeamSql("i.team_id")}
     `;
 
     const teams = await db.getDataFromDB(teamsQuery);

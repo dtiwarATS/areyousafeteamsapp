@@ -1,4 +1,5 @@
 const db = require("../db");
+const { activeTeamSql } = require("../utils/activeTenantFilter");
 const { processSafetyBotError } = require("../models/processError");
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const { validatePhoneNumber } = require("../utils/phoneValidation");
@@ -2038,11 +2039,12 @@ const listTenantsForPhoneEligibleConsentJob = async () => {
           PARTITION BY user_tenant_id
           ORDER BY created_date ASC
         ) AS rn
-      FROM MSTeamsInstallationDetails
+      FROM MSTeamsInstallationDetails i
       WHERE user_tenant_id IS NOT NULL
         AND user_tenant_id <> ''
         AND team_id IS NOT NULL
         AND team_id <> ''
+        AND ${activeTeamSql("i.team_id")}
     ) ranked
     WHERE ranked.rn = 1
   `;

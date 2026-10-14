@@ -13,6 +13,7 @@ const {
 } = require("../utils");
 const sql = require("mssql");
 const { runGuardedJob, processConcurrently } = require("../utils/jobGuard");
+const { activeTeamSql } = require("../utils/activeTenantFilter");
 
 // Due incidents processed in parallel (keeps the small DB from being flooded).
 const RECURR_INCIDENT_CONCURRENCY = 2;
@@ -34,7 +35,8 @@ const RECURR_INCIDENT_CONCURRENCY = 2;
     FROM MSTEAMSINCIDENTS A 
     LEFT JOIN MSTEAMS_SUB_EVENT B ON A.ID = B.INC_ID 
     WHERE A.INC_TYPE = 'recurringIncident' AND CONVERT(DATETIME,'${currentDateTime}') >= CONVERT(DATETIME, B.RUN_AT)
-    AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2 AND isSavedAsDraft <> 1`;
+    AND (A.IS_DELETED = 0 OR A.IS_DELETED IS NULL) AND A.INC_STATUS_ID != 2 AND isSavedAsDraft <> 1
+    AND ${activeTeamSql("A.TEAM_ID")}`;
 
   let jobsToBeExecutedArr = await db.getDataFromDB(sqlJob);
   log.addLog(`jobsToBeExecutedArr length - ${jobsToBeExecutedArr?.length}`);

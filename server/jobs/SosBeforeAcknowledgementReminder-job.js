@@ -7,7 +7,10 @@ const { sendProactiveMessaageToUser } = require("../api/apiMethods");
 const { getCompanyDataByTeamId } = require("../db/dbOperations");
 const { processSafetyBotError } = require("../models/processError");
 const dashboard = require("../models/dashboard");
-const { runGuardedJob } = require("../utils/jobGuard");
+const { runGuardedJob, processConcurrently } = require("../utils/jobGuard");
+const { activeTeamSql } = require("../utils/activeTenantFilter");
+
+const SOS_CONCURRENCY = 3;
 const { buildIncomingSosOfficerCopy } = require("../utils/desktopSosChatCopy");
 
 (async () => {
@@ -31,10 +34,13 @@ const { buildIncomingSosOfficerCopy } = require("../utils/desktopSosChatCopy");
     const pendingSos = await db.getDataFromDB(`
       SELECT TOP 1 1 AS hasWork
       FROM MSTeamsAssistance a
-      WHERE a.LastUpdatedDateTime >= '2026-02-28 00:00:00'
+      WHERE a.LastUpdatedDateTime >= DATEADD(DAY, -7, GETDATE())
         AND a.FIRST_RESPONDER IS NULL
         AND a.FIRST_RESPONDER_RESPONDED_AT IS NULL
         AND (a.status IS NULL OR a.status <> 'Closed')
+        AND EXISTS (SELECT 1 FROM MSTeamsTeamsUsers tu
+                    WHERE tu.user_id = a.user_id
+                      AND ${activeTeamSql("tu.team_id")})
     `);
 
     if (!pendingSos?.length) {
@@ -105,7 +111,7 @@ OUTER APPLY (
 ) t
 
 WHERE 
-    a.LastUpdatedDateTime >= '2026-02-28 00:00:00'
+    a.LastUpdatedDateTime >= DATEADD(DAY, -7, GETDATE())
     AND a.FIRST_RESPONDER IS NULL
     AND a.FIRST_RESPONDER_RESPONDED_AT IS NULL
     AND (a.status IS NULL OR a.status <> 'Closed')
@@ -120,8 +126,10 @@ AND a.requested_date <= DATEADD(MINUTE, 5, t.SOS_REMINDER_BEFORE_ACKNOWLEDGEMENT
     log.addLog(`Found ${sosList?.length || 0} SOS requests to process`);
 
     if (sosList && sosList.length > 0) {
-      await Promise.all(
-        sosList.map(async (sos) => {
+      await processConcurrently(
+        sosList,
+        SOS_CONCURRENCY,
+        async (sos) => {
           try {
             const {
               id: assistanceId,
@@ -454,7 +462,7 @@ WHERE t.serviceUrl IS NOT NULL
               `error in SosBeforeAcknowledgementReminder job for SOS ${sos.id}`,
             );
           }
-        }),
+        },
       );
     }
   } catch (err) {
