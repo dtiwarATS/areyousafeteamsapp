@@ -2853,103 +2853,71 @@ const normalizeLocationKeyPart = (value) => String(value ?? "").trim();
 const buildOffice365LocationKey = (country, city, state) =>
   `${normalizeLocationKeyPart(country)}|${normalizeLocationKeyPart(city)}|${normalizeLocationKeyPart(state)}`;
 
-const isDeadlockError = (err) => {
-  const number = err?.number ?? err?.originalError?.info?.number;
-  const message = String(err?.message || err || "");
-  return number === 1205 || /deadlock/i.test(message);
-};
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/**
- * Bulk-update city/country/state/department on MSTeamsTeamsUsers.
- * Uses UPDATE (not MERGE) + sorted ids + deadlock retries to reduce lock conflicts
- * when concurrent Graph syncs touch the same rows.
- */
-const bulkUpdateMSTeamsTeamsUserProfiles = async (
-  users,
-  tenantId = null,
-  maxRetries = 3,
-) => {
+// Bulk-update city/country/state/department on MSTeamsTeamsUsers.
+// Writes Graph location/department values for many users in one set-based
+// statement per 500 users, touching only rows whose values actually changed
+// (binary compare, so case-only changes are still written). Retries transient
+// errors and deadlocks via executeWithRetry. Returns { updatedCount } = rows
+// that really changed.
+const bulkUpdateMSTeamsTeamsUserProfiles = async (users, tenantId = null) => {
   if (!Array.isArray(users) || users.length === 0) {
     return { updatedCount: 0 };
   }
 
-  // Stable lock order across concurrent callers
-  const sortedUsers = [...users].sort((a, b) =>
-    String(a?.id || "").localeCompare(String(b?.id || "")),
-  );
+  // one entry per user, stable order
+  const byId = new Map();
+  for (const user of users) {
+    if (user?.id) byId.set(String(user.id), user);
+  }
+  const rows = [...byId.values()]
+    .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+    .map((user) => ({
+      id: String(user.id),
+      city: user.city || "",
+      country: user.country || "",
+      state: user.state || "",
+      department: user.department || "",
+    }));
 
-  const pool = await getActivePoolPromise();
-  const batchSize = 50;
-  let updatedCount = 0;
   const tid = tenantId ? String(tenantId).trim() : "";
+  const tenantFilter = tid ? "AND u.tenantid = @tenantId" : "";
+  const batchSize = 500;
+  let updatedCount = 0;
 
-  for (let offset = 0; offset < sortedUsers.length; offset += batchSize) {
-    const batch = sortedUsers.slice(offset, offset + batchSize);
-    let attempt = 0;
-    let delayMs = 100;
+  for (let offset = 0; offset < rows.length; offset += batchSize) {
+    const batch = rows.slice(offset, offset + batchSize);
+    const inputs = {
+      json: { type: sql.NVarChar(sql.MAX), value: JSON.stringify(batch) },
+    };
+    if (tid) inputs.tenantId = { type: sql.NVarChar(100), value: tid };
 
-    while (true) {
-      try {
-        const request = pool.request();
-        if (tid) {
-          request.input("tenantId", sql.NVarChar(128), tid);
-        }
+    const result = await db.executeWithRetry(
+      `UPDATE u
+       SET u.city = j.city,
+           u.country = j.country,
+           u.state = j.state,
+           u.department = j.department,
+           u.LAST_UPDATED_BY = 'SYSTEM'
+       FROM MSTeamsTeamsUsers u
+       INNER JOIN OPENJSON(@json) WITH (
+         id varchar(256) '$.id',
+         city nvarchar(400) '$.city',
+         country nvarchar(400) '$.country',
+         state nvarchar(400) '$.state',
+         department nvarchar(400) '$.department'
+       ) j ON u.user_aadobject_id = j.id
+       WHERE 1 = 1
+         ${tenantFilter}
+         AND (ISNULL(u.city, N'') <> j.city COLLATE Latin1_General_BIN2
+           OR ISNULL(u.country, N'') <> j.country COLLATE Latin1_General_BIN2
+           OR ISNULL(u.state, N'') <> j.state COLLATE Latin1_General_BIN2
+           OR ISNULL(u.department, N'') <> j.department COLLATE Latin1_General_BIN2);
 
-        const sourceSelects = batch.map((user, index) => {
-          request.input(`userId${index}`, sql.NVarChar(128), user.id || "");
-          request.input(`city${index}`, sql.NVarChar(sql.MAX), user.city || "");
-          request.input(
-            `country${index}`,
-            sql.NVarChar(sql.MAX),
-            user.country || "",
-          );
-          request.input(
-            `state${index}`,
-            sql.NVarChar(sql.MAX),
-            user.state || "",
-          );
-          request.input(
-            `department${index}`,
-            sql.NVarChar(sql.MAX),
-            user.department || "",
-          );
-          return `SELECT @userId${index} AS user_aadobject_id, @city${index} AS city, @country${index} AS country, @state${index} AS state, @department${index} AS department`;
-        });
-
-        const tenantFilter = tid ? "AND u.tenantid = @tenantId" : "";
-
-        const result = await request.query(`
-          UPDATE u
-          SET
-            u.city = src.city,
-            u.country = src.country,
-            u.state = src.state,
-            u.department = src.department,
-            u.LAST_UPDATED_BY = 'SYSTEM'
-          FROM MSTeamsTeamsUsers u
-          INNER JOIN (
-            ${sourceSelects.join(" UNION ALL ")}
-          ) AS src ON u.user_aadobject_id = src.user_aadobject_id
-          WHERE 1 = 1
-            ${tenantFilter};
-
-          SELECT @@ROWCOUNT AS updatedCount;
-        `);
-
-        updatedCount += Number(result.recordset?.[0]?.updatedCount || 0);
-        break;
-      } catch (err) {
-        attempt += 1;
-        if (!isDeadlockError(err) || attempt > maxRetries) {
-          throw err;
-        }
-        const jitter = Math.floor(Math.random() * 100);
-        await sleep(delayMs + jitter);
-        delayMs *= 2;
-      }
-    }
+       SELECT @@ROWCOUNT AS updatedCount;`,
+      inputs,
+      { label: "bulkUpdateMSTeamsTeamsUserProfiles" },
+    );
+    updatedCount += Number(result.recordset?.[0]?.updatedCount || 0);
   }
 
   return { updatedCount };

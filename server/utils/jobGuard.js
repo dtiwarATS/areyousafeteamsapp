@@ -14,7 +14,13 @@ async function withJobLock(jobName, fn, options = {}) {
   console.log(`[Job:${jobName}] Starting on instance ${instanceId}`);
 
   try {
-    connection = await sql.connect(getCronDbConfig());
+    // Dedicated single-connection pool: the applock is session-owned, so take
+    // and release it on the same connection. (sql.connect() would hand back the
+    // worker's shared global pool, and closing it would close that pool.)
+    connection = await new sql.ConnectionPool({
+      ...getCronDbConfig(),
+      pool: { max: 1, min: 1, idleTimeoutMillis: 30000 },
+    }).connect();
     const lockResult = await connection
       .request()
       .input("resource", sql.NVarChar(255), resource)

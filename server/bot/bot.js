@@ -4620,6 +4620,7 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
           // console.log({ arrIds });
           var startIndex = 0;
           var endIndex = 14;
+          const profiles = [];
           if (endIndex > arrIds.length) endIndex = arrIds.length;
           // console.log({ endIndex });
           while (endIndex <= arrIds.length && startIndex != endIndex) {
@@ -4652,36 +4653,21 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                 .then(async (response) => {
                   let data = response.data.value;
                   if (data && data.length > 0) {
-                    try {
-                      await incidentService.bulkUpdateMSTeamsTeamsUserProfiles(
-                        data.map((user) => ({
-                          id: user.id,
-                          city: user.city || "",
-                          country: user.country || "",
-                          state: user.state || "",
-                          department: user.department || "",
-                        })),
-                        tenantId,
-                      );
-                    } catch (dbError) {
-                      console.log({
-                        "error in batch update": dbError,
-                        userCount: data.length,
-                      });
-                      processSafetyBotError(
-                        dbError,
-                        tenantId,
-                        "",
-                        "",
-                        "error in bulkUpdateMSTeamsTeamsUserProfiles",
-                        "",
-                        false,
-                        "",
-                      );
-                    }
+                    // written once for the whole team after the loop
+                    profiles.push(
+                      ...data.map((user) => ({
+                        id: user.id,
+                        city: user.city || "",
+                        country: user.country || "",
+                        state: user.state || "",
+                        department: user.department || "",
+                      })),
+                    );
                   }
                 })
                 .catch((error) => {
+                  // log and continue with the next chunk (there is no `res`
+                  // here; the old res.json call threw and aborted the loop)
                   console.log({
                     "error in get users phone number requestDate": error,
                   });
@@ -4698,15 +4684,40 @@ const getUserDetails = async (tenantId, iS_APP_PERMISSION_GRANTED, arrIds) => {
                     false,
                     "",
                   );
-                  res.json({ error: error });
                 });
             } else {
               return;
             }
           }
-          // console.log({ finalphone: phone });
+          // One diff-only write for the whole team; locations are rebuilt only
+          // when some user's location/department actually changed.
+          let updatedCount = 0;
           try {
-            await incidentService.syncOffice365Locations(tenantId);
+            ({ updatedCount } =
+              await incidentService.bulkUpdateMSTeamsTeamsUserProfiles(
+                profiles,
+                tenantId,
+              ));
+          } catch (dbError) {
+            console.log({
+              "error in batch update": dbError,
+              userCount: profiles.length,
+            });
+            processSafetyBotError(
+              dbError,
+              tenantId,
+              "",
+              "",
+              "error in bulkUpdateMSTeamsTeamsUserProfiles",
+              "",
+              false,
+              "",
+            );
+          }
+          try {
+            if (updatedCount > 0) {
+              await incidentService.syncOffice365Locations(tenantId);
+            }
           } catch (syncErr) {
             console.log({
               "error in syncOffice365Locations": syncErr,

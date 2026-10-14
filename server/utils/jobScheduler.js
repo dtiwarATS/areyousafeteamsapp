@@ -74,7 +74,14 @@ async function shouldStartCronScheduler() {
   }
 
   try {
-    schedulerLockConnection = await sql.connect(getAppDbConfig());
+    // Dedicated single-connection pool held for the process lifetime: the
+    // leader lock is session-owned, and sql.connect() would return the app's
+    // shared global pool (which the non-leader branch below would then close).
+    schedulerLockConnection = await new sql.ConnectionPool({
+      ...getAppDbConfig(),
+      // min: 1 keeps this one connection open even while idle
+      pool: { max: 1, min: 1 },
+    }).connect();
     const acquired = await acquireSessionLock(
       schedulerLockConnection,
       SCHEDULER_LOCK_RESOURCE,

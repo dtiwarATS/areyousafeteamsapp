@@ -11,13 +11,22 @@ const { activeTeamSql } = require("../utils/activeTenantFilter");
 
 // Safety net for one-time safety checks: members whose delivery status was
 // never written (app restart / crash mid-send, lost DB write) are sent again.
-// Only rows with message_delivery_status IS NULL are picked, and every attempt
-// writes a status, so each member is retried here at most once.
+// Rules:
+//   - only rows with message_delivery_status IS NULL; every attempt writes a
+//     status, so each member is retried here at most once
+//   - never members who already responded or were marked by an admin
+//   - only incidents 30 min - 6 h old (a full send incl. retries finishes well
+//     within 30 min) with no delivery in the last 10 min
+//   - only the most recent incident ids are scanned
+// Accepted risk: if a card was delivered but its status save was lost even
+// after retries, that member can get the card twice.
 const MAX_INCIDENTS_PER_RUN = 5;
 
-// Incidents created 10 min - 6 h ago (created_date is a UTC ISO string) that
-// still have never-attempted members and show no delivery in the last 10 min
-// (i.e. no send is currently running for them).
+// created_date is a UTC ISO string.
+const RECENT_INCIDENT_IDS = 200;
+const PENDING_MEMBER_SQL = `r.message_delivery_status IS NULL
+      AND r.response = 0
+      AND ISNULL(r.is_marked_by_admin, 0) = 0`;
 const CANDIDATES_SQL = `
   SELECT TOP (${MAX_INCIDENTS_PER_RUN})
     inc.id AS incId, inc.team_id AS teamId, inc.inc_name AS incTitle, inc.inc_type AS incType,
@@ -28,15 +37,16 @@ const CANDIDATES_SQL = `
     (SELECT TOP 1 tu.user_id FROM MSTeamsTeamsUsers tu
       WHERE tu.user_aadobject_id = inc.created_by) AS createdByUserId
   FROM MSTeamsIncidents inc
-  WHERE inc.inc_type = 'onetime'
+  WHERE inc.id > (SELECT MAX(id) - ${RECENT_INCIDENT_IDS} FROM MSTeamsIncidents)
+    AND inc.inc_type = 'onetime'
     AND (inc.IS_DELETED = 0 OR inc.IS_DELETED IS NULL)
     AND ISNULL(inc.isSavedAsDraft, 0) <> 1
     AND ISNULL(inc.INC_STATUS_ID, 0) <> 2
     AND ${activeTeamSql("inc.team_id")}
     AND TRY_CAST(inc.created_date AS datetime)
-        BETWEEN DATEADD(hour, -6, GETUTCDATE()) AND DATEADD(minute, -10, GETUTCDATE())
+        BETWEEN DATEADD(hour, -6, GETUTCDATE()) AND DATEADD(minute, -30, GETUTCDATE())
     AND EXISTS (SELECT 1 FROM MSTeamsMemberResponses r
-                WHERE r.inc_id = inc.id AND r.message_delivery_status IS NULL)
+                WHERE r.inc_id = inc.id AND ${PENDING_MEMBER_SQL})
     AND NOT EXISTS (SELECT 1 FROM MSTeamsMemberResponses r
                     WHERE r.inc_id = inc.id
                       AND r.LastReminderSentAT > DATEADD(minute, -10, GETDATE()))
@@ -49,7 +59,7 @@ const PENDING_MEMBERS_SQL = `
   OUTER APPLY (SELECT TOP 1 tu.conversationId, tu.user_aadobject_id, tu.LANGUAGE_ID
                FROM MSTeamsTeamsUsers tu
                WHERE tu.user_id = r.user_id AND tu.team_id = @teamId) u
-  WHERE r.inc_id = @incId AND r.message_delivery_status IS NULL;`;
+  WHERE r.inc_id = @incId AND ${PENDING_MEMBER_SQL};`;
 
 const reconcileIncident = async (inc, log) => {
   const pending = await db.executeWithRetry(

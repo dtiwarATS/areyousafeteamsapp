@@ -35,18 +35,18 @@ function initJob() {
       {
         name: "reconcile-delivery-job",
         path: path.join(__dirname, "jobs", "reconcile-delivery-job.js"),
-        cron: "*/10 * * * *",
+        cron: "4,14,24,34,44,54 * * * *",
         closeWorkerAfterMs: 30 * 60 * 1000,
       },
       {
         name: "newSubcriptionAdded-job",
         path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
-        cron: "*/10 * * * *",
+        cron: "6,16,26,36,46,56 * * * *",
       },
       {
         name: "subscription-job",
         path: path.join(__dirname, "jobs", "subscription-job.js"),
-        cron: "0 0 * * *",
+        cron: "15 0 * * *",
       },
       // {
       //   name: "postInstallation-job",
@@ -79,12 +79,12 @@ function initJob() {
       {
         name: "updateTeamMembers-job",
         path: path.join(__dirname, "jobs", "updateTeamMembers-job.js"),
-        cron: "0 */12 * * *",
+        cron: "30 1,13 * * *",
       },
       {
         name: "updateUserDetails-job",
         path: path.join(__dirname, "jobs", "updateUserDetails-job.js"),
-        cron: "0 */1 * * *",
+        cron: "7 0,6,12,18 * * *",
       },
       {
         name: "travelAdvisorySelectedCountries-job",
@@ -93,12 +93,12 @@ function initJob() {
           "jobs",
           "travelAdvisorySelectedCountries-job.js",
         ),
-        cron: "*/30 * * * *",
+        cron: "12,42 * * * *",
       },
       {
         name: "ipaws-advisory-sync-job",
         path: path.join(__dirname, "jobs", "ipaws-advisory-sync-job.js"),
-        cron: "*/25 * * * *",
+        cron: "20,45 * * * *",
       },
       // {
       //   name: "GetAllUser-job",
@@ -108,12 +108,12 @@ function initJob() {
       {
         name: "DeleteTrialTeams-job",
         path: path.join(__dirname, "jobs", "DeleteTrialTeams-job.js"),
-        cron: "0 12 * * *",
+        cron: "30 3 * * *",
       },
       {
         name: "consentPhoneEligible-job",
         path: path.join(__dirname, "jobs", "consentPhoneEligible-job.js"),
-        cron: "0 */12 * * *",
+        cron: "30 2,14 * * *",
       },
     ],
   });
