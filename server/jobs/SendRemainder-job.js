@@ -322,7 +322,8 @@ OUTER APPLY (
     FROM MSTeamsTeamsUsers
     WHERE user_id = mstm.user_id
 ) mtu
-WHERE mstm.response = 0;`;
+WHERE mstm.response = 0
+  AND ISNULL(mstm.SendRemindersCounter, 0) < mst.SendRemindersCount and mstm.is_message_delivered=1;`;
 
   let querryReccuring = `SELECT
     Mmrr.*,
@@ -356,7 +357,7 @@ OUTER APPLY (
     FROM MSTeamsTeamsUsers
     WHERE user_id = mstm.user_id
 ) mtu
-WHERE Mmrr.response = 0;`;
+WHERE Mmrr.response = 0 AND ISNULL(Mmrr.SendRemindersCounter, 0) < mst.SendRemindersCount and Mmrr.is_message_delivered=1;`;
 
   const pendingIncidents = await db.getDataFromDB(`
     SELECT TOP 1 1 AS hasWork
