@@ -391,7 +391,7 @@ const sendMsg = async (context) => {
       },
       {
         type: "TextBlock",
-        text: "Have questions? [Email](mailto:help@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=safetycheck@ats360.com) | [Schedule call](https://calendly.com/nehapingale/short-call) \n\nWith Gratitude,\n\nAreYouSafeBot team",
+        text: "Have questions? [Email](mailto:help@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=safetycheck@ats360.com) | [Schedule call](https://app.getbookslot.in/safety-check) \n\nWith Gratitude,\n\nAreYouSafeBot team",
         wrap: true,
       },
     ],

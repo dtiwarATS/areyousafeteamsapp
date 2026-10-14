@@ -287,7 +287,7 @@ const getTestIncPreviewCard = (teamMemberCount, companyData) => {
     },
     {
       type: "TextBlock",
-      text: "[Email](mailto:Neha.pingale@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=safetycheck@ats360.com) | [Schedule Call](https://calendly.com/help-safetycheck/30min?month=2026-04)",
+      text: "[Email](mailto:Neha.pingale@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=safetycheck@ats360.com) | [Schedule Call](https://app.getbookslot.in/safety-check)",
     },
   ];
 
@@ -427,7 +427,7 @@ const getTestIncPreviewCard1 = (teamMemberCount, companyData) => {
     },
     {
       type: "TextBlock",
-      text: "[Email](mailto:Neha.pingale@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=safetycheck@ats360.com) | [Schedule Call](https://calendly.com/help-safetycheck/30min?month=2026-04)",
+      text: "[Email](mailto:Neha.pingale@safetycheck.in) | [Chat](https://teams.microsoft.com/l/chat/0/0?users=safetycheck@ats360.com) | [Schedule Call](https://app.getbookslot.in/safety-check)",
     },
   ];
 
