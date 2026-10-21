@@ -1357,6 +1357,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
     userAadObjId,
     userlocation,
     UserDataUpdateID,
+    triggerSource = null,
   ) => {
     let res = null;
     try {
@@ -1473,6 +1474,22 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
 SET requested_date = CONVERT(NVARCHAR(23), GETDATE(), 121)
 WHERE id = ${res[0].id}`;
           var res1 = await db.updateDataIntoDB(updatequerry);
+          if (triggerSource) {
+            // Separate + best-effort: the SOS must never fail because the
+            // trigger_source column (migrations/sos-trigger-source.sql) is missing.
+            try {
+              await db.executeWithRetry(
+                "UPDATE MSTeamsAssistance SET trigger_source = @triggerSource WHERE id = @id",
+                { triggerSource, id: res[0].id },
+                { retries: 1, label: "saveAssistance.trigger_source" },
+              );
+            } catch (err) {
+              console.warn(
+                "[saveAssistance] could not store trigger_source:",
+                err?.message,
+              );
+            }
+          }
         } else {
           const updatequerry = `update MSTeamsAssistance set UserLocation='${userlocation}' where id=${UserDataUpdateID}`;
           res = await db.updateDataIntoDB(updatequerry);

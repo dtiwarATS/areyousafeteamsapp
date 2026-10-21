@@ -3145,6 +3145,15 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  /** Allowed MSTeamsAssistance.trigger_source values (?source= on requestAssistance). */
+  const SOS_TRIGGER_SOURCES = [
+    "DesktopButton",
+    "DesktopHotkey",
+    "Teams",
+    "Mobile",
+    "AICaller",
+  ];
+
   app.get("/areyousafetabhandler/requestAssistance", async (req, res) => {
     await handleRequestAssistanceHttp(req, res, null);
   });
@@ -3170,6 +3179,9 @@ const handlerForSafetyBotTab = (app) => {
     if (req.query.ID != undefined) {
       UserDataUpdateID = req.query.ID;
     }
+    const triggerSource = SOS_TRIGGER_SOURCES.includes(req.query.source)
+      ? req.query.source
+      : null;
     try {
       let admins = null;
       let user = null;
@@ -3221,6 +3233,7 @@ const handlerForSafetyBotTab = (app) => {
           userAadObjId,
           userlocation,
           UserDataUpdateID,
+          triggerSource,
         );
       }
       console.log(assistanceData);

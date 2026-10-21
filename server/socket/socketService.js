@@ -37,6 +37,9 @@ const EVENT_SOS_CONTACTS_UPDATED = "sos_contacts_updated";
 /** Dedupe desktop incoming_sos emits (Tab + socket SOS both notify). */
 const recentIncomingSosEmits = new Map();
 const INCOMING_SOS_DEDUPE_MS = 60_000;
+/** sos_request de-dupe by `${userId}:${clientRequestId}` → { promise<ack>, expiresAt }. */
+const recentSosRequests = new Map();
+const SOS_REQUEST_DEDUPE_MS = 120_000;
 /** Mark DB online stale when last_seen older than this (client heartbeat is 30s). */
 const STALE_DEVICE_MS = 90_000;
 const STALE_SWEEP_INTERVAL_MS = 60_000;
@@ -85,8 +88,59 @@ async function fetchServerSosContacts(baseUrl, userId, teamIdParam) {
   return contacts;
 }
 
+function pruneRecentSosRequests() {
+  const now = Date.now();
+  for (const [key, entry] of recentSosRequests) {
+    if (entry.expiresAt <= now) {
+      recentSosRequests.delete(key);
+    }
+  }
+}
+
 async function handleSosRequest(payload, ack) {
+  // Desktop retries a lost ack with the same clientRequestId — answer with the
+  // original ack instead of creating a second SOS + second round of alerts.
+  const clientRequestId =
+    typeof payload?.clientRequestId === "string"
+      ? payload.clientRequestId.trim().slice(0, 64)
+      : "";
+  const dedupeKey =
+    clientRequestId && payload?.userId
+      ? `${String(payload.userId).toLowerCase()}:${clientRequestId}`
+      : null;
+
+  if (dedupeKey) {
+    pruneRecentSosRequests();
+    const existing = recentSosRequests.get(dedupeKey);
+    if (existing) {
+      console.log("[SOCKET][desktop] duplicate sos_request; replaying ack", {
+        clientRequestId,
+      });
+      const response = await existing.promise;
+      if (typeof ack === "function") {
+        ack(response);
+      }
+      return;
+    }
+  }
+
+  let resolveDedupe = () => {};
+  if (dedupeKey) {
+    const promise = new Promise((resolve) => {
+      resolveDedupe = resolve;
+    });
+    recentSosRequests.set(dedupeKey, {
+      promise,
+      expiresAt: Date.now() + SOS_REQUEST_DEDUPE_MS,
+    });
+  }
+
   const safeAck = (response) => {
+    resolveDedupe(response);
+    // Only successful sends are replayed; a failure may be retried for real.
+    if (dedupeKey && !response?.success) {
+      recentSosRequests.delete(dedupeKey);
+    }
     if (typeof ack === "function") {
       ack(response);
     }
@@ -97,7 +151,8 @@ async function handleSosRequest(payload, ack) {
       safeAck({ success: false, error: "BASE_URL not configured" });
       return;
     }
-    const { userId, userName, teamId, adminlist, initiator } = payload || {};
+    const { userId, userName, teamId, adminlist, initiator, source } =
+      payload || {};
     if (!userId || !userName) {
       safeAck({ success: false, error: "userId and userName required" });
       return;
@@ -112,7 +167,11 @@ async function handleSosRequest(payload, ack) {
     const query =
       `userId=${encodeURIComponent(userId)}` +
       `&ts=${encodeURIComponent(ts)}` +
-      `&teamid=${encodeURIComponent(teamIdParam)}`;
+      `&teamid=${encodeURIComponent(teamIdParam)}` +
+      // requestAssistance whitelists the value; older agents send none.
+      (typeof source === "string" && source
+        ? `&source=${encodeURIComponent(source)}`
+        : "");
     const step1Url = `${baseUrl}/areyousafetabhandler/requestAssistance/?${query}`;
 
     // Fast path when desktop sent full contact rows + initiator Teams user_id.
@@ -126,6 +185,8 @@ async function handleSosRequest(payload, ack) {
     const useFastPath = Boolean(initiatorUser?.user_id) && usableAdmins.length > 0;
 
     console.log("[SOCKET][desktop] sos_request path", {
+      source,
+      clientRequestId,
       useFastPath,
       usableAdminCount: usableAdmins.length,
       hasInitiator: Boolean(initiatorUser?.user_id),
