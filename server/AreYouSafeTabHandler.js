@@ -7957,8 +7957,8 @@ ORDER BY ACL.EventDateTime DESC;
       const userEmailId = row.UserEmailId || "";
       const buyLicensesUrl = `https://admin.cloud.microsoft/?#/subscriptions`;
       const manageLicensesUrl = userEmailId
-        ? `https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true&emailid=${encodeURIComponent(userEmailId)}`
-        : "https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true";
+        ? `https://subscription.safetycheck.in/?isFromSafetyBot=true&emailid=${encodeURIComponent(userEmailId)}`
+        : "https://subscription.safetycheck.in/?isFromSafetyBot=true";
       return {
         showBanner,
         unlicensedCount: showBanner ? unlicensedCount : 0,
@@ -8081,8 +8081,7 @@ WHERE ID.user_obj_id = @userAadObjId;
       bannerType: null,
       daysRemaining: 0,
       expiryDate: null,
-      renewUrl:
-        "https://safetycheckteamssubscriptionpage.azurewebsites.net/?isFromSafetyBot=true",
+      renewUrl: "https://subscription.safetycheck.in/?isFromSafetyBot=true",
       isSubscriptionExpired: false,
     };
 
