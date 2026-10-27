@@ -59,10 +59,22 @@ function computeIncidentStats(inc, tabObj) {
         safeCount = memberObj.membersSafe?.length || 0;
         needAssistanceCount = memberObj.membersUnsafe?.length || 0;
         notRespondedCount = memberObj.membersNotResponded?.length || 0;
+        const customResponseCount = inc.members.filter((member) => {
+          const responded =
+            member?.response === true ||
+            member?.response === 1 ||
+            member?.response === "1";
+          const value = Number(member?.responseValue);
+          return (
+            responded && Number.isFinite(value) && value !== 1 && value !== 2
+          );
+        }).length;
+        const respondedCount =
+          needAssistanceCount + safeCount + customResponseCount;
 
-        if (needAssistanceCount > 0 || safeCount > 0) {
+        if (respondedCount > 0) {
           responseRatePercent = Math.round(
-            ((needAssistanceCount + safeCount) * 100) / inc.members.length,
+            (respondedCount * 100) / inc.members.length,
           );
         }
       } else {

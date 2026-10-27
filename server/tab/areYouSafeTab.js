@@ -296,7 +296,29 @@ class AreYouSafeTab {
           let deliveredCount = 0;
 
           let responses = [];
-          let respOptions = JSON.parse(responseOptions);
+          let respOptions = null;
+          try {
+            respOptions =
+              typeof responseOptions === "string"
+                ? JSON.parse(responseOptions)
+                : responseOptions;
+          } catch (parseErr) {
+            respOptions = null;
+          }
+          const memberSelectedOption = (member, optionId) => {
+            const responded =
+              member?.response === true ||
+              member?.response === 1 ||
+              member?.response === "1";
+            if (!responded) return false;
+            const memberValue = Number(member.responseValue);
+            const optionValue = Number(optionId);
+            return (
+              Number.isFinite(memberValue) &&
+              Number.isFinite(optionValue) &&
+              memberValue === optionValue
+            );
+          };
           if (
             inc.members != null &&
             inc.members.length > 0 &&
@@ -304,6 +326,28 @@ class AreYouSafeTab {
             !isSaveAsTemplate
           ) {
             const memberObj = this.sortMembers(inc.members, inc.incTypeId);
+            if (
+              incTypeId &&
+              Array.isArray(respOptions) &&
+              respOptions.length > 0
+            ) {
+              respOptions.forEach((resp) => {
+                const usersWithResponse = inc.members.filter((m) =>
+                  memberSelectedOption(m, resp.id),
+                );
+                responses.push({
+                  response: resp.id,
+                  responseText: resp.option,
+                  color: resp.color,
+                  responseCount: usersWithResponse.length,
+                  users: usersWithResponse,
+                });
+              });
+            }
+            const optionResponseCount = responses.reduce(
+              (sum, resp) => sum + (resp.responseCount || 0),
+              0,
+            );
             if (memberObj != null) {
               if (!incTypeId || incTypeId == 1) {
                 safe = memberObj.membersSafe;
@@ -313,11 +357,14 @@ class AreYouSafeTab {
                 needAssistanceCount = memberObj.membersUnsafe.length;
                 notRespondedCount = memberObj.membersNotResponded.length;
 
-                if (needAssistanceCount > 0 || safeCount > 0) {
+                const respondedCount = Math.max(
+                  needAssistanceCount + safeCount,
+                  optionResponseCount,
+                );
+                if (respondedCount > 0) {
                   responsePercentage =
                     Math.round(
-                      ((needAssistanceCount + safeCount) * 100) /
-                        inc.members.length,
+                      (respondedCount * 100) / inc.members.length,
                     ).toString() + "%";
                 }
               } else {
@@ -328,28 +375,17 @@ class AreYouSafeTab {
                 deliveryInProgressCount = memberObj.deliveryInProgress.length;
                 deliveredCount = memberObj.delivered.length;
                 safeCount = memberObj.membersSafe.length;
-                if (safeCount > 0) {
+                const respondedCount = Math.max(
+                  safeCount,
+                  optionResponseCount,
+                );
+                if (respondedCount > 0) {
                   responsePercentage =
                     Math.round(
-                      (safeCount * 100) / inc.members.length,
+                      (respondedCount * 100) / inc.members.length,
                     ).toString() + "%";
                 }
               }
-            }
-            if (incTypeId && respOptions && respOptions.length > 0) {
-              respOptions.forEach((resp) => {
-                const dashResp = {};
-                let usersWithResponse = inc.members.filter((m) => {
-                  return m.responseValue == resp.id;
-                });
-                dashResp.response = resp.id;
-                dashResp.responseText = resp.option;
-                dashResp.color = resp.color;
-                dashResp.responseCount = usersWithResponse.length;
-                dashResp.users = usersWithResponse;
-                responses.push(dashResp);
-              });
-              //console.log({responses});
             }
           }
 
