@@ -914,105 +914,98 @@ class BotActivityHandler extends TeamsActivityHandler {
                         })();
                       }
                     } else {
-                      try {
-                        const personalTeamId = `${Date.now()}${Math.floor(
-                          1000 + Math.random() * 9000,
-                        )}`;
-
-                        const companyDataObj = getCompaniesDataJSON(
-                          context,
-                          adminUserInfo,
-                          personalTeamId,
-                          "",
-                        );
-                        await insertCompanyData(
-                          companyDataObj,
-                          [adminUserInfo],
-                          conversationType,
-                        );
-
-                        // InsertCompanyData uses blank team_id for personal installs.
-                        // Update that record to a numeric team_id so it can be referenced consistently.
-                        const updateInstallationSql = `UPDATE MSTeamsInstallationDetails
-SET team_id = '${personalTeamId}',AVAILABLE_FOR='Tenant'
-WHERE user_obj_id = '${adminUserInfo.aadObjectId ?? adminUserInfo.objectId}'
-  AND (team_id IS NULL OR team_id = '');`;
-                        await insertData(
-                          updateInstallationSql,
-                          userAadObjectId,
-                          "",
-                          "personal scope - update installation team_id",
-                        );
-
-                        const sql = `
-DECLARE @userLimit INT, @licensedUsed INT;
-
--- Get license info
-SELECT TOP 1 
-    @userLimit = B.UserLimit,
-    @licensedUsed = (
-        SELECT COUNT(DISTINCT user_aadobject_id) 
-        FROM MSTeamsTeamsUsers 
-        WHERE tenantid = '${adminUserInfo.tenantId}' 
-          AND hasLicense = 1 
-          AND team_id = '${personalTeamId}'
-    )
-FROM MSTeamsInstallationDetails A
-LEFT JOIN MSTeamsSubscriptionDetails B 
-    ON A.SubscriptionDetailsId = B.id
-WHERE team_id = '${personalTeamId}';
-
--- Merge: Insert if not exists, update if exists
-MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
-USING (VALUES
-    (
-        '${personalTeamId}',
-        '${adminUserInfo.aadObjectId ?? adminUserInfo.objectId}',
-        '${adminUserInfo.id}',
-        N'${adminUserInfo.name.replace(/'/g, "''")}',
-        '${adminUserInfo.tenantId}',
-        '${adminUserInfo.userRole}',
-        '${acvtivityData.conversation.id}',
-        '${adminUserInfo.email}',
-         1 -- In personal scope, we can directly assign a license since there's no team limit
-    )
-) AS source
-(
-    team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense
-)
-ON target.user_aadobject_id = source.user_aadobject_id
-   AND target.team_id = source.team_id
-WHEN MATCHED THEN
-    UPDATE SET 
-        user_id = source.user_id,
-        conversationId = source.conversationId,
-        hasLicense = 1 -- Ensure license is assigned in personal scope
-WHEN NOT MATCHED THEN
-    INSERT (team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense)
-    VALUES (source.team_id, source.user_aadobject_id, source.user_id, source.user_name, source.tenantid, source.userRole, source.conversationId, source.email, source.hasLicense);
-`;
-
-                        await insertData(
-                          sql,
-                          userAadObjectId,
-                          "",
-                          "personal scope - no tenant install",
-                        );
-
-                        await bot.sendIntroductionMessage(
-                          context,
-                          acvtivityData.from,
-                        );
-                      } catch (err) {
-                        processSafetyBotError(
-                          err,
-                          "",
-                          adminUserInfo.name,
-                          userAadObjectId,
-                          "error in personal scope install - no tenant data",
-                        );
-                        throw err;
-                      }
+                      //                       try {
+                      //                         const personalTeamId = `${Date.now()}${Math.floor(
+                      //                           1000 + Math.random() * 9000,
+                      //                         )}`;
+                      //                         const companyDataObj = getCompaniesDataJSON(
+                      //                           context,
+                      //                           adminUserInfo,
+                      //                           personalTeamId,
+                      //                           "",
+                      //                         );
+                      //                         await insertCompanyData(
+                      //                           companyDataObj,
+                      //                           [adminUserInfo],
+                      //                           conversationType,
+                      //                         );
+                      //                         // InsertCompanyData uses blank team_id for personal installs.
+                      //                         // Update that record to a numeric team_id so it can be referenced consistently.
+                      //                         const updateInstallationSql = `UPDATE MSTeamsInstallationDetails
+                      // SET team_id = '${personalTeamId}',AVAILABLE_FOR='Tenant'
+                      // WHERE user_obj_id = '${adminUserInfo.aadObjectId ?? adminUserInfo.objectId}'
+                      //   AND (team_id IS NULL OR team_id = '');`;
+                      //                         await insertData(
+                      //                           updateInstallationSql,
+                      //                           userAadObjectId,
+                      //                           "",
+                      //                           "personal scope - update installation team_id",
+                      //                         );
+                      //                         const sql = `
+                      // DECLARE @userLimit INT, @licensedUsed INT;
+                      // -- Get license info
+                      // SELECT TOP 1
+                      //     @userLimit = B.UserLimit,
+                      //     @licensedUsed = (
+                      //         SELECT COUNT(DISTINCT user_aadobject_id)
+                      //         FROM MSTeamsTeamsUsers
+                      //         WHERE tenantid = '${adminUserInfo.tenantId}'
+                      //           AND hasLicense = 1
+                      //           AND team_id = '${personalTeamId}'
+                      //     )
+                      // FROM MSTeamsInstallationDetails A
+                      // LEFT JOIN MSTeamsSubscriptionDetails B
+                      //     ON A.SubscriptionDetailsId = B.id
+                      // WHERE team_id = '${personalTeamId}';
+                      // -- Merge: Insert if not exists, update if exists
+                      // MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
+                      // USING (VALUES
+                      //     (
+                      //         '${personalTeamId}',
+                      //         '${adminUserInfo.aadObjectId ?? adminUserInfo.objectId}',
+                      //         '${adminUserInfo.id}',
+                      //         N'${adminUserInfo.name.replace(/'/g, "''")}',
+                      //         '${adminUserInfo.tenantId}',
+                      //         '${adminUserInfo.userRole}',
+                      //         '${acvtivityData.conversation.id}',
+                      //         '${adminUserInfo.email}',
+                      //          1 -- In personal scope, we can directly assign a license since there's no team limit
+                      //     )
+                      // ) AS source
+                      // (
+                      //     team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense
+                      // )
+                      // ON target.user_aadobject_id = source.user_aadobject_id
+                      //    AND target.team_id = source.team_id
+                      // WHEN MATCHED THEN
+                      //     UPDATE SET
+                      //         user_id = source.user_id,
+                      //         conversationId = source.conversationId,
+                      //         hasLicense = 1 -- Ensure license is assigned in personal scope
+                      // WHEN NOT MATCHED THEN
+                      //     INSERT (team_id, user_aadobject_id, user_id, user_name, tenantid, userRole, conversationId, email, hasLicense)
+                      //     VALUES (source.team_id, source.user_aadobject_id, source.user_id, source.user_name, source.tenantid, source.userRole, source.conversationId, source.email, source.hasLicense);
+                      // `;
+                      //                         await insertData(
+                      //                           sql,
+                      //                           userAadObjectId,
+                      //                           "",
+                      //                           "personal scope - no tenant install",
+                      //                         );
+                      //                         await bot.sendIntroductionMessage(
+                      //                           context,
+                      //                           acvtivityData.from,
+                      //                         );
+                      //                       } catch (err) {
+                      //                         processSafetyBotError(
+                      //                           err,
+                      //                           "",
+                      //                           adminUserInfo.name,
+                      //                           userAadObjectId,
+                      //                           "error in personal scope install - no tenant data",
+                      //                         );
+                      //                         throw err;
+                      //                       }
                     }
                   } catch (err) {
                     processSafetyBotError(

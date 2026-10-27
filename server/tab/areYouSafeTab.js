@@ -2278,6 +2278,9 @@ WHERE id = ${res[0].id}`;
     }
     return Promise.resolve(res);
   };
+  updateLastAccessDateTime = async (teamId, userAadObjId) => {
+    return incidentService.updateLastAccessDateTime(teamId, userAadObjId);
+  };
   saveFilterChecked = async (teamId, filterEnabled) => {
     let res = null;
     try {

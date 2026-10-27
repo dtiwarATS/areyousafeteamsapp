@@ -2172,6 +2172,34 @@ const handlerForSafetyBotTab = (app) => {
       );
     }
   });
+  app.post(
+    "/areyousafetabhandler/updateLastAccessDateTime",
+    async (req, res) => {
+      const teamId = req.query.teamId || req.body?.teamId || "";
+      const userAadObjId =
+        req.query.userAadObjId || req.body?.userAadObjId || "";
+      try {
+        const tabObj = new tab.AreYouSafeTab();
+        const result = await tabObj.updateLastAccessDateTime(
+          teamId,
+          userAadObjId,
+        );
+        if (result && result.success === false) {
+          return res.status(400).json(result);
+        }
+        res.json(result || { success: true });
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          teamId,
+          "",
+          userAadObjId,
+          "error in /areyousafetabhandler/updateLastAccessDateTime",
+        );
+        res.status(500).json({ success: false });
+      }
+    },
+  );
   app.post("/areyousafetabhandler/SavesmsInfoDisplay", async (req, res) => {
     const teamId = req.query.teamId;
     const Smsdisplayoption = req.query.Smsdisplayoption;

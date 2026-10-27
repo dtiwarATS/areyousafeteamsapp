@@ -3706,6 +3706,60 @@ const setSendEmail = async (teamId, sendemail) => {
   }
   return Promise.resolve(result);
 };
+const updateLastAccessDateTime = async (teamId, userAadObjId) => {
+  const team = typeof teamId === "string" ? teamId.trim() : "";
+  const user = typeof userAadObjId === "string" ? userAadObjId.trim() : "";
+  if (!team && !user) {
+    return { success: false, error: "teamId or userAadObjId required" };
+  }
+  try {
+    const pool = await getActivePoolPromise();
+    const request = pool.request();
+    let installWhere = "uninstallation_date IS NULL";
+    let userWhere = "";
+    if (team) {
+      request.input("teamId", sql.NVarChar(256), team);
+      installWhere += " AND team_id = @teamId";
+      userWhere += " AND team_id = @teamId";
+    }
+    if (user) {
+      request.input("userAadObjId", sql.NVarChar(256), user);
+      if (!team) {
+        installWhere += " AND user_obj_id = @userAadObjId";
+      }
+      userWhere +=
+        " AND (user_aadobject_id = @userAadObjId OR user_id = @userAadObjId)";
+    }
+    const userUpdateSql = user
+      ? `
+      UPDATE MSTeamsTeamsUsers
+      SET LAST_ACCESS_DATE_TIME = GETDATE()
+      WHERE 1 = 1 ${userWhere};
+    `
+      : "";
+    const result = await request.query(`
+      UPDATE MSTeamsInstallationDetails
+      SET LAST_ACCESS_DATE_TIME = GETDATE()
+      WHERE ${installWhere};
+      ${userUpdateSql}
+    `);
+    const rowsAffected = (result.rowsAffected || []).reduce(
+      (total, count) => total + (count || 0),
+      0,
+    );
+    return { success: true, rowsAffected };
+  } catch (err) {
+    console.log(err);
+    processSafetyBotError(
+      err,
+      team,
+      "",
+      user,
+      "error in updateLastAccessDateTime",
+    );
+    throw err;
+  }
+};
 const setSendWhatsapp = async (teamId, sendWhatsapp, phoneField) => {
   let result = null;
   try {
@@ -5875,6 +5929,7 @@ module.exports = {
   manageColumns,
   setSendWhatsapp,
   setSendEmail,
+  updateLastAccessDateTime,
   setavailableforapp,
   saveRefreshToken,
   saveAppPermission,
