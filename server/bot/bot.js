@@ -245,11 +245,38 @@ const selectResponseCard = async (context, user) => {
       await Question1safetyVisitor(context, user, 3);
     } else if (verb === "completeSetup") {
       updateTeamUserSetup(user.aadObjectId);
+    } else if (verb === "keepFreeTeamAccess") {
+      await markFreeAccessConfirmMessageSent(action);
+      return Promise.resolve(null);
+    } else if (verb === "declineFreeTeamAccess") {
+      return Promise.resolve(null);
     }
 
     return Promise.resolve(true);
   } catch (error) {
     console.log("ERROR: ", error);
+  }
+};
+
+const markFreeAccessConfirmMessageSent = async (action) => {
+  const installationId = Number(action?.data?.installationId);
+  if (!Number.isInteger(installationId)) {
+    return;
+  }
+  try {
+    await db.updateDataIntoDB(
+      `UPDATE MSTeamsInstallationDetails SET freeAccessConfirmMessageSent = 1 WHERE id = ${installationId}`,
+      "",
+    );
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      "",
+      "",
+      "",
+      "error in markFreeAccessConfirmMessageSent installationId=" +
+        installationId,
+    );
   }
 };
 

@@ -1021,3 +1021,9 @@ BEGIN
   );
 END
 GO
+
+IF NOT EXISTS(SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE COLUMN_NAME='freeAccessConfirmMessageSent' AND TABLE_NAME='MSTeamsInstallationDetails')
+BEGIN
+ALTER TABLE MSTeamsInstallationDetails ADD freeAccessConfirmMessageSent bit NULL
+END
+GO

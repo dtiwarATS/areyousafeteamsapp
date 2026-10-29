@@ -1143,6 +1143,80 @@ const getWelcomeMessageCardForChannel = (userName, userId) => {
   };
 };
 
+const getFreeTeamAccessConfirmCard = (installationId) => {
+  return {
+    $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
+    type: "AdaptiveCard",
+    version: "1.5",
+    body: [
+      {
+        type: "TextBlock",
+        text: "IMPORTANT!",
+        wrap: true,
+        weight: "Bolder",
+        color: "Attention",
+      },
+      {
+        type: "TextBlock",
+        text: "Your Safety Check access will be deactivated in 7 days",
+        wrap: true,
+        weight: "Bolder",
+      },
+      {
+        type: "TextBlock",
+        text: "It appears that your team has not used Safety Check in the last 90 days. Your access will be deactivated in 7 days.",
+        wrap: true,
+      },
+      {
+        type: "TextBlock",
+        text: "Please confirm whether you would like to keep your access.",
+        wrap: true,
+      },
+      {
+        type: "ColumnSet",
+        columns: [
+          {
+            type: "Column",
+            width: "auto",
+            items: [
+              {
+                type: "ActionSet",
+                actions: [
+                  {
+                    type: "Action.Execute",
+                    title: "Yes, keep my access",
+                    verb: "keepFreeTeamAccess",
+                    style: "positive",
+                    data: {
+                      installationId,
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            type: "Column",
+            width: "auto",
+            items: [
+              {
+                type: "ActionSet",
+                actions: [
+                  {
+                    type: "Action.Execute",
+                    title: "No, I no longer need it",
+                    verb: "declineFreeTeamAccess",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+};
+
 module.exports = {
   getWelcomeMessageCard,
   getWelcomeMessageCardformpersonal,
@@ -1162,4 +1236,5 @@ module.exports = {
   getTestIncPreviewCard,
   getTestIncPreviewCard1,
   getWelcomeMessageCardForChannel,
+  getFreeTeamAccessConfirmCard,
 };
