@@ -29,8 +29,7 @@ async function acquireSessionLock(connection, resource, lockTimeoutMs = 0) {
   const result = await connection
     .request()
     .input("resource", sql.NVarChar(255), resource)
-    .input("lockTimeout", sql.Int, lockTimeoutMs)
-    .query(`
+    .input("lockTimeout", sql.Int, lockTimeoutMs).query(`
       DECLARE @lockResult INT;
       EXEC @lockResult = sp_getapplock
         @Resource = @resource,
@@ -44,9 +43,7 @@ async function acquireSessionLock(connection, resource, lockTimeoutMs = 0) {
 }
 
 async function releaseSessionLock(connection, resource) {
-  await connection
-    .request()
-    .input("resource", sql.NVarChar(255), resource)
+  await connection.request().input("resource", sql.NVarChar(255), resource)
     .query(`
       EXEC sp_releaseapplock @Resource = @resource, @LockOwner = 'Session';
     `);
@@ -57,6 +54,7 @@ async function releaseSessionLock(connection, resource) {
  * Uses a dedicated SQL session lock held for the process lifetime.
  */
 async function shouldStartCronScheduler() {
+  return true; // TEMP: force-enable cron scheduler for testing
   if (process.env.isLocal === "true") {
     return false;
   }
