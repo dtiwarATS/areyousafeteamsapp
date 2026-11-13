@@ -200,7 +200,17 @@ const selectResponseCard = async (context, user) => {
     } else if (verb && verb === "cancel_send_approval") {
       await cancelSendApproval(context, user);
     } else if (verb && verb === "send_response") {
-      sendApprovalResponse(user, context);
+      // Fire-and-forget so the adaptiveCard/action invoke can return quickly.
+      // sendApprovalResponse must snapshot serviceUrl/tenantId before awaiting.
+      sendApprovalResponse(user, context).catch((err) => {
+        processSafetyBotError(
+          err,
+          "",
+          user?.name,
+          user?.aadObjectId,
+          "sendApprovalResponse (unhandled)",
+        );
+      });
     } else if (verb && verb === "submit_comment") {
       await submitComment(context, user, companyData);
     } else if (verb && verb === "contact_us") {
@@ -5751,7 +5761,18 @@ const sendIncStatusValidation = async (context, incStatusId) => {
 
 const sendApprovalResponse = async (user, context) => {
   try {
+    // Snapshot activity fields before any await. selectResponseCard fires this
+    // without awaiting, so TurnContext is revoked once the invoke turn ends.
     const action = context.activity.value.action;
+    const serviceUrl = context.activity.serviceUrl;
+    const tenantId = context.activity.conversation?.tenantId;
+    const rawLocalTimestamp = context.activity.rawLocalTimestamp;
+    const activityContext = {
+      activity: {
+        serviceUrl,
+        conversation: { tenantId },
+      },
+    };
     const {
       info: response,
       inc,
@@ -5762,12 +5783,10 @@ const sendApprovalResponse = async (user, context) => {
     const { incId, incTitle, incCreatedBy, responseOptionData } = inc;
     let respDate = new Date();
     if (
-      context?.activity?.rawLocalTimestamp != null &&
-      context.activity.rawLocalTimestamp.toString().split("+").length > 0
+      rawLocalTimestamp != null &&
+      rawLocalTimestamp.toString().split("+").length > 0
     ) {
-      respDate = new Date(
-        context.activity.rawLocalTimestamp.toString().split("+")[0],
-      );
+      respDate = new Date(rawLocalTimestamp.toString().split("+")[0]);
     }
     const respTimestamp = formatedDate("yyyy-MM-dd hh:mm:ss", respDate);
     const runAt = inc.runAt != null ? inc.runAt : null;
@@ -5823,8 +5842,7 @@ const sendApprovalResponse = async (user, context) => {
       languageId,
       translatedText,
     );
-    const serviceUrl = context?.activity?.serviceUrl;
-    await sendApprovalResponseToSelectedMembers(incId, context, null, {
+    await sendApprovalResponseToSelectedMembers(incId, activityContext, null, {
       user,
       responseText,
       incTitle,
