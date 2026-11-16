@@ -1323,6 +1323,68 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             }
           }
         }
+        if (sendonetime == "true" && admins?.length) {
+          let sosIntegrationConfigure = null;
+          try {
+            const raw = admins[0].INTEGRATION_CONFIGURE;
+            if (raw) {
+              sosIntegrationConfigure =
+                typeof raw === "string" ? JSON.parse(raw) : raw;
+            }
+          } catch (_) {
+            sosIntegrationConfigure = null;
+          }
+          const sosCompanyData = {
+            ...admins[0],
+            INTEGRATION_CONFIGURE:
+              admins[0].INTEGRATION_CONFIGURE ||
+              JSON.stringify(sosIntegrationConfigure),
+            teamName: admins[0].teamName || admins[0].team_name || "",
+            userTenantId: admins[0].user_tenant_id,
+          };
+          if (
+            sosIntegrationConfigure?.channels?.ipSpeakers?.enabled &&
+            sosIntegrationConfigure?.channels?.ipSpeakers?.events?.sos
+          ) {
+            try {
+              await bot.sendSafetyCheckMsgViaIpSpeakers(
+                sosCompanyData,
+                requestAssistanceid,
+                `SOS from ${user.user_name || "user"}`,
+                "SOS",
+              );
+            } catch (speakerErr) {
+              processSafetyBotError(
+                speakerErr,
+                "",
+                "",
+                "",
+                "error sending SOS via IP Speakers",
+              );
+            }
+          }
+          if (
+            sosIntegrationConfigure?.channels?.digitalSignage?.enabled &&
+            sosIntegrationConfigure?.channels?.digitalSignage?.events?.sos
+          ) {
+            try {
+              await bot.sendSafetyCheckMsgViaDigitalSignage(
+                sosCompanyData,
+                requestAssistanceid,
+                `SOS from ${user.user_name || "user"}`,
+                "SOS",
+              );
+            } catch (signageErr) {
+              processSafetyBotError(
+                signageErr,
+                "",
+                "",
+                "",
+                "error sending SOS via Digital Signage",
+              );
+            }
+          }
+        }
         void fcmService
           .sendSosPushToAdmins(
             admins,

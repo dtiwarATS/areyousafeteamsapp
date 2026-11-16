@@ -4901,6 +4901,68 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.post(
+    "/areyousafetabhandler/verifyIpSpeakersConnection",
+    async (req, res) => {
+      const reqBody = req.body || {};
+      try {
+        const ipSpeakerService = require("./services/ipSpeakerService");
+        const result = await ipSpeakerService.verifyConnection({
+          vendor: reqBody.vendor === "axis" ? "axis" : "algo",
+          algo: reqBody.algo,
+          axis: reqBody.axis,
+        });
+        res.send(result);
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(
+          err,
+          reqBody.teamId || "",
+          "",
+          "",
+          "error in /areyousafetabhandler/verifyIpSpeakersConnection",
+        );
+        res.status(500).send({
+          ok: false,
+          message:
+            err?.message ||
+            "Could not verify IP Speakers connection. Please try again.",
+        });
+      }
+    },
+  );
+
+  app.post(
+    "/areyousafetabhandler/verifyDigitalSignageConnection",
+    async (req, res) => {
+      const reqBody = req.body || {};
+      try {
+        const digitalSignageService = require("./services/digitalSignageService");
+        const result = await digitalSignageService.verifyConnection({
+          vendor: reqBody.vendor === "samsung" ? "samsung" : "brightsign",
+          brightsign: reqBody.brightsign,
+          samsung: reqBody.samsung,
+        });
+        res.send(result);
+      } catch (err) {
+        console.log(err);
+        processSafetyBotError(
+          err,
+          reqBody.teamId || "",
+          "",
+          "",
+          "error in /areyousafetabhandler/verifyDigitalSignageConnection",
+        );
+        res.status(500).send({
+          ok: false,
+          message:
+            err?.message ||
+            "Could not verify Digital Signage connection. Please try again.",
+        });
+      }
+    },
+  );
+
   app.get("/areyousafetabhandler/getUserConsentStats", async (req, res) => {
     const tenantId = req.query.tenantId;
     console.log("[getUserConsentStats] request received", { tenantId });

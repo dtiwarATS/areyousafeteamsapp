@@ -56,6 +56,7 @@ const { runGuardedJob } = require("../utils/jobGuard");
             membersNotRespondedList != null &&
             membersNotRespondedList.length > 0
           ) {
+            const broadcastFollowUpSent = new Set();
             await Promise.all(
               membersNotRespondedList.map(async (memberObj) => {
                 let member = memberObj;
@@ -284,6 +285,39 @@ const { runGuardedJob } = require("../utils/jobGuard");
                       member,
                       "Follow-up",
                     );
+                  }
+                  const broadcastKey = `${companyData?.teamId || companyData?.team_id || ""}:${inc_id}`;
+                  if (
+                    IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
+                    IntegrationConfigure?.channels?.ipSpeakers?.events
+                      ?.incidentFollowUp
+                  ) {
+                    const key = `ip:${broadcastKey}`;
+                    if (!broadcastFollowUpSent.has(key)) {
+                      broadcastFollowUpSent.add(key);
+                      await bot.sendSafetyCheckMsgViaIpSpeakers(
+                        companyData,
+                        inc_id,
+                        inc_name,
+                        "Follow-up",
+                      );
+                    }
+                  }
+                  if (
+                    IntegrationConfigure?.channels?.digitalSignage?.enabled &&
+                    IntegrationConfigure?.channels?.digitalSignage?.events
+                      ?.incidentFollowUp
+                  ) {
+                    const key = `ds:${broadcastKey}`;
+                    if (!broadcastFollowUpSent.has(key)) {
+                      broadcastFollowUpSent.add(key);
+                      await bot.sendSafetyCheckMsgViaDigitalSignage(
+                        companyData,
+                        inc_id,
+                        inc_name,
+                        "Follow-up",
+                      );
+                    }
                   }
                   await bot.sendSafetyCheckMsgViaDesktop(
                     companyData,

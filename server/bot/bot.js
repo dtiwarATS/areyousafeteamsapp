@@ -14,6 +14,8 @@ const incidentService = require("../services/incidentService");
 const fcmService = require("../services/fcmService");
 const userNotificationConsentService = require("../services/userNotificationConsentService");
 const ciscoService = require("../services/ciscoService");
+const ipSpeakerService = require("../services/ipSpeakerService");
+const digitalSignageService = require("../services/digitalSignageService");
 const path = require("path");
 const FormData = require("form-data");
 const mail = require("../utils/mail");
@@ -2958,6 +2960,116 @@ const sendSafetyCheckMsgViaWhatsapp = async (
   }
 };
 
+const buildBroadcastAlertCopy = (
+  companyData,
+  incTitle,
+  isfrominctype = "onetime",
+) => {
+  const titlePrefix =
+    isfrominctype === "Follow-up"
+      ? "Follow-up"
+      : isfrominctype === "SOS"
+        ? "SOS"
+        : "Safety Check";
+  const alertTitle = String(titlePrefix).slice(0, 32);
+  const alertText = String(
+    `${titlePrefix} from ${companyData?.teamName || "Safety Check"} - ${
+      incTitle || ""
+    }`.trim(),
+  ).slice(0, 255);
+  return { alertTitle, alertText, titlePrefix };
+};
+
+const sendSafetyCheckMsgViaIpSpeakers = async (
+  companyData,
+  incId,
+  incTitle,
+  isfrominctype = "onetime",
+) => {
+  try {
+    const config = ipSpeakerService.getIpSpeakersConfigFromIntegration(
+      companyData?.INTEGRATION_CONFIGURE,
+    );
+    if (!config) return;
+    const { alertTitle, alertText, titlePrefix } = buildBroadcastAlertCopy(
+      companyData,
+      incTitle,
+      isfrominctype,
+    );
+    const result = await ipSpeakerService.sendAlert(
+      config,
+      alertTitle,
+      alertText,
+    );
+    incidentService.saveAllTypeQuerylogs(
+      "",
+      "",
+      "IP_SPEAKERS",
+      config.vendor || "",
+      incId,
+      result?.ok ? "SENT_TO_IP_SPEAKERS" : result?.reason || "SEND_FAILED",
+      isfrominctype,
+      "",
+      incTitle || "",
+      "",
+      result?.message || titlePrefix,
+    );
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      companyData?.teamId || "",
+      "",
+      "",
+      "error in sendSafetyCheckMsgViaIpSpeakers",
+    );
+  }
+};
+
+const sendSafetyCheckMsgViaDigitalSignage = async (
+  companyData,
+  incId,
+  incTitle,
+  isfrominctype = "onetime",
+) => {
+  try {
+    const config = digitalSignageService.getDigitalSignageConfigFromIntegration(
+      companyData?.INTEGRATION_CONFIGURE,
+    );
+    if (!config) return;
+    const { alertTitle, alertText, titlePrefix } = buildBroadcastAlertCopy(
+      companyData,
+      incTitle,
+      isfrominctype,
+    );
+    const result = await digitalSignageService.sendAlert(
+      config,
+      alertTitle,
+      alertText,
+    );
+    incidentService.saveAllTypeQuerylogs(
+      "",
+      "",
+      "DIGITAL_SIGNAGE",
+      config.vendor || "",
+      incId,
+      result?.ok ? "SENT_TO_DIGITAL_SIGNAGE" : result?.reason || "SEND_FAILED",
+      isfrominctype,
+      "",
+      incTitle || "",
+      "",
+      result?.message || titlePrefix,
+    );
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      companyData?.teamId || "",
+      "",
+      "",
+      "error in sendSafetyCheckMsgViaDigitalSignage",
+    );
+  }
+};
+
 const sendSafetyCheckMsgViaCisco = async (
   companyData,
   users,
@@ -5558,6 +5670,18 @@ const NewsendSafetyCheckMessageAsync = async (
         incData,
       );
     }
+    if (
+      IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
+      IntegrationConfigure?.channels?.ipSpeakers?.events?.incident
+    ) {
+      sendSafetyCheckMsgViaIpSpeakers(companyData, incId, incTitle);
+    }
+    if (
+      IntegrationConfigure?.channels?.digitalSignage?.enabled &&
+      IntegrationConfigure?.channels?.digitalSignage?.events?.incident
+    ) {
+      sendSafetyCheckMsgViaDigitalSignage(companyData, incId, incTitle);
+    }
     fcmService
       .sendSafetyCheckPushToMembers(allMembersArr, {
         incId,
@@ -6898,6 +7022,28 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
+    if (
+      IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
+      IntegrationConfigure?.channels?.ipSpeakers?.events?.incident
+    ) {
+      await sendSafetyCheckMsgViaIpSpeakers(
+        companyData,
+        incId,
+        incTitle,
+        "recurringIncident",
+      );
+    }
+    if (
+      IntegrationConfigure?.channels?.digitalSignage?.enabled &&
+      IntegrationConfigure?.channels?.digitalSignage?.events?.incident
+    ) {
+      await sendSafetyCheckMsgViaDigitalSignage(
+        companyData,
+        incId,
+        incTitle,
+        "recurringIncident",
+      );
+    }
     sendSafetyCheckMsgViaDesktop(
       companyData,
       extractUserAadObjIds(subEventObj.eventMembers),
@@ -7845,5 +7991,7 @@ module.exports = {
   sendWhatsappMessage,
   sendSafetyCheckMsgViaEmail,
   sendSafetyCheckMsgViaCisco,
+  sendSafetyCheckMsgViaIpSpeakers,
+  sendSafetyCheckMsgViaDigitalSignage,
   sendSafetyCheckMsgViaDesktop,
 };
