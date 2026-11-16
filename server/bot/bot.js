@@ -13,6 +13,7 @@ const {
 const incidentService = require("../services/incidentService");
 const fcmService = require("../services/fcmService");
 const userNotificationConsentService = require("../services/userNotificationConsentService");
+const ciscoService = require("../services/ciscoService");
 const path = require("path");
 const FormData = require("form-data");
 const mail = require("../utils/mail");
@@ -2956,6 +2957,134 @@ const sendSafetyCheckMsgViaWhatsapp = async (
     }
   }
 };
+
+const sendSafetyCheckMsgViaCisco = async (
+  companyData,
+  users,
+  incId,
+  incTitle,
+  incData,
+  isfrominctype = "onetime",
+) => {
+  try {
+    const ciscoConfig = ciscoService.getCiscoConfigFromIntegration(
+      companyData?.INTEGRATION_CONFIGURE,
+    );
+    if (!ciscoConfig?.cucm) {
+      return;
+    }
+
+    const usrPhones = await resolveUserPhonesForMessaging(companyData, users);
+    const titlePrefix =
+      isfrominctype === "Follow-up"
+        ? "Follow-up"
+        : isfrominctype === "SOS"
+          ? "SOS"
+          : "Safety Check";
+    const alertTitle = String(titlePrefix).slice(0, 32);
+    const alertText = String(
+      `${titlePrefix} from ${companyData.teamName || "Safety Check"} - ${
+        incTitle || ""
+      }`.trim(),
+    ).slice(0, 255);
+
+    for (const user of usrPhones || []) {
+      try {
+        const dn =
+          Array.isArray(user.businessPhones) && user.businessPhones[0]
+            ? String(user.businessPhones[0]).trim()
+            : "";
+        if (!dn) {
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName || "",
+            "CISCO",
+            "",
+            incId,
+            "PHONE_NUM_NOT_FOUND",
+            isfrominctype,
+            "",
+            incTitle || "",
+            "",
+            "",
+          );
+          continue;
+        }
+
+        const result = await ciscoService.sendAlertToDirectoryNumber(
+          ciscoConfig.cucm,
+          dn,
+          alertTitle,
+          alertText,
+        );
+
+        if (result?.ok) {
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName || "",
+            "CISCO",
+            dn.slice(-4).padStart(dn.length, "x"),
+            incId,
+            "SENT_TO_CISCO",
+            isfrominctype,
+            result.deviceName || "",
+            incTitle || "",
+            result.ip || "",
+            "",
+          );
+        } else {
+          incidentService.saveAllTypeQuerylogs(
+            user.id,
+            user.displayName || "",
+            "CISCO",
+            dn.slice(-4).padStart(dn.length, "x"),
+            incId,
+            result?.reason || "SEND_FAILED",
+            isfrominctype,
+            result?.deviceName || "",
+            incTitle || "",
+            "",
+            "",
+          );
+        }
+      } catch (err) {
+        processSafetyBotError(
+          err,
+          companyData?.teamId || "",
+          "",
+          user?.id || "",
+          "error in sendSafetyCheckMsgViaCisco user loop",
+        );
+        try {
+          incidentService.saveAllTypeQuerylogs(
+            user?.id || "",
+            user?.displayName || "",
+            "CISCO",
+            "",
+            incId,
+            "SENDING_ERROR",
+            isfrominctype,
+            "",
+            incTitle || "",
+            "",
+            String(err?.message || err || ""),
+          );
+        } catch (_logErr) {
+          // ignore log failures
+        }
+      }
+    }
+  } catch (err) {
+    processSafetyBotError(
+      err,
+      companyData?.teamId || "",
+      "",
+      "",
+      "error in sendSafetyCheckMsgViaCisco",
+    );
+  }
+};
+
 const sendSafetyCheckMsgViaEmail = async (
   companyData,
   users,
@@ -5417,6 +5546,18 @@ const NewsendSafetyCheckMessageAsync = async (
         incData,
       );
     }
+    if (
+      IntegrationConfigure?.channels?.cisco?.enabled &&
+      IntegrationConfigure?.channels?.cisco?.events?.incident
+    ) {
+      sendSafetyCheckMsgViaCisco(
+        companyData,
+        userAadObjIds,
+        incId,
+        incTitle,
+        incData,
+      );
+    }
     fcmService
       .sendSafetyCheckPushToMembers(allMembersArr, {
         incId,
@@ -6744,6 +6885,19 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
+    if (
+      IntegrationConfigure?.channels?.cisco?.enabled &&
+      IntegrationConfigure?.channels?.cisco?.events?.incident
+    ) {
+      await sendSafetyCheckMsgViaCisco(
+        companyData,
+        userAadObjIds,
+        incId,
+        incTitle,
+        subEventObj,
+        "recurringIncident",
+      );
+    }
     sendSafetyCheckMsgViaDesktop(
       companyData,
       extractUserAadObjIds(subEventObj.eventMembers),
@@ -7690,5 +7844,6 @@ module.exports = {
   getUserDetails,
   sendWhatsappMessage,
   sendSafetyCheckMsgViaEmail,
+  sendSafetyCheckMsgViaCisco,
   sendSafetyCheckMsgViaDesktop,
 };

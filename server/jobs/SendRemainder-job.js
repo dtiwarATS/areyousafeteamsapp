@@ -271,6 +271,20 @@ const { runGuardedJob } = require("../utils/jobGuard");
                       "Follow-up",
                     );
                   }
+                  if (
+                    IntegrationConfigure?.channels?.cisco?.enabled &&
+                    IntegrationConfigure?.channels?.cisco?.events
+                      ?.incidentFollowUp
+                  ) {
+                    await bot.sendSafetyCheckMsgViaCisco(
+                      companyData,
+                      userAadObjIds,
+                      inc_id,
+                      inc_name,
+                      member,
+                      "Follow-up",
+                    );
+                  }
                   await bot.sendSafetyCheckMsgViaDesktop(
                     companyData,
                     [member.user_aadobj_id],

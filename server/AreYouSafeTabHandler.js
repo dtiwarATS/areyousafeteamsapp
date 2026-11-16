@@ -4874,6 +4874,33 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
+  app.post("/areyousafetabhandler/verifyCiscoConnection", async (req, res) => {
+    const reqBody = req.body || {};
+    try {
+      const ciscoService = require("./services/ciscoService");
+      const result = await ciscoService.verifyConnection({
+        url: reqBody.url,
+        username: reqBody.username,
+        password: reqBody.password,
+      });
+      res.send(result);
+    } catch (err) {
+      console.log(err);
+      processSafetyBotError(
+        err,
+        reqBody.teamId || "",
+        "",
+        "",
+        "error in /areyousafetabhandler/verifyCiscoConnection",
+      );
+      res.status(500).send({
+        ok: false,
+        message:
+          err?.message || "Could not verify CUCM connection. Please try again.",
+      });
+    }
+  });
+
   app.get("/areyousafetabhandler/getUserConsentStats", async (req, res) => {
     const tenantId = req.query.tenantId;
     console.log("[getUserConsentStats] request received", { tenantId });

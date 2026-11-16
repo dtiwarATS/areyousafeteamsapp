@@ -1287,6 +1287,40 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 });
               }
             }
+            if (
+              IntegrationConfigure?.channels?.cisco?.enabled &&
+              IntegrationConfigure?.channels?.cisco?.events?.sos &&
+              sendonetime == "true"
+            ) {
+              try {
+                await bot.sendSafetyCheckMsgViaCisco(
+                  {
+                    ...admins[i],
+                    INTEGRATION_CONFIGURE:
+                      admins[i].INTEGRATION_CONFIGURE ||
+                      JSON.stringify(IntegrationConfigure),
+                    teamName: admins[i].teamName || admins[i].team_name || "",
+                    userTenantId: admins[i].user_tenant_id,
+                    IS_APP_PERMISSION_GRANTED:
+                      admins[i].IS_APP_PERMISSION_GRANTED,
+                    PHONE_FIELD: admins[i].PHONE_FIELD || "businessPhones",
+                  },
+                  [admins[i].user_aadobject_id],
+                  requestAssistanceid,
+                  `SOS from ${user.user_name || "user"}`,
+                  null,
+                  "SOS",
+                );
+              } catch (ciscoErr) {
+                processSafetyBotError(
+                  ciscoErr,
+                  "",
+                  "",
+                  admins[i].user_aadobject_id,
+                  "error sending SOS via Cisco IP Phone",
+                );
+              }
+            }
           }
         }
         void fcmService
