@@ -375,10 +375,7 @@ class AreYouSafeTab {
                 deliveryInProgressCount = memberObj.deliveryInProgress.length;
                 deliveredCount = memberObj.delivered.length;
                 safeCount = memberObj.membersSafe.length;
-                const respondedCount = Math.max(
-                  safeCount,
-                  optionResponseCount,
-                );
+                const respondedCount = Math.max(safeCount, optionResponseCount);
                 if (respondedCount > 0) {
                   responsePercentage =
                     Math.round(
@@ -562,6 +559,7 @@ class AreYouSafeTab {
     MIN(tu.email) AS email,
     MIN(tu.DYNAMIC_LOCATION) AS DYNAMIC_LOCATION,
     tu.LANGUAGE_ID,
+    tu.conversationId,
     CASE 
         WHEN tu.user_aadobject_id = '${userAadObjId}'
              AND EXISTS (
@@ -580,7 +578,7 @@ WHERE tu.team_id IN (
     FROM MSTeamsTeamsUsers
     WHERE user_aadobject_id = '${userAadObjId}'
 )
-GROUP BY tu.user_aadobject_id,tu.LANGUAGE_ID
+GROUP BY tu.user_aadobject_id,tu.LANGUAGE_ID,tu.conversationId
 ORDER BY email;
 `;
 
@@ -806,8 +804,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 approvalCardBody.push(cardLocation);
               }
               const approvalCardResponse = {
-                $schema:
-                  "http://adaptivecards.io/schemas/adaptive-card.json",
+                $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
                 appId: process.env.MicrosoftAppId,
                 body: approvalCardBody,
                 msteams: {
@@ -1687,8 +1684,7 @@ WHERE id = ${res[0].id}`;
               user.user_name,
             );
             const approvalCardResponse = {
-              $schema:
-                "http://adaptivecards.io/schemas/adaptive-card.json",
+              $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
               appId: process.env.MicrosoftAppId,
               body: [
                 {
