@@ -1,0 +1,67 @@
+const { parentPort } = require("worker_threads");
+const db = require("../db");
+const { deleteCompanyData } = require("../db/dbOperations");
+const { AYSLog } = require("../utils/log");
+const { processSafetyBotError } = require("../models/processError");
+
+const dueUninstallQuery = `
+  SELECT
+    MID.id,
+    MID.team_id,
+    MID.team_name,
+    MID.user_id,
+    MID.user_name,
+    MID.user_obj_id
+  FROM MSTeamsInstallationDetails MID
+  WHERE MID.uninstallation_date IS NOT NULL
+    AND CAST(MID.uninstallation_date AS DATE) <= CAST(GETUTCDATE() AS DATE)
+    AND MID.team_id IS NOT NULL
+    AND MID.team_id <> ''
+`;
+
+(async () => {
+  const log = new AYSLog();
+  let saveLog = false;
+  try {
+    log.addLog("Start deleteUninstallData job");
+    const rows = (await db.getDataFromDB(dueUninstallQuery)) || [];
+    log.addLog(`uninstall records due for delete - ${rows.length}`);
+
+    for (const row of rows) {
+      try {
+        const isDeleted = await deleteCompanyData(row.team_id, row.user_obj_id);
+        if (isDeleted) {
+          saveLog = true;
+          log.addLog(
+            `deleteUninstallData deleted team_id=${row.team_id} user_obj_id=${row.user_obj_id}`,
+          );
+        } else {
+          log.addLog(
+            `deleteUninstallData failed team_id=${row.team_id} user_obj_id=${row.user_obj_id}`,
+          );
+        }
+      } catch (err) {
+        console.log(err);
+        log.addLog(`Error occured: ${err}`);
+        processSafetyBotError(
+          err,
+          row.team_name || "",
+          row.user_name || "",
+          row.user_obj_id || "",
+          "error in deleteUninstallData job team_id=" + row.team_id,
+        );
+      }
+    }
+  } catch (err) {
+    console.log(err);
+    log.addLog(`Error occured: ${err}`);
+    processSafetyBotError(err, "", "", "", "error in deleteUninstallData job");
+  } finally {
+    log.addLog("End deleteUninstallData job");
+    if (saveLog) {
+      await log.saveLog();
+    }
+    if (parentPort) parentPort.postMessage("done");
+    else process.exit(0);
+  }
+})();

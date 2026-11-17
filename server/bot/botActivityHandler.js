@@ -595,15 +595,19 @@ class BotActivityHandler extends TeamsActivityHandler {
           } else {
             const { membersRemoved } = acvtivityData;
             if (membersRemoved[0].id.includes(process.env.MicrosoftAppId)) {
-              const isDeleted = await deleteCompanyData(
+              // const isDeleted = await deleteCompanyData(
+              //   acvtivityData?.channelData?.team.id,
+              //   acvtivityData.from.aadObjectId,
+              // );
+              await deleteCompanyDataByuserAadObjId(
+                acvtivityData.from.aadObjectId,
                 acvtivityData?.channelData?.team.id,
+              );
+              //if (isDeleted) {
+              await this.sendUninstallationEmail(
                 acvtivityData.from.aadObjectId,
               );
-              if (isDeleted) {
-                await this.sendUninstallationEmail(
-                  acvtivityData.from.aadObjectId,
-                );
-              }
+              //}
             } else {
               for (let i = 0; i < membersRemoved.length; i++) {
                 await removeTeamMember(teamId, membersRemoved[i].id);

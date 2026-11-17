@@ -831,14 +831,27 @@ const insertCompanyData = async (
   }
 };
 
-const deleteCompanyDataByuserAadObjId = async (userObjId) => {
+const deleteCompanyDataByuserAadObjId = async (userObjId, teamId) => {
   try {
     if (userObjId != null) {
       pool = await getActivePoolPromise();
-      let query = `update msteamsinstallationdetails set super_users = null, uninstallation_date = '${new Date(
-        Date.now(),
-      ).toISOString()}', uninstallation_user_aadObjid = '${userObjId}' where user_obj_id = '${userObjId}' and (team_id is null or team_id = '')`;
-      await pool.request().query(query);
+
+      const query = `
+        UPDATE dbo.MSTeamsInstallationDetails
+SET
+    SUPER_USERS = NULL,
+    UNINSTALLATION_DATE = CONVERT(VARCHAR(23), DATEADD(DAY, 30, GETUTCDATE()), 126) + 'Z',
+    UNINSTALLATION_USER_AADOBJID = @userObjId
+WHERE
+    USER_OBJ_ID = @userObjId
+    AND TEAM_ID = @teamId;
+      `;
+
+      await pool
+        .request()
+        .input("userObjId", userObjId)
+        .input("teamId", teamId)
+        .query(query);
     }
   } catch (err) {
     console.log(err);

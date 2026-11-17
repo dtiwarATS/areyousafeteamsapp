@@ -111,6 +111,12 @@ function initJob() {
         cron: "30 3 * * *",
       },
       {
+        name: "deleteUninstallData-job",
+        path: path.join(__dirname, "jobs", "deleteUninstallData-job.js"),
+        cron: "0 23 * * 4",
+        timezone: "Asia/Kolkata",
+      },
+      {
         name: "consentPhoneEligible-job",
         path: path.join(__dirname, "jobs", "consentPhoneEligible-job.js"),
         cron: "30 2,14 * * *",
