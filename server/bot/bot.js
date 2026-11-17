@@ -5659,6 +5659,7 @@ const NewsendSafetyCheckMessageAsync = async (
       );
     }
     if (
+      IntegrationConfigure?.channels?.cisco?.connectionVerified &&
       IntegrationConfigure?.channels?.cisco?.enabled &&
       IntegrationConfigure?.channels?.cisco?.events?.incident
     ) {
@@ -5671,12 +5672,14 @@ const NewsendSafetyCheckMessageAsync = async (
       );
     }
     if (
+      IntegrationConfigure?.channels?.ipSpeakers?.connectionVerified &&
       IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
       IntegrationConfigure?.channels?.ipSpeakers?.events?.incident
     ) {
       sendSafetyCheckMsgViaIpSpeakers(companyData, incId, incTitle);
     }
     if (
+      IntegrationConfigure?.channels?.digitalSignage?.connectionVerified &&
       IntegrationConfigure?.channels?.digitalSignage?.enabled &&
       IntegrationConfigure?.channels?.digitalSignage?.events?.incident
     ) {
@@ -7010,6 +7013,7 @@ const sendRecurrEventMsgAsync = async (
       );
     }
     if (
+      IntegrationConfigure?.channels?.cisco?.connectionVerified &&
       IntegrationConfigure?.channels?.cisco?.enabled &&
       IntegrationConfigure?.channels?.cisco?.events?.incident
     ) {
@@ -7023,6 +7027,7 @@ const sendRecurrEventMsgAsync = async (
       );
     }
     if (
+      IntegrationConfigure?.channels?.ipSpeakers?.connectionVerified &&
       IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
       IntegrationConfigure?.channels?.ipSpeakers?.events?.incident
     ) {
@@ -7034,6 +7039,7 @@ const sendRecurrEventMsgAsync = async (
       );
     }
     if (
+      IntegrationConfigure?.channels?.digitalSignage?.connectionVerified &&
       IntegrationConfigure?.channels?.digitalSignage?.enabled &&
       IntegrationConfigure?.channels?.digitalSignage?.events?.incident
     ) {

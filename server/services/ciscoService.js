@@ -385,6 +385,7 @@ const getCiscoConfigFromIntegration = (integrationConfigure) => {
         : integrationConfigure;
     const channel = cfg?.channels?.cisco;
     if (!channel?.enabled) return null;
+    if (!channel?.connectionVerified) return null;
     const cucm = channel.cucm || {};
     if (!cucm.url || !cucm.username || !cucm.password) return null;
     return {

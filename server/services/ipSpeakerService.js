@@ -66,6 +66,7 @@ const getIpSpeakersConfigFromIntegration = (integrationConfigure) => {
         : integrationConfigure;
     const channel = cfg?.channels?.ipSpeakers;
     if (!channel?.enabled) return null;
+    if (!channel?.connectionVerified) return null;
     const vendor = channel.vendor === "axis" ? "axis" : "algo";
     return {
       enabled: true,

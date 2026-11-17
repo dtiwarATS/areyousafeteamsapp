@@ -35,6 +35,7 @@ const getDigitalSignageConfigFromIntegration = (integrationConfigure) => {
         : integrationConfigure;
     const channel = cfg?.channels?.digitalSignage;
     if (!channel?.enabled) return null;
+    if (!channel?.connectionVerified) return null;
     const vendor = channel.vendor === "samsung" ? "samsung" : "brightsign";
     return {
       enabled: true,

@@ -1285,6 +1285,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               }
             }
             if (
+              IntegrationConfigure?.channels?.cisco?.connectionVerified &&
               IntegrationConfigure?.channels?.cisco?.enabled &&
               IntegrationConfigure?.channels?.cisco?.events?.sos &&
               sendonetime == "true"
@@ -1340,6 +1341,7 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             userTenantId: admins[0].user_tenant_id,
           };
           if (
+            sosIntegrationConfigure?.channels?.ipSpeakers?.connectionVerified &&
             sosIntegrationConfigure?.channels?.ipSpeakers?.enabled &&
             sosIntegrationConfigure?.channels?.ipSpeakers?.events?.sos
           ) {
@@ -1361,6 +1363,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             }
           }
           if (
+            sosIntegrationConfigure?.channels?.digitalSignage
+              ?.connectionVerified &&
             sosIntegrationConfigure?.channels?.digitalSignage?.enabled &&
             sosIntegrationConfigure?.channels?.digitalSignage?.events?.sos
           ) {

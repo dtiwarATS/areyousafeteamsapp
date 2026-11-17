@@ -273,6 +273,7 @@ const { runGuardedJob } = require("../utils/jobGuard");
                     );
                   }
                   if (
+                    IntegrationConfigure?.channels?.cisco?.connectionVerified &&
                     IntegrationConfigure?.channels?.cisco?.enabled &&
                     IntegrationConfigure?.channels?.cisco?.events
                       ?.incidentFollowUp
@@ -288,6 +289,8 @@ const { runGuardedJob } = require("../utils/jobGuard");
                   }
                   const broadcastKey = `${companyData?.teamId || companyData?.team_id || ""}:${inc_id}`;
                   if (
+                    IntegrationConfigure?.channels?.ipSpeakers
+                      ?.connectionVerified &&
                     IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
                     IntegrationConfigure?.channels?.ipSpeakers?.events
                       ?.incidentFollowUp
@@ -304,6 +307,8 @@ const { runGuardedJob } = require("../utils/jobGuard");
                     }
                   }
                   if (
+                    IntegrationConfigure?.channels?.digitalSignage
+                      ?.connectionVerified &&
                     IntegrationConfigure?.channels?.digitalSignage?.enabled &&
                     IntegrationConfigure?.channels?.digitalSignage?.events
                       ?.incidentFollowUp
