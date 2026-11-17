@@ -70,11 +70,7 @@ const getNextRecurrenceRunAtUTC = (
   let earliest = moment().tz(tz);
   const ymd = normalizeDateToYmd(startDate);
   if (ymd) {
-    const startMoment = moment.tz(
-      `${ymd} ${time24}`,
-      "YYYY-MM-DD HH:mm",
-      tz,
-    );
+    const startMoment = moment.tz(`${ymd} ${time24}`, "YYYY-MM-DD HH:mm", tz);
     if (startMoment.isValid() && startMoment.isAfter(earliest)) {
       earliest = startMoment;
     }
@@ -120,6 +116,31 @@ const sendEmail = async (fromEmail, subject, body) => {
   });
 };
 
+const sendEmaildeletedata = async (fromEmail, subject, body, toEmail = "") => {
+  const transporter = nodemailer.createTransport({
+    host: process.env.HOST_NAME,
+    port: process.env.PORTS,
+    secure: false,
+    auth: {
+      user: process.env.AUTH_USER,
+      pass: process.env.AUTH_PASS,
+    },
+  });
+  const mailOptions = {
+    from: process.env.ADMIN_EMAIL,
+    to: toEmail,
+    subject: subject,
+    html: body,
+  };
+  transporter.sendMail(mailOptions, function (error, info) {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Email sent: " + info.response);
+    }
+  });
+};
+
 const toTitleCase = (str) => {
   return str.replace(/\b\w/g, function (txt) {
     return txt.toUpperCase();
@@ -143,32 +164,38 @@ const formatedDate = (format, date = null) => {
   }
 
   let d = new Date(date),
-    month = '' + (d.getMonth() + 1),
-    day = '' + d.getDate(),
+    month = "" + (d.getMonth() + 1),
+    day = "" + d.getDate(),
     year = d.getFullYear(),
     hours = d.getHours(),
     minutes = d.getMinutes(),
     seconds = d.getSeconds();
 
   if (month.length < 2) {
-    month = '0' + month;
+    month = "0" + month;
   }
   if (day.length < 2) {
-    day = '0' + day;
+    day = "0" + day;
   }
   if (hours.toString().length < 2) {
-    hours = '0' + hours;
+    hours = "0" + hours;
   }
   if (minutes.toString().length < 2) {
-    minutes = '0' + minutes;
+    minutes = "0" + minutes;
   }
   if (seconds.toString().length < 2) {
-    seconds = '0' + seconds;
+    seconds = "0" + seconds;
   }
 
-  let newDate = format.replace("MM", month).replace("dd", day).replace("yyyy", year).replace("hh", hours).replace("mm", minutes).replace("ss", seconds);
+  let newDate = format
+    .replace("MM", month)
+    .replace("dd", day)
+    .replace("yyyy", year)
+    .replace("hh", hours)
+    .replace("mm", minutes)
+    .replace("ss", seconds);
   return newDate;
-}
+};
 
 const getCron = (time12hrStr, weekDaysArr) => {
   const normalized = normalizeTimeTo24Hour(time12hrStr);
@@ -191,11 +218,11 @@ const convertToAMPM = (time) => {
   const suffix = hour >= 12 ? "PM" : "AM";
 
   if (minutes.toString().length < 2) {
-    minutes = '0' + minutes;
+    minutes = "0" + minutes;
   }
 
   return (hour % 12) + ":" + minutes + " " + suffix;
-}
+};
 const sendCustomEmail = (EmailFrom, EmailTo, EmailBody, EmailSubject) => {
   try {
     const requestOptions = {
@@ -206,7 +233,7 @@ const sendCustomEmail = (EmailFrom, EmailTo, EmailBody, EmailSubject) => {
     fetch(
       `https://emailservices.azurewebsites.net/api/sendCustomEmail?EmailSubject=${EmailSubject}&EmailBody=${EmailBody}&ProjectName=AYS&EmailTo=${EmailTo}&EmailFrom=${EmailFrom}&authKey=A9fG4dX2pL7qW8mZ&Environment=" +
         this.build`,
-      requestOptions
+      requestOptions,
     )
       .then((response) => {
         console.log("I AM DONE");
@@ -220,7 +247,7 @@ const sendCustomEmail = (EmailFrom, EmailTo, EmailBody, EmailSubject) => {
       "",
       "",
       userAadObjId,
-      "Error in personalemail > sendWelcomEmail toUserEmailId=" + toUserEmailId
+      "Error in personalemail > sendWelcomEmail toUserEmailId=" + toUserEmailId,
     );
     reject(false);
   }
@@ -237,4 +264,5 @@ module.exports = {
   normalizeTimeTo24Hour,
   normalizeDateToYmd,
   getNextRecurrenceRunAtUTC,
+  sendEmaildeletedata,
 };

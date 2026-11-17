@@ -2,6 +2,7 @@ const { parentPort } = require("worker_threads");
 const db = require("../db");
 const { deleteCompanyData } = require("../db/dbOperations");
 const { AYSLog } = require("../utils/log");
+const { sendEmaildeletedata } = require("../utils");
 const { processSafetyBotError } = require("../models/processError");
 
 const dueUninstallQuery = `
@@ -19,6 +20,46 @@ const dueUninstallQuery = `
     AND MID.team_id <> ''
 `;
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function sendDeletedTeamsSummaryEmail(deletedTeams) {
+  if (!deletedTeams.length) {
+    return;
+  }
+  const rows = deletedTeams
+    .map(
+      (team) =>
+        `<tr>
+          <td>${escapeHtml(team.teamName)}</td>
+          <td>${escapeHtml(team.teamId)}</td>
+          <td>${escapeHtml(team.userName)}</td>
+          <td>${escapeHtml(team.userObjId)}</td>
+        </tr>`,
+    )
+    .join("");
+  const emailBody =
+    "Hi,<br/><br/>" +
+    `Uninstall data cleanup deleted data for <b>${deletedTeams.length}</b> team(s).<br/><br/>` +
+    "<table border='1' cellpadding='6' cellspacing='0'>" +
+    "<tr><th>Team name</th><th>Team id</th><th>User name</th><th>User obj id</th></tr>" +
+    rows +
+    "</table><br/><br/>Thank you,<br/>Safety Check Support";
+  const subject = `Safety Check | Uninstall data deleted for ${deletedTeams.length} team(s)`;
+  if (process.env.IS_EMAIL_SEND == "true") {
+    await sendEmaildeletedata(
+      "",
+      subject,
+      emailBody,
+      "npingale@ats360.com,apachumbre@ats360.com,dtiwari@ats360.com",
+    );
+  }
+}
+
 (async () => {
   const log = new AYSLog();
   let saveLog = false;
@@ -26,12 +67,19 @@ const dueUninstallQuery = `
     log.addLog("Start deleteUninstallData job");
     const rows = (await db.getDataFromDB(dueUninstallQuery)) || [];
     log.addLog(`uninstall records due for delete - ${rows.length}`);
+    const deletedTeams = [];
 
     for (const row of rows) {
       try {
         const isDeleted = await deleteCompanyData(row.team_id, row.user_obj_id);
         if (isDeleted) {
           saveLog = true;
+          deletedTeams.push({
+            teamName: row.team_name,
+            teamId: row.team_id,
+            userName: row.user_name,
+            userObjId: row.user_obj_id,
+          });
           log.addLog(
             `deleteUninstallData deleted team_id=${row.team_id} user_obj_id=${row.user_obj_id}`,
           );
@@ -52,6 +100,11 @@ const dueUninstallQuery = `
         );
       }
     }
+
+    await sendDeletedTeamsSummaryEmail(deletedTeams);
+    log.addLog(
+      `deleteUninstallData summary email for ${deletedTeams.length} team(s)`,
+    );
   } catch (err) {
     console.log(err);
     log.addLog(`Error occured: ${err}`);
