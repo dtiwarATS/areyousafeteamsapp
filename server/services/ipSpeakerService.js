@@ -240,7 +240,10 @@ const verifyConnection = async ({ vendor, algo, axis }) => {
     );
     return {
       ok: false,
-      message: err?.message || "Could not verify IP Speakers connection.",
+      message: require("./connectionErrorMapper").mapConnectionErrorToFriendlyMessage(
+        err,
+        "Could not verify IP Speakers connection.",
+      ),
     };
   }
 };

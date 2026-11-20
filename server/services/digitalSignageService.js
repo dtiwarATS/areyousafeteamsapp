@@ -235,6 +235,14 @@ const authSamsung = async (samsung) => {
 };
 
 const verifySamsung = async (samsung) => {
+  const deviceIds = parseList(samsung?.deviceIds);
+  const groupId = String(samsung?.deviceGroupId || "").trim();
+  if (!deviceIds.length && !groupId) {
+    return {
+      ok: false,
+      message: "Enter a device group ID or at least one device ID.",
+    };
+  }
   await authSamsung(samsung);
   return {
     ok: true,
@@ -360,7 +368,10 @@ const verifyConnection = async ({ vendor, brightsign, samsung }) => {
     );
     return {
       ok: false,
-      message: err?.message || "Could not verify Digital Signage connection.",
+      message: require("./connectionErrorMapper").mapConnectionErrorToFriendlyMessage(
+        err,
+        "Could not verify Digital Signage connection.",
+      ),
     };
   }
 };

@@ -2711,6 +2711,33 @@ WHERE id = ${res[0].id}`;
   }) => {
     let result = null;
     try {
+      // Reject enabled Cisco / IP Speakers / Digital Signage without a verified connection.
+      try {
+        const cfg =
+          typeof integrationPanelDraft === "string"
+            ? JSON.parse(integrationPanelDraft || "{}")
+            : integrationPanelDraft;
+        const verifiedChannels = ["cisco", "ipSpeakers", "digitalSignage"];
+        for (const key of verifiedChannels) {
+          const ch = cfg?.channels?.[key];
+          if (ch?.enabled && !ch?.connectionVerified) {
+            return Promise.resolve({
+              error:
+                "Verify the connection before enabling Cisco, IP Speakers, or Digital Signage.",
+            });
+          }
+          if (ch?.enabled) {
+            const events = ch.events || {};
+            if (!events.incident && !events.sos && !events.incidentFollowUp) {
+              return Promise.resolve({
+                error: "Select at least one notification type.",
+              });
+            }
+          }
+        }
+      } catch (_parseErr) {
+        // If config is malformed, let the normal save path handle it.
+      }
       saveNARespSelectedTeams(teamId, selectedTeams, userAadObjId);
       result = await updateSuperUserDataByUserAadObjId(
         userAadObjId,

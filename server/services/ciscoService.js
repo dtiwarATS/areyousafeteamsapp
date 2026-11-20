@@ -136,11 +136,15 @@ const verifyConnection = async (cucm) => {
       }
     }
   }
+  const {
+    mapConnectionErrorToFriendlyMessage,
+  } = require("./connectionErrorMapper");
   return {
     ok: false,
-    message:
-      lastError?.message ||
+    message: mapConnectionErrorToFriendlyMessage(
+      lastError,
       "Could not verify CUCM connection. Check URL and AXL credentials.",
+    ),
   };
 };
 

@@ -4850,7 +4850,9 @@ const handlerForSafetyBotTab = (app) => {
     try {
       const tabObj = new tab.AreYouSafeTab();
       const isUpdated = await tabObj.saveUserSetting(reqBody);
-      if (isUpdated) {
+      if (isUpdated && typeof isUpdated === "object" && isUpdated.error) {
+        res.send({ error: isUpdated.error });
+      } else if (isUpdated) {
         res.send("Your App Settings have been saved successfully.");
         if (reqBody?.teamId) {
           void socketService.emitSosContactsUpdatedForTeam(
