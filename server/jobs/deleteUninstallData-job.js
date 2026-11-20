@@ -14,10 +14,20 @@ const dueUninstallQuery = `
     MID.user_name,
     MID.user_obj_id
   FROM MSTeamsInstallationDetails MID
-  WHERE MID.uninstallation_date IS NOT NULL
-    AND CAST(MID.uninstallation_date AS DATE) <= CAST(GETUTCDATE() AS DATE)
-    AND MID.team_id IS NOT NULL
+  LEFT JOIN MSTeamsSubscriptionDetails SD
+    ON MID.SubscriptionDetailsId = SD.ID
+  WHERE MID.team_id IS NOT NULL
     AND MID.team_id <> ''
+    AND (
+      (
+        MID.uninstallation_date IS NOT NULL
+        AND CAST(MID.uninstallation_date AS DATE) <= CAST(GETUTCDATE() AS DATE)
+      )
+      OR (
+        SD.ExpiryDate IS NOT NULL
+        AND CAST(DATEADD(DAY, 30, SD.ExpiryDate) AS DATE) <= CAST(GETUTCDATE() AS DATE)
+      )
+    )
 `;
 
 function escapeHtml(value) {
