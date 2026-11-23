@@ -18,6 +18,7 @@ const {
 const bot = require("../bot/bot");
 const incidentService = require("../services/incidentService");
 const userNotificationConsentService = require("../services/userNotificationConsentService");
+const { insertUserActivityLogs } = require("../services/userActivityLogService");
 const socketService = require("../socket/socketService");
 const {
   buildDesktopSosAcceptPayload,
@@ -333,6 +334,49 @@ class BotActivityHandler extends TeamsActivityHandler {
       const acvtivityData = context.activity;
       const teamId = acvtivityData?.channelData?.team?.id;
       const userAadObjectId = acvtivityData?.from?.aadObjectId;
+      try {
+        const channelEventType = acvtivityData?.channelData?.eventType ?? null;
+        const sessionId =
+          acvtivityData?.conversation?.id ?? acvtivityData?.id ?? null;
+        if (typeof sessionId === "string" && sessionId.length > 0) {
+          const conversationType = acvtivityData?.conversation?.conversationType;
+          const tenantId =
+            acvtivityData?.channelData?.tenant?.id ??
+            acvtivityData?.conversation?.tenantId ??
+            null;
+          const eventName =
+            typeof channelEventType === "string" && channelEventType.length > 0
+              ? channelEventType
+              : typeof conversationType === "string" &&
+                  conversationType.length > 0
+                ? conversationType
+                : "conversationUpdate";
+          const activityEvent = {
+            userId:
+              typeof userAadObjectId === "string" ? userAadObjectId : undefined,
+            teamId: typeof teamId === "string" ? teamId : undefined,
+            tenantId: typeof tenantId === "string" ? tenantId : undefined,
+            sessionId,
+            eventName,
+            moduleName: "TeamsBot",
+            actionName: "onConversationUpdate",
+            metadata: JSON.stringify({
+              eventType: channelEventType,
+              conversationType: conversationType ?? null,
+              activityId: acvtivityData?.id ?? null,
+              fromId: acvtivityData?.from?.id ?? null,
+            }),
+          };
+          void insertUserActivityLogs([activityEvent]).catch((err) =>
+            console.error("[onConversationUpdate] trackUserActivity:", err),
+          );
+        }
+      } catch (activityLogErr) {
+        console.error(
+          "[onConversationUpdate] trackUserActivity:",
+          activityLogErr,
+        );
+      }
       try {
         const conversationType = acvtivityData.conversation.conversationType;
         if (
