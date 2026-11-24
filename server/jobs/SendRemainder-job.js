@@ -3,6 +3,7 @@ const parser = require("cron-parser");
 const bot = require("../bot/bot");
 const db = require("../db");
 const incidentService = require("../services/incidentService");
+const deviceDispatcher = require("../services/devices/deviceDispatcher");
 const moment = require("moment-timezone");
 const { AYSLog } = require("../utils/log");
 const { sendProactiveMessaageToUser } = require("../api/apiMethods");
@@ -272,57 +273,16 @@ const { runGuardedJob } = require("../utils/jobGuard");
                       "Follow-up",
                     );
                   }
-                  if (
-                    IntegrationConfigure?.channels?.cisco?.connectionVerified &&
-                    IntegrationConfigure?.channels?.cisco?.enabled &&
-                    IntegrationConfigure?.channels?.cisco?.events
-                      ?.incidentFollowUp
-                  ) {
-                    await bot.sendSafetyCheckMsgViaCisco(
-                      companyData,
-                      userAadObjIds,
-                      inc_id,
-                      inc_name,
-                      member,
-                      "Follow-up",
-                    );
-                  }
-                  const broadcastKey = `${companyData?.teamId || companyData?.team_id || ""}:${inc_id}`;
-                  if (
-                    IntegrationConfigure?.channels?.ipSpeakers
-                      ?.connectionVerified &&
-                    IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
-                    IntegrationConfigure?.channels?.ipSpeakers?.events
-                      ?.incidentFollowUp
-                  ) {
-                    const key = `ip:${broadcastKey}`;
-                    if (!broadcastFollowUpSent.has(key)) {
-                      broadcastFollowUpSent.add(key);
-                      await bot.sendSafetyCheckMsgViaIpSpeakers(
-                        companyData,
-                        inc_id,
-                        inc_name,
-                        "Follow-up",
-                      );
-                    }
-                  }
-                  if (
-                    IntegrationConfigure?.channels?.digitalSignage
-                      ?.connectionVerified &&
-                    IntegrationConfigure?.channels?.digitalSignage?.enabled &&
-                    IntegrationConfigure?.channels?.digitalSignage?.events
-                      ?.incidentFollowUp
-                  ) {
-                    const key = `ds:${broadcastKey}`;
-                    if (!broadcastFollowUpSent.has(key)) {
-                      broadcastFollowUpSent.add(key);
-                      await bot.sendSafetyCheckMsgViaDigitalSignage(
-                        companyData,
-                        inc_id,
-                        inc_name,
-                        "Follow-up",
-                      );
-                    }
+                  // Devices picked for this incident: once per incident per run (this loop is per member).
+                  const deviceKey = `dev:${inc_id}`;
+                  if (!broadcastFollowUpSent.has(deviceKey)) {
+                    broadcastFollowUpSent.add(deviceKey);
+                    await deviceDispatcher.sendForIncident({
+                      incId: inc_id,
+                      kind: "followup",
+                      messageType: "Follow-up",
+                      fallbackText: inc_name,
+                    });
                   }
                   await bot.sendSafetyCheckMsgViaDesktop(
                     companyData,

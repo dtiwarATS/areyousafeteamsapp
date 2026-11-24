@@ -762,7 +762,8 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
             );
             try {
               const mentionUserEntities = [];
-              if (sendonetime == "true") {
+              // An Alarms & Sensors SOS has no person to @mention.
+              if (sendonetime == "true" && !user.isSystem) {
                 dashboard.mentionUser(
                   mentionUserEntities,
                   user.user_id,
@@ -773,9 +774,19 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
               if (sendonetime == "true") {
                 approvalCardBody.push({
                   type: "TextBlock",
-                  text: officerCopy.cardText,
+                  text: user.isSystem
+                    ? String(officerCopy.cardText).replace(/<\/?at>/g, "")
+                    : officerCopy.cardText,
                   wrap: true,
                 });
+                if (user.isSystem && user.ALERT_TEXT) {
+                  approvalCardBody.push({
+                    type: "TextBlock",
+                    text: `🚨 ${user.ALERT_TEXT}`,
+                    wrap: true,
+                    weight: "Bolder",
+                  });
+                }
                 if (Ulocation) {
                   approvalCardBody.push({
                     type: "TextBlock",
@@ -1284,108 +1295,9 @@ select user_name as title,user_aadobject_id as userAadObjId ,USER_ID as value,ST
                 });
               }
             }
-            if (
-              IntegrationConfigure?.channels?.cisco?.connectionVerified &&
-              IntegrationConfigure?.channels?.cisco?.enabled &&
-              IntegrationConfigure?.channels?.cisco?.events?.sos &&
-              sendonetime == "true"
-            ) {
-              try {
-                await bot.sendSafetyCheckMsgViaCisco(
-                  {
-                    ...admins[i],
-                    INTEGRATION_CONFIGURE:
-                      admins[i].INTEGRATION_CONFIGURE ||
-                      JSON.stringify(IntegrationConfigure),
-                    teamName: admins[i].teamName || admins[i].team_name || "",
-                    userTenantId: admins[i].user_tenant_id,
-                    IS_APP_PERMISSION_GRANTED:
-                      admins[i].IS_APP_PERMISSION_GRANTED,
-                    PHONE_FIELD: admins[i].PHONE_FIELD || "businessPhones",
-                  },
-                  [admins[i].user_aadobject_id],
-                  requestAssistanceid,
-                  `SOS from ${user.user_name || "user"}`,
-                  null,
-                  "SOS",
-                );
-              } catch (ciscoErr) {
-                processSafetyBotError(
-                  ciscoErr,
-                  "",
-                  "",
-                  admins[i].user_aadobject_id,
-                  "error sending SOS via Cisco IP Phone",
-                );
-              }
-            }
           }
         }
-        if (sendonetime == "true" && admins?.length) {
-          let sosIntegrationConfigure = null;
-          try {
-            const raw = admins[0].INTEGRATION_CONFIGURE;
-            if (raw) {
-              sosIntegrationConfigure =
-                typeof raw === "string" ? JSON.parse(raw) : raw;
-            }
-          } catch (_) {
-            sosIntegrationConfigure = null;
-          }
-          const sosCompanyData = {
-            ...admins[0],
-            INTEGRATION_CONFIGURE:
-              admins[0].INTEGRATION_CONFIGURE ||
-              JSON.stringify(sosIntegrationConfigure),
-            teamName: admins[0].teamName || admins[0].team_name || "",
-            userTenantId: admins[0].user_tenant_id,
-          };
-          if (
-            sosIntegrationConfigure?.channels?.ipSpeakers?.connectionVerified &&
-            sosIntegrationConfigure?.channels?.ipSpeakers?.enabled &&
-            sosIntegrationConfigure?.channels?.ipSpeakers?.events?.sos
-          ) {
-            try {
-              await bot.sendSafetyCheckMsgViaIpSpeakers(
-                sosCompanyData,
-                requestAssistanceid,
-                `SOS from ${user.user_name || "user"}`,
-                "SOS",
-              );
-            } catch (speakerErr) {
-              processSafetyBotError(
-                speakerErr,
-                "",
-                "",
-                "",
-                "error sending SOS via IP Speakers",
-              );
-            }
-          }
-          if (
-            sosIntegrationConfigure?.channels?.digitalSignage
-              ?.connectionVerified &&
-            sosIntegrationConfigure?.channels?.digitalSignage?.enabled &&
-            sosIntegrationConfigure?.channels?.digitalSignage?.events?.sos
-          ) {
-            try {
-              await bot.sendSafetyCheckMsgViaDigitalSignage(
-                sosCompanyData,
-                requestAssistanceid,
-                `SOS from ${user.user_name || "user"}`,
-                "SOS",
-              );
-            } catch (signageErr) {
-              processSafetyBotError(
-                signageErr,
-                "",
-                "",
-                "",
-                "error sending SOS via Digital Signage",
-              );
-            }
-          }
-        }
+        // SOS no longer alerts devices (Cisco / speakers / signage) - see DEVICE_INTEGRATIONS_DESIGN.md D5.
         void fcmService
           .sendSosPushToAdmins(
             admins,
@@ -2130,6 +2042,27 @@ WHERE id = ${res[0].id}`;
           incId,
           incObj.tempfileincId,
         );
+        // Devices picked on New Incident ("Device recipients" + "Message for devices").
+        if (newInc?.incId) {
+          try {
+            const deviceRepo = require("../services/devices/deviceGroupRepo");
+            const deviceService = require("../services/devices/deviceService");
+            await deviceRepo.clearIncidentRecipients(newInc.incId);
+            if (Array.isArray(incObj.deviceRecipients) && incObj.deviceRecipients.length) {
+              const tenantId = await deviceRepo.getTenantIdForTeam(incData.teamId);
+              if (tenantId) {
+                await deviceService.saveIncidentSelection(
+                  tenantId,
+                  newInc.incId,
+                  incObj.deviceRecipients,
+                  String(incObj.deviceMessage || incData.incTitle || "").trim(),
+                );
+              }
+            }
+          } catch (deviceErr) {
+            processSafetyBotError(deviceErr, incData.teamId || "", "", userAadObjId, "error saving incident device recipients");
+          }
+        }
       }
     } catch (err) {
       console.log(err);
@@ -2711,28 +2644,19 @@ WHERE id = ${res[0].id}`;
   }) => {
     let result = null;
     try {
-      // Reject enabled Cisco / IP Speakers / Digital Signage without a verified connection.
+      // Device integrations live in DEVICE_* tables (services/devices). Never store their
+      // settings (or plaintext passwords) in INTEGRATION_CONFIGURE again.
       try {
-        const cfg =
-          typeof integrationPanelDraft === "string"
-            ? JSON.parse(integrationPanelDraft || "{}")
-            : integrationPanelDraft;
-        const verifiedChannels = ["cisco", "ipSpeakers", "digitalSignage"];
-        for (const key of verifiedChannels) {
-          const ch = cfg?.channels?.[key];
-          if (ch?.enabled && !ch?.connectionVerified) {
-            return Promise.resolve({
-              error:
-                "Verify the connection before enabling Cisco, IP Speakers, or Digital Signage.",
-            });
-          }
-          if (ch?.enabled) {
-            const events = ch.events || {};
-            if (!events.incident && !events.sos && !events.incidentFollowUp) {
-              return Promise.resolve({
-                error: "Select at least one notification type.",
-              });
-            }
+        if (integrationPanelDraft) {
+          const cfg =
+            typeof integrationPanelDraft === "string"
+              ? JSON.parse(integrationPanelDraft || "{}")
+              : integrationPanelDraft;
+          if (cfg?.channels) {
+            ["cisco", "ipSpeakers", "digitalSignage", "iot", "audioBroadcast", "alarms"].forEach(
+              (key) => delete cfg.channels[key],
+            );
+            integrationPanelDraft = JSON.stringify(cfg);
           }
         }
       } catch (_parseErr) {

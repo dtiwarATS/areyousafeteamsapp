@@ -618,7 +618,7 @@ const getAllUserAssistanceData = async (userid, teamid) => {
 SELECT
     a.id,
     a.user_id,
-    u.user_name AS UserName,
+    COALESCE(u.user_name, sg.alarm_name) AS UserName,
     u.CITY,
     u.COUNTRY,
     u.DEPARTMENT,
@@ -691,8 +691,18 @@ FROM dbo.MSTeamsAssistance a
 LEFT JOIN dbo.MSTeamsTeamsUsers u
        ON u.user_id = a.user_id
       AND u.team_id = a.team_ids
-WHERE a.team_ids IN ('${teamid}')
-  AND LTRIM(RTRIM(ISNULL(u.user_name, ''))) <> ''
+-- Alarms & Sensors SOS: user_id = 'system:alarm:<public_id>', may be sent to several teams
+OUTER APPLY (
+    SELECT TOP 1 dg.name + ' (Alarm)' AS alarm_name
+    FROM dbo.DEVICE_GROUP dg
+    WHERE a.user_id = 'system:alarm:' + dg.public_id
+) sg
+WHERE (
+        a.team_ids IN ('${teamid}')
+        OR (sg.alarm_name IS NOT NULL
+            AND ',' + REPLACE(a.team_ids, ' ', '') + ',' LIKE '%,${teamid},%')
+      )
+  AND LTRIM(RTRIM(ISNULL(COALESCE(u.user_name, sg.alarm_name), ''))) <> ''
 ORDER BY Real_requested_date DESC, u.user_name;
 
  
@@ -716,7 +726,7 @@ B AS (
         u.CITY,
         u.COUNTRY,
         u.DEPARTMENT,
-        u.user_name AS UserName,
+        COALESCE(u.user_name, sg.alarm_name) AS UserName,
         A.sent_to_ids,
         u.user_aadobject_id,
         A.status,
@@ -777,6 +787,11 @@ B AS (
     FROM A
     LEFT JOIN MSTeamsTeamsUsers u
         ON u.user_id = A.user_id
+    OUTER APPLY (
+        SELECT TOP 1 dg.name + ' (Alarm)' AS alarm_name
+        FROM dbo.DEVICE_GROUP dg
+        WHERE A.user_id = 'system:alarm:' + dg.public_id
+    ) sg
 )
 
 SELECT *
@@ -3198,6 +3213,136 @@ const getEmergencyContacts = async (aadObjuserId, TeamID) => {
   }
 };
 
+/**
+ * SOS responder rules for ONE team (unchanged behaviour, shared by user SOS and alarm SOS):
+ *   1. responder row matching city + country
+ *   2. row matching city
+ *   3. row matching country with an empty city
+ *   4. the team's All/All row (only when the team has responder rows)
+ *   5. when the team has NO responder rows: EMERGENCY_CONTACTS, else super_users
+ *   6. still nobody: the installer (user_obj_id)
+ * @param usr                   MSTeamsInstallationDetails row (user_obj_id, super_users, EMERGENCY_CONTACTS)
+ * @param respDetailsForCurTeam MSTeamsSOSResponder rows of this team
+ * @returns array of AAD object ids
+ */
+const pickSosContactIds = (usr, respDetailsForCurTeam, usercity, usercountry) => {
+  let contactsArr = [];
+  let fieldToUse = null;
+  let responders = null;
+  if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
+    let respDetails = respDetailsForCurTeam.filter((r) => {
+      return usercity == r.CITY && usercountry == r.COUNTRY;
+    });
+    if (respDetails && respDetails.length > 0) {
+      responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+    } else {
+      let respDetails = respDetailsForCurTeam.filter((r) => {
+        return usercity == r.CITY;
+      });
+      if (respDetails && respDetails.length > 0) {
+        responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+      } else {
+        respDetails = respDetailsForCurTeam.filter((r) => {
+          return usercountry == r.COUNTRY && (r.CITY == "" || r.CITY == null);
+        });
+        if (respDetails && respDetails.length > 0) {
+          responders = respDetails[0].RESPONDER ? respDetails[0].RESPONDER : null;
+        }
+      }
+    }
+  }
+  if (responders && responders.trim() !== "") {
+    let responderArr = JSON.parse(responders);
+    fieldToUse = responderArr.map((r) => r).join(",");
+  } else if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
+    let allRespDetails = respDetailsForCurTeam.filter((r) => r.CITY === "All" && r.COUNTRY === "All");
+    if (allRespDetails && allRespDetails.length > 0) {
+      responders = allRespDetails[0].RESPONDER ? allRespDetails[0].RESPONDER : null;
+    }
+    if (responders && responders.trim() !== "") {
+      let responderArr = JSON.parse(responders);
+      fieldToUse = responderArr.map((r) => r).join(",");
+    }
+  } else if (usr.EMERGENCY_CONTACTS && usr.EMERGENCY_CONTACTS.trim() !== "") {
+    fieldToUse = usr.EMERGENCY_CONTACTS;
+  } else if (usr.super_users && usr.super_users.trim() !== "") {
+    fieldToUse = usr.super_users;
+  }
+
+  if (fieldToUse) {
+    let contacts = fieldToUse.split(",");
+    contactsArr = contacts.filter((c) => c && c.trim() !== "");
+  }
+
+  // Always include user_obj_id if present
+  if (contactsArr.length == 0 && usr.user_obj_id && !contactsArr.includes(usr.user_obj_id)) {
+    contactsArr.push(usr.user_obj_id);
+  }
+  return contactsArr;
+};
+
+/**
+ * Responders for an SOS raised by an Alarms & Sensors device group: the same rules as a
+ * user SOS, applied to EVERY team of the tenant with the group's country/city, de-duplicated.
+ * Returns admin rows shaped like getAdminsOrEmergencyContacts()[0].
+ */
+const getSystemSosAdmins = async (tenantId, country, city) => {
+  const tenantInput = { tenantId: { type: sql.VarChar(255), value: tenantId } };
+  const teams = (
+    await db.executeWithRetry(
+      `SELECT team_id, user_obj_id, super_users, EMERGENCY_CONTACTS
+       FROM MSTeamsInstallationDetails
+       WHERE user_tenant_id = @tenantId AND uninstallation_date IS NULL AND ISNULL(isDeleted, 0) = 0`,
+      tenantInput,
+      { label: "getSystemSosAdmins.teams" },
+    )
+  ).recordset;
+  if (!teams.length) return [];
+  const responderRows = (
+    await db.executeWithRetry(
+      `SELECT r.* FROM MSTeamsSOSResponder r
+       WHERE r.TEAM_ID IN (SELECT team_id FROM MSTeamsInstallationDetails
+                           WHERE user_tenant_id = @tenantId AND uninstallation_date IS NULL)`,
+      tenantInput,
+      { label: "getSystemSosAdmins.responders" },
+    )
+  ).recordset;
+
+  const byTeam = [];
+  teams.forEach((usr) => {
+    const rows = responderRows.filter((r) => r.TEAM_ID === usr.team_id);
+    const ids = pickSosContactIds(usr, rows, city || "All", country || "All");
+    if (ids.length) byTeam.push({ teamId: usr.team_id, ids });
+  });
+
+  const seen = new Set();
+  const admins = [];
+  for (const t of byTeam) {
+    const inputs = { teamId: { type: sql.VarChar(255), value: t.teamId } };
+    const idParams = t.ids.map((id, i) => {
+      inputs[`id${i}`] = { type: sql.VarChar(255), value: String(id).trim() };
+      return `@id${i}`;
+    });
+    const rows = (
+      await db.executeWithRetry(
+        `SELECT distinct A.user_id,A.email,A.user_aadobject_id,A.conversationId,A.LANGUAGE_ID, B.serviceUrl,B.SOS_NOTIFICATION,B.INTEGRATION_CONFIGURE,B.SHOW_SOS_BUTTON as ALLOW_USERS_TO_SEND_SOS_REQUEST,B.created_date,B.FOLLOW_UP_INCIDENT_NOTIFICATION,B.SEND_INCIDENT_MESSAGES_VIA,B.PHONE_FIELD, B.user_tenant_id, A.user_name, B.team_id, B.team_name,B.IS_APP_PERMISSION_GRANTED,B.SEND_EMAIL
+         FROM MSTEAMSTEAMSUSERS A
+         LEFT JOIN MSTEAMSINSTALLATIONDETAILS B ON A.TEAM_ID = B.TEAM_ID
+         WHERE A.team_id = @teamId AND A.USER_AADOBJECT_ID IN (${idParams.join(",")})
+           AND B.serviceUrl IS NOT NULL AND B.user_tenant_id IS NOT NULL AND B.uninstallation_date IS NULL`,
+        inputs,
+        { label: "getSystemSosAdmins.users" },
+      )
+    ).recordset;
+    rows.forEach((r) => {
+      if (seen.has(r.user_aadobject_id)) return; // one card per person across teams
+      seen.add(r.user_aadobject_id);
+      admins.push(r);
+    });
+  }
+  return admins;
+};
+
 const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
   console.log("Getting admins or emergency contacts");
   try {
@@ -3248,80 +3393,7 @@ const getAdminsOrEmergencyContacts = async (aadObjuserId, TeamID) => {
 
           usercountry = userDetail?.country?.trim() || null;
         }
-        // Prefer emergency contacts if present, else use super_users
-        let fieldToUse = null;
-        let responders = null;
-        if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
-          let respDetails = respDetailsForCurTeam.filter((r) => {
-            return usercity == r.CITY && usercountry == r.COUNTRY;
-          });
-          if (respDetails && respDetails.length > 0) {
-            responders = respDetails[0].RESPONDER
-              ? respDetails[0].RESPONDER
-              : null;
-          } else {
-            let respDetails = respDetailsForCurTeam.filter((r) => {
-              return usercity == r.CITY;
-            });
-            if (respDetails && respDetails.length > 0) {
-              responders = respDetails[0].RESPONDER
-                ? respDetails[0].RESPONDER
-                : null;
-            } else {
-              respDetails = respDetailsForCurTeam.filter((r) => {
-                return (
-                  usercountry == r.COUNTRY && (r.CITY == "" || r.CITY == null)
-                );
-              });
-              if (respDetails && respDetails.length > 0) {
-                responders = respDetails[0].RESPONDER
-                  ? respDetails[0].RESPONDER
-                  : null;
-              }
-            }
-          }
-        }
-        if (responders && responders.trim() !== "") {
-          let responderArr = JSON.parse(responders);
-          fieldToUse = responderArr.map((r) => r).join(",");
-        } else if (respDetailsForCurTeam && respDetailsForCurTeam.length > 0) {
-          let allRespDetails = responderDetails.filter(
-            (r) =>
-              r.TEAM_ID === userTeamId &&
-              r.CITY === "All" &&
-              r.COUNTRY === "All",
-          );
-          if (allRespDetails && allRespDetails.length > 0) {
-            responders = allRespDetails[0].RESPONDER
-              ? allRespDetails[0].RESPONDER
-              : null;
-          }
-          if (responders && responders.trim() !== "") {
-            let responderArr = JSON.parse(responders);
-            fieldToUse = responderArr.map((r) => r).join(",");
-          }
-        } else if (
-          usr.EMERGENCY_CONTACTS &&
-          usr.EMERGENCY_CONTACTS.trim() !== ""
-        ) {
-          fieldToUse = usr.EMERGENCY_CONTACTS;
-        } else if (usr.super_users && usr.super_users.trim() !== "") {
-          fieldToUse = usr.super_users;
-        }
-
-        if (fieldToUse) {
-          let contacts = fieldToUse.split(",");
-          contactsArr = contacts.filter((c) => c && c.trim() !== "");
-        }
-
-        // Always include user_obj_id if present
-        if (
-          contactsArr.length == 0 &&
-          usr.user_obj_id &&
-          !contactsArr.includes(usr.user_obj_id)
-        ) {
-          contactsArr.push(usr.user_obj_id);
-        }
+        contactsArr = pickSosContactIds(usr, respDetailsForCurTeam, usercity, usercountry);
 
         if (
           contactsArr.length > 0 &&
@@ -5946,6 +6018,8 @@ module.exports = {
   updateCommentViaSMSLink,
   getEmergencyContacts,
   getAdminsOrEmergencyContacts,
+  pickSosContactIds,
+  getSystemSosAdmins,
   getEmergencyContactsList,
   getUserInfoByTeamId,
   saveAllTypelogs,

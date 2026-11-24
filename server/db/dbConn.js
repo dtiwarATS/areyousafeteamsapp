@@ -11,6 +11,14 @@ const getAppDbConfig = () => ({
   port: 1433,
   connectionTimeout: 300000,
   requestTimeout: 300000,
+  // mssql defaults to max 10 connections; a dashboard / New Incident load fires many requests at
+  // once and the rest timed out in tarn ("operation timed out"). Tune DB_POOL_MAX per Azure SQL tier.
+  pool: {
+    max: Number(process.env.DB_POOL_MAX) || 25,
+    min: 0,
+    idleTimeoutMillis: 30000,
+    acquireTimeoutMillis: 60000,
+  },
   options: {
     trustServerCertificate: true,
     encrypt: true,

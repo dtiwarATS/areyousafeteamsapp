@@ -134,7 +134,7 @@ if (process.env.isLocal == "false") {
   shouldStartCronScheduler()
     .then((startScheduler) => {
       if (startScheduler) {
-        initJob();
+        //initJob();
       }
       logSchedulerDiagnostics();
     })
@@ -170,6 +170,25 @@ app.use(express.json({ limit: "50mb" }));
 
 app.use("/api", require("./api"));
 areYouSafeTabHandler.handlerForSafetyBotTab(app);
+
+// Device integrations: public assets (alert tone for Audio Broadcast calls)
+app.use(require("./devices/publicRoutes"));
+// Alarms & Sensors: inbound alerts from panic buttons / fire panels / sensors (JSON or CAP 1.2 XML)
+app.post(
+  "/v1/alerts/:publicId",
+  express.text({
+    type: ["application/xml", "text/xml", "application/cap+xml", "text/plain"],
+    limit: "256kb",
+  }),
+  require("./services/devices/alarmInbound").handleAlert,
+);
+// Device Emulator for testing integrations without hardware — staging only.
+if (String(process.env.DEVICE_SIMULATOR || "").toLowerCase() === "true") {
+  app.use("/sim", require("./devices/simulator"));
+  console.log(
+    "[devices] Device Emulator enabled at /sim (DEVICE_SIMULATOR=true)",
+  );
+}
 
 app.get("/", (req, res) => {
   res.send(

@@ -13,9 +13,7 @@ const {
 const incidentService = require("../services/incidentService");
 const fcmService = require("../services/fcmService");
 const userNotificationConsentService = require("../services/userNotificationConsentService");
-const ciscoService = require("../services/ciscoService");
-const ipSpeakerService = require("../services/ipSpeakerService");
-const digitalSignageService = require("../services/digitalSignageService");
+const deviceDispatcher = require("../services/devices/deviceDispatcher");
 const path = require("path");
 const FormData = require("form-data");
 const mail = require("../utils/mail");
@@ -2960,243 +2958,6 @@ const sendSafetyCheckMsgViaWhatsapp = async (
   }
 };
 
-const buildBroadcastAlertCopy = (
-  companyData,
-  incTitle,
-  isfrominctype = "onetime",
-) => {
-  const titlePrefix =
-    isfrominctype === "Follow-up"
-      ? "Follow-up"
-      : isfrominctype === "SOS"
-        ? "SOS"
-        : "Safety Check";
-  const alertTitle = String(titlePrefix).slice(0, 32);
-  const alertText = String(
-    `${titlePrefix} from ${companyData?.teamName || "Safety Check"} - ${
-      incTitle || ""
-    }`.trim(),
-  ).slice(0, 255);
-  return { alertTitle, alertText, titlePrefix };
-};
-
-const sendSafetyCheckMsgViaIpSpeakers = async (
-  companyData,
-  incId,
-  incTitle,
-  isfrominctype = "onetime",
-) => {
-  try {
-    const config = ipSpeakerService.getIpSpeakersConfigFromIntegration(
-      companyData?.INTEGRATION_CONFIGURE,
-    );
-    if (!config) return;
-    const { alertTitle, alertText, titlePrefix } = buildBroadcastAlertCopy(
-      companyData,
-      incTitle,
-      isfrominctype,
-    );
-    const result = await ipSpeakerService.sendAlert(
-      config,
-      alertTitle,
-      alertText,
-    );
-    incidentService.saveAllTypeQuerylogs(
-      "",
-      "",
-      "IP_SPEAKERS",
-      config.vendor || "",
-      incId,
-      result?.ok ? "SENT_TO_IP_SPEAKERS" : result?.reason || "SEND_FAILED",
-      isfrominctype,
-      "",
-      incTitle || "",
-      "",
-      result?.message || titlePrefix,
-    );
-  } catch (err) {
-    processSafetyBotError(
-      err,
-      companyData?.teamId || "",
-      "",
-      "",
-      "error in sendSafetyCheckMsgViaIpSpeakers",
-    );
-  }
-};
-
-const sendSafetyCheckMsgViaDigitalSignage = async (
-  companyData,
-  incId,
-  incTitle,
-  isfrominctype = "onetime",
-) => {
-  try {
-    const config = digitalSignageService.getDigitalSignageConfigFromIntegration(
-      companyData?.INTEGRATION_CONFIGURE,
-    );
-    if (!config) return;
-    const { alertTitle, alertText, titlePrefix } = buildBroadcastAlertCopy(
-      companyData,
-      incTitle,
-      isfrominctype,
-    );
-    const result = await digitalSignageService.sendAlert(
-      config,
-      alertTitle,
-      alertText,
-    );
-    incidentService.saveAllTypeQuerylogs(
-      "",
-      "",
-      "DIGITAL_SIGNAGE",
-      config.vendor || "",
-      incId,
-      result?.ok ? "SENT_TO_DIGITAL_SIGNAGE" : result?.reason || "SEND_FAILED",
-      isfrominctype,
-      "",
-      incTitle || "",
-      "",
-      result?.message || titlePrefix,
-    );
-  } catch (err) {
-    processSafetyBotError(
-      err,
-      companyData?.teamId || "",
-      "",
-      "",
-      "error in sendSafetyCheckMsgViaDigitalSignage",
-    );
-  }
-};
-
-const sendSafetyCheckMsgViaCisco = async (
-  companyData,
-  users,
-  incId,
-  incTitle,
-  incData,
-  isfrominctype = "onetime",
-) => {
-  try {
-    const ciscoConfig = ciscoService.getCiscoConfigFromIntegration(
-      companyData?.INTEGRATION_CONFIGURE,
-    );
-    if (!ciscoConfig?.cucm) {
-      return;
-    }
-
-    const usrPhones = await resolveUserPhonesForMessaging(companyData, users);
-    const titlePrefix =
-      isfrominctype === "Follow-up"
-        ? "Follow-up"
-        : isfrominctype === "SOS"
-          ? "SOS"
-          : "Safety Check";
-    const alertTitle = String(titlePrefix).slice(0, 32);
-    const alertText = String(
-      `${titlePrefix} from ${companyData.teamName || "Safety Check"} - ${
-        incTitle || ""
-      }`.trim(),
-    ).slice(0, 255);
-
-    for (const user of usrPhones || []) {
-      try {
-        const dn =
-          Array.isArray(user.businessPhones) && user.businessPhones[0]
-            ? String(user.businessPhones[0]).trim()
-            : "";
-        if (!dn) {
-          incidentService.saveAllTypeQuerylogs(
-            user.id,
-            user.displayName || "",
-            "CISCO",
-            "",
-            incId,
-            "PHONE_NUM_NOT_FOUND",
-            isfrominctype,
-            "",
-            incTitle || "",
-            "",
-            "",
-          );
-          continue;
-        }
-
-        const result = await ciscoService.sendAlertToDirectoryNumber(
-          ciscoConfig.cucm,
-          dn,
-          alertTitle,
-          alertText,
-        );
-
-        if (result?.ok) {
-          incidentService.saveAllTypeQuerylogs(
-            user.id,
-            user.displayName || "",
-            "CISCO",
-            dn.slice(-4).padStart(dn.length, "x"),
-            incId,
-            "SENT_TO_CISCO",
-            isfrominctype,
-            result.deviceName || "",
-            incTitle || "",
-            result.ip || "",
-            "",
-          );
-        } else {
-          incidentService.saveAllTypeQuerylogs(
-            user.id,
-            user.displayName || "",
-            "CISCO",
-            dn.slice(-4).padStart(dn.length, "x"),
-            incId,
-            result?.reason || "SEND_FAILED",
-            isfrominctype,
-            result?.deviceName || "",
-            incTitle || "",
-            "",
-            "",
-          );
-        }
-      } catch (err) {
-        processSafetyBotError(
-          err,
-          companyData?.teamId || "",
-          "",
-          user?.id || "",
-          "error in sendSafetyCheckMsgViaCisco user loop",
-        );
-        try {
-          incidentService.saveAllTypeQuerylogs(
-            user?.id || "",
-            user?.displayName || "",
-            "CISCO",
-            "",
-            incId,
-            "SENDING_ERROR",
-            isfrominctype,
-            "",
-            incTitle || "",
-            "",
-            String(err?.message || err || ""),
-          );
-        } catch (_logErr) {
-          // ignore log failures
-        }
-      }
-    }
-  } catch (err) {
-    processSafetyBotError(
-      err,
-      companyData?.teamId || "",
-      "",
-      "",
-      "error in sendSafetyCheckMsgViaCisco",
-    );
-  }
-};
-
 const sendSafetyCheckMsgViaEmail = async (
   companyData,
   users,
@@ -5658,33 +5419,10 @@ const NewsendSafetyCheckMessageAsync = async (
         incData,
       );
     }
-    if (
-      IntegrationConfigure?.channels?.cisco?.connectionVerified &&
-      IntegrationConfigure?.channels?.cisco?.enabled &&
-      IntegrationConfigure?.channels?.cisco?.events?.incident
-    ) {
-      sendSafetyCheckMsgViaCisco(
-        companyData,
-        userAadObjIds,
-        incId,
-        incTitle,
-        incData,
-      );
-    }
-    if (
-      IntegrationConfigure?.channels?.ipSpeakers?.connectionVerified &&
-      IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
-      IntegrationConfigure?.channels?.ipSpeakers?.events?.incident
-    ) {
-      sendSafetyCheckMsgViaIpSpeakers(companyData, incId, incTitle);
-    }
-    if (
-      IntegrationConfigure?.channels?.digitalSignage?.connectionVerified &&
-      IntegrationConfigure?.channels?.digitalSignage?.enabled &&
-      IntegrationConfigure?.channels?.digitalSignage?.events?.incident
-    ) {
-      sendSafetyCheckMsgViaDigitalSignage(companyData, incId, incTitle);
-    }
+    // Devices the sender picked on New Incident (fire-and-forget, like the other channels).
+    deviceDispatcher
+      .sendForIncident({ incId, kind: "incident", messageType: "onetime", fallbackText: incTitle })
+      .catch((err) => processSafetyBotError(err, teamId, "", "", "error sending incident to devices"));
     fcmService
       .sendSafetyCheckPushToMembers(allMembersArr, {
         incId,
@@ -7012,44 +6750,13 @@ const sendRecurrEventMsgAsync = async (
         "recurringIncident",
       );
     }
-    if (
-      IntegrationConfigure?.channels?.cisco?.connectionVerified &&
-      IntegrationConfigure?.channels?.cisco?.enabled &&
-      IntegrationConfigure?.channels?.cisco?.events?.incident
-    ) {
-      await sendSafetyCheckMsgViaCisco(
-        companyData,
-        userAadObjIds,
-        incId,
-        incTitle,
-        subEventObj,
-        "recurringIncident",
-      );
-    }
-    if (
-      IntegrationConfigure?.channels?.ipSpeakers?.connectionVerified &&
-      IntegrationConfigure?.channels?.ipSpeakers?.enabled &&
-      IntegrationConfigure?.channels?.ipSpeakers?.events?.incident
-    ) {
-      await sendSafetyCheckMsgViaIpSpeakers(
-        companyData,
-        incId,
-        incTitle,
-        "recurringIncident",
-      );
-    }
-    if (
-      IntegrationConfigure?.channels?.digitalSignage?.connectionVerified &&
-      IntegrationConfigure?.channels?.digitalSignage?.enabled &&
-      IntegrationConfigure?.channels?.digitalSignage?.events?.incident
-    ) {
-      await sendSafetyCheckMsgViaDigitalSignage(
-        companyData,
-        incId,
-        incTitle,
-        "recurringIncident",
-      );
-    }
+    // Devices the sender picked on New Incident (stored per incident, reused on every run).
+    await deviceDispatcher.sendForIncident({
+      incId,
+      kind: "incident",
+      messageType: "recurringIncident",
+      fallbackText: incTitle,
+    });
     sendSafetyCheckMsgViaDesktop(
       companyData,
       extractUserAadObjIds(subEventObj.eventMembers),
@@ -7996,8 +7703,5 @@ module.exports = {
   getUserDetails,
   sendWhatsappMessage,
   sendSafetyCheckMsgViaEmail,
-  sendSafetyCheckMsgViaCisco,
-  sendSafetyCheckMsgViaIpSpeakers,
-  sendSafetyCheckMsgViaDigitalSignage,
   sendSafetyCheckMsgViaDesktop,
 };

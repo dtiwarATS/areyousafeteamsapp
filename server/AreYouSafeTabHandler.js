@@ -3005,6 +3005,13 @@ const handlerForSafetyBotTab = (app) => {
       //closedByUserData should have 2 properties: user_id and user_name
       let requestedUser = requestedUserData[0];
       let closedByUser = closedByUserData[0];
+      // An Alarms & Sensors SOS has no person to tell it was closed.
+      if (
+        require("./utils/systemSos").isSystemRequester(requestedUser?.user_id) ||
+        require("./utils/systemSos").isSystemRequester(userAadObjId)
+      ) {
+        return;
+      }
       if (requestedUserData != null) {
         const approvalCardResponse = {
           $schema: "http://adaptivecards.io/schemas/adaptive-card.json",
@@ -4876,94 +4883,8 @@ const handlerForSafetyBotTab = (app) => {
     }
   });
 
-  app.post("/areyousafetabhandler/verifyCiscoConnection", async (req, res) => {
-    const reqBody = req.body || {};
-    try {
-      const ciscoService = require("./services/ciscoService");
-      const result = await ciscoService.verifyConnection({
-        url: reqBody.url,
-        username: reqBody.username,
-        password: reqBody.password,
-      });
-      res.send(result);
-    } catch (err) {
-      console.log(err);
-      processSafetyBotError(
-        err,
-        reqBody.teamId || "",
-        "",
-        "",
-        "error in /areyousafetabhandler/verifyCiscoConnection",
-      );
-      res.status(500).send({
-        ok: false,
-        message:
-          err?.message || "Could not verify CUCM connection. Please try again.",
-      });
-    }
-  });
-
-  app.post(
-    "/areyousafetabhandler/verifyIpSpeakersConnection",
-    async (req, res) => {
-      const reqBody = req.body || {};
-      try {
-        const ipSpeakerService = require("./services/ipSpeakerService");
-        const result = await ipSpeakerService.verifyConnection({
-          vendor: reqBody.vendor === "axis" ? "axis" : "algo",
-          algo: reqBody.algo,
-          axis: reqBody.axis,
-        });
-        res.send(result);
-      } catch (err) {
-        console.log(err);
-        processSafetyBotError(
-          err,
-          reqBody.teamId || "",
-          "",
-          "",
-          "error in /areyousafetabhandler/verifyIpSpeakersConnection",
-        );
-        res.status(500).send({
-          ok: false,
-          message:
-            err?.message ||
-            "Could not verify IP Speakers connection. Please try again.",
-        });
-      }
-    },
-  );
-
-  app.post(
-    "/areyousafetabhandler/verifyDigitalSignageConnection",
-    async (req, res) => {
-      const reqBody = req.body || {};
-      try {
-        const digitalSignageService = require("./services/digitalSignageService");
-        const result = await digitalSignageService.verifyConnection({
-          vendor: reqBody.vendor === "samsung" ? "samsung" : "brightsign",
-          brightsign: reqBody.brightsign,
-          samsung: reqBody.samsung,
-        });
-        res.send(result);
-      } catch (err) {
-        console.log(err);
-        processSafetyBotError(
-          err,
-          reqBody.teamId || "",
-          "",
-          "",
-          "error in /areyousafetabhandler/verifyDigitalSignageConnection",
-        );
-        res.status(500).send({
-          ok: false,
-          message:
-            err?.message ||
-            "Could not verify Digital Signage connection. Please try again.",
-        });
-      }
-    },
-  );
+  // Device integrations (Settings > Integrations, New Incident device recipients): server/devices/deviceRoutes.js
+  app.use(require("./devices/deviceRoutes"));
 
   app.get("/areyousafetabhandler/getUserConsentStats", async (req, res) => {
     const tenantId = req.query.tenantId;

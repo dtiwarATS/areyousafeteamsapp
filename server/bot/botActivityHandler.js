@@ -19,6 +19,7 @@ const bot = require("../bot/bot");
 const incidentService = require("../services/incidentService");
 const userNotificationConsentService = require("../services/userNotificationConsentService");
 const socketService = require("../socket/socketService");
+const { isSystemRequester, getSystemRequesterInfo } = require("../utils/systemSos");
 const {
   buildDesktopSosAcceptPayload,
   buildPostAcceptOfficerCopy,
@@ -1838,9 +1839,10 @@ class BotActivityHandler extends TeamsActivityHandler {
       const checkQuery = `SELECT FIRST_RESPONDER, FIRST_RESPONDER_RESPONDED_AT FROM MSTeamsAssistance WHERE id = ${requestAssistanceid}`;
       const existingResponse = await db.getDataFromDB(checkQuery, userAadObjId);
 
-      // Get user info for the requester
-      const userInfo =
-        await incidentService.getUserInfoByUserAadObjId(userAadObjId);
+      // Get user info for the requester (an Alarms & Sensors SOS has a system requester)
+      const userInfo = isSystemRequester(userAadObjId)
+        ? [await getSystemRequesterInfo(userAadObjId)]
+        : await incidentService.getUserInfoByUserAadObjId(userAadObjId);
       if (!userInfo || userInfo.length === 0) {
         // Send error message to admin using proactive messaging
         const adminMemberArr = [
@@ -1988,12 +1990,14 @@ class BotActivityHandler extends TeamsActivityHandler {
             firstResponderName,
           );
 
-          // Add mention entities for the requester
-          dashboard.mentionUser(
-            firstResponderMentionEntities,
-            requesterUser.user_id,
-            requesterUser.user_name,
-          );
+          // Add mention entities for the requester (not for a system/alarm requester)
+          if (!requesterUser.isSystem) {
+            dashboard.mentionUser(
+              firstResponderMentionEntities,
+              requesterUser.user_id,
+              requesterUser.user_name,
+            );
+          }
 
           const alreadyHandledCopy = await buildPostAcceptOfficerCopy(
             clickingAdminLanguageId,
@@ -2086,16 +2090,18 @@ class BotActivityHandler extends TeamsActivityHandler {
           version: "1.4",
         };
 
-        // Send message to the user
-        await sendProactiveMessaageToUser(
-          memberArr,
-          messageCard,
-          null,
-          serviceUrl,
-          tenantId,
-          null,
-          user.id,
-        );
+        // Send message to the user (an alarm has no person to tell)
+        if (!requesterUser.isSystem) {
+          await sendProactiveMessaageToUser(
+            memberArr,
+            messageCard,
+            null,
+            serviceUrl,
+            tenantId,
+            null,
+            user.id,
+          );
+        }
 
         // Emit via WebSocket so connected clients (e.g. requester's mobile app) get real-time "Accept and respond" notification
         socketService.emitRespondToAssistance(tenantId, {

@@ -78,7 +78,8 @@ const isAdminUser = async (userObjId, teamid) => {
     }
 
     // check if the user is super user or not
-    if (res.length == 0) {
+    // (getDataFromDB returns undefined on a DB error, e.g. pool timeout → treat as no rows)
+    if (!res || res.length == 0) {
       adminUserLogin = false;
     } else {
       adminUserLogin = true;
@@ -112,7 +113,7 @@ const isWhoCanCreateIncident = async (userObjId, teamid) => {
     res = await db.getDataFromDB(superUserQuery, userObjId);
 
     // check if the user is super user or not
-    if (res.length == 0) {
+    if (!res || res.length == 0) {
       isWhoCanCreateIncident = false;
     } else {
       isWhoCanCreateIncident = true;
