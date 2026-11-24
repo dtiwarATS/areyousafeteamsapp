@@ -2,37 +2,78 @@
  * Device Emulator: fake vendor endpoints for testing device integrations without hardware.
  * Mounted at /sim by server/index.js ONLY when DEVICE_SIMULATOR=true (staging). Never in production.
  *
- * Outcomes are chosen by the address you type in Settings:
- *   any path segment starting with "down"  → connection dropped (unreachable)
- *   "auth-fail" segment, or username "fail" / Client ID "sim-fail" → 401 (wrong credentials)
- *   anything else → success
+ * It behaves like real systems: only the TEST ACCOUNTS below sign in, only the listed
+ * device pools / groups / players exist, everything else fails the way a real system would.
  * Every alert a fake device receives is recorded; see GET /sim/inbox.
  *
- * Addresses to use (replace HOST with this API's host):
- *   Algo   speaker/strobe : https://HOST/sim/algo/ok1, https://HOST/sim/algo/down1
- *   Axis   speaker/siren  : https://HOST/sim/axis/ok1           (siren profiles: Emergency, Evacuate)
- *   Cisco  CUCM URL       : https://HOST/sim/cucm/axl/          (pool DP_Test_48 → 48 phones, DP_Empty → none)
- *   BrightSign            : Client ID sim (or sim-fail), any secret, serials e.g. SIM001, SIM002, DOWN1
- *   Samsung MagicINFO     : Server URL https://HOST/sim/magicinfo, group 12 (3 displays), 0 = empty, missing = not found
+ *   Password for every test account: Test@123  (see TEST below)
+ *   Cisco CUCM   : https://HOST/sim/cucm/axl/     user axl          pools DP_Test_48 (48, 44 registered) · DP_Pune (5) · DP_London (3) · DP_Empty (0)
+ *   Algo         : https://HOST/sim/algo/<name>   API password      (Basic or Standard/HMAC)
+ *   Axis         : https://HOST/sim/axis/<name>   user root         siren profiles Emergency, Evacuate
+ *   BrightSign   : Client ID sim                  secret            players SIM001 … SIM009
+ *   MagicINFO    : https://HOST/sim/magicinfo     user admin        groups 12 (3 screens) · 20 (5) · 0 (empty)
+ *   Unreachable  : any address segment starting with "down" (e.g. https://HOST/sim/algo/down1)
  */
+const crypto = require("crypto");
 const express = require("express");
 const inbox = require("./inbox");
+
+const TEST = {
+  password: "Test@123",
+  ciscoUser: "axl",
+  axisUser: "root",
+  bsnClientId: "sim",
+  magicUser: "admin",
+};
+const CISCO_POOLS = { DP_Test_48: 48, DP_Pune: 5, DP_London: 3, DP_Empty: 0 };
+const MAGIC_GROUPS = { 12: 3, 20: 5, 0: 0 };
+const BSN_PLAYERS = new Set(Array.from({ length: 9 }, (_, i) => `SIM00${i + 1}`));
+const SIREN_PROFILES = ["Emergency", "Evacuate"];
 
 const router = express.Router();
 router.use(express.text({ type: ["text/xml", "application/xml", "application/soap+xml"], limit: "1mb" }));
 router.use(express.urlencoded({ extended: false }));
 router.use(express.json());
 
-/* ----------------------------- outcome helpers ---------------------------- */
+/* ------------------------------ auth helpers ------------------------------ */
 
-const basicUser = (req) => {
+const basicCreds = (req) => {
   const h = String(req.headers.authorization || "");
   if (!/^basic /i.test(h)) return null;
   try {
-    return Buffer.from(h.slice(6), "base64").toString("utf8").split(":")[0];
+    const raw = Buffer.from(h.slice(6), "base64").toString("utf8");
+    const i = raw.indexOf(":");
+    return { user: raw.slice(0, i), pass: raw.slice(i + 1) };
   } catch (e) {
     return null;
   }
+};
+
+const basicOk = (req, user) => {
+  const c = basicCreds(req);
+  return !!c && c.user === user && c.pass === TEST.password;
+};
+
+/**
+ * Algo auth: Basic admin:<API password>, or "Standard" HMAC
+ *   Authorization: hmac admin:<nonce>:<sha256 hex of METHOD:uri:contentMD5:contentType:timestamp:nonce>
+ * The timestamp isn't sent, so accept any second in the last 2 minutes.
+ */
+const algoAuthOk = (req, deviceUri) => {
+  if (basicOk(req, "admin")) return true;
+  const m = /^hmac admin:([^:]+):([0-9a-f]+)$/i.exec(String(req.headers.authorization || ""));
+  if (!m) return false;
+  const [, nonce, digest] = m;
+  const md5 = String(req.headers["content-md5"] || "");
+  const types = [String(req.headers["content-type"] || "").split(";")[0], "application/json"];
+  const now = Math.floor(Date.now() / 1000);
+  for (const ct of types) {
+    for (let t = now + 5; t >= now - 120; t--) {
+      const input = [req.method.toUpperCase(), deviceUri, md5, ct, String(t), nonce].join(":");
+      if (crypto.createHmac("sha256", TEST.password).update(input, "utf8").digest("hex") === digest.toLowerCase()) return true;
+    }
+  }
+  return false;
 };
 
 // Any "down*" path segment → drop the connection (simulates an unreachable device/server)
@@ -44,55 +85,58 @@ router.use((req, res, next) => {
   next();
 });
 
-const authFails = (req, id) => id === "auth-fail" || basicUser(req) === "fail" || !req.headers.authorization;
-
 /* --------------------------------- Algo ---------------------------------- */
 
-router.get("/algo/:id/api/info/about", (req, res) => {
-  if (authFails(req, req.params.id)) return res.status(401).json({ error: "Unauthorized" });
+const algoGuard = (req, res, next) => {
+  const uri = req.path.replace(/^\/algo\/[^/]+/, ""); // e.g. /api/info/about
+  if (!algoAuthOk(req, uri)) return res.status(401).json({ error: "Unauthorized" });
+  next();
+};
+
+router.get("/algo/:id/api/info/about", algoGuard, (req, res) => {
   res.json({ "audio.model": "8301", "about.firmware": "5.7.1", id: req.params.id });
 });
 
-router.post("/algo/:id/api/controls/tone/start", (req, res) => {
-  if (authFails(req, req.params.id)) return res.status(401).json({ error: "Unauthorized" });
+router.post("/algo/:id/api/controls/tone/start", algoGuard, (req, res) => {
   const body = typeof req.body === "string" ? safeJson(req.body) : req.body;
   inbox.record({ vendor: "Algo speaker", device: req.params.id, action: `Played tone ${body?.path || ""}` });
   res.json({ status: "ok" });
 });
 
-router.post("/algo/:id/api/controls/strobe/start", (req, res) => {
-  if (authFails(req, req.params.id)) return res.status(401).json({ error: "Unauthorized" });
+router.post("/algo/:id/api/controls/strobe/start", algoGuard, (req, res) => {
   inbox.record({ vendor: "Algo strobe", device: req.params.id, action: "Strobe started" });
   res.json({ status: "ok" });
 });
 
-router.post("/algo/:id/api/controls/strobe/stop", (req, res) => {
+router.post("/algo/:id/api/controls/strobe/stop", algoGuard, (req, res) => {
   inbox.record({ vendor: "Algo strobe", device: req.params.id, action: "Strobe stopped" });
   res.json({ status: "ok" });
 });
 
 /* --------------------------------- Axis ---------------------------------- */
 
-router.get("/axis/:id/axis-cgi/param.cgi", (req, res) => {
-  if (authFails(req, req.params.id)) return res.status(401).send("Unauthorized");
+const axisGuard = (req, res, next) => {
+  if (!basicOk(req, TEST.axisUser)) return res.status(401).send("Unauthorized");
+  next();
+};
+
+router.get("/axis/:id/axis-cgi/param.cgi", axisGuard, (req, res) => {
   res.type("text/plain").send("root.MediaClip.M0.Name=Evacuation\nroot.MediaClip.M1.Name=Alert tone\n");
 });
 
-router.get("/axis/:id/axis-cgi/mediaclip.cgi", (req, res) => {
-  if (authFails(req, req.params.id)) return res.status(401).send("Unauthorized");
+router.get("/axis/:id/axis-cgi/mediaclip.cgi", axisGuard, (req, res) => {
   inbox.record({ vendor: "Axis speaker", device: req.params.id, action: `Played clip ${req.query.clip}` });
   res.type("text/plain").send("OK");
 });
 
-router.post("/axis/:id/axis-cgi/siren_and_light.cgi", (req, res) => {
-  if (authFails(req, req.params.id)) return res.status(401).send("Unauthorized");
+router.post("/axis/:id/axis-cgi/siren_and_light.cgi", axisGuard, (req, res) => {
   const body = typeof req.body === "string" ? safeJson(req.body) : req.body;
   if (body?.method === "listProfiles") {
-    return res.json({ apiVersion: "1.0", method: "listProfiles", data: { profiles: [{ name: "Emergency" }, { name: "Evacuate" }] } });
+    return res.json({ apiVersion: "1.0", method: "listProfiles", data: { profiles: SIREN_PROFILES.map((name) => ({ name })) } });
   }
   if (body?.method === "start") {
     const name = body?.params?.name;
-    if (!["Emergency", "Evacuate"].includes(name)) {
+    if (!SIREN_PROFILES.includes(name)) {
       return res.json({ apiVersion: "1.0", method: "start", error: { code: 2104, message: "Profile not found" } });
     }
     inbox.record({ vendor: "Axis strobe siren", device: req.params.id, action: `Started profile ${name}` });
@@ -105,10 +149,10 @@ router.post("/axis/:id/axis-cgi/siren_and_light.cgi", (req, res) => {
 
 const DESCS = ["Reception", "Floor 2 – Desk 14", "Floor 3 – Meeting room", "Security desk", "Floor 3 – Desk 2", "Boardroom"];
 
+/** Phones in a known pool; unknown pools have none (AXL returns no rows). */
 const poolPhones = (pool) => {
-  if (/empty/i.test(pool)) return [];
-  const m = /_(\d+)$/.exec(pool);
-  const n = Math.min(m ? Number(m[1]) : 5, 500);
+  const n = CISCO_POOLS[pool];
+  if (!n) return [];
   let seed = 0;
   for (const ch of pool) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
   const prefix = ("00" + seed.toString(16).toUpperCase()).slice(-8);
@@ -123,11 +167,12 @@ const soapEnvelope = (inner) =>
 
 const xmlEsc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-router.post("/cucm/axl", (req, res) => cucmAxl(req, res));
-router.post("/cucm/axl/", (req, res) => cucmAxl(req, res));
+const ciscoGuard = (req, res, next) => {
+  if (!basicOk(req, TEST.ciscoUser)) return res.status(401).send("Unauthorized");
+  next();
+};
 
 const cucmAxl = (req, res) => {
-  if (basicUser(req) === "fail" || !req.headers.authorization) return res.status(401).send("Unauthorized");
   const body = String(req.body || "");
   res.type("text/xml");
   if (/getCCMVersion/i.test(body)) {
@@ -144,13 +189,14 @@ const cucmAxl = (req, res) => {
   }
   res.status(500).send(soapEnvelope("<soapenv:Fault><faultstring>Unsupported AXL request in emulator</faultstring></soapenv:Fault>"));
 };
+router.post("/cucm/axl", ciscoGuard, cucmAxl);
+router.post("/cucm/axl/", ciscoGuard, cucmAxl);
 
 const risHandler = (req, res) => {
-  if (basicUser(req) === "fail" || !req.headers.authorization) return res.status(401).send("Unauthorized");
   const body = String(req.body || "");
   const names = [...body.matchAll(/<(?:\w+:)?Item>([^<]+)<\/(?:\w+:)?Item>/gi)].map((m) => m[1].trim());
   const phoneBase = `${req.get("host")}${req.baseUrl}/ciscophone`;
-  // Every 10th phone is "unregistered" so the registered count differs from the pool size.
+  // Every 10th phone is "unregistered", so the registered count differs from the pool size.
   const devices = names
     .filter((n) => !/0$/.test(n))
     .map(
@@ -170,11 +216,11 @@ const risHandler = (req, res) => {
       ),
     );
 };
-router.post("/cucm/realtimeservice2/services/RISService70", risHandler);
-router.post("/cucm/realtimeservice/services/RisPort70", risHandler);
+router.post("/cucm/realtimeservice2/services/RISService70", ciscoGuard, risHandler);
+router.post("/cucm/realtimeservice/services/RisPort70", ciscoGuard, risHandler);
 
-router.post("/ciscophone/:name/CGI/Execute", (req, res) => {
-  let xml = req.body && req.body.XML ? String(req.body.XML) : String(req.body || "");
+router.post("/ciscophone/:name/CGI/Execute", ciscoGuard, (req, res) => {
+  const xml = req.body && req.body.XML ? String(req.body.XML) : String(req.body || "");
   let title = "";
   let text = "";
   try {
@@ -191,39 +237,62 @@ router.post("/ciscophone/:name/CGI/Execute", (req, res) => {
 
 /* ------------------------------- BrightSign ------------------------------ */
 
+const bsnTokens = new Set();
+
 router.post("/bsn/auth/token", (req, res) => {
-  const user = basicUser(req);
-  if (!user || /fail/i.test(user)) return res.status(401).json({ error: "invalid_client", error_description: "Invalid client credentials" });
-  res.json({ access_token: "sim-token-" + Date.now(), token_type: "Bearer", expires_in: 3600 });
+  const c = basicCreds(req);
+  if (!c || c.user !== TEST.bsnClientId || c.pass !== TEST.password) {
+    return res.status(401).json({ error: "invalid_client", error_description: "Invalid client credentials" });
+  }
+  const token = "sim-bsn-" + crypto.randomBytes(8).toString("hex");
+  bsnTokens.add(token);
+  if (bsnTokens.size > 500) bsnTokens.delete(bsnTokens.values().next().value);
+  res.json({ access_token: token, token_type: "Bearer", expires_in: 3600 });
 });
 
-router.get("/bsn/rest/v1/info", (req, res) => {
+const bsnGuard = (req, res, next) => {
+  const token = String(req.headers.authorization || "").replace(/^bearer\s+/i, "");
+  if (!bsnTokens.has(token)) return res.status(401).json({ data: { error: { message: "Unauthorized" } } });
   const serial = String(req.query.destinationName || "");
-  if (/down|missing/i.test(serial)) return res.status(404).json({ data: { error: { message: "Player not found" } } });
-  res.json({ data: { result: { serial, model: "XT1144", FWVersion: "8.5.47" } } });
+  if (!BSN_PLAYERS.has(serial)) return res.status(404).json({ data: { error: { message: "Player not found" } } });
+  next();
+};
+
+router.get("/bsn/rest/v1/info", bsnGuard, (req, res) => {
+  res.json({ data: { result: { serial: req.query.destinationName, model: "XT1144", FWVersion: "8.5.47" } } });
 });
 
-router.put("/bsn/rest/v1/registry", (req, res) => {
-  const serial = String(req.query.destinationName || "");
-  if (/down|missing/i.test(serial)) return res.status(404).json({ data: { error: { message: "Player not found" } } });
+router.put("/bsn/rest/v1/registry", bsnGuard, (req, res) => {
   const body = typeof req.body === "string" ? safeJson(req.body) : req.body;
-  inbox.record({ vendor: "BrightSign player", device: serial, action: "Showing alert", text: body?.data?.value || "" });
+  inbox.record({ vendor: "BrightSign player", device: String(req.query.destinationName), action: "Showing alert", text: body?.data?.value || "" });
   res.json({ data: { result: { success: true } } });
 });
 
 /* ------------------------------- MagicINFO ------------------------------- */
 
+const magicTokens = new Set();
+
 router.post("/magicinfo/restapi/v2.0/auth", (req, res) => {
   const body = typeof req.body === "string" ? safeJson(req.body) : req.body;
-  if (!body?.username || /fail/i.test(body.username)) return res.status(401).json({ message: "Invalid username or password" });
-  res.json({ token: "sim-magicinfo-" + Date.now() });
+  if (body?.username !== TEST.magicUser || body?.password !== TEST.password) {
+    return res.status(401).json({ message: "Invalid username or password" });
+  }
+  const token = "sim-magicinfo-" + crypto.randomBytes(8).toString("hex");
+  magicTokens.add(token);
+  if (magicTokens.size > 500) magicTokens.delete(magicTokens.values().next().value);
+  res.json({ token });
 });
 
-router.post("/magicinfo/restapi/v2.0/rms/devices/filter", (req, res) => {
+const magicGuard = (req, res, next) => {
+  if (!magicTokens.has(String(req.headers.api_key || ""))) return res.status(401).json({ message: "Unauthorized" });
+  next();
+};
+
+router.post("/magicinfo/restapi/v2.0/rms/devices/filter", magicGuard, (req, res) => {
   const body = typeof req.body === "string" ? safeJson(req.body) : req.body;
-  const g = String(body?.groupId || "");
-  if (!g || /missing/i.test(g)) return res.status(404).json({ message: "Group not found" });
-  const n = g === "0" ? 0 : 3;
+  const g = String(body?.groupId ?? "");
+  if (!(g in MAGIC_GROUPS)) return res.status(404).json({ message: "Group not found" });
+  const n = MAGIC_GROUPS[g];
   res.json({
     items: Array.from({ length: n }, (_, i) => ({ deviceId: `G${g}-D${i + 1}`, deviceName: `Lobby screen ${i + 1}` })),
     totalCount: n,
@@ -231,7 +300,7 @@ router.post("/magicinfo/restapi/v2.0/rms/devices/filter", (req, res) => {
 });
 
 const messages = new Map();
-router.post("/magicinfo/restapi/v1.0/dms/schedule/messages", (req, res) => {
+router.post("/magicinfo/restapi/v1.0/dms/schedule/messages", magicGuard, (req, res) => {
   const body = typeof req.body === "string" ? safeJson(req.body) : req.body;
   const id = "MSG-" + Date.now();
   messages.set(id, body?.message || "");
@@ -239,7 +308,7 @@ router.post("/magicinfo/restapi/v1.0/dms/schedule/messages", (req, res) => {
   res.json({ messageId: id });
 });
 
-router.put("/magicinfo/restapi/v1.0/dms/schedule/messages/:id/deploy", (req, res) => {
+router.put("/magicinfo/restapi/v1.0/dms/schedule/messages/:id/deploy", magicGuard, (req, res) => {
   const body = typeof req.body === "string" ? safeJson(req.body) : req.body;
   const text = messages.get(req.params.id) || "";
   (body?.deviceIds || [body?.groupId || "?"]).forEach((d) =>
@@ -266,3 +335,4 @@ function safeJson(s) {
 }
 
 module.exports = router;
+module.exports.TEST = TEST;

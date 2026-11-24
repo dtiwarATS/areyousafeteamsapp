@@ -243,6 +243,22 @@ const saveGroup = async ({ id, tenantId, type, values, secretsObj, notify, devic
   return getGroup(r.recordset[0].id, { tenantId });
 };
 
+/** Refresh a group's device snapshot after a successful re-verify (settings unchanged). */
+const updateSnapshot = async (tenantId, id, devices, verifyText) => {
+  await q(
+    `UPDATE DEVICE_GROUP
+     SET devices_json = @devices, verified_at = SYSUTCDATETIME(), last_verify_result = @text
+     WHERE id = @id AND tenant_id = @tenantId AND is_deleted = 0`,
+    {
+      devices: { type: sql.NVarChar(sql.MAX), value: JSON.stringify(devices) },
+      text: { type: sql.NVarChar(500), value: verifyText ? String(verifyText).slice(0, 500) : null },
+      id: { type: sql.UniqueIdentifier, value: id },
+      tenantId: { type: sql.VarChar(255), value: tenantId },
+    },
+    "updateSnapshot",
+  );
+};
+
 const softDeleteGroup = async (tenantId, id, user) => {
   await q(
     `UPDATE DEVICE_GROUP SET is_deleted = 1, updated_at = SYSUTCDATETIME(), updated_by = @user
@@ -342,21 +358,107 @@ const getAlertTestStatus = async (groupId, since) => {
 /* Incident device recipients                                          */
 /* ------------------------------------------------------------------ */
 
+/** One INSERT for all picked devices (was one round trip per device). */
 const saveIncidentRecipients = async (incidentId, rows, deviceMessage) => {
-  for (const row of rows) {
-    await q(
-      `INSERT INTO INCIDENT_DEVICE_RECIPIENT (incident_id, group_id, device_ref, device_label, device_message)
-       VALUES (@inc, @g, @ref, @label, @msg)`,
-      {
-        inc: { type: sql.Int, value: Number(incidentId) },
-        g: { type: sql.UniqueIdentifier, value: row.groupId },
-        ref: { type: sql.NVarChar(500), value: String(row.ref).slice(0, 500) },
-        label: { type: sql.NVarChar(500), value: row.label ? String(row.label).slice(0, 500) : null },
-        msg: { type: sql.NVarChar(1000), value: deviceMessage ? String(deviceMessage).slice(0, 1000) : null },
-      },
-      "saveIncidentRecipients",
-    );
-  }
+  if (!rows || !rows.length) return;
+  const payload = rows.map((row) => ({
+    g: String(row.groupId),
+    ref: String(row.ref).slice(0, 500),
+    label: row.label ? String(row.label).slice(0, 500) : null,
+  }));
+  await q(
+    `INSERT INTO INCIDENT_DEVICE_RECIPIENT (incident_id, group_id, device_ref, device_label, device_message)
+     SELECT @inc, j.g, j.ref, j.label, @msg
+     FROM OPENJSON(@rows) WITH (g UNIQUEIDENTIFIER '$.g', ref NVARCHAR(500) '$.ref', label NVARCHAR(500) '$.label') j`,
+    {
+      inc: { type: sql.Int, value: Number(incidentId) },
+      rows: { type: sql.NVarChar(sql.MAX), value: JSON.stringify(payload) },
+      msg: { type: sql.NVarChar(1000), value: deviceMessage ? String(deviceMessage).slice(0, 1000) : null },
+    },
+    "saveIncidentRecipients",
+  );
+};
+
+/** Write the latest send result for each device of one group (one UPDATE). */
+const setRecipientStatus = async (incidentId, groupId, results) => {
+  if (!results || !results.length) return;
+  const payload = results.map((r) => ({
+    ref: String(r.ref).slice(0, 500),
+    st: r.ok ? "sent" : "failed",
+    err: r.ok ? null : String(r.error || "Send failed").slice(0, 500),
+  }));
+  await q(
+    `UPDATE d SET send_status = j.st, send_error = j.err, sent_at = SYSUTCDATETIME()
+     FROM INCIDENT_DEVICE_RECIPIENT d
+     JOIN OPENJSON(@rows) WITH (ref NVARCHAR(500) '$.ref', st VARCHAR(10) '$.st', err NVARCHAR(500) '$.err') j
+       ON j.ref = d.device_ref
+     WHERE d.incident_id = @inc AND d.group_id = @g`,
+    {
+      inc: { type: sql.Int, value: Number(incidentId) },
+      g: { type: sql.UniqueIdentifier, value: String(groupId) },
+      rows: { type: sql.NVarChar(sql.MAX), value: JSON.stringify(payload) },
+    },
+    "setRecipientStatus",
+  );
+};
+
+/* Rows never sent 10 minutes after they were saved count as failed ("Not sent"). */
+const STATUS_SQL = `CASE WHEN d.send_status IS NOT NULL THEN d.send_status
+       WHEN d.created_at < DATEADD(MINUTE, -10, SYSUTCDATETIME()) THEN 'failed'
+       ELSE 'pending' END`;
+
+/**
+ * Device counts per incident, only for incidents whose team the user belongs to.
+ * @returns {Promise<Record<string,{total:number,sent:number,failed:number,pending:number}>>}
+ */
+const getDeliverySummaries = async (userId, incIds) => {
+  const ids = [...new Set((incIds || []).map(Number).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 500);
+  if (!ids.length) return {};
+  const r = await q(
+    `SELECT x.incident_id, COUNT(*) AS total,
+       SUM(CASE WHEN x.st = 'sent' THEN 1 ELSE 0 END) AS sent,
+       SUM(CASE WHEN x.st = 'failed' THEN 1 ELSE 0 END) AS failed,
+       SUM(CASE WHEN x.st = 'pending' THEN 1 ELSE 0 END) AS pending
+     FROM (
+       SELECT d.incident_id, ${STATUS_SQL} AS st
+       FROM INCIDENT_DEVICE_RECIPIENT d
+       JOIN MSTeamsIncidents i ON i.id = d.incident_id
+       WHERE d.incident_id IN (SELECT value FROM OPENJSON(@ids))
+         AND EXISTS (SELECT 1 FROM MSTeamsTeamsUsers u WHERE u.team_id = i.team_id AND u.user_aadobject_id = @u)
+     ) x
+     GROUP BY x.incident_id`,
+    {
+      ids: { type: sql.NVarChar(sql.MAX), value: JSON.stringify(ids) },
+      u: { type: sql.VarChar(256), value: String(userId) },
+    },
+    "getDeliverySummaries",
+  );
+  const out = {};
+  r.recordset.forEach((row) => {
+    out[String(row.incident_id)] = { total: row.total, sent: row.sent, failed: row.failed, pending: row.pending };
+  });
+  return out;
+};
+
+/** Device rows of one incident (null when the user isn't in the incident's team). */
+const getDeliveryDetails = async (userId, incId) => {
+  const r = await q(
+    `SELECT d.group_id, d.device_ref, d.device_label, ${STATUS_SQL} AS st, d.send_error, d.sent_at,
+       g.type, g.name AS group_name, g.devices_json,
+       CASE WHEN EXISTS (SELECT 1 FROM MSTeamsTeamsUsers u WHERE u.team_id = i.team_id AND u.user_aadobject_id = @u)
+            THEN 1 ELSE 0 END AS allowed
+     FROM INCIDENT_DEVICE_RECIPIENT d
+     JOIN MSTeamsIncidents i ON i.id = d.incident_id
+     LEFT JOIN DEVICE_GROUP g ON g.id = d.group_id
+     WHERE d.incident_id = @inc`,
+    {
+      inc: { type: sql.Int, value: Number(incId) },
+      u: { type: sql.VarChar(256), value: String(userId) },
+    },
+    "getDeliveryDetails",
+  );
+  if (r.recordset.length && !r.recordset[0].allowed) return null;
+  return r.recordset;
 };
 
 const clearIncidentRecipients = async (incidentId) => {
@@ -398,6 +500,7 @@ module.exports = {
   getGroupByPublicId,
   isNameTaken,
   saveGroup,
+  updateSnapshot,
   softDeleteGroup,
   regenerateAlarmKey,
   logAlert,
@@ -405,6 +508,9 @@ module.exports = {
   countRecentSosAlerts,
   getAlertTestStatus,
   saveIncidentRecipients,
+  setRecipientStatus,
+  getDeliverySummaries,
+  getDeliveryDetails,
   clearIncidentRecipients,
   getIncidentRecipients,
 };

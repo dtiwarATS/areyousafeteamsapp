@@ -98,4 +98,23 @@ router.get(
 
 router.get(`${BASE}/recipients`, guard(true), handle("/recipients", (req) => svc.getRecipients(req.device.tenantId)));
 
+/* Incident list › device delivery. Any member of the incident's team (checked in the query),
+   so no admin guard; only a userId is needed. */
+const member = (req, res, next) => {
+  const userId = param(req, "userId");
+  if (!userId) return res.status(400).json({ error: "userId is required." });
+  req.device = { userId, teamId: param(req, "teamId") || "" };
+  next();
+};
+
+router.post(
+  `${BASE}/delivery-summaries`,
+  member,
+  handle("/delivery-summaries", async (req) => ({
+    summaries: await svc.getDeliverySummaries(req.device.userId, Array.isArray(req.body?.incIds) ? req.body.incIds : []),
+  })),
+);
+
+router.get(`${BASE}/delivery`, member, handle("/delivery", (req) => svc.getDeliveryDetails(req.device.userId, param(req, "incId"))));
+
 module.exports = router;

@@ -140,16 +140,30 @@ const setEnabled = async (tenantId, type, enabled, user) => {
 
 const verify = async (tenantId, { type, groupId, values: rawValues, secrets: rawSecrets, notify }) => {
   if (type === "alarms") throw new DeviceError(400, "Alarms & Sensors is verified with a test alert.");
-  const { values, secretsObj } = await prepare(tenantId, type, groupId, rawValues, rawSecrets);
+  const { values, secretsObj, stored } = await prepare(tenantId, type, groupId, rawValues, rawSecrets);
   const errors = defs.validate(type, values, secretsObj, { notify: notify || { incident: true } });
   delete errors.name; // name isn't needed to verify
   delete errors._notify;
-  if (Object.keys(errors).length) return { kind: "error", text: "Fix the highlighted fields, then verify again.", errors };
+  if (Object.keys(errors).length) {
+    return { kind: "error", text: "Fix the highlighted fields, then verify again.", summary: "Fix the highlighted fields", errors };
+  }
 
   const result = await adapters[type].verify({ tenantId, values, secrets: secretsObj });
   const devices = sanitizeDevices(result.devices);
-  const out = { kind: result.kind, text: result.text, deviceCount: devices.length, devices };
-  if (result.kind !== "error") out.verifyToken = signToken(configHash(tenantId, type, values, secretsObj), result.kind);
+  const hash = configHash(tenantId, type, values, secretsObj);
+  const out = { kind: result.kind, text: result.text, summary: result.summary || result.text, deviceCount: devices.length, devices };
+  if (result.kind !== "error") out.verifyToken = signToken(hash, result.kind);
+
+  // Re-verifying a saved group with unchanged connection settings refreshes its saved device list
+  // straight away (which phones are registered / speakers respond), so New Incident shows the right
+  // devices without the admin having to change a field just to enable Save.
+  if (stored && result.kind !== "error" && devices.length) {
+    const storedHash = configHash(tenantId, type, { ...stored.values }, stored.secrets || {});
+    if (storedHash === hash) {
+      await repo.updateSnapshot(tenantId, stored.id, devices, result.text);
+      out.savedSnapshot = true;
+    }
+  }
   return out;
 };
 
@@ -274,6 +288,49 @@ const saveIncidentSelection = async (tenantId, incidentId, selection, deviceMess
   return { saved: rows.length };
 };
 
+/** Incident list: { incId: {total, sent, failed, pending} } for incidents with devices. */
+const getDeliverySummaries = async (userId, incIds) => repo.getDeliverySummaries(userId, incIds);
+
+/** "Devices" dialog: one row per device picked for the incident, failed first. */
+const getDeliveryDetails = async (userId, incId) => {
+  if (!Number.isInteger(Number(incId)) || Number(incId) <= 0) throw new DeviceError(400, "incId is required.");
+  const rows = await repo.getDeliveryDetails(userId, incId);
+  if (rows === null) throw new DeviceError(403, "You can't see this incident.");
+  const metaCache = new Map();
+  const order = { failed: 0, pending: 1, sent: 2 };
+  const devices = rows.map((r) => {
+    const gid = String(r.group_id);
+    if (!metaCache.has(gid)) {
+      let list = [];
+      try {
+        list = JSON.parse(r.devices_json || "[]");
+      } catch (e) {
+        /* ignore */
+      }
+      metaCache.set(gid, new Map(list.map((d) => [String(d.ref), d])));
+    }
+    const d = metaCache.get(gid).get(String(r.device_ref)) || {};
+    const status = r.st === "sent" ? "sent" : r.st === "failed" ? "failed" : "sending";
+    return {
+      ref: r.device_ref,
+      name: r.device_label || d.label || r.device_ref,
+      group: r.type ? `${defs.TYPE_LABELS[r.type] || r.type} – ${r.group_name}` : "Deleted device group",
+      meta: d.meta || "",
+      status,
+      reason: status === "failed" ? r.send_error || "Not sent." : "",
+      sentAt: r.sent_at,
+    };
+  });
+  devices.sort((a, b) => order[a.status === "sending" ? "pending" : a.status] - order[b.status === "sending" ? "pending" : b.status]);
+  return {
+    total: devices.length,
+    sent: devices.filter((d) => d.status === "sent").length,
+    failed: devices.filter((d) => d.status === "failed").length,
+    sending: devices.filter((d) => d.status === "sending").length,
+    devices,
+  };
+};
+
 module.exports = {
   DeviceError,
   getIntegrations,
@@ -286,5 +343,7 @@ module.exports = {
   alarmTestStatus,
   getRecipients,
   saveIncidentSelection,
+  getDeliverySummaries,
+  getDeliveryDetails,
   alertBaseUrl,
 };

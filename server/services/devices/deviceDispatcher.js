@@ -74,6 +74,13 @@ const sendForIncident = async ({ incId, kind = "incident", messageType = "onetim
           results = sel.refs.map((ref) => ({ ref, ok: false, error: err.message || String(err) }));
         }
 
+        // Per-device status for the incident card / Devices dialog (main send only).
+        if (kind === "incident") {
+          repo.setRecipientStatus(incId, groupId, results).catch((err) =>
+            processSafetyBotError(err, "", "", "", `deviceDispatcher: save status incident ${incId}`),
+          );
+        }
+
         const channel = LOG_CHANNEL[group.type];
         const labels = new Map((group.devices || []).map((d) => [String(d.ref), d.label]));
         results.forEach((r) => {

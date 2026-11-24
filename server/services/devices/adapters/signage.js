@@ -96,12 +96,13 @@ const verifyBrightSign = async (v, s) => {
       kind: "warning",
       text: `${ok.length} of ${serials.length} players connected. Not reached: ${bad
         .map((b) => b.serial)
-        .join(", ")}. Fix it and verify again, or save as is.`,
+        .join(", ")}. Fix ${bad.length === 1 ? "it" : "them"} and verify again, or save as is.`,
+      summary: `${ok.length} of ${serials.length} players connected · Not reached: ${bad.map((b) => b.serial).join(", ")}`,
       devices,
     };
   }
   const count = serials.length === 1 ? "1 player" : `${serials.length} of ${serials.length} players`;
-  return { kind: "success", text: `Connected. ${count} responded.`, devices };
+  return { kind: "success", text: `Connected. ${count} responded.`, summary: `${count} responded`, devices };
 };
 
 const sendBrightSign = async (v, s, refs, { title, text }) => {
@@ -183,7 +184,12 @@ const verifySamsung = async (v, s) => {
   if (!devices.length) {
     return { kind: "error", text: `Connected to MagicINFO Server, but group ${v.group} has no displays.` };
   }
-  return { kind: "success", text: "Connected to MagicINFO Server. Group found.", devices };
+  return {
+    kind: "success",
+    text: "Connected to MagicINFO Server. Group found.",
+    summary: `Group ${v.group} found · ${devices.length} screen${devices.length === 1 ? "" : "s"}`,
+    devices,
+  };
 };
 
 const sendSamsung = async (v, s, refs, { title, text }) => {

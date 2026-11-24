@@ -110,10 +110,12 @@ const listItems = (s) =>
     .map((x) => x.trim())
     .filter((x) => x.length > 0);
 
-// http:// is accepted only with the Device Emulator on (local testing without TLS).
+// Device addresses must be https://. Plain http:// is accepted only for localhost / 127.0.0.1
+// while the Device Emulator is on (local testing without TLS) — never for real devices.
 const isHttps = (u) =>
   /^https:\/\/[^\s/]+/i.test(u) ||
-  (String(process.env.DEVICE_SIMULATOR || "").toLowerCase() === "true" && /^http:\/\/[^\s/]+/i.test(u));
+  (String(process.env.DEVICE_SIMULATOR || "").toLowerCase() === "true" &&
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/i.test(String(u || "").trim()));
 
 const isVisible = (type, f, vals) => {
   const vk = DEFS[type].vendorKey;

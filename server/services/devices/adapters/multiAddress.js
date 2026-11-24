@@ -14,6 +14,17 @@ const { classify, hostOf, mapLimit, plural } = require("./http");
  *   check(addr) async — throws on failure
  *   successSuffix optional text appended on success (e.g. " Profile found.")
  */
+/** Short name for an address in summaries: last path segment (emulator) or the host (real device). */
+const shortAddr = (addr) => {
+  try {
+    const u = new URL(addr);
+    const seg = u.pathname.split("/").filter(Boolean).pop();
+    return seg || u.host;
+  } catch (e) {
+    return String(addr);
+  }
+};
+
 const verifyAddresses = async ({ addresses, noun, vendor, meta, check, successSuffix = "" }) => {
   const list = listItems(addresses);
   const results = await mapLimit(list, 5, async (addr) => {
@@ -34,11 +45,12 @@ const verifyAddresses = async ({ addresses, noun, vendor, meta, check, successSu
     return {
       kind: "error",
       text: "Sign-in failed. " + (vendor === "algo" ? "Check the API password and auth method." : "Check the username and password."),
+      summary: vendor === "algo" ? "Sign-in failed – check the API password" : "Sign-in failed – check the username and password",
       devices,
     };
   }
   const custom = failed.find((r) => r.kind === "custom");
-  if (custom && !ok.length) return { kind: "error", text: custom.err.message, devices };
+  if (custom && !ok.length) return { kind: "error", text: custom.err.message, summary: custom.err.summary || custom.err.message, devices };
 
   if (!ok.length) {
     const first = failed[0];
@@ -46,22 +58,34 @@ const verifyAddresses = async ({ addresses, noun, vendor, meta, check, successSu
       return {
         kind: "error",
         text: `Can’t reach ${hostOf(first.addr)}. Check the address and that it is reachable from the internet.`,
+        summary: `Can’t reach ${failed.map((f) => shortAddr(f.addr)).join(", ")}`,
         devices,
       };
     }
-    return { kind: "error", text: `${hostOf(first.addr)} didn’t accept the request. Check the device settings.`, devices };
+    return {
+      kind: "error",
+      text: `${hostOf(first.addr)} didn’t accept the request. Check the device settings.`,
+      summary: `${shortAddr(first.addr)} didn’t accept the request`,
+      devices,
+    };
   }
   if (failed.length) {
     return {
       kind: "warning",
       text: `${ok.length} of ${list.length} ${noun}s connected. Not reached: ${failed
         .map((f) => f.addr)
-        .join(", ")}. Fix it and verify again, or save as is.`,
+        .join(", ")}. Fix ${failed.length === 1 ? "it" : "them"} and verify again, or save as is.`,
+      summary: `${ok.length} of ${list.length} connected · Not reached: ${failed.map((f) => shortAddr(f.addr)).join(", ")}`,
       devices,
     };
   }
   const count = list.length === 1 ? `1 ${noun}` : `${list.length} of ${list.length} ${noun}s`;
-  return { kind: "success", text: `Connected. ${count} responded.${successSuffix}`, devices };
+  return {
+    kind: "success",
+    text: `Connected. ${count} responded.${successSuffix}`,
+    summary: `${count} responded${successSuffix ? " · " + successSuffix.trim().replace(/.$/, "").toLowerCase() : ""}`,
+    devices,
+  };
 };
 
 /** Send to the selected addresses (refs). Returns [{ref, ok, error?}]. */

@@ -205,6 +205,9 @@ const verify = async (group) => {
     return {
       kind: "success",
       text: `Connected to CUCM. ${registered} registered phone${registered === 1 ? "" : "s"} found in ${cfg.pool}.`,
+      summary:
+        `${registered} registered phone${registered === 1 ? "" : "s"} in ${cfg.pool}` +
+        (devices.length > registered ? ` · ${devices.length - registered} not registered (not alerted)` : ""),
       // connected = registered with CUCM; only connected phones are offered on New Incident.
       devices: devices.map((d) => ({ ...d, connected: !!ips[d.ref] })),
     };
@@ -212,6 +215,7 @@ const verify = async (group) => {
     return {
       kind: "warning",
       text: `Connected to CUCM. ${devices.length} phones found in ${cfg.pool}, but their registration couldn’t be checked. Check the user has the Standard CCM Admin Users and Standard RealtimeAndTraceCollection roles.`,
+      summary: `${devices.length} phones in ${cfg.pool} · registration not checked`,
       devices,
     };
   }
