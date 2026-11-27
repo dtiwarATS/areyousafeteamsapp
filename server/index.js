@@ -121,6 +121,12 @@ function initJob() {
         path: path.join(__dirname, "jobs", "consentPhoneEligible-job.js"),
         cron: "30 2,14 * * *",
       },
+      {
+        name: "syncConversationIds-job",
+        path: path.join(__dirname, "jobs", "syncConversationIds-job.js"),
+        cron: "0 * * * *",
+        closeWorkerAfterMs: 55 * 60 * 1000,
+      },
     ],
   });
   //cron1: "*/1 * * * *"

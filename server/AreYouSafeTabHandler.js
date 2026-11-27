@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const sql = require("mssql");
 const incidentService = require("./services/incidentService");
+const { saveInstalledUsers } = require("./services/installedUsersService");
 const path = require("path");
 const poolPromise = require("./db/dbConn");
 const db = require("./db");
@@ -24,6 +25,7 @@ const {
   sendPushNotification,
   getFcmTokensForUsers,
 } = require("./services/fcmService");
+const { insertUserActivityLogs } = require("./services/userActivityLogService");
 const { decryptTenantIdFromApiKey } = require("./utils/apiKeyDecrypt");
 const {
   buildTeamMap,
@@ -2650,91 +2652,11 @@ const handlerForSafetyBotTab = (app) => {
         return res.sendStatus(204);
       }
 
-      const pool = await poolPromise;
-      const now = new Date();
-
-      let values = [];
-      let request = pool.request();
-
-      events.forEach((e, index) => {
-        const sessionId = typeof e?.sessionId === "string" ? e.sessionId : "";
-        const eventName = typeof e?.eventName === "string" ? e.eventName : "";
-        const moduleName =
-          typeof e?.moduleName === "string" ? e.moduleName : "";
-        const actionName =
-          typeof e?.actionName === "string" ? e.actionName : "";
-
-        if (!sessionId || !eventName || !moduleName || !actionName) {
-          throw new Error(
-            "Each event must include sessionId, eventName, moduleName, and actionName",
-          );
-        }
-
-        values.push(`
-        (
-          @UserId${index},
-          @TeamId${index},
-          @TenantId${index},
-          @SessionId${index},
-          @EventName${index},
-          @ModuleName${index},
-          @ActionName${index},
-          @Metadata${index},
-          @EventDateTime${index},
-          @CreatedAt${index}
-        )
-      `);
-
-        request
-          .input(
-            `UserId${index}`,
-            sql.NVarChar(100),
-            typeof e?.userId === "string" ? e.userId : null,
-          )
-          .input(
-            `TeamId${index}`,
-            sql.NVarChar(100),
-            typeof e?.teamId === "string" ? e.teamId : null,
-          )
-          .input(
-            `TenantId${index}`,
-            sql.NVarChar(100),
-            typeof e?.tenantId === "string" ? e.tenantId : null,
-          )
-          .input(`SessionId${index}`, sql.NVarChar(200), sessionId)
-          .input(`EventName${index}`, sql.NVarChar(200), eventName)
-          .input(`ModuleName${index}`, sql.NVarChar(200), moduleName)
-          .input(`ActionName${index}`, sql.NVarChar(200), actionName)
-          .input(
-            `Metadata${index}`,
-            sql.NVarChar(sql.MAX),
-            typeof e?.metadata === "string" ? e.metadata : null,
-          )
-          .input(`EventDateTime${index}`, sql.DateTime, now)
-          .input(`CreatedAt${index}`, sql.DateTime, now);
-      });
-
-      const query = `
-      INSERT INTO UserActivityLogs (
-        UserId,
-        TeamId,
-        TenantId,
-        SessionId,
-        EventName,
-        ModuleName,
-        ActionName,
-        Metadata,
-        EventDateTime,
-        CreatedAt
-      )
-      VALUES ${values.join(",")}
-    `;
-
-      await request.query(query);
+      const { inserted } = await insertUserActivityLogs(events);
 
       return res.status(200).json({
         ok: true,
-        inserted: events.length,
+        inserted,
       });
     } catch (err) {
       console.error("[trackUserActivity] error:", err);
@@ -4369,229 +4291,14 @@ const handlerForSafetyBotTab = (app) => {
           error: "Tenant ID is required",
         });
       }
-      // Use mssql for parameterized queries
-      const sql = require("mssql");
-      const pool = await poolPromise;
 
-      const toSqlNVarChar = (value) =>
-        `N'${String(value).replace(/'/g, "''")}'`;
-      const toSqlNVarCharOrNull = (value) => {
-        if (value === null || value === undefined) return "NULL";
-        const str = String(value);
-        if (str.length === 0) return "NULL";
-        return toSqlNVarChar(str);
-      };
-      const hasConversationId = (conversationId) =>
-        conversationId !== null &&
-        conversationId !== undefined &&
-        String(conversationId).toLowerCase() !== "null" &&
-        String(conversationId).length > 0;
-      const getKey = (team, aad) => `${team}::${aad}`;
-
-      // Normalize users (preserve input order for response)
-      const normalized = users.map((user, index) => {
-        const userTeamId = user.team_id || user.teamId || teamId;
-        const userAadObjectId =
-          user.aadObjectId ||
-          user.objectId ||
-          user.aadUserId ||
-          user.user_aadobject_id;
-        const userId =
-          user.user_id || user.userId || user.id || userAadObjectId;
-        const userName =
-          user.user_name ||
-          user.userName ||
-          user.displayName ||
-          user.name ||
-          "";
-        const userPrincipalName =
-          user.userPrincipalName || user.user_principal_name || user.upn || "";
-        const email = user.email || user.mail || "";
-        const userRole = user.userRole || user.user_role || user.role || "User";
-        const isTeamMember =
-          user.IS_TEAM_MEMBER !== undefined
-            ? user.IS_TEAM_MEMBER
-            : user.isTeamMember !== undefined
-              ? user.isTeamMember
-              : 1;
-
-        const isValid = Boolean(userTeamId && userAadObjectId);
-        return {
-          index,
-          original: user,
-          isValid,
-          team_id: userTeamId,
-          user_aadobject_id: userAadObjectId,
-          user_id: userId,
-          user_name: userName,
-          userPrincipalName,
-          email,
-          tenantid: tenantId,
-          userRole,
-          IS_TEAM_MEMBER: isTeamMember ? 1 : 0,
-          hasLicense: 0,
-          conversationId: null,
-          conversation: false,
-        };
-      });
-
-      let skippedCount = 0;
-      for (const u of normalized) {
-        if (!u.isValid) skippedCount++;
-      }
-
-      const validUsers = normalized.filter((u) => u.isValid);
-      if (validUsers.length === 0) {
-        return res.send({
-          success: false,
-          error: "No valid users to save after validation",
-          skippedCount,
-          totalUsers: users.length,
-        });
-      }
-
-      // Batch pre-check: which users already have conversationId in DB
-      const keysValuesClause = validUsers
-        .map(
-          (u) =>
-            `(${toSqlNVarChar(u.team_id)}, ${toSqlNVarChar(u.user_aadobject_id)})`,
-        )
-        .join(",\n    ");
-
-      const precheckQuery = `
-        SELECT 
-          source.team_id,
-          source.user_aadobject_id,
-          existing.conversationId
-        FROM (VALUES
-          ${keysValuesClause}
-        ) AS source (team_id, user_aadobject_id)
-        LEFT JOIN MSTeamsTeamsUsers AS existing
-          ON existing.team_id = source.team_id
-         AND existing.user_aadobject_id = source.user_aadobject_id;
-      `;
-
-      const precheckResult = await pool.request().query(precheckQuery);
-      const existingConversationMap = new Map();
-      for (const row of precheckResult.recordset || []) {
-        existingConversationMap.set(
-          getKey(row.team_id, row.user_aadobject_id),
-          row.conversationId,
-        );
-      }
-
-      let alreadyHadConversationCount = 0;
-      for (const u of validUsers) {
-        const existingConversationId = existingConversationMap.get(
-          getKey(u.team_id, u.user_aadobject_id),
-        );
-        if (hasConversationId(existingConversationId)) {
-          u.conversationId = existingConversationId;
-          u.conversation = true;
-          alreadyHadConversationCount++;
-        }
-      }
-
-      // Create conversations only for users missing conversationId
-      let createdConversationCount = 0;
-      for (const u of validUsers) {
-        if (u.conversation) continue;
-
-        const newConversationId = await apimeth.getUsersConversationId(
-          tenantId,
-          [
-            {
-              id: u.user_aadobject_id, // REQUIRED
-              name: u.user_name,
-            },
-          ],
-          botServiceUrl,
-          u.user_aadobject_id,
-        );
-
-        console.log("Conversation ID fetch result:", {
-          userName: u.user_name,
-          conversationId: newConversationId,
-        });
-
-        if (hasConversationId(newConversationId)) {
-          u.conversationId = newConversationId;
-          u.conversation = true;
-          createdConversationCount++;
-        }
-      }
-
-      // Upsert users (insert new rows; update missing conversationId when available)
-      const upsertValuesClause = validUsers
-        .map((u) => {
-          return `(
-          ${toSqlNVarChar(u.team_id)},
-          ${toSqlNVarChar(u.user_aadobject_id)},
-          ${toSqlNVarCharOrNull(u.user_id)},
-          ${toSqlNVarCharOrNull(u.user_name)},
-          ${toSqlNVarCharOrNull(u.userPrincipalName)},
-          ${toSqlNVarCharOrNull(u.email)},
-          ${toSqlNVarCharOrNull(u.tenantid)},
-          ${toSqlNVarCharOrNull(u.userRole)},
-          ${u.IS_TEAM_MEMBER},
-          ${toSqlNVarCharOrNull(u.conversationId)},
-          ${u.hasLicense}
-        )`;
-        })
-        .join(",\n    ");
-
-      const mergeQuery = `
-        MERGE INTO MSTeamsTeamsUsers WITH (HOLDLOCK) AS target
-        USING (VALUES
-          ${upsertValuesClause}
-        ) AS source
-        (
-          team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER, conversationId, hasLicense
-        )
-        ON target.team_id = source.team_id
-       AND target.user_aadobject_id = source.user_aadobject_id
-        WHEN MATCHED THEN
-          UPDATE SET
-            user_id = source.user_id,
-            user_name = source.user_name,
-            userPrincipalName = source.userPrincipalName,
-            email = source.email,
-            tenantid = source.tenantid,
-            userRole = source.userRole,
-            IS_TEAM_MEMBER = source.IS_TEAM_MEMBER,
-            conversationId = CASE
-              WHEN (target.conversationId IS NULL OR target.conversationId = 'null')
-               AND (source.conversationId IS NOT NULL AND source.conversationId <> 'null')
-              THEN source.conversationId
-              ELSE target.conversationId
-            END
-        WHEN NOT MATCHED THEN
-          INSERT (team_id, user_aadobject_id, user_id, user_name, userPrincipalName, email, tenantid, userRole, IS_TEAM_MEMBER, conversationId, hasLicense)
-          VALUES (source.team_id, source.user_aadobject_id, source.user_id, source.user_name, source.userPrincipalName, source.email, source.tenantid, source.userRole, source.IS_TEAM_MEMBER, source.conversationId, source.hasLicense);
-      `;
-
-      const mergeResult = await pool.request().query(mergeQuery);
-
-      const usersWithConversationFlag = normalized.map((u) => ({
-        ...u.original,
-        conversation: Boolean(u.conversation),
-      }));
-
-      console.log(
-        `✅ Processed ${users.length} users. valid=${validUsers.length}, skipped=${skippedCount}, alreadyHadConversation=${alreadyHadConversationCount}, createdConversation=${createdConversationCount}`,
+      const result = await saveInstalledUsers(
+        users,
+        tenantId,
+        teamId,
+        botServiceUrl,
       );
-
-      res.send({
-        success: true,
-        message: `Processed ${users.length} users`,
-        totalUsers: users.length,
-        validCount: validUsers.length,
-        skippedCount,
-        alreadyHadConversationCount,
-        createdConversationCount,
-        dbRowsAffected: mergeResult?.rowsAffected,
-        users: usersWithConversationFlag,
-      });
+      res.send(result);
     } catch (err) {
       console.log("Error in saveInstalledUsersToDB:", err);
       processSafetyBotError(
