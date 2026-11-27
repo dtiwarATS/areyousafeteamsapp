@@ -38,11 +38,11 @@ function initJob() {
         cron: "4,14,24,34,44,54 * * * *",
         closeWorkerAfterMs: 30 * 60 * 1000,
       },
-      {
-        name: "newSubcriptionAdded-job",
-        path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
-        cron: "6,16,26,36,46,56 * * * *",
-      },
+      // {
+      //   name: "newSubcriptionAdded-job",
+      //   path: path.join(__dirname, "jobs", "newSubcriptionAdded-job.js"),
+      //   cron: "6,16,26,36,46,56 * * * *",
+      // },
       {
         name: "subscription-job",
         path: path.join(__dirname, "jobs", "subscription-job.js"),
@@ -114,6 +114,12 @@ function initJob() {
         name: "consentPhoneEligible-job",
         path: path.join(__dirname, "jobs", "consentPhoneEligible-job.js"),
         cron: "30 2,14 * * *",
+      },
+      {
+        name: "syncConversationIds-job",
+        path: path.join(__dirname, "jobs", "syncConversationIds-job.js"),
+        cron: "0 * * * *",
+        closeWorkerAfterMs: 55 * 60 * 1000,
       },
     ],
   });
