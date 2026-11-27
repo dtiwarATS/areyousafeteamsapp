@@ -140,7 +140,7 @@ if (process.env.isLocal == "false") {
   shouldStartCronScheduler()
     .then((startScheduler) => {
       if (startScheduler) {
-        //initJob();
+        initJob();
       }
       logSchedulerDiagnostics();
     })
